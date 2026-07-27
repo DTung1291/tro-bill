@@ -1,0 +1,20 @@
+{
+  "name": "trobill-server",
+  "version": "1.0.0",
+  "description": "TrọBill backend — Express + Neon Postgres",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "init-db": "node init-db.js",
+    "make-admin": "node make-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

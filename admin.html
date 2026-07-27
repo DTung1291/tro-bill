@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrọBill — Quản trị</title>
+  <link rel="stylesheet" href="style.css?v=44" />
+</head>
+<body>
+  <div class="admin-wrap">
+    <header class="admin-header">
+      <h1>Quản trị người dùng</h1>
+      <div class="admin-header-actions">
+        <a href="index.html" class="admin-link">← Về ứng dụng</a>
+        <button id="admin-logout" class="admin-btn-ghost">Đăng xuất</button>
+      </div>
+    </header>
+
+    <p id="admin-msg" class="admin-msg" hidden></p>
+
+    <!-- Cấu hình ủng hộ nhà phát triển (toàn cục) -->
+    <section class="admin-config">
+      <h2>☕ Thông tin ủng hộ nhà phát triển (dùng chung)</h2>
+      <p class="admin-config-note">Thông tin này hiển thị cho tất cả người dùng khi họ tạo mã VietQR ủng hộ.</p>
+      <div class="admin-config-grid">
+        <label>Ngân hàng
+          <select id="cfg-bank-select">
+            <option value="">-- Chọn ngân hàng --</option>
+            <option value="MB">MB Bank (MB)</option>
+            <option value="VCB">Vietcombank (VCB)</option>
+            <option value="TCB">Techcombank (TCB)</option>
+            <option value="BIDV">BIDV</option>
+            <option value="ICB">VietinBank (ICB)</option>
+            <option value="VBA">Agribank (VBA)</option>
+            <option value="ACB">ACB</option>
+            <option value="TPB">TPBank (TPB)</option>
+            <option value="VPB">VPBank (VPB)</option>
+            <option value="STB">Sacombank (STB)</option>
+            <option value="VIB">VIB</option>
+            <option value="custom">Khác (Tự nhập)...</option>
+          </select>
+        </label>
+        <label id="cfg-custom-wrap" hidden>Mã ngân hàng
+          <input type="text" id="cfg-bank-custom" placeholder="e.g. OCB" />
+        </label>
+        <label>Số tài khoản
+          <input type="text" id="cfg-account" placeholder="Số tài khoản" />
+        </label>
+        <label>Chủ tài khoản (KHÔNG DẤU)
+          <input type="text" id="cfg-owner" placeholder="NGUYEN VAN A" />
+        </label>
+        <label>Nội dung chuyển khoản
+          <input type="text" id="cfg-message" placeholder="Ung ho" />
+        </label>
+      </div>
+      <button id="cfg-save" class="admin-btn">Lưu cấu hình</button>
+    </section>
+
+    <table class="admin-table" id="admin-table" hidden>
+      <thead>
+        <tr>
+          <th>ID</th><th>Email</th><th>Phòng</th><th>Lịch sử</th>
+          <th>Admin</th><th>Tạo lúc</th><th>Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="admin-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Modal xem dữ liệu của 1 user -->
+  <div id="admin-modal" class="admin-modal" hidden>
+    <div class="admin-modal-card">
+      <div class="admin-modal-head">
+        <h2 id="admin-modal-title">Dữ liệu người dùng</h2>
+        <button id="admin-modal-close" class="admin-btn-ghost">Đóng</button>
+      </div>
+      <div id="admin-modal-body" class="admin-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="api.js?v=44"></script>
+  <script src="admin.js?v=44"></script>
+</body>
+</html>

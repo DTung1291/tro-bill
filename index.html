@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TrọBill – Tính tiền nhà trọ</title>
+  <meta name="description" content="Ứng dụng tự động tính tiền thuê trọ hàng tháng: điện, nước, wifi, rác." />
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TrọBill" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png" />
+  <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=44" />
+</head>
+
+<body>
+  <!-- AUTH OVERLAY -->
+  <div id="auth-screen" class="auth-screen" hidden>
+    <div class="auth-card">
+      <div class="auth-brand"><span class="brand-icon">🏠</span> TrọBill</div>
+      <p class="auth-sub">Tính tiền nhà trọ hàng tháng</p>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="auth-tab-login">Đăng nhập</button>
+        <button type="button" class="auth-tab" id="auth-tab-register">Đăng ký</button>
+      </div>
+
+      <form id="auth-form" autocomplete="on">
+        <label class="auth-label">Email
+          <input type="email" id="auth-email" required autocomplete="username" placeholder="ban@email.com" />
+        </label>
+        <label class="auth-label">Mật khẩu
+          <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Tối thiểu 6 ký tự" minlength="6" />
+        </label>
+        <p class="auth-error" id="auth-error" hidden></p>
+        <button type="submit" class="auth-submit" id="auth-submit">Đăng nhập</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="nav" id="main-nav">
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <span class="brand-icon">🏠</span>
+        <span class="brand-name">TrọBill</span>
+      </div>
+      <div class="nav-nav-wrap" style="display:flex;align-items:center;gap:10px">
+        <!-- Desktop tabs (hidden on mobile) -->
+        <div class="nav-tabs nav-tabs--desktop">
+          <button class="nav-tab active" data-page="dashboard" id="tab-dashboard">
+            <span class="tab-icon">📊</span><span class="tab-label">Tổng quan</span>
+          </button>
+          <button class="nav-tab" data-page="rooms" id="tab-rooms">
+            <span class="tab-icon">🏡</span><span class="tab-label">Phòng</span>
+          </button>
+          <button class="nav-tab" data-page="billing" id="tab-billing">
+            <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
+          </button>
+          <button class="nav-tab" data-page="report" id="tab-report">
+            <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
+          </button>
+          <button class="nav-tab" data-page="history" id="tab-history">
+            <span class="tab-icon">📅</span><span class="tab-label">Lịch sử</span>
+          </button>
+          <button class="nav-tab" data-page="settings" id="tab-settings">
+            <span class="tab-icon">⚙️</span><span class="tab-label">Cài đặt</span>
+          </button>
+        </div>
+        <button class="btn-theme-toggle" id="theme-toggle" title="Đổi giao diện">🌓</button>
+        <a class="btn-theme-toggle admin-entry-btn" id="admin-entry" href="admin.html" title="Quản trị" hidden>🛡️</a>
+        <button class="btn-theme-toggle" id="logout-btn" title="Đăng xuất" hidden>🚪</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Bottom Navigation (shown on mobile only) -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Điều hướng mobile">
+    <button class="nav-tab active" data-page="dashboard" id="btab-dashboard">
+      <span class="tab-icon">📊</span><span class="tab-label">Tổng quan</span>
+    </button>
+    <button class="nav-tab" data-page="rooms" id="btab-rooms">
+      <span class="tab-icon">🏡</span><span class="tab-label">Phòng</span>
+    </button>
+    <button class="nav-tab" data-page="billing" id="btab-billing">
+      <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
+    </button>
+    <button class="nav-tab" data-page="report" id="btab-report">
+      <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
+    </button>
+    <button class="nav-tab" data-page="history" id="btab-history">
+      <span class="tab-icon">📅</span><span class="tab-label">Lịch sử</span>
+    </button>
+    <button class="nav-tab" data-page="settings" id="btab-settings">
+      <span class="tab-icon">⚙️</span><span class="tab-label">Cài đặt</span>
+    </button>
+  </nav>
+
+  <!-- PAGES -->
+  <main class="main">
+
+    <!-- PAGE: DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Tổng quan</h1>
+          <p class="page-sub" id="dashboard-period">Tháng --/----</p>
+        </div>
+        <div class="period-switcher">
+          <button class="btn-icon" id="prev-month" title="Tháng trước">‹</button>
+          <span class="period-label" id="period-display">--/----</span>
+          <button class="btn-icon" id="next-month" title="Tháng sau">›</button>
+        </div>
+      </div>
+
+      <div class="cards-grid">
+        <div class="card card--primary">
+          <div class="card-label">Tổng thu tháng</div>
+          <div class="card-value" id="total-amount">0 đ</div>
+          <div class="card-sub" id="total-net">Thực thu: 0 đ</div>
+        </div>
+        <div class="card card--electric">
+          <div class="card-label">Tiền điện</div>
+          <div class="card-value" id="total-electric">0 đ</div>
+        </div>
+        <div class="card card--water">
+          <div class="card-label">Tiền nước</div>
+          <div class="card-value" id="total-water">0 đ</div>
+        </div>
+        <div class="card card--status">
+          <div class="card-label">Phòng đã nhập</div>
+          <div class="card-value"><span id="rooms-entered">0</span>/<span id="rooms-total">0</span></div>
+          <div class="card-sub">phòng</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h2 class="section-title">Trạng thái từng phòng</h2>
+        <button class="btn btn--sm btn--ghost" id="btn-enter-all">Nhập chỉ số →</button>
+      </div>
+      <div class="room-status-list" id="room-status-list"></div>
+
+    </section>
+
+    <!-- PAGE: ROOMS -->
+    <section class="page" id="page-rooms">
+      <div class="page-header">
+        <h1 class="page-title">Quản lý phòng</h1>
+        <button class="btn btn--primary" id="btn-add-room">+ Thêm phòng</button>
+      </div>
+      <div class="rooms-list" id="rooms-list">
+        <div class="empty-state">
+          <div class="empty-icon">🏡</div>
+          <p>Chưa có phòng nào.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: BILLING -->
+    <section class="page" id="page-billing">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Nhập chỉ số</h1>
+          <p class="page-sub" id="billing-period-label">Tháng --/----</p>
+        </div>
+      </div>
+      <div class="billing-table-wrap">
+        <table class="billing-table" id="billing-table">
+          <thead>
+            <tr>
+              <th>Phòng</th>
+              <th>Số điện cũ</th>
+              <th>Số điện mới</th>
+              <th>kWh</th>
+              <th>Nước</th>
+              <th>Rác</th>
+              <th>Wifi</th>
+              <th>Phí QL & DV</th>
+              <th>Ghi chú</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody id="billing-tbody">
+            <tr>
+              <td colspan="10" class="empty-cell">Chưa có phòng</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="billing-legend" id="billing-legend"></div>
+    </section>
+
+    <!-- PAGE: REPORT -->
+    <section class="page" id="page-report">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Hóa đơn</h1>
+          <p class="page-sub" id="report-period-label">Tháng --/----</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn--ghost" id="btn-save-month">💾 Lưu tháng này</button>
+          <button class="btn btn--ghost" id="btn-copy-all">📋 Copy tất cả</button>
+          <button class="btn btn--primary" id="btn-print">🖨️ In báo cáo</button>
+        </div>
+      </div>
+      <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
+      <div class="report-list" id="report-list">
+        <div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          <p>Nhập chỉ số để xem hóa đơn</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: HISTORY -->
+    <section class="page" id="page-history">
+      <div class="page-header">
+        <h1 class="page-title">Lịch sử tháng</h1>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <p>Chưa có tháng nào được lưu.<br>Dùng nút <strong>Lưu tháng này</strong> trên tab Hóa đơn.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="page-header">
+        <h1 class="page-title">Cài đặt</h1>
+      </div>
+
+      <div class="settings-card">
+        <span>⚙️ Chi phí khấu trừ hàng tháng:</span>
+        <div class="settings-inline">
+          <input type="number" id="deduction-input" class="inline-input" placeholder="450000" />
+          <span>đ</span>
+          <button class="btn btn--sm" id="save-deduction">Lưu</button>
+        </div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
+        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">🏦 Cấu hình tài khoản nhận tiền (VietQR):</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <select id="bank-select" class="inline-input" style="width: 170px; font-weight: inherit;">
+            <option value="">-- Chọn ngân hàng --</option>
+            <option value="MB">MB Bank (MB)</option>
+            <option value="VCB">Vietcombank (VCB)</option>
+            <option value="TCB">Techcombank (TCB)</option>
+            <option value="BIDV">BIDV</option>
+            <option value="ICB">VietinBank (ICB)</option>
+            <option value="VBA">Agribank (VBA)</option>
+            <option value="ACB">ACB</option>
+            <option value="TPB">TPBank (TPB)</option>
+            <option value="VPB">VPBank (VPB)</option>
+            <option value="STB">Sacombank (STB)</option>
+            <option value="VIB">VIB</option>
+            <option value="custom">Khác (Tự nhập)...</option>
+          </select>
+          <input type="text" id="bank-custom-input" class="inline-input" placeholder="Mã ngân hàng (e.g. OCB)" style="width: 160px; display: none;" />
+          <input type="text" id="bank-account-input" class="inline-input" placeholder="Số tài khoản" style="width: 140px;" />
+          <input type="text" id="bank-owner-input" class="inline-input" placeholder="Tên chủ tài khoản (KHONG DAU)" style="width: 210px;" />
+          <input type="text" id="bank-pattern-input" class="inline-input" placeholder="Mẫu nội dung (e.g. {room} {period})" style="width: 240px;" />
+          <button class="btn btn--sm" id="save-bank-settings">Lưu cấu hình</button>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap;">
+          <span>💡 Placeholder hỗ trợ:</span>
+          <span><strong>{room}</strong>: Tên phòng</span>
+          <span><strong>{period}</strong>: Tháng năm dạng MMYYYY (e.g. 062026)</span>
+          <span><strong>{month}</strong>: Tháng MM (e.g. 06)</span>
+          <span><strong>{year}</strong>: Năm YYYY (e.g. 2026)</span>
+        </div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
+        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">⏰ Nhắc nhở chốt chỉ số hàng tháng:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="reminder-enabled-input" />
+            <span>Kích hoạt nhắc nhở</span>
+          </label>
+          <span style="margin-left: 10px;">Nhắc vào ngày:</span>
+          <select id="reminder-day-select" class="inline-input" style="width: 70px;">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+            <option value="19">19</option>
+            <option value="20">20</option>
+            <option value="21">21</option>
+            <option value="22">22</option>
+            <option value="23">23</option>
+            <option value="24">24</option>
+            <option value="25">25</option>
+            <option value="26">26</option>
+            <option value="27">27</option>
+            <option value="28">28</option>
+            <option value="29">29</option>
+            <option value="30">30</option>
+            <option value="31">31</option>
+          </select>
+          <span>lúc:</span>
+          <input type="time" id="reminder-time-input" class="inline-input" style="width: 90px;" />
+          <button class="btn btn--sm" id="save-reminder-settings">Lưu nhắc nhở</button>
+        </div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
+        <span>💾 Đồng bộ dữ liệu (sang trình duyệt/máy khác):</span>
+        <div style="display:flex; gap:8px">
+          <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất file JSON</button>
+          <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập file JSON</button>
+          <input type="file" id="import-file-input" accept=".json" style="display:none" />
+        </div>
+      </div>
+
+      <!-- 👑 Gói Premium (Chỉ hiện trên Android) -->
+      <div class="settings-card" id="premium-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;" hidden>
+        <span style="font-weight: 600; color: var(--text)">👑 Gói nâng cấp (Premium):</span>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span id="premium-status" style="font-size: 0.85rem; font-weight: 600; margin-right: 10px;"></span>
+          <button class="btn btn--sm btn--ghost" id="btn-buy-premium-yearly">📅 Gói năm (~120k)</button>
+          <button class="btn btn--sm btn--primary" id="btn-buy-premium-lifetime">♾️ Trọn đời (~370k)</button>
+        </div>
+      </div>
+
+      <!-- ☕ Ủng hộ nhà phát triển (Donate) -->
+      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
+        <div style="font-weight: 600; margin-bottom: 10px; color: var(--text)">☕ Ủng hộ nhà phát triển:</div>
+
+        <!-- Thông tin nhận ủng hộ do admin thiết lập chung -->
+        <div id="donate-empty-hint" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;" hidden>
+          💡 Quản trị viên chưa thiết lập thông tin ủng hộ.
+        </div>
+
+        <!-- VietQR Block -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 0.85rem; color: var(--text-muted)">Số tiền (đ):</span>
+          <input type="number" id="donate-amount-input" class="inline-input" value="50000"
+            min="5000" step="5000" style="width: 120px;" placeholder="50000" />
+          <button class="btn btn--sm" id="btn-donate-vietqr">📸 Tạo mã VietQR</button>
+        </div>
+
+        <!-- Google Play Donate Tiers – hiển thị khi chạy trong App Android -->
+        <div id="donate-iap-block" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+          <span style="font-size: 0.8rem; color: var(--text-muted); width: 100%; margin-bottom: 2px;">Hoặc qua CH Play:</span>
+          <button class="btn btn--sm btn--ghost" id="btn-donate-20k">☕ Cà phê (20k)</button>
+          <button class="btn btn--sm btn--ghost" id="btn-donate-50k">🍺 Ly bia (50k)</button>
+          <button class="btn btn--sm btn--primary" id="btn-donate-100k">🍕 Bữa trưa (100k)</button>
+        </div>
+
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 8px;">
+          💜 Cảm ơn bạn đã ủng hộ TrọBill!
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PRINT OVERLAY -->
+  <div class="print-area" id="print-area"></div>
+
+  <!-- MODAL: Donate VietQR -->
+  <div class="modal-overlay" id="donate-modal" hidden>
+    <div class="modal" style="max-width: 380px;">
+      <div class="modal-header">
+        <h2 class="modal-title">☕ Ủng hộ TrọBill</h2>
+        <button class="modal-close" id="donate-modal-close">✕</button>
+      </div>
+      <div style="padding: 16px; text-align: center;">
+        <p style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-muted);">
+          Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử
+        </p>
+        <img id="donate-qr-img"
+          src=""
+          alt="QR Code ủng hộ TrọBill"
+          style="width: 220px; height: 220px; border-radius: 12px; border: 3px solid var(--border); display: block; margin: 0 auto 16px;" />
+        <div style="background: var(--bg2); border-radius: 10px; padding: 12px; text-align: left; font-size: 0.85rem; line-height: 1.8;">
+          <div><strong>Ngân hàng:</strong> <span id="donate-bank-display"></span></div>
+          <div><strong>Chủ TK:</strong> <span id="donate-owner-display"></span></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong>Số TK:</strong>
+            <span id="donate-account-num"></span>
+            <button class="btn btn--sm btn--ghost" id="btn-copy-donate-account" style="padding: 2px 8px; font-size: 0.75rem;">📋 Copy</button>
+          </div>
+          <div><strong>Số tiền:</strong> <span id="donate-amount-display" style="color: var(--accent); font-weight: 700;"></span></div>
+          <div><strong>Nội dung:</strong> <span id="donate-message-display" style="color: var(--text-muted);"></span></div>
+        </div>
+        <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">💜 Cảm ơn bạn rất nhiều!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add/Edit Room -->
+  <div class="modal-overlay" id="room-modal" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="room-modal-title">Thêm phòng</h2>
+        <button class="modal-close" id="room-modal-close">✕</button>
+      </div>
+      <form class="modal-form" id="room-form">
+        <input type="hidden" id="room-id" />
+        <div class="form-row">
+          <label class="form-label">Tên phòng *</label>
+          <input class="form-input" type="text" id="room-name" placeholder="VD: Nhà 1, Phòng A101..." required />
+        </div>
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label">Tiền thuê (đ/tháng) *</label>
+            <input class="form-input" type="number" id="room-rent" placeholder="2200000" required />
+          </div>
+          <div>
+            <label class="form-label">Đơn giá điện (đ/kWh) *</label>
+            <input class="form-input" type="number" id="room-elec-rate" placeholder="3400" required />
+          </div>
+        </div>
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label">Phí rác (đ/tháng)</label>
+            <input class="form-input" type="number" id="room-trash" value="50000" />
+          </div>
+          <div>
+            <label class="form-label">Chỉ số điện hiện tại</label>
+            <input class="form-input" type="number" id="room-elec-prev" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label">Tính nước theo</label>
+            <select class="form-input" id="room-water-type">
+              <option value="người">Người</option>
+              <option value="khối">Khối</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Đơn giá nước (đ)</label>
+            <input class="form-input" type="number" id="room-water-rate" value="50000" />
+          </div>
+        </div>
+        <div class="form-row form-row--2col" id="room-people-count-container">
+          <div>
+            <label class="form-label">Số người ở</label>
+            <input class="form-input" type="number" id="room-people-count" value="1" min="1" />
+          </div>
+          <div></div>
+        </div>
+        <div class="form-row form-row--2col" id="room-water-prev-container" style="display:none">
+          <div>
+            <label class="form-label">Chỉ số nước khởi đầu</label>
+            <input class="form-input" type="number" id="room-water-prev" placeholder="0" />
+          </div>
+          <div></div>
+        </div>
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label checkbox-label" style="margin-top:26px">
+              <input type="checkbox" id="room-has-wifi" class="form-checkbox" />
+              <span>Sử dụng Wifi</span>
+            </label>
+          </div>
+          <div>
+            <label class="form-label">Phí Wifi (đ/tháng)</label>
+            <input class="form-input" type="number" id="room-wifi-fee" value="40000" />
+          </div>
+        </div>
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label">Phí quản lý & DV khác (đ/tháng)</label>
+            <input class="form-input" type="number" id="room-manage-fee" value="0" />
+          </div>
+          <div>
+            <label class="form-label">Ghi chú</label>
+            <input class="form-input" type="text" id="room-notes" placeholder="Tầng 1, phòng góc..." />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="room-modal-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary">Lưu phòng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm Action -->
+  <div class="modal-overlay" id="confirm-modal" hidden>
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirm-modal-title">Xác nhận</h2>
+        <button class="modal-close" id="confirm-modal-close">✕</button>
+      </div>
+      <p style="padding:4px 0 24px;color:var(--text-muted);font-size:.9rem;line-height:1.5" id="confirm-modal-body"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--ghost" id="confirm-modal-cancel">Hủy</button>
+        <button type="button" class="btn btn--primary" id="confirm-modal-ok" style="background:var(--red);border-color:var(--red)">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Edit Old Meter Reading -->
+  <div class="modal-overlay" id="edit-old-modal" hidden>
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h2 class="modal-title" id="edit-old-modal-title">Sửa chỉ số cũ</h2>
+        <button class="modal-close" id="edit-old-modal-close">✕</button>
+      </div>
+      <div style="padding:16px 0;display:flex;flex-direction:column;gap:12px">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:0;line-height:1.5" id="edit-old-modal-desc"></p>
+        <div>
+          <label class="form-label" id="edit-old-modal-label">Chỉ số cũ mới (áp dụng tháng này)</label>
+          <input type="number" class="form-input" id="edit-old-modal-input" placeholder="0" min="0" />
+        </div>
+      </div>
+      <div class="modal-actions" style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn--ghost btn--sm" id="edit-old-modal-reset" style="display:none">↺ Tự động</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="edit-old-modal-cancel">Hủy</button>
+        <button type="button" class="btn btn--primary btn--sm" id="edit-old-modal-ok">Lưu số cũ</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: Room Tenants Management -->
+  <div class="modal-overlay" id="tenants-modal" hidden>
+    <div class="modal" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 class="modal-title">👥 Khách trọ phòng <span id="tenants-room-name">—</span></h2>
+        <button class="modal-close" id="tenants-modal-close">✕</button>
+      </div>
+      
+      <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Tenant List Section -->
+        <div id="tenants-list-container" class="tenants-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto;">
+          <!-- Dynamic list of tenants -->
+        </div>
+        
+        <!-- Add Button -->
+        <div style="display: flex; justify-content: flex-end;">
+          <button type="button" class="btn btn--primary btn--sm" id="tenant-add-btn">➕ Thêm khách trọ</button>
+        </div>
+        
+        <!-- Form for Add/Edit Tenant (hidden by default) -->
+        <form id="tenant-form" style="display: none; border-top: 1px solid var(--border); padding-top: 16px; flex-direction: column; gap: 12px;">
+          <h3 id="tenant-form-title" style="font-size: 0.95rem; font-weight: 700; margin: 0;">➕ Thêm khách trọ</h3>
+          
+          <input type="hidden" id="tenant-id" />
+          
+          <!-- CCCD eKYC Buttons -->
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn--success btn--sm" id="tenant-scan-btn" style="padding: 6px 12px; font-size: 0.8rem;">📸 Quét QR CCCD</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="tenant-upload-btn" style="padding: 6px 12px; font-size: 0.8rem;">🖼️ Chọn ảnh CCCD</button>
+            <input type="file" id="tenant-qr-file" accept="image/*" style="display: none;" />
+            <span style="font-size: 0.75rem; color: var(--text-muted);">(Tự động điền nhanh)</span>
+          </div>
+          
+          <div class="form-row form-row--2col">
+            <div>
+              <label class="form-label">Họ và tên *</label>
+              <input class="form-input" type="text" id="tenant-fullname" placeholder="Nguyễn Văn A" required />
+            </div>
+            <div>
+              <label class="form-label">Số điện thoại</label>
+              <input class="form-input" type="tel" id="tenant-phone" placeholder="0901234567" />
+            </div>
+          </div>
+          
+          <div class="form-row form-row--2col">
+            <div>
+              <label class="form-label">Số CCCD *</label>
+              <input class="form-input" type="text" id="tenant-cccd" placeholder="038095012345" required />
+            </div>
+            <div>
+              <label class="form-label">Ngày cấp CCCD *</label>
+              <input class="form-input" type="date" id="tenant-issue-date" required />
+            </div>
+          </div>
+          
+          <div class="form-row form-row--2col">
+            <div>
+              <label class="form-label">Ngày sinh *</label>
+              <input class="form-input" type="date" id="tenant-dob" required />
+            </div>
+            <div>
+              <label class="form-label">Giới tính *</label>
+              <select class="form-input" id="tenant-gender" required>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <label class="form-label">Địa chỉ thường trú *</label>
+            <input class="form-input" type="text" id="tenant-address" placeholder="Thôn A, Xã B, Huyện C, Tỉnh D" required />
+          </div>
+          
+          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn btn--ghost btn--sm" id="tenant-form-cancel">Hủy</button>
+            <button type="submit" class="btn btn--primary btn--sm">Lưu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CCCD QR Scanner Camera -->
+  <div class="modal-overlay" id="tenant-scan-modal" hidden>
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2 class="modal-title">📸 Quét QR Căn cước công dân</h2>
+        <button class="modal-close" id="tenant-scan-close">✕</button>
+      </div>
+      <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px; align-items: center;">
+        <div id="cccd-qr-reader" style="width: 100%; max-width: 350px; background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 1/1;"></div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; line-height: 1.4;">
+          Căn chỉnh mã QR ở góc phải phía trên của CCCD vào khung quét.
+        </div>
+        <button type="button" class="btn btn--ghost" id="tenant-scan-cancel-btn" style="width: 100%;">Dừng quét</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: OCR Camera -->
+  <div class="modal-overlay" id="ocr-modal" hidden>
+    <div class="modal ocr-modal-inner">
+      <div class="modal-header">
+        <h2 class="modal-title" id="ocr-modal-title">📷 Chụp chỉ số</h2>
+        <button class="modal-close" id="ocr-modal-close">✕</button>
+      </div>
+
+      <!-- Video element (hidden, used as camera stream source) -->
+      <video id="ocr-video" autoplay playsinline muted style="display: none;"></video>
+
+      <!-- Interactive Canvas for video and image rendering -->
+      <div class="ocr-video-wrap" id="ocr-video-wrap">
+        <canvas id="ocr-canvas" width="1280" height="720" class="ocr-canvas"></canvas>
+        <div class="ocr-guide-box"></div>
+        <div class="ocr-guide-hint" id="ocr-guide-hint">Căn chỉnh hoặc kéo/zoom chữ số vào khung đỏ</div>
+      </div>
+
+      <!-- OCR Controls: Zoom Slider and Invert Checkbox -->
+      <div class="ocr-controls-row">
+        <div class="ocr-zoom-container">
+          <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">🔍 Zoom:</span>
+          <input type="range" id="ocr-zoom-slider" min="0.2" max="6" step="0.05" value="1" class="ocr-zoom-slider" />
+        </div>
+        <label class="checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 0.82rem; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="ocr-invert-check" />
+          <span>Chữ sáng nền tối (Invert)</span>
+        </label>
+      </div>
+
+      <!-- OCR Cropped & Preprocessed Image Preview -->
+      <div class="ocr-crop-preview-wrap">
+        <span class="ocr-crop-preview-label">Ảnh gửi quét:</span>
+        <canvas id="ocr-crop-canvas" width="448" height="100" class="ocr-crop-canvas"></canvas>
+      </div>
+
+      <!-- Kết quả OCR -->
+      <div class="ocr-result-row">
+        <label class="ocr-result-label">Chữ số nhận diện được:</label>
+        <input type="number" id="ocr-result-input" class="ocr-result-input" placeholder="—" />
+        <span class="ocr-result-hint">(Kiểm tra và sửa nếu cần)</span>
+      </div>
+      <p class="ocr-status" id="ocr-status"></p>
+
+      <!-- Buttons -->
+      <div class="ocr-actions">
+        <button class="btn btn--ghost" id="ocr-library-btn">🖼️ Chọn ảnh</button>
+        <input type="file" id="ocr-file-input" accept="image/*" hidden />
+        <button class="btn btn--primary" id="ocr-capture-btn">📸 Chụp ảnh</button>
+        <button class="btn btn--success" id="ocr-confirm-btn" disabled>✓ Dùng số này</button>
+        <button class="btn btn--ghost" id="ocr-cancel-btn">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="vendor/html5-qrcode.min.js"></script>
+  <script src="api.js?v=44"></script>
+  <script src="ocr.js?v=44"></script>
+  <script src="app.js?v=44"></script>
+</body>
+
+</html>

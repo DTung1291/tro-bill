@@ -1,0 +1,3158 @@
+/**
+ * TrọBill — app.js
+ * Tự động tính tiền thuê trọ hàng tháng
+ * Business logic từ file Excel "Sổ làm việc_1.xlsx"
+ */
+
+'use strict';
+
+// ============================================================
+//  STATE
+// ============================================================
+const STATE = {
+  rooms: [],            // Room[]
+  billingData: {},      // { "YYYY-MM": { roomId: { electricNew, waterUnits, paid } } }
+  settings: {
+    deduction: 450000,   // Chi phí khấu trừ hàng tháng
+    bankId: '',
+    bankAccount: '',
+    bankOwnerName: '',
+    bankTransferPattern: '',
+    reminderEnabled: false,
+    reminderDay: 30,
+    reminderTime: '20:00'
+  },
+  currentPeriod: null,  // "YYYY-MM"
+  history: [],          // Record of monthly snapshots: { period, deduction, timestamp, bills: [] }
+  theme: 'system'       // 'light' | 'dark' | 'system'
+};
+
+// ============================================================
+//  PERSISTENCE (backend API — Neon Postgres)
+//  saveState() giữ chữ ký đồng bộ như cũ, nhưng bên trong
+//  debounce rồi PUT toàn bộ state lên server. Mọi điểm gọi
+//  saveState() trong app không cần đổi.
+// ============================================================
+const STORAGE_KEY = 'trobill_v1'; // giữ lại cho import/export JSON tương thích
+
+let _saveTimer = null;
+let _savePending = false;
+
+function _serializeState() {
+  return {
+    rooms: STATE.rooms,
+    billingData: STATE.billingData,
+    settings: STATE.settings,
+    history: STATE.history,
+    theme: STATE.theme
+  };
+}
+
+// Đẩy lên server ngay (dùng khi cần chắc chắn đã lưu, ví dụ trước khi thoát)
+async function flushState() {
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+  }
+  if (!API.isLoggedIn()) return;
+  try {
+    await API.putState(_serializeState());
+    _savePending = false;
+  } catch (e) {
+    if (e.code === 401) return handleAuthExpired();
+    console.warn('Lưu lên server thất bại:', e.message);
+    if (typeof showToast === 'function') showToast('⚠️ Chưa lưu được, sẽ thử lại', 'error', 2500);
+  }
+}
+
+function saveState() {
+  _savePending = true;
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    flushState();
+  }, 600);
+}
+
+// Lưu nốt khi rời trang
+window.addEventListener('beforeunload', (e) => {
+  if (_savePending && API.isLoggedIn()) {
+    // gửi đồng bộ bằng sendBeacon nếu có thể
+    try {
+      const blob = new Blob([JSON.stringify(_serializeState())], { type: 'application/json' });
+      // sendBeacon không gắn được header Authorization → fallback flush thường
+    } catch (_) {}
+    flushState();
+  }
+});
+
+// Nạp state từ server (mặc định) hoặc từ 1 object cho sẵn (đường import JSON).
+// Trả về true nếu nạp thành công.
+function loadState(savedObj) {
+  let saved = savedObj;
+  if (saved === undefined) {
+    // Tương thích ngược: đường import cũ ghi vào localStorage rồi gọi loadState()
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    try { saved = JSON.parse(raw); } catch (e) { console.warn('parse localStorage lỗi', e); return false; }
+  }
+  try {
+
+    // Normalize rooms
+    STATE.rooms = (saved.rooms || []).map(r => ({
+      id: r.id || uuid(),
+      name: r.name || 'Phòng không tên',
+      rentPrice: r.rentPrice !== undefined ? Number(r.rentPrice) : 0,
+      electricRate: r.electricRate !== undefined ? Number(r.electricRate) : 3200,
+      waterRate: r.waterRate !== undefined ? Number(r.waterRate) : 50000,
+      waterType: r.waterType || 'người',
+      peopleCount: r.peopleCount !== undefined ? Number(r.peopleCount) : 1,
+      trashFee: r.trashFee !== undefined ? Number(r.trashFee) : 50000,
+      wifiFee: r.wifiFee !== undefined ? Number(r.wifiFee) : 0,
+      manageFee: r.manageFee !== undefined ? Number(r.manageFee) : 0,
+      electricPrev: r.electricPrev !== undefined ? Number(r.electricPrev) : 0,
+      waterPrev: r.waterPrev !== undefined ? Number(r.waterPrev) : 0,
+      notes: r.notes || '',
+      tenants: Array.isArray(r.tenants) ? r.tenants.map(t => ({
+        id: t.id || uuid(),
+        fullName: t.fullName || '',
+        phone: t.phone || '',
+        cccd: t.cccd || '',
+        issueDate: t.issueDate || '',
+        dob: t.dob || '',
+        gender: t.gender || 'Nam',
+        address: t.address || ''
+      })) : []
+    }));
+
+    STATE.billingData = saved.billingData || {};
+    STATE.settings = { ...STATE.settings, ...(saved.settings || {}) };
+    
+    // Normalize history snapshots
+    STATE.history = (saved.history || []).map(h => ({
+      period: h.period,
+      deduction: h.deduction !== undefined ? Number(h.deduction) : 450000,
+      timestamp: h.timestamp || Date.now(),
+      bills: (h.bills || []).map(b => ({
+        roomId: b.roomId,
+        roomName: b.roomName,
+        rentPrice: b.rentPrice !== undefined ? Number(b.rentPrice) : 0,
+        electricOld: b.electricOld !== undefined ? Number(b.electricOld) : 0,
+        electricNew: b.electricNew !== undefined && b.electricNew !== null ? Number(b.electricNew) : null,
+        electricRate: b.electricRate !== undefined ? Number(b.electricRate) : 0,
+        kwh: b.kwh !== undefined ? Number(b.kwh) : 0,
+        electricAmt: b.electricAmt !== undefined ? Number(b.electricAmt) : 0,
+        waterType: b.waterType || 'người',
+        waterRate: b.waterRate !== undefined ? Number(b.waterRate) : 0,
+        waterUnits: b.waterUnits !== undefined ? Number(b.waterUnits) : 0,
+        waterAmt: b.waterAmt !== undefined ? Number(b.waterAmt) : 0,
+        waterPrev: b.waterPrev !== undefined && b.waterPrev !== null ? Number(b.waterPrev) : null,
+        waterNew: b.waterNew !== undefined && b.waterNew !== null ? Number(b.waterNew) : null,
+        trashFee: b.trashFee !== undefined ? Number(b.trashFee) : 0,
+        wifiFee: b.wifiFee !== undefined ? Number(b.wifiFee) : 0,
+        manageFee: b.manageFee !== undefined ? Number(b.manageFee) : 0,
+        total: b.total !== undefined ? Number(b.total) : 0,
+        paid: !!b.paid
+      }))
+    }));
+
+    STATE.theme = saved.theme || 'system';
+    return true;
+  } catch (e) {
+    console.warn('Could not load saved state', e);
+    return false;
+  }
+}
+
+// ============================================================
+//  THEME SYSTEM
+// ============================================================
+function getAppliedTheme() {
+  if (STATE.theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return STATE.theme;
+}
+
+function initTheme() {
+  const theme = getAppliedTheme();
+  document.documentElement.setAttribute('data-theme', theme);
+  const toggleBtn = document.getElementById('theme-toggle');
+  if (toggleBtn) {
+    // Icon shows what clicking WILL DO (next state), not current state
+    // Cycle: system→light(☀️)  light→dark(🌙)  dark→auto(🌓)
+    toggleBtn.textContent = STATE.theme === 'system' ? '☀️' : (STATE.theme === 'light' ? '🌙' : '🌓');
+  }
+}
+
+function toggleTheme() {
+  let nextTheme = 'light';
+  if (STATE.theme === 'system') {
+    nextTheme = 'light';
+  } else if (STATE.theme === 'light') {
+    nextTheme = 'dark';
+  } else if (STATE.theme === 'dark') {
+    nextTheme = 'system';
+  }
+  STATE.theme = nextTheme;
+  initTheme();
+  saveState();
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('vi-VN') + ' đ';
+}
+
+function fmtNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return '0';
+  return Number(n).toLocaleString('vi-VN');
+}
+
+function fmtShorthand(val) {
+  if (val === 0 || val === null || val === undefined || isNaN(val)) return '0';
+  if (val >= 1000000) {
+    const m = val / 1000000;
+    return m.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + 'M';
+  }
+  if (val >= 1000) {
+    const k = val / 1000;
+    return k.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + 'k';
+  }
+  return val.toLocaleString('vi-VN');
+}
+
+function periodKey(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function parsePeriod(key) {
+  const [y, m] = key.split('-');
+  return { year: parseInt(y), month: parseInt(m) };
+}
+
+function periodLabel(key) {
+  if (!key) return '--/----';
+  const { year, month } = parsePeriod(key);
+  return `Tháng ${month}/${year}`;
+}
+
+function uuid() {
+  return crypto.randomUUID ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function removeVietnameseTones(str) {
+  if (!str) return '';
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str;
+}
+
+function genVietQrUrl(room, bill, period) {
+  const bankId = STATE.settings.bankId || '';
+  const account = STATE.settings.bankAccount || '';
+  const owner = STATE.settings.bankOwnerName || '';
+  
+  if (!bankId || !account) return null;
+
+  const amount = bill.total || 0;
+  
+  const pattern = STATE.settings.bankTransferPattern || '{room} {period}';
+  const { year, month } = parsePeriod(period);
+  const formattedPeriod = `${String(month).padStart(2, '0')}${year}`;
+  
+  let desc = pattern
+    .replace(/{room}/gi, room.name)
+    .replace(/{period}/gi, formattedPeriod)
+    .replace(/{month}/gi, String(month).padStart(2, '0'))
+    .replace(/{year}/gi, String(year));
+    
+  desc = removeVietnameseTones(desc).replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+  
+  const encodedDesc = encodeURIComponent(desc);
+  const encodedOwner = encodeURIComponent(owner);
+  
+  return `https://img.vietqr.io/image/${bankId}-${account}-compact.png?amount=${amount}&addInfo=${encodedDesc}&accountName=${encodedOwner}`;
+}
+
+function triggerHaptic(type = 'light') {
+  if (typeof AndroidApp !== 'undefined' && AndroidApp.vibrate) {
+    AndroidApp.vibrate(type);
+  } else if (navigator.vibrate) {
+    if (type === 'light') {
+      navigator.vibrate(20);
+    } else if (type === 'warning') {
+      navigator.vibrate([40, 40, 40]);
+    } else if (type === 'success') {
+      navigator.vibrate([60, 40, 80]);
+    }
+  }
+}
+
+function shareBillNative(title, text, fallbackCopyFn) {
+  if (typeof AndroidApp !== 'undefined' && AndroidApp.share) {
+    triggerHaptic('light');
+    AndroidApp.share(title, text);
+  } else if (navigator.share) {
+    triggerHaptic('light');
+    navigator.share({
+      title: title,
+      text: text
+    }).catch(err => {
+      console.warn('Native share failed', err);
+      fallbackCopyFn();
+    });
+  } else {
+    fallbackCopyFn();
+  }
+}
+
+function showToast(msg, type = 'info', duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast toast--${type}`;
+  el.hidden = false;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.hidden = true; }, duration);
+}
+
+// Custom confirm dialog (replaces window.confirm which Chrome blocks on file://)
+function showConfirm(message, onOk, onCancel = null, okText = 'Xóa') {
+  triggerHaptic('warning');
+  const overlay  = document.getElementById('confirm-modal');
+  const bodyEl   = document.getElementById('confirm-modal-body');
+  const okBtn    = document.getElementById('confirm-modal-ok');
+  const cancelBtn= document.getElementById('confirm-modal-cancel');
+  const closeBtn = document.getElementById('confirm-modal-close');
+
+  bodyEl.textContent = message;
+  okBtn.textContent = okText;
+  
+  if (okText === 'Xóa') {
+    okBtn.style.background = 'var(--red)';
+    okBtn.style.borderColor = 'var(--red)';
+  } else {
+    okBtn.style.background = 'var(--primary)';
+    okBtn.style.borderColor = 'var(--primary)';
+  }
+
+  overlay.hidden = false;
+
+  const cleanup = () => { overlay.hidden = true; };
+
+  // Remove old listeners by cloning the buttons
+  const newOk     = okBtn.cloneNode(true);
+  const newCancel = cancelBtn.cloneNode(true);
+  const newClose  = closeBtn.cloneNode(true);
+  okBtn.replaceWith(newOk);
+  cancelBtn.replaceWith(newCancel);
+  closeBtn.replaceWith(newClose);
+
+  newOk.addEventListener('click', () => { cleanup(); onOk(); });
+  newCancel.addEventListener('click', () => { cleanup(); if (onCancel) onCancel(); });
+  newClose.addEventListener('click', () => { cleanup(); if (onCancel) onCancel(); });
+  overlay.onclick = (e) => { if (e.target === overlay) { cleanup(); if (onCancel) onCancel(); } };
+}
+
+function getPreviousPeriodKey(period) {
+  const { year, month } = parsePeriod(period);
+  let prevMonth = month - 1;
+  let prevYear = year;
+  if (prevMonth === 0) {
+    prevMonth = 12;
+    prevYear = year - 1;
+  }
+  return periodKey(prevYear, prevMonth);
+}
+
+function getElectricOld(room, period) {
+  const curRec = getPeriodRecord(room.id, period);
+  if (curRec && curRec.electricOldOverride !== undefined && curRec.electricOldOverride !== '' && curRec.electricOldOverride !== null) {
+    return Number(curRec.electricOldOverride);
+  }
+  const prevPeriod = getPreviousPeriodKey(period);
+  const prevRec = getPeriodRecord(room.id, prevPeriod);
+  if (prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '') {
+    return Number(prevRec.electricNew);
+  }
+  return room.electricPrev || 0;
+}
+
+function getLatestPaidElectric(room) {
+  let latestVal = null;
+  let latestPeriod = '';
+  for (const period in STATE.billingData) {
+    const rec = STATE.billingData[period]?.[room.id];
+    if (rec && rec.paid && rec.electricNew !== undefined && rec.electricNew !== '') {
+      if (!latestPeriod || period.localeCompare(latestPeriod) > 0) {
+        latestPeriod = period;
+        latestVal = Number(rec.electricNew);
+      }
+    }
+  }
+  return latestVal;
+}
+
+function getWaterOld(room, period) {
+  const curRec = getPeriodRecord(room.id, period);
+  if (curRec && curRec.waterOldOverride !== undefined && curRec.waterOldOverride !== '' && curRec.waterOldOverride !== null) {
+    return Number(curRec.waterOldOverride);
+  }
+  const prevPeriod = getPreviousPeriodKey(period);
+  const prevRec = getPeriodRecord(room.id, prevPeriod);
+  if (prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null) {
+    return Number(prevRec.waterNew);
+  }
+  return room.waterPrev || 0;
+}
+
+function getLatestPaidWater(room) {
+  let latestVal = null;
+  let latestPeriod = '';
+  for (const period in STATE.billingData) {
+    const rec = STATE.billingData[period]?.[room.id];
+    if (rec && rec.paid && rec.waterNew !== undefined && rec.waterNew !== '' && rec.waterNew !== null) {
+      if (!latestPeriod || period.localeCompare(latestPeriod) > 0) {
+        latestPeriod = period;
+        latestVal = Number(rec.waterNew);
+      }
+    }
+  }
+  return latestVal;
+}
+
+function openEditOldModal(roomId, targetType = 'elec') {
+  const room = STATE.rooms.find(r => r.id === roomId);
+  if (!room) return;
+
+  const period = STATE.currentPeriod;
+  const rec = getPeriodRecord(roomId, period);
+  const isElec = targetType === 'elec';
+
+  const prevPeriod = getPreviousPeriodKey(period);
+  const prevRec = getPeriodRecord(roomId, prevPeriod);
+  let autoVal = 0;
+  if (isElec) {
+    autoVal = (prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '')
+      ? Number(prevRec.electricNew) : (room.electricPrev || 0);
+  } else {
+    autoVal = (prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null)
+      ? Number(prevRec.waterNew) : (room.waterPrev || 0);
+  }
+
+  const currentOverride = isElec ? rec?.electricOldOverride : rec?.waterOldOverride;
+  const hasOverride = currentOverride !== undefined && currentOverride !== '' && currentOverride !== null;
+  const currentVal = isElec ? getElectricOld(room, period) : getWaterOld(room, period);
+
+  const modal = document.getElementById('edit-old-modal');
+  const title = document.getElementById('edit-old-modal-title');
+  const desc = document.getElementById('edit-old-modal-desc');
+  const input = document.getElementById('edit-old-modal-input');
+  const label = document.getElementById('edit-old-modal-label');
+  const resetBtn = document.getElementById('edit-old-modal-reset');
+  const okBtn = document.getElementById('edit-old-modal-ok');
+  const cancelBtn = document.getElementById('edit-old-modal-cancel');
+  const closeBtn = document.getElementById('edit-old-modal-close');
+
+  const unitName = isElec ? 'điện' : 'nước';
+  title.textContent = `Sửa số ${unitName} cũ — ${room.name}`;
+  desc.innerHTML = `Số ${unitName} cũ tự động từ tháng trước là: <strong>${fmtNum(autoVal)}</strong>.<br>Bạn có thể thay đổi số cũ áp dụng riêng cho <strong>${periodLabel(period)}</strong> (ví dụ: do thay công tơ/reset).`;
+  label.textContent = `Số ${unitName} cũ mới (áp dụng ${periodLabel(period)})`;
+  input.value = currentVal;
+  resetBtn.style.display = hasOverride ? 'inline-block' : 'none';
+
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; };
+
+  const newOk = okBtn.cloneNode(true);
+  const newReset = resetBtn.cloneNode(true);
+  const newCancel = cancelBtn.cloneNode(true);
+  const newClose = closeBtn.cloneNode(true);
+
+  okBtn.replaceWith(newOk);
+  resetBtn.replaceWith(newReset);
+  cancelBtn.replaceWith(newCancel);
+  closeBtn.replaceWith(newClose);
+
+  newOk.addEventListener('click', () => {
+    const val = parseFloat(input.value);
+    if (isNaN(val) || val < 0) {
+      showToast('Vui lòng nhập chỉ số hợp lệ', 'error');
+      return;
+    }
+    if (!STATE.billingData[period]) STATE.billingData[period] = {};
+    if (!STATE.billingData[period][roomId]) STATE.billingData[period][roomId] = {};
+
+    if (isElec) {
+      STATE.billingData[period][roomId].electricOldOverride = val;
+    } else {
+      STATE.billingData[period][roomId].waterOldOverride = val;
+    }
+    saveState();
+    cleanup();
+    renderBilling();
+    renderReport();
+    showToast(`Đã cập nhật số ${unitName} cũ ✓`, 'success');
+  });
+
+  newReset.addEventListener('click', () => {
+    if (STATE.billingData[period]?.[roomId]) {
+      if (isElec) {
+        delete STATE.billingData[period][roomId].electricOldOverride;
+      } else {
+        delete STATE.billingData[period][roomId].waterOldOverride;
+      }
+      saveState();
+    }
+    cleanup();
+    renderBilling();
+    renderReport();
+    showToast(`Đã khôi phục số ${unitName} cũ tự động ✓`, 'info');
+  });
+
+  newCancel.addEventListener('click', cleanup);
+  newClose.addEventListener('click', cleanup);
+  modal.onclick = (e) => { if (e.target === modal) cleanup(); };
+}
+
+
+// ============================================================
+//  BILLING CALCULATIONS
+// ============================================================
+function calcBill(room, record, period = null) {
+  if (!record) return null;
+  
+  const electricOld = period ? getElectricOld(room, period) : (room.electricPrev || 0);
+  const electricNew = record.electricNew !== undefined && record.electricNew !== '' ? Number(record.electricNew) : electricOld;
+  const kwh = electricNew - electricOld;
+  const safeKwh = Math.max(0, kwh);
+  const electricAmt = safeKwh * (room.electricRate || 0);
+  
+  // Calculate water based on unit type (default: người)
+  let waterUnits = 0;
+  if (room.waterType === 'khối') {
+    if (record.waterUnits !== undefined && record.waterUnits !== '' && record.waterUnits !== null && record.waterNew === undefined) {
+      waterUnits = Number(record.waterUnits);
+    } else {
+      const waterOld = period ? getWaterOld(room, period) : (room.waterPrev || 0);
+      const waterNew = record.waterNew !== undefined && record.waterNew !== '' && record.waterNew !== null ? Number(record.waterNew) : waterOld;
+      waterUnits = Math.max(0, waterNew - waterOld);
+    }
+  } else {
+    const isWaterByPerson = (room.waterType || 'người') === 'người';
+    waterUnits = record.waterUnits !== undefined && record.waterUnits !== '' ? Number(record.waterUnits) : (isWaterByPerson ? (room.peopleCount || 1) : 0);
+  }
+  const waterAmt = waterUnits * (room.waterRate || 50000);
+  
+  const trashAmt = room.trashFee || 0;
+  const wifiAmt = room.wifiFee || 0;
+  const manageAmt = room.manageFee || 0;
+  const rentAmt = room.rentPrice || 0;
+  const total = electricAmt + waterAmt + trashAmt + wifiAmt + manageAmt + rentAmt;
+  
+  return { 
+    kwh: safeKwh, 
+    electricAmt, 
+    waterUnits, 
+    waterAmt, 
+    trashAmt, 
+    wifiAmt, 
+    manageAmt, 
+    rentAmt, 
+    total 
+  };
+}
+
+function getPeriodRecord(roomId, period) {
+  return STATE.billingData[period]?.[roomId] || null;
+}
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+let activePage = 'dashboard';
+
+function navigate(page) {
+  triggerHaptic('light');
+  activePage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const pageEl  = document.getElementById(`page-${page}`);
+  const tabEl   = document.getElementById(`tab-${page}`);
+  const btabEl  = document.getElementById(`btab-${page}`);
+  if (pageEl)  pageEl.classList.add('active');
+  if (tabEl)   tabEl.classList.add('active');
+  if (btabEl)  btabEl.classList.add('active');
+  renderPage(page);
+}
+
+function renderPage(page) {
+  switch (page) {
+    case 'dashboard': renderDashboard(); break;
+    case 'rooms':     renderRooms();     break;
+    case 'billing':   renderBilling();   break;
+    case 'report':    renderReport();    break;
+    case 'history':   renderHistory();   break;
+    case 'settings':  break;
+  }
+}
+
+// ============================================================
+//  DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const period = STATE.currentPeriod;
+  document.getElementById('dashboard-period').textContent = periodLabel(period);
+  document.getElementById('period-display').textContent = periodLabel(period);
+  document.getElementById('deduction-input').value = STATE.settings.deduction ?? 450000;
+
+  const bankSelect = document.getElementById('bank-select');
+  const bankCustomInput = document.getElementById('bank-custom-input');
+  const bankAccountInput = document.getElementById('bank-account-input');
+  const bankOwnerInput = document.getElementById('bank-owner-input');
+
+  if (bankSelect) {
+    const bankId = STATE.settings.bankId || '';
+    const isPredefined = ['MB', 'VCB', 'TCB', 'BIDV', 'ICB', 'VBA', 'ACB', 'TPB', 'VPB', 'STB', 'VIB'].includes(bankId);
+    if (bankId === '') {
+      bankSelect.value = '';
+      if (bankCustomInput) bankCustomInput.style.display = 'none';
+    } else if (isPredefined) {
+      bankSelect.value = bankId;
+      if (bankCustomInput) bankCustomInput.style.display = 'none';
+    } else {
+      bankSelect.value = 'custom';
+      if (bankCustomInput) {
+        bankCustomInput.value = bankId;
+        bankCustomInput.style.display = 'inline-block';
+      }
+    }
+  }
+  if (bankAccountInput) bankAccountInput.value = STATE.settings.bankAccount || '';
+  if (bankOwnerInput) bankOwnerInput.value = STATE.settings.bankOwnerName || '';
+  const bankPatternInput = document.getElementById('bank-pattern-input');
+  if (bankPatternInput) bankPatternInput.value = STATE.settings.bankTransferPattern || '';
+
+  // Ẩn/hiện gợi ý ủng hộ theo cấu hình chung do admin thiết lập
+  renderDonateInfo();
+
+  const reminderEnabledInput = document.getElementById('reminder-enabled-input');
+  const reminderDaySelect = document.getElementById('reminder-day-select');
+  const reminderTimeInput = document.getElementById('reminder-time-input');
+  
+  if (reminderEnabledInput) reminderEnabledInput.checked = !!STATE.settings.reminderEnabled;
+  if (reminderDaySelect) reminderDaySelect.value = STATE.settings.reminderDay || 30;
+  if (reminderTimeInput) reminderTimeInput.value = STATE.settings.reminderTime || '20:00';
+
+  let totalAmt = 0, totalElec = 0, totalWater = 0;
+  let entered = 0;
+
+  const listEl = document.getElementById('room-status-list');
+  listEl.innerHTML = '';
+
+  if (STATE.rooms.length === 0) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div>
+      <p>Chưa có phòng nào. <button class="link-btn" data-goto="rooms">Thêm phòng ngay</button></p></div>`;
+    listEl.querySelector('[data-goto]')?.addEventListener('click', () => navigate('rooms'));
+  }
+
+  for (const room of STATE.rooms) {
+    const rec = getPeriodRecord(room.id, period);
+    const bill = rec ? calcBill(room, rec, period) : null;
+
+    if (bill) {
+      totalAmt   += bill.total;
+      totalElec  += bill.electricAmt;
+      totalWater += bill.waterAmt;
+      entered++;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'room-status-item';
+    const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
+    item.innerHTML = `
+      <div>
+        <div class="room-status-name">${room.name}</div>
+        <div class="room-status-detail">
+          ${bill ? `⚡ ${fmtNum(bill.kwh)} kWh &nbsp;|&nbsp; 💧 ${bill.waterUnits} ${waterUnit}` : 'Chưa nhập chỉ số'}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="room-status-total">${bill ? fmt(bill.total) : '—'}</div>
+        <span class="badge ${rec?.paid ? 'badge--paid' : bill ? 'badge--ok' : 'badge--empty'}">
+          ${rec?.paid ? 'Đã thu' : bill ? 'Chưa thu' : 'Chờ nhập'}
+        </span>
+      </div>
+    `;
+    listEl.appendChild(item);
+  }
+
+  const netAmt = totalAmt - (STATE.settings.deduction || 0);
+  document.getElementById('total-amount').textContent = fmt(totalAmt);
+  document.getElementById('total-net').textContent     = `Thực thu: ${fmt(netAmt)}`;
+  document.getElementById('total-electric').textContent = fmt(totalElec);
+  document.getElementById('total-water').textContent    = fmt(totalWater);
+  document.getElementById('rooms-entered').textContent  = entered;
+  document.getElementById('rooms-total').textContent    = STATE.rooms.length;
+}
+
+// ============================================================
+//  ROOMS
+// ============================================================
+function renderRooms() {
+  const listEl = document.getElementById('rooms-list');
+  listEl.innerHTML = '';
+
+  if (STATE.rooms.length === 0) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏡</div><p>Chưa có phòng nào.</p></div>`;
+    return;
+  }
+
+  for (const room of STATE.rooms) {
+    const card = document.createElement('div');
+    card.className = 'room-card';
+    const hasWifi = room.wifiFee > 0;
+    const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
+    const latestPaid = getLatestPaidElectric(room);
+    const latestText = latestPaid !== null 
+      ? `Số điện hiện tại (đã thu): <strong>${fmtNum(latestPaid)}</strong> <span style="font-size:0.7rem;color:var(--wifi)">*(Tự động)*</span>`
+      : `Số điện hiện tại: <strong>${fmtNum(room.electricPrev || 0)}</strong>`;
+
+    const latestWaterPaid = getLatestPaidWater(room);
+    const latestWaterText = latestWaterPaid !== null
+      ? `Số nước hiện tại (đã thu): <strong>${fmtNum(latestWaterPaid)}</strong> <span style="font-size:0.7rem;color:var(--wifi)">*(Tự động)*</span>`
+      : `Số nước hiện tại: <strong>${fmtNum(room.waterPrev || 0)}</strong>`;
+
+    const waterPrevHtml = room.waterType === 'khối'
+      ? `<div>Số nước khởi đầu: <strong>${fmtNum(room.waterPrev || 0)}</strong></div><div>${latestWaterText}</div>`
+      : '';
+
+    card.innerHTML = `
+      <div class="room-card-info">
+        <div class="room-card-name">${room.name}</div>
+        <div class="room-card-details">
+          <span class="room-detail-chip">🏷️ Thuê: ${fmt(room.rentPrice)}/tháng</span>
+          <span class="room-detail-chip">⚡ Điện: ${fmtNum(room.electricRate)}đ/kWh</span>
+          <span class="room-detail-chip">💧 Nước: ${fmtNum(room.waterRate)}đ/${waterUnitText}</span>
+          <span class="room-detail-chip">👥 Số người: ${room.peopleCount || 1}</span>
+          <span class="room-detail-chip">🗑️ Rác: ${fmt(room.trashFee)}</span>
+          ${hasWifi ? `<span class="room-detail-chip">📶 Wifi: ${fmt(room.wifiFee)}</span>` : ''}
+          ${room.manageFee && room.manageFee > 0 ? `<span class="room-detail-chip">💼 QL & DV: ${fmt(room.manageFee)}</span>` : ''}
+          ${room.notes ? `<span class="room-detail-chip">📝 ${room.notes}</span>` : ''}
+        </div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:6px;display:flex;flex-direction:column;gap:2px">
+          <div>Số điện khởi đầu: <strong>${fmtNum(room.electricPrev || 0)}</strong></div>
+          <div>${latestText}</div>
+          ${waterPrevHtml}
+        </div>
+      </div>
+      <div class="room-card-actions">
+        <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
+        <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
+        <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
+      </div>
+    `;
+    const tenantsBtn = card.querySelector('[data-tenants]');
+    const editBtn = card.querySelector('[data-edit]');
+    const deleteBtn = card.querySelector('[data-delete]');
+    if (tenantsBtn) tenantsBtn.addEventListener('click', (e) => { e.stopPropagation(); openTenantsModal(room.id); });
+    if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); openRoomModal(room.id); });
+    if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteRoom(room.id); });
+    listEl.appendChild(card);
+  }
+}
+
+function deleteRoom(id) {
+  const room = STATE.rooms.find(r => r.id === id);
+  if (!room) return;
+  showConfirm(
+    `Xóa phòng “${room.name}”? Dữ liệu tháng liên quan sẽ không bị xóa.`,
+    () => {
+      STATE.rooms = STATE.rooms.filter(r => r.id !== id);
+      saveState();
+      renderRooms();
+      renderDashboard();
+      showToast(`Đã xóa phòng ${room.name}`, 'info');
+    }
+  );
+}
+
+// ============================================================
+//  ROOM MODAL (CRUD Form)
+// ============================================================
+function openRoomModal(roomId = null) {
+  const modal = document.getElementById('room-modal');
+  const title = document.getElementById('room-modal-title');
+  const form  = document.getElementById('room-form');
+  form.reset();
+
+  if (roomId) {
+    const room = STATE.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    title.textContent = 'Sửa phòng';
+    document.getElementById('room-id').value          = room.id;
+    document.getElementById('room-name').value        = room.name;
+    document.getElementById('room-rent').value        = room.rentPrice;
+    document.getElementById('room-elec-rate').value   = room.electricRate;
+    document.getElementById('room-water-type').value  = room.waterType || 'người';
+    document.getElementById('room-water-rate').value  = room.waterRate ?? 50000;
+    document.getElementById('room-people-count').value= room.peopleCount ?? 1;
+    document.getElementById('room-trash').value       = room.trashFee ?? 50000;
+    document.getElementById('room-has-wifi').checked  = !!(room.wifiFee && room.wifiFee > 0);
+    document.getElementById('room-wifi-fee').value    = room.wifiFee || 40000;
+    document.getElementById('room-manage-fee').value  = room.manageFee || 0;
+    document.getElementById('room-elec-prev').value   = room.electricPrev || 0;
+    document.getElementById('room-water-prev').value  = room.waterPrev || 0;
+    document.getElementById('room-notes').value       = room.notes || '';
+    
+    const isWaterByKhối = (room.waterType || 'người') === 'khối';
+    document.getElementById('room-water-prev-container').style.display = isWaterByKhối ? 'flex' : 'none';
+    document.getElementById('room-people-count-container').style.display = isWaterByKhối ? 'none' : 'flex';
+  } else {
+    title.textContent = 'Thêm phòng';
+    document.getElementById('room-id').value = '';
+    document.getElementById('room-water-type').value = 'người';
+    document.getElementById('room-water-rate').value = 50000;
+    document.getElementById('room-people-count').value = 1;
+    document.getElementById('room-trash').value = 50000;
+    document.getElementById('room-has-wifi').checked = true;
+    document.getElementById('room-wifi-fee').value = 40000;
+    document.getElementById('room-manage-fee').value = 0;
+    document.getElementById('room-elec-prev').value = 0;
+    document.getElementById('room-water-prev').value = 0;
+    document.getElementById('room-water-prev-container').style.display = 'none';
+    document.getElementById('room-people-count-container').style.display = 'flex';
+  }
+  modal.hidden = false;
+}
+
+function closeRoomModal() {
+  document.getElementById('room-modal').hidden = true;
+}
+
+document.getElementById('room-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const id        = document.getElementById('room-id').value;
+  const name      = document.getElementById('room-name').value.trim();
+  const rentPrice = parseFloat(document.getElementById('room-rent').value) || 0;
+  const electricRate = parseFloat(document.getElementById('room-elec-rate').value) || 0;
+  const waterType    = document.getElementById('room-water-type').value;
+  const waterRate    = parseFloat(document.getElementById('room-water-rate').value) || 0;
+  const peopleCount  = parseInt(document.getElementById('room-people-count').value) || 1;
+  const trashFee     = parseFloat(document.getElementById('room-trash').value) || 0;
+  const hasWifi      = document.getElementById('room-has-wifi').checked;
+  const wifiFeeVal   = parseFloat(document.getElementById('room-wifi-fee').value) || 0;
+  const wifiFee      = hasWifi ? wifiFeeVal : 0;
+  const manageFee    = parseFloat(document.getElementById('room-manage-fee').value) || 0;
+  const electricPrev = parseFloat(document.getElementById('room-elec-prev').value) || 0;
+  const waterPrev    = parseFloat(document.getElementById('room-water-prev').value) || 0;
+  const notes        = document.getElementById('room-notes').value.trim();
+
+  if (!name || isNaN(rentPrice) || isNaN(electricRate)) {
+    showToast('Vui lòng điền đủ thông tin bắt buộc', 'error');
+    return;
+  }
+
+  const roomData = {
+    id: id || uuid(),
+    name,
+    rentPrice,
+    electricRate,
+    waterType,
+    waterRate,
+    peopleCount,
+    trashFee,
+    wifiFee,
+    manageFee,
+    electricPrev,
+    waterPrev,
+    notes
+  };
+
+  if (id) {
+    const idx = STATE.rooms.findIndex(r => r.id === id);
+    if (idx > -1) {
+      roomData.tenants = STATE.rooms[idx].tenants || [];
+      STATE.rooms[idx] = roomData;
+    }
+    showToast('Đã cập nhật phòng ✓', 'success');
+  } else {
+    roomData.tenants = [];
+    STATE.rooms.push(roomData);
+    showToast('Đã thêm phòng ✓', 'success');
+  }
+
+  saveState();
+  closeRoomModal();
+  renderRooms();
+  renderDashboard();
+});
+
+document.getElementById('room-modal-close').addEventListener('click', closeRoomModal);
+document.getElementById('room-modal-cancel').addEventListener('click', closeRoomModal);
+document.getElementById('room-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('room-modal')) closeRoomModal();
+});
+document.getElementById('btn-add-room').addEventListener('click', () => {
+  if (STATE.rooms.length >= 3) {
+    checkPremiumFeature('Quản lý từ phòng thứ 4', () => openRoomModal());
+  } else {
+    openRoomModal();
+  }
+});
+
+document.getElementById('room-water-type').addEventListener('change', (e) => {
+  const isKhối = e.target.value === 'khối';
+  const prevContainer   = document.getElementById('room-water-prev-container');
+  const peopleContainer = document.getElementById('room-people-count-container');
+  if (prevContainer)   prevContainer.style.display   = isKhối ? 'flex' : 'none';
+  if (peopleContainer) peopleContainer.style.display = isKhối ? 'none' : 'flex';
+});
+
+// ============================================================
+//  BILLING SHEET (Nhập chỉ số)
+// ============================================================
+function renderBilling() {
+  const period = STATE.currentPeriod;
+  document.getElementById('billing-period-label').textContent = periodLabel(period);
+
+  const tbody = document.getElementById('billing-tbody');
+  tbody.innerHTML = '';
+
+  if (STATE.rooms.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-cell">Chưa có phòng. Vào tab Phòng để thêm.</td></tr>`;
+    return;
+  }
+
+  for (const room of STATE.rooms) {
+    const periodRec = STATE.billingData[period] || {};
+    const rec = periodRec[room.id] || {};
+    const electricOld = getElectricOld(room, period);
+    const electricNew = rec.electricNew ?? '';
+    
+    let waterUnits = rec.waterUnits;
+    let waterNew = rec.waterNew ?? '';
+    let waterOld = 0;
+    
+    if (room.waterType === 'khối') {
+      waterOld = getWaterOld(room, period);
+      if (waterNew === '') {
+        waterUnits = '';
+      } else {
+        waterUnits = waterNew - waterOld;
+      }
+    } else {
+      if (waterUnits === undefined || waterUnits === null || waterUnits === '') {
+        waterUnits = room.waterType === 'người' ? (room.peopleCount || 1) : '';
+      }
+    }
+
+    const kwh  = electricNew !== '' ? Math.max(0, electricNew - electricOld) : '—';
+    
+    const hasValidElec = electricNew !== '';
+    const hasValidWater = room.waterType === 'khối' ? waterNew !== '' : waterUnits !== '';
+    
+    const bill = hasValidElec && hasValidWater
+      ? calcBill(room, { electricNew: +electricNew, waterNew: waterNew !== '' ? +waterNew : undefined, waterUnits: waterUnits !== '' ? +waterUnits : undefined }, period)
+      : null;
+
+    let kwhHtml = '—';
+    if (electricNew !== '') {
+      kwhHtml = `${fmtNum(kwh)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">(${fmtNum(electricNew)} - ${fmtNum(electricOld)})</div>`;
+    }
+
+    let totalHtml = '—';
+    if (bill) {
+      const parts = [];
+      if (bill.electricAmt > 0) parts.push(fmtShorthand(bill.electricAmt));
+      if (bill.waterAmt > 0) parts.push(fmtShorthand(bill.waterAmt));
+      if (bill.trashAmt > 0) parts.push(fmtShorthand(bill.trashAmt));
+      if (bill.wifiAmt > 0) parts.push(fmtShorthand(bill.wifiAmt));
+      if (bill.manageAmt > 0) parts.push(fmtShorthand(bill.manageAmt));
+      if (bill.rentAmt > 0) parts.push(fmtShorthand(bill.rentAmt));
+      const breakdown = parts.join(' + ');
+      totalHtml = `${fmt(bill.total)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">${breakdown}</div>`;
+    }
+
+    const tr = document.createElement('tr');
+    
+    const waterPlaceholder = room.waterType === 'người' ? 'Số người' : 'Số khối';
+    const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
+    
+    const wifiText = room.wifiFee > 0 ? `📶 ${fmtShorthand(room.wifiFee)}` : '—';
+    const wifiBadgeClass = room.wifiFee > 0 ? 'badge badge--paid' : 'badge badge--empty';
+
+    // Check if electricOld is auto-rolled, overridden, or static
+    const prevPeriod = getPreviousPeriodKey(period);
+    const prevRec = getPeriodRecord(room.id, prevPeriod);
+    const isAutoRolled = prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '';
+    const isElecOverridden = rec && rec.electricOldOverride !== undefined && rec.electricOldOverride !== '' && rec.electricOldOverride !== null;
+    
+    let electricOldSubText = isAutoRolled ? '↑ tự động' : '';
+    if (isElecOverridden) electricOldSubText = '✏️ tùy chỉnh';
+
+    const electricOldHtml = `
+      <div style="display:flex;align-items:center;gap:4px">
+        <span>${fmtNum(electricOld)}</span>
+        <button class="btn-edit-old" data-room="${room.id}" data-type="elec" title="Sửa số điện cũ tháng này">✏️</button>
+      </div>
+      ${electricOldSubText ? `<div style="font-size:0.65rem;color:${isElecOverridden ? 'var(--primary)' : 'var(--wifi)'};margin-top:1px">${electricOldSubText}</div>` : ''}
+    `;
+
+    let waterCellHtml = '';
+    if (room.waterType === 'khối') {
+      const isWaterAutoRolled = prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null;
+      const isWaterOverridden = rec && rec.waterOldOverride !== undefined && rec.waterOldOverride !== '' && rec.waterOldOverride !== null;
+      
+      let waterOldSubText = isWaterAutoRolled ? '↑ tự động' : '';
+      if (isWaterOverridden) waterOldSubText = '✏️ tùy chỉnh';
+
+      const waterOldHtml = `
+        <span>${fmtNum(waterOld)}</span>
+        <button class="btn-edit-old" data-room="${room.id}" data-type="water" title="Sửa số nước cũ tháng này">✏️</button>
+        ${waterOldSubText ? `<span style="font-size:0.65rem;color:${isWaterOverridden ? 'var(--primary)' : 'var(--wifi)'};margin-left:4px">${waterOldSubText}</span>` : ''}
+      `;
+
+      waterCellHtml = `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:0.75rem; color:var(--text-muted)">Cũ: <strong>${waterOldHtml}</strong></div>
+          <div class="ocr-input-wrap">
+            <input type="number" class="water-new-input" data-room="${room.id}"
+              value="${waterNew}" placeholder="Số mới" min="${waterOld}" style="width:90px" />
+            <button class="btn-ocr" data-room="${room.id}" data-target="water"
+              title="Chụp ảnh công tơ nước">📷</button>
+          </div>
+          <div class="water-units-display" id="water-units-${room.id}" style="font-size:0.75rem; color:var(--water); font-weight:600">
+            ${waterNew !== '' ? `${fmtNum(Math.max(0, waterNew - waterOld))} khối` : '—'}
+          </div>
+        </div>
+      `;
+    } else {
+      waterCellHtml = `
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="number" class="water-input" data-room="${room.id}"
+            value="${waterUnits}" placeholder="${waterPlaceholder}" min="0" style="width:80px" />
+          <span style="font-size:0.75rem;color:var(--text-muted)">${waterUnitText}</span>
+        </div>
+      `;
+    }
+
+    tr.innerHTML = `
+      <td><strong>${room.name}</strong></td>
+      <td style="color:var(--text-muted)">${electricOldHtml}</td>
+      <td>
+        <div class="ocr-input-wrap">
+          <input type="number" class="elec-new-input" data-room="${room.id}"
+            value="${electricNew}" placeholder="Số mới" min="${electricOld}" style="width:90px" />
+          <button class="btn-ocr" data-room="${room.id}" data-target="elec"
+            title="Chụp ảnh công tơ điện">📷</button>
+        </div>
+      </td>
+      <td class="kwh-cell" id="kwh-${room.id}">${kwhHtml}</td>
+      <td>${waterCellHtml}</td>
+      <td><span style="font-size:0.85rem">${fmt(room.trashFee || 0)}</span></td>
+      <td><span class="${wifiBadgeClass}">${wifiText}</span></td>
+      <td><span style="font-size:0.85rem">${fmt(room.manageFee || 0)}</span></td>
+      <td>
+        <input type="text" class="bill-note-input" data-room="${room.id}"
+          value="${rec.note || ''}" placeholder="Ghi chú tháng..." />
+      </td>
+      <td class="total-cell" id="total-${room.id}">${totalHtml}</td>
+    `;
+
+    // Live calculation
+    const elecInput  = tr.querySelector('.elec-new-input');
+    const waterInput = tr.querySelector('.water-input');
+    const waterNewInput = tr.querySelector('.water-new-input');
+
+    const recalc = () => {
+      const eNew = parseFloat(elecInput.value);
+      
+      let wUnits = 0;
+      let wNew = '';
+      if (room.waterType === 'khối') {
+        wNew = waterNewInput ? parseFloat(waterNewInput.value) : NaN;
+        
+        const hasWaterVal = !isNaN(wNew) && waterNewInput.value !== '';
+        const isWaterInvalid = hasWaterVal && wNew < waterOld;
+        
+        if (isWaterInvalid) {
+          waterNewInput.style.outline = '2px solid var(--red)';
+          waterNewInput.style.borderColor = 'var(--red)';
+          document.getElementById(`water-units-${room.id}`).innerHTML =
+            `<span style="color:var(--red);font-size:0.75rem;font-weight:600">⚠ Phải ≥ ${fmtNum(waterOld)}</span>`;
+          document.getElementById(`total-${room.id}`).innerHTML = '—';
+          
+          if (STATE.billingData[period]?.[room.id]) {
+            STATE.billingData[period][room.id].waterNew = '';
+            saveState();
+          }
+          return;
+        }
+        
+        waterNewInput.style.outline = '';
+        waterNewInput.style.borderColor = '';
+        
+        wUnits = hasWaterVal ? Math.max(0, wNew - waterOld) : null;
+        if (wUnits !== null) {
+          document.getElementById(`water-units-${room.id}`).innerHTML = `<strong>${fmtNum(wUnits)}</strong> khối`;
+        } else {
+          document.getElementById(`water-units-${room.id}`).innerHTML = '—';
+        }
+      } else {
+        wUnits = waterInput ? parseFloat(waterInput.value) : NaN;
+      }
+
+      // --- Validation: số điện mới phải >= số điện cũ ---
+      const hasValue = !isNaN(eNew) && elecInput.value !== '';
+      const isInvalid = hasValue && eNew < electricOld;
+
+      if (isInvalid) {
+        elecInput.style.outline = '2px solid var(--red)';
+        elecInput.style.borderColor = 'var(--red)';
+        document.getElementById(`kwh-${room.id}`).innerHTML =
+          `<span style="color:var(--red);font-size:0.75rem;font-weight:600">⚠ Phải ≥ ${fmtNum(electricOld)}</span>`;
+        document.getElementById(`total-${room.id}`).innerHTML = '—';
+        // Xoá giá trị lỗi khỏi state (không lưu số sai)
+        if (STATE.billingData[period]?.[room.id]) {
+          STATE.billingData[period][room.id].electricNew = '';
+          saveState();
+        }
+        return;
+      }
+
+      // Reset validation style
+      elecInput.style.outline = '';
+      elecInput.style.borderColor = '';
+
+      const kwhVal = hasValue ? Math.max(0, eNew - electricOld) : null;
+
+      if (kwhVal !== null) {
+        document.getElementById(`kwh-${room.id}`).innerHTML = `${fmtNum(kwhVal)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">(${fmtNum(eNew)} - ${fmtNum(electricOld)})</div>`;
+      } else {
+        document.getElementById(`kwh-${room.id}`).innerHTML = '—';
+      }
+
+      const isValidWater = room.waterType === 'khối' ? !isNaN(wNew) && waterNewInput.value !== '' : !isNaN(wUnits);
+
+      if (kwhVal !== null && isValidWater) {
+        const b = calcBill(room, { electricNew: eNew, waterNew: wNew, waterUnits: wUnits }, period);
+        const parts = [];
+        if (b.electricAmt > 0) parts.push(fmtShorthand(b.electricAmt));
+        if (b.waterAmt > 0) parts.push(fmtShorthand(b.waterAmt));
+        if (b.trashAmt > 0) parts.push(fmtShorthand(b.trashAmt));
+        if (b.wifiAmt > 0) parts.push(fmtShorthand(b.wifiAmt));
+        if (b.manageAmt > 0) parts.push(fmtShorthand(b.manageAmt));
+        if (b.rentAmt > 0) parts.push(fmtShorthand(b.rentAmt));
+        const breakdown = parts.join(' + ');
+        document.getElementById(`total-${room.id}`).innerHTML = `${fmt(b.total)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">${breakdown}</div>`;
+      } else {
+        document.getElementById(`total-${room.id}`).innerHTML = '—';
+      }
+
+      // Save valid data
+      if (!STATE.billingData[period]) STATE.billingData[period] = {};
+      if (!STATE.billingData[period][room.id]) STATE.billingData[period][room.id] = {};
+      STATE.billingData[period][room.id].electricNew = hasValue ? eNew : '';
+      if (room.waterType === 'khối') {
+        STATE.billingData[period][room.id].waterNew = !isNaN(wNew) ? wNew : '';
+        STATE.billingData[period][room.id].waterUnits = wUnits !== null && !isNaN(wUnits) ? wUnits : '';
+      } else {
+        STATE.billingData[period][room.id].waterUnits = !isNaN(wUnits) ? wUnits : '';
+        delete STATE.billingData[period][room.id].waterNew;
+      }
+      saveState();
+    };
+
+    // Validate existing saved value on initial render
+    if (electricNew !== '' && !isNaN(Number(electricNew)) && Number(electricNew) < electricOld) {
+      elecInput.style.outline = '2px solid var(--red)';
+      elecInput.style.borderColor = 'var(--red)';
+    }
+    if (room.waterType === 'khối' && waterNew !== '' && !isNaN(Number(waterNew)) && Number(waterNew) < waterOld) {
+      if (waterNewInput) {
+        waterNewInput.style.outline = '2px solid var(--red)';
+        waterNewInput.style.borderColor = 'var(--red)';
+      }
+    }
+
+    elecInput.addEventListener('input', recalc);
+    if (room.waterType === 'khối') {
+      if (waterNewInput) waterNewInput.addEventListener('input', recalc);
+    } else {
+      if (waterInput) waterInput.addEventListener('input', recalc);
+    }
+
+    // OCR camera button for electric meter
+    const ocrBtn = tr.querySelector('.btn-ocr[data-target="elec"]');
+    if (ocrBtn) {
+      ocrBtn.addEventListener('click', () => {
+        openOcrModal(room.id, 'elec', (val) => {
+          elecInput.value = val;
+          elecInput.dispatchEvent(new Event('input'));
+        });
+      });
+    }
+
+    // OCR camera button for water meter
+    const ocrWaterBtn = tr.querySelector('.btn-ocr[data-target="water"]');
+    if (ocrWaterBtn) {
+      ocrWaterBtn.addEventListener('click', () => {
+        openOcrModal(room.id, 'water', (val) => {
+          if (waterNewInput) {
+            waterNewInput.value = val;
+            waterNewInput.dispatchEvent(new Event('input'));
+          }
+        });
+      });
+    }
+
+    // Edit old reading buttons
+    tr.querySelectorAll('.btn-edit-old').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rId = btn.dataset.room;
+        const targetType = btn.dataset.type;
+        openEditOldModal(rId, targetType);
+      });
+    });
+
+    // Bill note input
+    const billNoteInput = tr.querySelector('.bill-note-input');
+    if (billNoteInput) {
+      billNoteInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (!STATE.billingData[period]) STATE.billingData[period] = {};
+        if (!STATE.billingData[period][room.id]) STATE.billingData[period][room.id] = {};
+        STATE.billingData[period][room.id].note = val;
+        saveState();
+      });
+    }
+
+    tbody.appendChild(tr);
+  }
+
+  renderBillingLegend();
+}
+
+// Dynamic legend: only show rates that are uniform across all rooms
+function renderBillingLegend() {
+  const legendEl = document.getElementById('billing-legend');
+  if (!legendEl) return;
+
+  if (STATE.rooms.length === 0) {
+    legendEl.innerHTML = '';
+    return;
+  }
+
+  const items = [];
+
+  // Nước: show only if rate AND type are uniform across all rooms
+  const waterRates = [...new Set(STATE.rooms.map(r => r.waterRate || 50000))];
+  const waterTypes = [...new Set(STATE.rooms.map(r => r.waterType || 'người'))];
+  if (waterRates.length === 1 && waterTypes.length === 1) {
+    items.push(`💧 Nước: <strong>${fmtNum(waterRates[0])}đ/${waterTypes[0]}</strong>`);
+  }
+
+  // Rác: show only if uniform across ALL rooms
+  const trashFees = [...new Set(STATE.rooms.map(r => r.trashFee || 0))];
+  if (trashFees.length === 1 && trashFees[0] > 0) {
+    items.push(`🗑️ Rác: <strong>${fmtNum(trashFees[0])}đ/tháng</strong>`);
+  }
+
+  // Wifi: only mention if ≥1 room has wifi; show rate if uniform among wifi rooms
+  const wifiRooms = STATE.rooms.filter(r => (r.wifiFee || 0) > 0);
+  if (wifiRooms.length > 0) {
+    const wifiFees = [...new Set(wifiRooms.map(r => r.wifiFee))];
+    if (wifiFees.length === 1) {
+      items.push(`📶 Wifi: <strong>${fmtNum(wifiFees[0])}đ/nhà</strong> (nếu có)`);
+    } else {
+      items.push(`📶 Wifi: <strong>theo phòng</strong> (nếu có)`);
+    }
+  }
+
+  // Phí QL & DV: only mention if ≥1 room has it; show rate if uniform
+  const manageRooms = STATE.rooms.filter(r => (r.manageFee || 0) > 0);
+  if (manageRooms.length > 0) {
+    const manageFees = [...new Set(manageRooms.map(r => r.manageFee))];
+    if (manageFees.length === 1) {
+      items.push(`💼 QL & DV: <strong>${fmtNum(manageFees[0])}đ/tháng</strong> (nếu có)`);
+    } else {
+      items.push(`💼 QL & DV: <strong>theo phòng</strong> (nếu có)`);
+    }
+  }
+
+  legendEl.innerHTML = items.map(i => `<span>${i}</span>`).join('');
+}
+
+// ============================================================
+//  REPORTS (Hóa đơn chi tiết)
+// ============================================================
+function renderReport() {
+  const period = STATE.currentPeriod;
+  const listEl = document.getElementById('report-list');
+  const summaryEl = document.getElementById('report-summary-bar');
+  document.getElementById('report-period-label').textContent = periodLabel(period);
+  listEl.innerHTML = '';
+  if (summaryEl) summaryEl.innerHTML = '';
+
+  const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
+  if (billsWithData.length === 0) {
+    if (summaryEl) summaryEl.style.display = 'none';
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div>
+      <p>Nhập chỉ số điện/nước để xem hóa đơn.<br>
+      <button class="link-btn" data-goto="billing">Nhập chỉ số ngay →</button></p></div>`;
+    listEl.querySelector('[data-goto]')?.addEventListener('click', () => navigate('billing'));
+    return;
+  }
+
+  if (summaryEl) summaryEl.style.display = 'flex';
+
+  let totalRevenue = 0;
+  let paidCount = 0;
+  const activeBills = [];
+
+  for (const room of STATE.rooms) {
+    const rec  = getPeriodRecord(room.id, period);
+    if (!rec) continue;
+    const bill = calcBill(room, rec, period);
+    if (!bill) continue;
+    totalRevenue += bill.total;
+    if (rec.paid) paidCount++;
+    activeBills.push({ room, rec, bill });
+  }
+
+  const deduction = STATE.settings.deduction ?? 450000;
+  const netRevenue = totalRevenue - deduction;
+
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="report-summary-item">
+        <span>💰 Tổng cộng hóa đơn:</span>
+        <span class="report-summary-val">${fmt(totalRevenue)}</span>
+      </div>
+      <div class="report-summary-item">
+        <span>📈 Thực thu (đã trừ khấu hao):</span>
+        <span class="report-summary-val" style="color: var(--green)">${fmt(netRevenue)}</span>
+      </div>
+      <div class="report-summary-item">
+        <span>🧾 Trạng thái:</span>
+        <span class="report-summary-val" style="color: var(--wifi)">Đã thu ${paidCount}/${activeBills.length} phòng</span>
+      </div>
+    `;
+  }
+
+  for (const { room, rec, bill } of activeBills) {
+    const paid = rec.paid || false;
+    const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
+    const electricOld = getElectricOld(room, period);
+    const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
+
+    const qrUrl = genVietQrUrl(room, bill, period);
+    const qrBtnHtml = qrUrl ? `<button class="btn btn--ghost btn--sm" data-qr-room="${room.id}">📲 Mã QR</button>` : '';
+    const isAndroid = typeof AndroidApp !== 'undefined';
+    const downloadAttr = isAndroid
+      ? `href="#" onclick="AndroidApp.downloadImage('${qrUrl}', 'qr-${room.name}-${period}.png'); return false;"`
+      : `href="${qrUrl}" download="qr-${room.name}-${period}.png" target="_blank"`;
+    const qrBoxHtml = qrUrl ? `
+    <div class="qr-box-container" id="qr-box-${room.id}" style="display:none; text-align:center; padding-top:14px; border-top:1px dashed var(--border); margin-top:12px">
+      <div style="font-size:0.8rem; font-weight:600; margin-bottom:8px; color:var(--text)">Quét QR để thanh toán nhanh:</div>
+      <div class="qr-img-wrapper" style="position:relative; display:inline-block; background:#fff; padding:8px; border-radius:8px; border:1px solid var(--border)">
+        <img src="${qrUrl}" alt="VietQR" style="max-width:160px; height:auto; display:block" />
+      </div>
+      <div style="margin-top:8px; display:flex; justify-content:center; gap:8px">
+        <a ${downloadAttr} class="btn btn--ghost btn--sm" style="text-decoration:none">💾 Tải ảnh QR</a>
+      </div>
+    </div>
+    ` : '';
+
+    const card = document.createElement('div');
+    card.className = 'bill-card';
+    card.innerHTML = `
+      <div class="bill-header">
+        <div>
+          <div class="bill-room-name">${room.name}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${periodLabel(period)}</div>
+        </div>
+        <div class="bill-total-big">${fmt(bill.total)}</div>
+      </div>
+      <div class="bill-body">
+        <div class="bill-rows">
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">⚡ Chỉ số điện</div>
+              <div class="bill-row-formula">Cũ: ${fmtNum(electricOld)} &nbsp;|&nbsp; Mới: ${fmtNum(rec.electricNew)}</div>
+            </div>
+            <div class="bill-row-val">${fmtNum(bill.kwh)} kWh</div>
+          </div>
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">⚡ Tiền điện</div>
+              <div class="bill-row-formula">${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ</div>
+            </div>
+            <div class="bill-row-val">${fmt(bill.electricAmt)}</div>
+          </div>
+          ${room.waterType === 'khối' ? `
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">💧 Chỉ số nước</div>
+              <div class="bill-row-formula">Cũ: ${fmtNum(waterOld)} &nbsp;|&nbsp; Mới: ${fmtNum(rec.waterNew)}</div>
+            </div>
+            <div class="bill-row-val">${fmtNum(bill.waterUnits)} khối</div>
+          </div>
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">💧 Tiền nước</div>
+              <div class="bill-row-formula">${fmtNum(bill.waterUnits)} khối × ${fmtNum(room.waterRate)}đ</div>
+            </div>
+            <div class="bill-row-val">${fmt(bill.waterAmt)}</div>
+          </div>
+          ` : `
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">💧 Tiền nước</div>
+              <div class="bill-row-formula">${bill.waterUnits} ${waterUnit} × ${fmtNum(room.waterRate)}đ</div>
+            </div>
+            <div class="bill-row-val">${fmt(bill.waterAmt)}</div>
+          </div>
+          `}
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">🗑️ Tiền rác</div>
+              <div class="bill-row-formula">Cố định hàng tháng</div>
+            </div>
+            <div class="bill-row-val">${fmt(room.trashFee || 0)}</div>
+          </div>
+          ${room.wifiFee > 0 ? `
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">📶 Mạng Wifi</div>
+              <div class="bill-row-formula">Cố định hàng tháng</div>
+            </div>
+            <div class="bill-row-val">${fmt(room.wifiFee)}</div>
+          </div>
+          ` : ''}
+          ${room.manageFee > 0 ? `
+          <div class="bill-row">
+            <div>
+              <div class="bill-row-label">💼 Phí quản lý & DV khác</div>
+              <div class="bill-row-formula">Cố định hàng tháng</div>
+            </div>
+            <div class="bill-row-val">${fmt(room.manageFee)}</div>
+          </div>
+          ` : ''}
+          <div class="bill-row">
+            <div class="bill-row-label">🏠 Tiền thuê</div>
+            <div class="bill-row-val">${fmt(bill.rentAmt)}</div>
+          </div>
+        </div>
+        ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${rec.note}</div>` : ''}
+        <hr class="bill-divider" />
+        <div class="bill-row" style="font-size:1rem;font-weight:800">
+          <div>TỔNG CỘNG</div>
+          <div style="color:var(--primary)">${fmt(bill.total)}</div>
+        </div>
+        ${qrBoxHtml}
+        <div class="bill-footer">
+          <button class="btn btn--paid btn--sm ${paid ? 'is-paid' : ''}" data-paid-room="${room.id}">
+            ${paid ? '✅ Đã thu tiền' : '💰 Đánh dấu đã thu'}
+          </button>
+          ${qrBtnHtml}
+          <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
+          <button class="btn btn--ghost btn--sm" data-share-room="${room.id}">📤 Gửi</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector(`[data-paid-room]`).addEventListener('click', e => {
+      triggerHaptic('light');
+      const rId = e.target.dataset.paidRoom;
+      if (!STATE.billingData[period]) STATE.billingData[period] = {};
+      if (!STATE.billingData[period][rId]) STATE.billingData[period][rId] = {};
+      STATE.billingData[period][rId].paid = !STATE.billingData[period][rId].paid;
+      saveState();
+      renderReport();
+      renderDashboard();
+    });
+
+    if (qrUrl) {
+      const qrBtn = card.querySelector(`[data-qr-room="${room.id}"]`);
+      if (qrBtn) {
+        qrBtn.addEventListener('click', () => {
+          triggerHaptic('light');
+          const qrBox = card.querySelector(`#qr-box-${room.id}`);
+          if (qrBox) {
+            const isHidden = qrBox.style.display === 'none';
+            qrBox.style.display = isHidden ? 'block' : 'none';
+            qrBtn.classList.toggle('is-paid', isHidden);
+          }
+        });
+      }
+    }
+
+    card.querySelector(`[data-copy-room]`).addEventListener('click', () => {
+      triggerHaptic('light');
+      copyBillText(room, rec, bill, period);
+    });
+
+    card.querySelector(`[data-share-room]`).addEventListener('click', () => {
+      const pLabel = periodLabel(period);
+      const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
+      const wifiLine = room.wifiFee > 0 ? `📶 Mạng Wifi: ${fmt(room.wifiFee)}` : '';
+      const manageLine = room.manageFee > 0 ? `💼 Phí quản lý & DV khác: ${fmt(room.manageFee)}` : '';
+      const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
+      const qrUrl = genVietQrUrl(room, bill, period);
+      const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
+
+      const waterLine = room.waterType === 'khối'
+        ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`
+        : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`;
+
+      const lines = [
+        `🏠 HÓA ĐƠN THÁNG ${pLabel.replace('Tháng ', '').toUpperCase()} — ${room.name.toUpperCase()}`,
+        ``,
+        `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ = ${fmt(bill.electricAmt)}`,
+        waterLine,
+        `🗑️ Tiền rác: ${fmt(room.trashFee || 0)}`,
+        wifiLine,
+        manageLine,
+        `🏠 Tiền thuê: ${fmt(room.rentPrice || 0)}`,
+        noteLine,
+        `${'─'.repeat(32)}`,
+        `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
+        qrPart
+      ].filter(Boolean).join('\n');
+
+      shareBillNative(`Hóa đơn ${room.name} ${pLabel}`, lines, () => {
+        copyBillText(room, rec, bill, period);
+      });
+    });
+
+    listEl.appendChild(card);
+  }
+}
+
+
+// Copy Bill for Zalo
+function copyBillText(room, rec, bill, period) {
+  const pLabel = periodLabel(period);
+  const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
+  const wifiLine = room.wifiFee > 0 ? `📶 Mạng Wifi: ${fmt(room.wifiFee)}` : '';
+  const manageLine = room.manageFee > 0 ? `💼 Phí quản lý & DV khác: ${fmt(room.manageFee)}` : '';
+  const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
+
+  const electricOld = getElectricOld(room, period);
+  const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
+  
+  const waterLine = room.waterType === 'khối'
+    ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`
+    : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`;
+
+  const qrUrl = genVietQrUrl(room, bill, period);
+  const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
+
+  const lines = [
+    `🏠 HÓA ĐƠN THÁNG ${pLabel.replace('Tháng ', '').toUpperCase()} — ${room.name.toUpperCase()}`,
+    ``,
+    `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ = ${fmt(bill.electricAmt)}`,
+    waterLine,
+    `🗑️ Tiền rác: ${fmt(room.trashFee || 0)}`,
+    wifiLine,
+    manageLine,
+    `🏠 Tiền thuê: ${fmt(room.rentPrice || 0)}`,
+    noteLine,
+    `${'─'.repeat(32)}`,
+    `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
+    qrPart
+  ].filter(Boolean).join('\n');
+
+  navigator.clipboard.writeText(lines).then(() => {
+    showToast('Đã copy hóa đơn ✓', 'success');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = lines; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('Đã copy hóa đơn ✓', 'success');
+  });
+}
+
+// Copy all bills summary
+document.getElementById('btn-copy-all').addEventListener('click', () => {
+  const period = STATE.currentPeriod;
+  const allTexts = [];
+  for (const room of STATE.rooms) {
+    const rec  = getPeriodRecord(room.id, period);
+    if (!rec) continue;
+    const bill = calcBill(room, rec);
+    if (!bill) continue;
+    allTexts.push(
+      `=== ${room.name} ===\nTiền điện: ${fmt(bill.electricAmt)} | Nước: ${fmt(bill.waterAmt)} | Rác: ${fmt(room.trashFee)} ${room.wifiFee > 0 ? `| Wifi: ${fmt(room.wifiFee)}` : ''} ${room.manageFee > 0 ? `| QL & DV: ${fmt(room.manageFee)}` : ''} | Thuê: ${fmt(bill.rentAmt)}\nTỔNG: ${fmt(bill.total)}`
+    );
+  }
+  if (allTexts.length === 0) { showToast('Chưa có dữ liệu', 'error'); return; }
+  navigator.clipboard.writeText(allTexts.join('\n\n')).then(() => showToast('Đã copy tổng hóa đơn ✓', 'success'));
+});
+
+// ============================================================
+//  MONTHLY LOGS & LOCKING (Lưu tháng này)
+// ============================================================
+function saveMonth() {
+  const period = STATE.currentPeriod;
+  const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
+  if (billsWithData.length === 0) {
+    showToast('Chưa có dữ liệu nhập của tháng này để lưu', 'error');
+    return;
+  }
+
+  // Create snapshot
+  const snapshot = {
+    period: period,
+    deduction: STATE.settings.deduction ?? 450000,
+    timestamp: Date.now(),
+    bills: STATE.rooms.map(room => {
+      const rec = getPeriodRecord(room.id, period) || {};
+      const bill = calcBill(room, rec, period) || { kwh: 0, electricAmt: 0, waterUnits: 0, waterAmt: 0, trashAmt: room.trashFee, wifiAmt: room.wifiFee, rentAmt: room.rentPrice, total: room.rentPrice };
+      return {
+        roomId: room.id,
+        roomName: room.name,
+        rentPrice: room.rentPrice || 0,
+        electricOld: getElectricOld(room, period),
+        electricNew: rec.electricNew ?? null,
+        electricRate: room.electricRate || 0,
+        kwh: bill.kwh,
+        electricAmt: bill.electricAmt,
+        waterType: room.waterType || 'người',
+        waterRate: room.waterRate || 50000,
+        waterUnits: bill.waterUnits,
+        waterAmt: bill.waterAmt,
+        waterPrev: room.waterType === 'khối' ? getWaterOld(room, period) : null,
+        waterNew: room.waterType === 'khối' ? (rec.waterNew !== undefined && rec.waterNew !== '' && rec.waterNew !== null ? Number(rec.waterNew) : null) : null,
+        trashFee: room.trashFee || 0,
+        wifiFee: room.wifiFee || 0,
+        manageFee: bill.manageAmt || 0,
+        total: bill.total,
+        paid: !!rec.paid
+      };
+    })
+  };
+
+  if (!STATE.history) STATE.history = [];
+  
+  // Check if already exists
+  const existingIdx = STATE.history.findIndex(h => h.period === period);
+  if (existingIdx > -1) {
+    showConfirm(
+      `Dữ liệu lịch sử ${periodLabel(period)} đã tồn tại. Ghi đè sẽ mất dữ liệu cũ. Bạn có muốn tiếp tục?`,
+      () => {
+        STATE.history[existingIdx] = snapshot;
+        saveState();
+        triggerHaptic('success');
+        showToast(`Đã lưu lịch sử tháng ${periodLabel(period)} ✓`, 'success');
+        navigate('history');
+      },
+      null,
+      'Tiếp tục'
+    );
+  } else {
+    STATE.history.push(snapshot);
+    saveState();
+    triggerHaptic('success');
+    showToast(`Đã lưu lịch sử tháng ${periodLabel(period)} ✓`, 'success');
+    navigate('history');
+  }
+}
+
+document.getElementById('btn-save-month').addEventListener('click', saveMonth);
+
+// ============================================================
+//  HISTORY PAGE
+// ============================================================
+function renderHistory() {
+  const listEl = document.getElementById('history-list');
+  listEl.innerHTML = '';
+
+  if (!STATE.history || STATE.history.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <p>Chưa có tháng nào được lưu.<br>Hãy dùng nút <strong>Lưu tháng này</strong> trên tab Hóa đơn.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Sort history newest first
+  const sortedHistory = [...STATE.history].sort((a, b) => b.period.localeCompare(a.period));
+
+  for (const record of sortedHistory) {
+    const card = document.createElement('div');
+    card.className = 'history-month-card';
+    
+    const totalRevenue = record.bills.reduce((sum, b) => sum + (b.total || 0), 0);
+    const netRevenue = totalRevenue - (record.deduction || 0);
+    const paidCount = record.bills.filter(b => b.paid).length;
+    const totalRooms = record.bills.length;
+
+    card.innerHTML = `
+      <div class="history-month-header" data-toggle-history="${record.period}">
+        <div>
+          <div class="history-month-title">${periodLabel(record.period)}</div>
+          <div class="history-month-meta">
+            Đã thu: ${paidCount}/${totalRooms} phòng &nbsp;|&nbsp; Thực thu: ${fmt(netRevenue)}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="history-month-total">${fmt(totalRevenue)}</div>
+          <span style="font-size: 1rem; color: var(--text-muted); transition: transform 0.2s">▼</span>
+        </div>
+      </div>
+      <div class="history-month-body" id="history-body-${record.period}">
+        <div style="margin-bottom:12px; font-size:0.85rem; color:var(--text-muted)">
+          Chi phí khấu trừ: ${fmt(record.deduction || 0)}
+        </div>
+        <div class="history-rooms-list">
+          ${record.bills.map(b => {
+            const waterUnit = b.waterType === 'người' ? 'người' : 'khối';
+            const waterDesc = b.waterType === 'khối' && b.waterNew !== undefined && b.waterNew !== null && b.waterPrev !== undefined && b.waterPrev !== null
+              ? `💧 ${fmtNum(b.waterUnits)} khối (${fmtNum(b.waterNew)} - ${fmtNum(b.waterPrev)})`
+              : `💧 ${b.waterUnits} ${waterUnit}`;
+            return `
+            <div class="history-room-row">
+              <div>
+                <span class="history-room-name">${b.roomName}</span>
+                <div style="font-size:0.75rem;color:var(--text-muted)">
+                  ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc} | 🗑️ ${fmt(b.trashFee)} ${b.wifiFee > 0 ? `| 📶 ${fmt(b.wifiFee)}` : ''} ${b.manageFee > 0 ? `| 💼 ${fmt(b.manageFee)}` : ''}
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="history-room-total">${fmt(b.total)}</span>
+                <button class="btn ${b.paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-history-paid="${record.period}:${b.roomId}">
+                  ${b.paid ? 'Đã thu' : 'Chưa thu'}
+                </button>
+              </div>
+            </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="history-actions">
+          <button class="btn btn--ghost btn--sm" data-history-print="${record.period}">🖨️ In báo cáo</button>
+          <button class="btn btn--danger btn--sm" data-history-delete="${record.period}">🗑️ Xóa lịch sử</button>
+        </div>
+      </div>
+    `;
+
+    const header = card.querySelector(`[data-toggle-history="${record.period}"]`);
+    const body = card.querySelector(`#history-body-${record.period}`);
+    const arrow = header.querySelector('span');
+    
+    header.addEventListener('click', () => {
+      const isOpen = body.classList.toggle('open');
+      arrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+
+    card.querySelectorAll('[data-history-paid]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const [periodVal, roomIdVal] = e.target.dataset.historyPaid.split(':');
+        toggleHistoryPaid(periodVal, roomIdVal);
+      });
+    });
+
+    card.querySelector('[data-history-print]').addEventListener('click', e => {
+      e.stopPropagation();
+      printHistoryReport(record);
+    });
+
+    card.querySelector('[data-history-delete]').addEventListener('click', e => {
+      e.stopPropagation();
+      showConfirm(
+        `Xóa lịch sử ${periodLabel(record.period)}? Hành động này không thể hoàn tác.`,
+        () => {
+          STATE.history = STATE.history.filter(h => h.period !== record.period);
+          saveState();
+          renderHistory();
+          showToast(`Đã xóa lịch sử ${periodLabel(record.period)}`, 'info');
+        }
+      );
+    });
+
+    listEl.appendChild(card);
+  }
+}
+
+function toggleHistoryPaid(period, roomId) {
+  const hRec = STATE.history.find(h => h.period === period);
+  if (hRec) {
+    const bill = hRec.bills.find(b => b.roomId === roomId);
+    if (bill) {
+      bill.paid = !bill.paid;
+      // Sync back to current period billingData if applicable
+      if (STATE.billingData[period]?.[roomId]) {
+        STATE.billingData[period][roomId].paid = bill.paid;
+      }
+      saveState();
+      renderHistory();
+      if (period === STATE.currentPeriod) {
+        renderDashboard();
+        renderReport();
+      }
+      showToast('Đã cập nhật trạng thái', 'success');
+    }
+  }
+}
+
+// ============================================================
+//  PRINT SYSTEM – Platform-agnostic bridge
+// ============================================================
+// Delegates to the right print mechanism depending on the host environment:
+//   Android WebView  → AndroidApp.printDocument()  (native PrintManager)
+//   iOS WKWebView    → webkit.messageHandlers.print  (future)
+//   Web / desktop    → window.print()
+function triggerPrint(filename) {
+  if (window.AndroidApp && typeof window.AndroidApp.printDocument === 'function') {
+    window.AndroidApp.printDocument(filename);
+  } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.print) {
+    window.webkit.messageHandlers.print.postMessage({ filename });
+  } else {
+    window.print();
+  }
+}
+
+function generatePrintHTML(period, deduction, bills) {
+  const totalRevenue = bills.reduce((sum, b) => sum + (b.total || 0), 0);
+  const netRevenue = totalRevenue - (deduction || 0);
+
+  return `
+    <div class="print-header">
+      <h1>BÁO CÁO THU TIỀN NHÀ TRỌ</h1>
+      <p>${periodLabel(period).toUpperCase()}</p>
+    </div>
+    <div class="print-summary">
+      <div class="print-summary-item">
+        <div class="print-summary-label">Tổng thu</div>
+        <div class="print-summary-val">${fmt(totalRevenue)}</div>
+      </div>
+      <div class="print-summary-item">
+        <div class="print-summary-label">Khấu trừ</div>
+        <div class="print-summary-val">${fmt(deduction)}</div>
+      </div>
+      <div class="print-summary-item">
+        <div class="print-summary-label">Thực thu</div>
+        <div class="print-summary-val">${fmt(netRevenue)}</div>
+      </div>
+    </div>
+    <div class="print-bills-container">
+      ${bills.map(b => {
+        const waterUnit = b.waterType === 'người' ? 'người' : 'khối';
+        const roomObj = STATE.rooms.find(r => r.name === b.roomName);
+        let qrImgHtml = '';
+        if (roomObj) {
+          const qrUrl = genVietQrUrl(roomObj, b, period);
+          if (qrUrl) {
+            qrImgHtml = '<div style="text-align:center; padding:5px; flex-shrink:0;">' +
+                        '<img src="' + qrUrl + '" alt="VietQR" style="max-height:130px; width:auto; border:1px solid #ccc; border-radius:4px; display:block" />' +
+                        '</div>';
+          }
+        }
+
+        return `
+        <div class="print-bill" style="margin-bottom:20px; border:1px solid #ccc; border-radius:6px; page-break-inside:avoid">
+          <div class="print-bill-header" style="background:#f5f5f5; padding:10px; display:flex; justify-content:space-between; font-weight:bold">
+            <span class="room">${b.roomName}</span>
+            <span class="total">${fmt(b.total)}</span>
+          </div>
+          <div class="print-bill-body" style="padding:10px; display:flex; gap:15px; align-items:center; justify-content:space-between">
+            <table class="print-bill-table" style="flex:1; border-collapse:collapse; font-size:13px">
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền thuê phòng</td>
+                <td style="text-align:right">${fmt(b.rentPrice)}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Chỉ số điện (Cũ: ${fmtNum(b.electricOld)} - Mới: ${fmtNum(b.electricNew)})</td>
+                <td style="text-align:right">${fmtNum(b.kwh)} kWh</td>
+              </tr>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền điện (${fmtNum(b.kwh)} kWh × ${fmtNum(b.electricRate)}đ)</td>
+                <td style="text-align:right">${fmt(b.electricAmt)}</td>
+              </tr>
+              ${b.waterType === 'khối' && b.waterNew !== null && b.waterPrev !== null ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Chỉ số nước (Cũ: ${fmtNum(b.waterPrev)} - Mới: ${fmtNum(b.waterNew)})</td>
+                <td style="text-align:right">${fmtNum(b.waterUnits)} khối</td>
+              </tr>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền nước (${fmtNum(b.waterUnits)} khối × ${fmtNum(b.waterRate)}đ)</td>
+                <td style="text-align:right">${fmt(b.waterAmt)}</td>
+              </tr>
+              ` : `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền nước (${b.waterUnits} ${waterUnit} × ${fmtNum(b.waterRate)}đ)</td>
+                <td style="text-align:right">${fmt(b.waterAmt)}</td>
+              </tr>
+              `}
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền rác</td>
+                <td style="text-align:right">${fmt(b.trashFee)}</td>
+              </tr>
+              ${b.wifiFee > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Mạng Wifi</td>
+                <td style="text-align:right">${fmt(b.wifiFee)}</td>
+              </tr>
+              ` : ''}
+              ${b.manageFee > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Phí quản lý & DV khác</td>
+                <td style="text-align:right">${fmt(b.manageFee)}</td>
+              </tr>
+              ` : ''}
+            </table>
+            ${qrImgHtml}
+          </div>
+        </div>
+        `;
+      }).join('')}
+    </div>
+    <div class="print-footer" style="text-align:center; font-size:11px; color:#888; margin-top:20px; border-top:1px solid #ccc; padding-top:10px">
+      <p>Xuất tự động từ TrọBill lúc ${new Date().toLocaleString('vi-VN')}</p>
+    </div>
+  `;
+}
+
+function printActiveReport() {
+  const period = STATE.currentPeriod;
+  const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
+  if (billsWithData.length === 0) {
+    showToast('Chưa có dữ liệu để in báo cáo', 'error');
+    return;
+  }
+
+  const bills = STATE.rooms.map(room => {
+    const rec = getPeriodRecord(room.id, period) || {};
+    const bill = calcBill(room, rec, period) || { kwh: 0, electricAmt: 0, waterUnits: 0, waterAmt: 0, trashAmt: room.trashFee, wifiAmt: room.wifiFee, rentAmt: room.rentPrice, total: room.rentPrice };
+    return {
+      roomName: room.name,
+      rentPrice: room.rentPrice || 0,
+      electricOld: getElectricOld(room, period),
+      electricNew: rec.electricNew !== undefined && rec.electricNew !== '' ? Number(rec.electricNew) : (getElectricOld(room, period) || 0),
+      electricRate: room.electricRate || 0,
+      kwh: bill.kwh,
+      electricAmt: bill.electricAmt,
+      waterType: room.waterType || 'người',
+      waterRate: room.waterRate || 50000,
+      waterUnits: bill.waterUnits,
+      waterAmt: bill.waterAmt,
+      waterPrev: room.waterType === 'khối' ? getWaterOld(room, period) : null,
+      waterNew: room.waterType === 'khối' ? (rec.waterNew !== undefined && rec.waterNew !== '' && rec.waterNew !== null ? Number(rec.waterNew) : (getWaterOld(room, period) || 0)) : null,
+      trashFee: room.trashFee || 0,
+      wifiFee: room.wifiFee || 0,
+      manageFee: bill.manageAmt || 0,
+      total: bill.total
+    };
+  });
+
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = generatePrintHTML(period, STATE.settings.deduction ?? 450000, bills);
+  triggerPrint(`bao-cao-trobill-${period}.pdf`);
+}
+
+function printHistoryReport(record) {
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = generatePrintHTML(record.period, record.deduction ?? 450000, record.bills);
+  triggerPrint(`bao-cao-trobill-${record.period}.pdf`);
+}
+
+document.getElementById('btn-print').addEventListener('click', printActiveReport);
+
+// ============================================================
+//  PERIOD NAVIGATION
+// ============================================================
+function initPeriod() {
+  const now = new Date();
+  STATE.currentPeriod = periodKey(now.getFullYear(), now.getMonth() + 1);
+}
+
+function shiftPeriod(delta) {
+  const { year, month } = parsePeriod(STATE.currentPeriod);
+  let m = month + delta, y = year;
+  if (m > 12) { m = 1; y++; }
+  if (m < 1)  { m = 12; y--; }
+  STATE.currentPeriod = periodKey(y, m);
+  renderPage(activePage);
+}
+
+document.getElementById('prev-month').addEventListener('click', () => shiftPeriod(-1));
+document.getElementById('next-month').addEventListener('click', () => shiftPeriod(+1));
+
+// ============================================================
+//  SETTINGS
+// ============================================================
+document.getElementById('save-deduction').addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('deduction-input').value);
+  if (isNaN(val)) { showToast('Số không hợp lệ', 'error'); return; }
+  STATE.settings.deduction = val;
+  saveState();
+  renderDashboard();
+  showToast('Đã lưu cài đặt ✓', 'success');
+});
+
+const bankSelect = document.getElementById('bank-select');
+if (bankSelect) {
+  bankSelect.addEventListener('change', (e) => {
+    const customInput = document.getElementById('bank-custom-input');
+    if (e.target.value === 'custom') {
+      customInput.style.display = 'inline-block';
+      customInput.value = '';
+      customInput.focus();
+    } else {
+      customInput.style.display = 'none';
+    }
+  });
+}
+
+const saveBankBtn = document.getElementById('save-bank-settings');
+if (saveBankBtn) {
+  saveBankBtn.addEventListener('click', () => {
+    const bankSelectVal = document.getElementById('bank-select').value;
+    const bankCustomVal = document.getElementById('bank-custom-input').value.trim();
+    const accountVal = document.getElementById('bank-account-input').value.trim();
+    const ownerVal = document.getElementById('bank-owner-input').value.trim();
+    const patternVal = document.getElementById('bank-pattern-input').value.trim();
+
+    let finalBankId = bankSelectVal;
+    if (bankSelectVal === 'custom') {
+      finalBankId = bankCustomVal.toUpperCase();
+    }
+
+    if (!finalBankId && accountVal) {
+      showToast('Vui lòng chọn hoặc nhập mã Ngân hàng', 'error');
+      return;
+    }
+
+    STATE.settings.bankId = finalBankId;
+    STATE.settings.bankAccount = accountVal;
+    STATE.settings.bankOwnerName = removeVietnameseTones(ownerVal).toUpperCase();
+    STATE.settings.bankTransferPattern = patternVal;
+    saveState();
+    showToast('Đã lưu cấu hình tài khoản nhận tiền ✓', 'success');
+    renderDashboard();
+  });
+}
+
+const saveReminderBtn = document.getElementById('save-reminder-settings');
+if (saveReminderBtn) {
+  saveReminderBtn.addEventListener('click', () => {
+    const enabled = document.getElementById('reminder-enabled-input').checked;
+    const day = parseInt(document.getElementById('reminder-day-select').value);
+    const timeVal = document.getElementById('reminder-time-input').value;
+    
+    if (!timeVal) {
+      showToast('Vui lòng chọn thời gian nhắc nhở', 'error');
+      return;
+    }
+    
+    STATE.settings.reminderEnabled = enabled;
+    STATE.settings.reminderDay = day;
+    STATE.settings.reminderTime = timeVal;
+    saveState();
+    
+    if (typeof AndroidApp !== 'undefined' && AndroidApp.scheduleReminder) {
+      const [hour, minute] = timeVal.split(':').map(Number);
+      AndroidApp.scheduleReminder(day, hour, minute, enabled);
+    } else if (enabled) {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+          if (permission !== 'granted') {
+            showToast('Lưu cấu hình nhắc nhở ✓ (Cần cấp quyền thông báo)', 'warning');
+          } else {
+            showToast('Đã lưu cấu hình nhắc nhở ✓', 'success');
+          }
+        });
+        return;
+      }
+    }
+    
+    showToast('Đã lưu cấu hình nhắc nhở ✓', 'success');
+    renderDashboard();
+  });
+}
+
+// ============================================================
+//  PREMIUM & ADS (Android Only)
+// ============================================================
+function updatePremiumUI(isPremium) {
+  const premiumStatusSpan = document.getElementById('premium-status');
+  const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
+  const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
+  
+  if (!premiumStatusSpan) return;
+  
+  if (isPremium) {
+    premiumStatusSpan.textContent = 'Đã kích hoạt (Premium) ✓';
+    premiumStatusSpan.style.color = 'var(--success)';
+    if (buyPremiumYearlyBtn) buyPremiumYearlyBtn.style.display = 'none';
+    if (buyPremiumLifetimeBtn) buyPremiumLifetimeBtn.style.display = 'none';
+  } else {
+    premiumStatusSpan.textContent = 'Bản miễn phí (Có quảng cáo)';
+    premiumStatusSpan.style.color = 'var(--text-muted)';
+    if (buyPremiumYearlyBtn) buyPremiumYearlyBtn.style.display = 'inline-block';
+    if (buyPremiumLifetimeBtn) buyPremiumLifetimeBtn.style.display = 'inline-block';
+  }
+}
+
+// Global callback for Android App update
+window.onPremiumStatusChanged = function(isPremium) {
+  updatePremiumUI(isPremium);
+};
+
+// Global callback for localized prices loaded dynamically from Play Store
+window.onPremiumPricesLoaded = function(yearlyPrice, lifetimePrice) {
+  const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
+  const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
+  
+  if (yearlyPrice && buyPremiumYearlyBtn) {
+    buyPremiumYearlyBtn.textContent = `📅 Gói năm (${yearlyPrice})`;
+  }
+  if (lifetimePrice && buyPremiumLifetimeBtn) {
+    buyPremiumLifetimeBtn.textContent = `♾️ Trọn đời (${lifetimePrice})`;
+  }
+};
+
+const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
+if (buyPremiumYearlyBtn) {
+  buyPremiumYearlyBtn.addEventListener('click', () => {
+    if (typeof AndroidApp !== 'undefined' && AndroidApp.buyRemoveAds) {
+      AndroidApp.buyRemoveAds('yearly');
+    }
+  });
+}
+
+const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
+if (buyPremiumLifetimeBtn) {
+  buyPremiumLifetimeBtn.addEventListener('click', () => {
+    if (typeof AndroidApp !== 'undefined' && AndroidApp.buyRemoveAds) {
+      AndroidApp.buyRemoveAds('lifetime');
+    }
+  });
+}
+
+// ============================================================
+//  DONATE — VietQR + Google Play Consumable IAP
+// ============================================================
+// Thông tin ủng hộ là cấu hình TOÀN CỤC do admin thiết lập (GET /api/config).
+// User bình thường chỉ đọc, không lưu.
+let DONATE_CONFIG = { donateBankId: '', donateAccount: '', donateOwnerName: '', donateMessage: 'Ung ho' };
+
+// Kiểm tra và hiện block IAP Donate khi chạy trong Android App
+(function initDonateIapBlock() {
+  if (typeof AndroidApp !== 'undefined') {
+    const iapBlock = document.getElementById('donate-iap-block');
+    if (iapBlock) iapBlock.style.display = 'flex';
+  }
+})();
+
+// Tải cấu hình ủng hộ chung từ server
+async function loadDonateConfig() {
+  try {
+    DONATE_CONFIG = await API.getConfig();
+  } catch (e) {
+    // giữ giá trị mặc định nếu lỗi
+  }
+  renderDonateInfo();
+}
+
+// Cập nhật gợi ý theo tình trạng cấu hình chung
+function renderDonateInfo() {
+  const hint = document.getElementById('donate-empty-hint');
+  const btn = document.getElementById('btn-donate-vietqr');
+  const ready = !!(DONATE_CONFIG.donateBankId && DONATE_CONFIG.donateAccount);
+  if (hint) hint.hidden = ready;
+  if (btn) btn.disabled = !ready;
+}
+
+// Nút tạo mã VietQR donate
+const btnDonateVietQR = document.getElementById('btn-donate-vietqr');
+if (btnDonateVietQR) {
+  btnDonateVietQR.addEventListener('click', () => {
+    const amount = parseInt(document.getElementById('donate-amount-input').value, 10) || 50000;
+    openDonateModal(amount);
+  });
+}
+
+function openDonateModal(amount) {
+  const modal = document.getElementById('donate-modal');
+  const qrImg = document.getElementById('donate-qr-img');
+  const amountDisplay = document.getElementById('donate-amount-display');
+  if (!modal || !qrImg) return;
+
+  const bank  = DONATE_CONFIG.donateBankId || '';
+  const acct  = DONATE_CONFIG.donateAccount || '';
+  const owner = DONATE_CONFIG.donateOwnerName || '';
+  const msg   = DONATE_CONFIG.donateMessage || 'Ung ho';
+
+  if (!bank || !acct) {
+    showToast('Quản trị viên chưa thiết lập thông tin ủng hộ.', 'error');
+    return;
+  }
+
+  const qrUrl = `https://img.vietqr.io/image/${bank}-${acct}-compact2.png` +
+    `?amount=${amount}&addInfo=${encodeURIComponent(msg)}&accountName=${encodeURIComponent(owner)}`;
+
+  qrImg.src = qrUrl;
+  const bankDisp  = document.getElementById('donate-bank-display');
+  const ownerDisp = document.getElementById('donate-owner-display');
+  const acctNum   = document.getElementById('donate-account-num');
+  const msgDisp   = document.getElementById('donate-message-display');
+  if (bankDisp)  bankDisp.textContent  = bank;
+  if (ownerDisp) ownerDisp.textContent = owner || '—';
+  if (acctNum)   acctNum.textContent   = acct;
+  if (msgDisp)   msgDisp.textContent   = msg;
+  if (amountDisplay) amountDisplay.textContent = amount.toLocaleString('vi-VN') + ' đ';
+  modal.hidden = false;
+}
+
+// Đóng Modal Donate
+const donateModalClose = document.getElementById('donate-modal-close');
+if (donateModalClose) {
+  donateModalClose.addEventListener('click', () => {
+    document.getElementById('donate-modal').hidden = true;
+  });
+}
+document.getElementById('donate-modal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('donate-modal')) {
+    document.getElementById('donate-modal').hidden = true;
+  }
+});
+
+// Nút copy số TK donate
+const btnCopyDonateAcct = document.getElementById('btn-copy-donate-account');
+if (btnCopyDonateAcct) {
+  btnCopyDonateAcct.addEventListener('click', () => {
+    navigator.clipboard.writeText(DONATE_CONFIG.donateAccount || '').then(() => showToast('Đã sao chép số tài khoản ✓', 'success'));
+  });
+}
+
+// Google Play IAP Donate – Consumable tiers
+const donateProducts = { '20k': 'donate_20k', '50k': 'donate_50k', '100k': 'donate_100k' };
+['20k', '50k', '100k'].forEach(tier => {
+  const btn = document.getElementById(`btn-donate-${tier}`);
+  if (btn) {
+    btn.addEventListener('click', () => {
+      if (typeof AndroidApp !== 'undefined' && AndroidApp.buyDonate) {
+        AndroidApp.buyDonate(donateProducts[tier]);
+      }
+    });
+  }
+});
+
+// Callback khi donate thành công (gọi từ native)
+window.onDonationSuccess = function(productId) {
+  showToast('💜 Cảm ơn bạn đã ủng hộ TrọBill!', 'success');
+};
+
+function isPremiumUser() {
+  if (typeof AndroidApp !== 'undefined' && AndroidApp.isPremiumUser) {
+    return AndroidApp.isPremiumUser();
+  }
+  // Web / Browser environment: bypass IAP and unlock all premium features
+  return true;
+}
+
+function checkPremiumFeature(featureName, onApproved) {
+  if (isPremiumUser()) {
+    onApproved();
+  } else {
+    showConfirm(
+      `Tính năng "${featureName}" chỉ dành cho phiên bản Premium. Bạn có muốn chuyển sang mục Cài đặt để xem các gói nâng cấp không?`,
+      () => {
+        navigate('settings');
+        const premiumCard = document.getElementById('premium-card');
+        if (premiumCard) {
+          premiumCard.removeAttribute('hidden');
+          premiumCard.scrollIntoView({ behavior: 'smooth' });
+          // Highlight it briefly to draw user attention
+          premiumCard.style.outline = '2px solid var(--primary)';
+          setTimeout(() => {
+            premiumCard.style.outline = 'none';
+          }, 2000);
+        }
+        showToast('Vui lòng chọn gói Premium phù hợp với bạn.', 'info');
+      },
+      null,
+      'Xem các gói'
+    );
+  }
+}
+
+// ============================================================
+//  BACKUP & SYNC SYSTEM
+// ============================================================
+function exportState() {
+  const stateStr = JSON.stringify(_serializeState());
+  if (!STATE.rooms.length && !STATE.history.length) {
+    showToast('Không có dữ liệu để xuất', 'error');
+    return;
+  }
+  const filename = `trobill_backup_${new Date().toISOString().slice(0, 10)}.json`;
+
+  // Platform 1: Android native (WebView wrapper with JavascriptInterface)
+  if (typeof AndroidApp !== 'undefined' && typeof AndroidApp.saveBackupData === 'function') {
+    try {
+      AndroidApp.saveBackupData(stateStr, filename);
+      showToast('Đã lưu sao lưu vào Downloads ✓', 'success');
+      return;
+    } catch (e) {
+      console.warn('AndroidApp.saveBackupData failed, falling back', e);
+    }
+  }
+
+  // Platform 2: iOS WKWebView / browsers with Web Share API (supports file sharing)
+  if (navigator.canShare && typeof Blob !== 'undefined') {
+    try {
+      const blob = new Blob([stateStr], { type: 'application/json' });
+      const file = new File([blob], filename, { type: 'application/json' });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'TrọBill Sao lưu' })
+          .then(() => showToast('Đã chia sẻ file sao lưu ✓', 'success'))
+          .catch(err => {
+            console.warn('navigator.share with file failed, falling back', err);
+            exportStateBlobFallback(stateStr, filename);
+          });
+        return;
+      }
+    } catch (e) {
+      console.warn('Web Share API with file failed, falling back', e);
+    }
+  }
+
+  // Platform 3 & 4: Blob URL → data URI fallback for standard desktop browsers
+  exportStateBlobFallback(stateStr, filename);
+}
+
+function exportStateBlobFallback(stateStr, filename) {
+  // Platform 3: Modern browsers – Blob URL (cleaner, avoids URL length limits)
+  if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL) {
+    try {
+      const blob = new Blob([stateStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Đã xuất file sao lưu ✓', 'success');
+      return;
+    } catch (e) {
+      console.warn('Blob URL download failed, falling back to data URI', e);
+    }
+  }
+
+  // Platform 4: Legacy – data URI anchor (last resort)
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(stateStr);
+  const a = document.createElement('a');
+  a.setAttribute('href', dataStr);
+  a.setAttribute('download', filename);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Đã xuất file sao lưu ✓', 'success');
+}
+
+document.getElementById('btn-export-data').addEventListener('click', exportState);
+
+document.getElementById('btn-import-trigger').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+
+document.getElementById('import-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const importedState = JSON.parse(event.target.result);
+      if (importedState && importedState.rooms && Array.isArray(importedState.rooms)) {
+        loadState(importedState);   // nạp trực tiếp từ object đã import
+        saveState();                // đẩy lên Neon
+        initTheme();
+        renderPage(activePage);
+        showToast('Nhập dữ liệu thành công ✓ (đã đồng bộ server)', 'success');
+      } else {
+        showToast('File sao lưu không hợp lệ', 'error');
+      }
+    } catch (err) {
+      showToast('Không thể đọc file sao lưu', 'error');
+    }
+  };
+  reader.readAsText(file);
+});
+
+
+// ============================================================
+//  NAV & ROUTING
+// ============================================================
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => navigate(tab.dataset.page));
+});
+
+document.getElementById('btn-enter-all').addEventListener('click', () => navigate('billing'));
+document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+// ============================================================
+//  SEED DATA (Default Local Dev & Testing Data from Backup JSON)
+//  ⚠️ CRITICAL FOR PROD BUILD (với Ads/APK):
+//  Dữ liệu backup JSON này (9 phòng, VCB settings) CHỈ DÙNG CHO LOCAL DEV & TESTING.
+//  Khi build bản Production compile APK/AAB (có ads/IAP), bắt buộc phải CLEAN HẾT (để trống hoặc xoá data trong seedFromExcel) trước khi compile!
+// ============================================================
+function seedFromExcel() {
+  // Safeguard: Chặn tự động nạp dữ liệu local test nếu đang chạy bên trong App native Android (Prod)
+  if (typeof AndroidApp !== 'undefined' || typeof Android !== 'undefined') return;
+  if (STATE.rooms.length > 0) return;
+  const backupData = {
+    "rooms": [
+      {
+        "id": "1ea78820-7a83-441d-a183-f290ede10d39",
+        "name": "PHÒNG 1",
+        "rentPrice": 2500000,
+        "electricRate": 3200,
+        "waterRate": 50000,
+        "waterType": "người",
+        "peopleCount": 4,
+        "trashFee": 50000,
+        "wifiFee": 0,
+        "manageFee": 0,
+        "electricPrev": 6270,
+        "notes": "",
+        "tenants": [
+          { "id": uuid(), "fullName": "Nguyễn Văn An", "phone": "0901234567", "cccd": "079099001234", "issueDate": "2021-05-10", "dob": "1999-08-15", "gender": "Nam", "address": "Quận 1, TP. Hồ Chí Minh" },
+          { "id": uuid(), "fullName": "Trần Thị Mai", "phone": "0909876543", "cccd": "079199005678", "issueDate": "2022-01-20", "dob": "2000-11-02", "gender": "Nữ", "address": "Thủ Đức, TP. Hồ Chí Minh" }
+        ]
+      },
+      {
+        "id": "5678a495-7a22-40df-8d82-fd84667c0f74",
+        "name": "PHÒNG 2",
+        "rentPrice": 2200000,
+        "electricRate": 3200,
+        "waterRate": 50000,
+        "waterType": "người",
+        "peopleCount": 2,
+        "trashFee": 50000,
+        "wifiFee": 40000,
+        "manageFee": 0,
+        "electricPrev": 12361,
+        "notes": "",
+        "tenants": [
+          { "id": uuid(), "fullName": "Lê Hoàng Long", "phone": "0938112233", "cccd": "048098004321", "issueDate": "2020-10-12", "dob": "1998-03-24", "gender": "Nam", "address": "Hải Châu, Đà Nẵng" }
+        ]
+      },
+      { "id": "1385c840-4896-4391-af5a-7467d9cdf745", "name": "PHÒNG 3", "rentPrice": 2200000, "electricRate": 3400, "waterRate": 50000, "waterType": "người", "peopleCount": 1, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "electricPrev": 974, "notes": "", "tenants": [] },
+      { "id": "57a22130-f567-403c-9a6c-17635e1b28e6", "name": "PHÒNG 4", "rentPrice": 2200000, "electricRate": 3400, "waterRate": 50000, "waterType": "người", "peopleCount": 2, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "electricPrev": 1488, "notes": "", "tenants": [] },
+      { "id": "5abce627-e63b-4132-b3a1-8e4f7be464a8", "name": "PHÒNG 5", "rentPrice": 2300000, "electricRate": 3400, "waterRate": 50000, "waterType": "người", "peopleCount": 2, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "electricPrev": 6608, "notes": "", "tenants": [] },
+      { "id": "9b1de9b8-0865-4297-859e-a88e25ee47db", "name": "PHÒNG 6", "rentPrice": 2200000, "electricRate": 3400, "waterRate": 50000, "waterType": "người", "peopleCount": 1, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "electricPrev": 3567, "notes": "", "tenants": [] },
+      { "id": "e8a12999-23a3-4456-8c66-af51e2252258", "name": "PHÒNG 7", "rentPrice": 2200000, "electricRate": 3400, "waterRate": 50000, "waterType": "người", "peopleCount": 1, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "electricPrev": 5138, "notes": "", "tenants": [] },
+      { "id": "4b42abdc-7524-44fb-b078-06fdb220feec", "name": "PHÒNG 8", "rentPrice": 2000000, "electricRate": 3200, "waterRate": 50000, "waterType": "người", "peopleCount": 4, "trashFee": 50000, "wifiFee": 0, "manageFee": 0, "electricPrev": 7726, "notes": "", "tenants": [] },
+      { "id": "79843146-2e03-49c6-af8c-066eaae7a785", "name": "PHÒNG 9", "rentPrice": 2000000, "electricRate": 3200, "waterRate": 50000, "waterType": "người", "peopleCount": 3, "trashFee": 50000, "wifiFee": 0, "manageFee": 0, "electricPrev": 9409, "notes": "", "tenants": [] }
+    ],
+    "billingData": {
+      "2026-06": {
+        "1ea78820-7a83-441d-a183-f290ede10d39": { "electricNew": "", "waterUnits": 4 },
+        "5678a495-7a22-40df-8d82-fd84667c0f74": { "electricNew": "", "waterUnits": 2 }
+      },
+      "2026-07": {
+        "1ea78820-7a83-441d-a183-f290ede10d39": { "electricNew": 6416, "waterUnits": 4, "paid": true },
+        "1385c840-4896-4391-af5a-7467d9cdf745": { "electricNew": 1039, "waterUnits": 1, "paid": true },
+        "57a22130-f567-403c-9a6c-17635e1b28e6": { "electricNew": 1564, "waterUnits": 2, "paid": true },
+        "9b1de9b8-0865-4297-859e-a88e25ee47db": { "electricNew": 3597, "waterUnits": 1, "paid": true },
+        "e8a12999-23a3-4456-8c66-af51e2252258": { "electricNew": 5300, "waterUnits": 1, "paid": true },
+        "5abce627-e63b-4132-b3a1-8e4f7be464a8": { "electricNew": 6749, "waterUnits": 2, "paid": true },
+        "4b42abdc-7524-44fb-b078-06fdb220feec": { "electricNew": 7788, "waterUnits": 4, "paid": true },
+        "79843146-2e03-49c6-af8c-066eaae7a785": { "electricNew": 9468, "waterUnits": 3, "paid": true },
+        "5678a495-7a22-40df-8d82-fd84667c0f74": { "electricNew": 12566, "waterUnits": 2, "paid": true }
+      }
+    },
+    "settings": {
+      "deduction": 450000,
+      "bankId": "MB",
+      "bankAccount": "999988889999",
+      "bankOwnerName": "NGUYEN VAN A",
+      "bankTransferPattern": "",
+      "reminderEnabled": true,
+      "reminderDay": 4,
+      "reminderTime": "08:35"
+    },
+    "history": [
+      {
+        "period": "2026-07",
+        "deduction": 450000,
+        "timestamp": 1783745195511,
+        "bills": [
+          { "roomId": "1ea78820-7a83-441d-a183-f290ede10d39", "roomName": "PHÒNG 1", "rentPrice": 2500000, "electricOld": 6270, "electricNew": 6416, "electricRate": 3200, "kwh": 146, "electricAmt": 467200, "waterType": "người", "waterRate": 50000, "waterUnits": 4, "waterAmt": 200000, "trashFee": 50000, "wifiFee": 0, "manageFee": 0, "total": 3217200, "paid": true },
+          { "roomId": "5678a495-7a22-40df-8d82-fd84667c0f74", "roomName": "PHÒNG 2", "rentPrice": 2200000, "electricOld": 12361, "electricNew": 12566, "electricRate": 3200, "kwh": 205, "electricAmt": 656000, "waterType": "người", "waterRate": 50000, "waterUnits": 2, "waterAmt": 100000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 3046000, "paid": true },
+          { "roomId": "1385c840-4896-4391-af5a-7467d9cdf745", "roomName": "PHÒNG 3", "rentPrice": 2200000, "electricOld": 974, "electricNew": 1039, "electricRate": 3400, "kwh": 65, "electricAmt": 221000, "waterType": "người", "waterRate": 50000, "waterUnits": 1, "waterAmt": 50000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 2561000, "paid": true },
+          { "roomId": "57a22130-f567-403c-9a6c-17635e1b28e6", "roomName": "PHÒNG 4", "rentPrice": 2200000, "electricOld": 1488, "electricNew": 1564, "electricRate": 3400, "kwh": 76, "electricAmt": 258400, "waterType": "người", "waterRate": 50000, "waterUnits": 2, "waterAmt": 100000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 2648400, "paid": true },
+          { "roomId": "5abce627-e63b-4132-b3a1-8e4f7be464a8", "roomName": "PHÒNG 5", "rentPrice": 2300000, "electricOld": 6608, "electricNew": 6749, "electricRate": 3400, "kwh": 141, "electricAmt": 479400, "waterType": "người", "waterRate": 50000, "waterUnits": 2, "waterAmt": 100000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 2969400, "paid": true },
+          { "roomId": "9b1de9b8-0865-4297-859e-a88e25ee47db", "roomName": "PHÒNG 6", "rentPrice": 2200000, "electricOld": 3567, "electricNew": 3597, "electricRate": 3400, "kwh": 30, "electricAmt": 102000, "waterType": "người", "waterRate": 50000, "waterUnits": 1, "waterAmt": 50000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 2442000, "paid": true },
+          { "roomId": "e8a12999-23a3-4456-8c66-af51e2252258", "roomName": "PHÒNG 7", "rentPrice": 2200000, "electricOld": 5138, "electricNew": 5300, "electricRate": 3400, "kwh": 162, "electricAmt": 550800, "waterType": "người", "waterRate": 50000, "waterUnits": 1, "waterAmt": 50000, "trashFee": 50000, "wifiFee": 40000, "manageFee": 0, "total": 2890800, "paid": true },
+          { "roomId": "4b42abdc-7524-44fb-b078-06fdb220feec", "roomName": "PHÒNG 8", "rentPrice": 2000000, "electricOld": 7726, "electricNew": 7788, "electricRate": 3200, "kwh": 62, "electricAmt": 198400, "waterType": "người", "waterRate": 50000, "waterUnits": 4, "waterAmt": 200000, "trashFee": 50000, "wifiFee": 0, "manageFee": 0, "total": 2448400, "paid": true },
+          { "roomId": "79843146-2e03-49c6-af8c-066eaae7a785", "roomName": "PHÒNG 9", "rentPrice": 2000000, "electricOld": 9409, "electricNew": 9468, "electricRate": 3200, "kwh": 59, "electricAmt": 188800, "waterType": "người", "waterRate": 50000, "waterUnits": 3, "waterAmt": 150000, "trashFee": 50000, "wifiFee": 0, "manageFee": 0, "total": 2388800, "paid": true }
+        ]
+      }
+    ],
+    "theme": "dark"
+  };
+
+  STATE.rooms = backupData.rooms;
+  STATE.billingData = backupData.billingData;
+  STATE.settings = { ...STATE.settings, ...backupData.settings };
+  STATE.history = backupData.history;
+  STATE.theme = backupData.theme || 'system';
+  saveState();
+  showToast('Đã nạp dữ liệu mặc định từ file backup ✓', 'success', 3500);
+}
+
+function seedDemoData() {
+  // Deprecated: default data is now fully seeded inside seedFromExcel from backup JSON.
+}
+
+// ============================================================
+//  TENANTS MANAGEMENT & CCCD QR CODES (CR3 v2.0)
+// ============================================================
+let activeTenantRoomId = null;
+let _cccdScanner = null;
+
+function openTenantsModal(roomId) {
+  checkPremiumFeature('Quản lý khách trọ & eKYC CCCD', () => {
+    activeTenantRoomId = roomId;
+    const room = STATE.rooms.find(r => r.id === roomId);
+    if (!room) return;
+    
+    document.getElementById('tenants-room-name').textContent = room.name;
+    
+    // Hide form, show add button
+    const formEl = document.getElementById('tenant-form');
+    const addBtn = document.getElementById('tenant-add-btn');
+    formEl.style.display = 'none';
+    addBtn.style.display = 'block';
+    formEl.reset();
+    document.getElementById('tenant-id').value = '';
+    
+    renderTenantsList(roomId);
+    document.getElementById('tenants-modal').hidden = false;
+  });
+}
+
+function renderTenantsList(roomId) {
+  const room = STATE.rooms.find(r => r.id === roomId);
+  if (!room) return;
+  
+  const container = document.getElementById('tenants-list-container');
+  container.innerHTML = '';
+  
+  const tenants = room.tenants || [];
+  if (tenants.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding: 24px 10px;"><p style="margin:0;">Chưa có khách trọ nào.</p></div>';
+    return;
+  }
+  
+  tenants.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'tenant-item';
+    
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '—';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    };
+    
+    item.innerHTML = `
+      <div class="tenant-info">
+        <div class="tenant-name-row" style="display:flex; align-items:center; gap:8px;">
+          <span style="font-weight:600; font-size:0.92rem; color:var(--text);">${t.fullName}</span>
+          <span style="font-size:0.7rem; padding:1px 6px; border-radius:4px; background:var(--bg2); color:var(--text-muted); border:1px solid var(--border); font-weight:500;">
+            ${t.gender || 'Nam'}
+          </span>
+        </div>
+        <div class="tenant-meta" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+          <div>📞 SĐT: ${t.phone || '—'}</div>
+          <div>🪪 CCCD: ${t.cccd} (${formatDate(t.issueDate)})</div>
+          <div>🎂 Sinh nhật: ${formatDate(t.dob)}</div>
+          <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${t.address || '—'}</div>
+        </div>
+      </div>
+      <div class="tenant-actions" style="display:flex; gap:8px; align-self:flex-start;">
+        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-edit-tenant="${t.id}">✏️</button>
+        <button type="button" class="btn btn--danger btn--sm" style="padding: 4px 8px; font-size: 0.8rem; background: var(--red); border-color: var(--red);" data-delete-tenant="${t.id}">🗑️</button>
+      </div>
+    `;
+    
+    item.querySelector('[data-edit-tenant]').addEventListener('click', () => {
+      openTenantForm(roomId, t.id);
+    });
+    
+    item.querySelector('[data-delete-tenant]').addEventListener('click', () => {
+      deleteTenant(roomId, t.id);
+    });
+    
+    container.appendChild(item);
+  });
+}
+
+function openTenantForm(roomId, tenantId = null) {
+  const room = STATE.rooms.find(r => r.id === roomId);
+  if (!room) return;
+  
+  const formEl = document.getElementById('tenant-form');
+  const addBtn = document.getElementById('tenant-add-btn');
+  formEl.reset();
+  stopCccdScanner();
+  
+  if (tenantId) {
+    const t = room.tenants.find(x => x.id === tenantId);
+    if (!t) return;
+    
+    document.getElementById('tenant-form-title').textContent = '✏️ Sửa thông tin khách trọ';
+    document.getElementById('tenant-id').value = t.id;
+    document.getElementById('tenant-fullname').value = t.fullName;
+    document.getElementById('tenant-phone').value = t.phone || '';
+    document.getElementById('tenant-cccd').value = t.cccd;
+    document.getElementById('tenant-issue-date').value = t.issueDate || '';
+    document.getElementById('tenant-dob').value = t.dob || '';
+    document.getElementById('tenant-gender').value = t.gender || 'Nam';
+    document.getElementById('tenant-address').value = t.address || '';
+  } else {
+    document.getElementById('tenant-form-title').textContent = '➕ Thêm khách trọ mới';
+    document.getElementById('tenant-id').value = '';
+  }
+  
+  addBtn.style.display = 'none';
+  formEl.style.display = 'flex';
+}
+
+function deleteTenant(roomId, tenantId) {
+  const room = STATE.rooms.find(r => r.id === roomId);
+  if (!room) return;
+  
+  const tenant = room.tenants.find(t => t.id === tenantId);
+  if (!tenant) return;
+  
+  showConfirm(
+    `Xóa khách trọ “${tenant.fullName}” khỏi phòng?`,
+    () => {
+      room.tenants = room.tenants.filter(t => t.id !== tenantId);
+      
+      // Auto sync peopleCount
+      room.peopleCount = room.tenants.length;
+      
+      saveState();
+      renderTenantsList(roomId);
+      renderRooms();
+      showToast(`Đã xóa khách trọ ${tenant.fullName}`, 'info');
+    }
+  );
+}
+
+function startCccdScanner() {
+  const scanModal = document.getElementById('tenant-scan-modal');
+  scanModal.hidden = false;
+  
+  if (typeof Html5Qrcode === 'undefined') {
+    showToast('Thư viện quét QR chưa được tải. Thử lại sau.', 'error');
+    return;
+  }
+  
+  _cccdScanner = new Html5Qrcode("cccd-qr-reader");
+  
+  const config = {
+    fps: 10,
+    qrbox: { width: 250, height: 250 }
+  };
+  
+  _cccdScanner.start(
+    { facingMode: "environment" },
+    config,
+    (qrCodeMessage) => {
+      handleCccdQrResult(qrCodeMessage);
+      stopCccdScanner();
+    },
+    (errorMessage) => {
+      // Keep searching silently
+    }
+  ).catch(err => {
+    console.error("Camera error:", err);
+    showToast("Không mở được camera. Thử chọn ảnh có sẵn.", "error");
+    stopCccdScanner();
+  });
+}
+
+function stopCccdScanner() {
+  const scanModal = document.getElementById('tenant-scan-modal');
+  scanModal.hidden = true;
+  
+  if (_cccdScanner) {
+    if (_cccdScanner.isScanning) {
+      _cccdScanner.stop().then(() => {
+        _cccdScanner = null;
+      }).catch(err => {
+        console.error("Stop error:", err);
+        _cccdScanner = null;
+      });
+    } else {
+      _cccdScanner = null;
+    }
+  }
+}
+
+function handleCccdQrResult(qrText) {
+  const data = parseCccdQr(qrText);
+  if (!data) {
+    showToast("Mã QR không đúng định dạng CCCD Việt Nam.", "error");
+    return;
+  }
+  
+  document.getElementById('tenant-fullname').value = data.fullName;
+  document.getElementById('tenant-cccd').value = data.cccd;
+  document.getElementById('tenant-issue-date').value = data.issueDate;
+  document.getElementById('tenant-dob').value = data.dob;
+  document.getElementById('tenant-gender').value = data.gender;
+  document.getElementById('tenant-address').value = data.address;
+  
+  if (typeof AndroidApp !== 'undefined' && AndroidApp.vibrate) {
+    AndroidApp.vibrate(50);
+  } else if (navigator.vibrate) {
+    navigator.vibrate(50);
+  }
+  
+  showToast("Đã điền thông tin từ CCCD ✓", "success");
+}
+
+function parseCccdQr(qrText) {
+  if (!qrText) return null;
+  const parts = qrText.split('|');
+  if (parts.length < 7) return null;
+  
+  const cccd = parts[0].trim();
+  const fullName = parts[2].trim();
+  
+  // ddMMyyyy -> YYYY-MM-DD
+  const dobRaw = parts[3].trim();
+  let dob = '';
+  if (dobRaw.length === 8) {
+    dob = `${dobRaw.substring(4, 8)}-${dobRaw.substring(2, 4)}-${dobRaw.substring(0, 2)}`;
+  }
+  
+  let gender = parts[4].trim();
+  if (gender !== 'Nam' && gender !== 'Nữ') {
+    gender = 'Khác';
+  }
+  
+  const address = parts[5].trim();
+  
+  const issueDateRaw = parts[6].trim();
+  let issueDate = '';
+  if (issueDateRaw.length === 8) {
+    issueDate = `${issueDateRaw.substring(4, 8)}-${issueDateRaw.substring(2, 4)}-${issueDateRaw.substring(0, 2)}`;
+  }
+  
+  return { cccd, fullName, dob, gender, address, issueDate };
+}
+
+function initTenantsEvents() {
+  document.getElementById('tenants-modal-close').addEventListener('click', () => {
+    document.getElementById('tenants-modal').hidden = true;
+    stopCccdScanner();
+  });
+  
+  document.getElementById('tenant-add-btn').addEventListener('click', () => {
+    openTenantForm(activeTenantRoomId);
+  });
+  
+  document.getElementById('tenant-form-cancel').addEventListener('click', () => {
+    document.getElementById('tenant-form').style.display = 'none';
+    document.getElementById('tenant-add-btn').style.display = 'block';
+  });
+  
+  document.getElementById('tenant-scan-close').addEventListener('click', stopCccdScanner);
+  document.getElementById('tenant-scan-cancel-btn').addEventListener('click', stopCccdScanner);
+  
+  document.getElementById('tenant-scan-btn').addEventListener('click', () => {
+    startCccdScanner();
+  });
+  
+  const tenantUploadBtn = document.getElementById('tenant-upload-btn');
+  const tenantQrFile = document.getElementById('tenant-qr-file');
+  
+  if (tenantUploadBtn && tenantQrFile) {
+    tenantUploadBtn.addEventListener('click', () => {
+      tenantQrFile.click();
+    });
+    
+    tenantQrFile.addEventListener('change', (e) => {
+      if (e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      
+      if (typeof Html5Qrcode === 'undefined') {
+        showToast('Thư viện quét QR chưa sẵn sàng.', 'error');
+        return;
+      }
+      
+      const reader = new Html5Qrcode("cccd-qr-reader");
+      showToast("Đang quét ảnh...", "info");
+      
+      reader.scanFile(file, true)
+        .then(qrCodeMessage => {
+          handleCccdQrResult(qrCodeMessage);
+        })
+        .catch(err => {
+          console.error("File scan error:", err);
+          showToast("Không tìm thấy mã QR CCCD hợp lệ trong ảnh.", "error");
+        });
+    });
+  }
+  
+  document.getElementById('tenant-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!activeTenantRoomId) return;
+    
+    const id = document.getElementById('tenant-id').value;
+    const fullName = document.getElementById('tenant-fullname').value.trim();
+    const phone = document.getElementById('tenant-phone').value.trim();
+    const cccd = document.getElementById('tenant-cccd').value.trim();
+    const issueDate = document.getElementById('tenant-issue-date').value;
+    const dob = document.getElementById('tenant-dob').value;
+    const gender = document.getElementById('tenant-gender').value;
+    const address = document.getElementById('tenant-address').value.trim();
+    
+    if (!fullName || !cccd || !dob || !gender || !address || !issueDate) {
+      showToast('Vui lòng điền đủ thông tin bắt buộc (*)', 'error');
+      return;
+    }
+    
+    const room = STATE.rooms.find(r => r.id === activeTenantRoomId);
+    if (!room) return;
+    
+    const tenantData = {
+      id: id || uuid(),
+      fullName,
+      phone,
+      cccd,
+      issueDate,
+      dob,
+      gender,
+      address
+    };
+    
+    if (!room.tenants) room.tenants = [];
+    
+    if (id) {
+      const idx = room.tenants.findIndex(t => t.id === id);
+      if (idx > -1) room.tenants[idx] = tenantData;
+      showToast('Cập nhật thông tin khách trọ thành công ✓', 'success');
+    } else {
+      room.tenants.push(tenantData);
+      showToast('Thêm khách trọ thành công ✓', 'success');
+    }
+    
+    // Auto sync people count
+    room.peopleCount = room.tenants.length;
+    
+    saveState();
+    renderTenantsList(activeTenantRoomId);
+    renderRooms(); // Refresh the room-detail count
+    
+    // Hide form
+    document.getElementById('tenant-form').style.display = 'none';
+    document.getElementById('tenant-add-btn').style.display = 'block';
+  });
+}
+
+function seedDemoData() {
+  // Demo data is seeded by seedFromExcel()
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+function init() {
+  // state đã được nạp từ server ở startApp() trước khi gọi init()
+  initPeriod();
+  initTheme();
+  navigate('dashboard');
+  if (typeof initOcrModalEvents === 'function') initOcrModalEvents();
+  if (typeof initTenantsEvents === 'function') initTenantsEvents();
+
+  // Premium & Ads Initialization
+  if (typeof AndroidApp !== 'undefined') {
+    const premiumCard = document.getElementById('premium-card');
+    if (premiumCard) {
+      premiumCard.removeAttribute('hidden');
+    }
+    if (AndroidApp.isPremiumUser) {
+      updatePremiumUI(AndroidApp.isPremiumUser());
+    }
+    if (AndroidApp.requestProductPrices) {
+      AndroidApp.requestProductPrices();
+    }
+  }
+
+  if (typeof AndroidApp !== 'undefined' && AndroidApp.scheduleReminder && STATE.settings.reminderTime) {
+    const enabled = !!STATE.settings.reminderEnabled;
+    const day = STATE.settings.reminderDay || 30;
+    const [hour, minute] = STATE.settings.reminderTime.split(':').map(Number);
+    AndroidApp.scheduleReminder(day, hour, minute, enabled);
+  }
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (STATE.theme === 'system') {
+      initTheme();
+    }
+  });
+
+  // Offline/PWA đã bỏ: gỡ mọi service worker cũ để tránh cache khóa file
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    }).catch(() => {});
+  }
+
+  if (new URLSearchParams(window.location.search).get('test') === 'true') {
+    runRegressionTests();
+  }
+}
+
+function runRegressionTests() {
+  console.warn('Regression test cũ (dựa trên localStorage) đã tắt sau khi chuyển sang backend.');
+  return;
+  // eslint-disable-next-line no-unreachable
+  console.log("Starting JSON Import/Export Regression Tests...");
+
+  // Clear any existing localStorage state first to have clean slate
+  localStorage.removeItem(STORAGE_KEY);
+  
+  // 1. Initialize custom settings
+  STATE.settings = {
+    deduction: 500000,
+    bankId: 'MB',
+    bankAccount: '1234567890',
+    bankOwnerName: 'TEST OWNER',
+    bankTransferPattern: '{room} {period}',
+    reminderEnabled: true,
+    reminderDay: 25,
+    reminderTime: '18:30'
+  };
+  saveState();
+  
+  // 2. Prepare mock JSON backup file content from an OLD version
+  // This backup does NOT have settings, theme, or billingData keys, and lacks new room properties (wifiFee, manageFee, waterPrev)
+  const oldBackupJson = JSON.stringify({
+    rooms: [
+      { id: 'room-old-1', name: 'Old Room 1', rentPrice: 1500000, electricRate: 3500, electricPrev: 120 }
+    ]
+  });
+  
+  // 3. Simulate importing this old backup
+  localStorage.setItem(STORAGE_KEY, oldBackupJson);
+  
+  // 4. Trigger the new loadState() and saveState() logic
+  loadState();
+  saveState();
+  
+  // 5. Verify the state in memory
+  const passedRooms = STATE.rooms.length === 1 && STATE.rooms[0].name === 'Old Room 1';
+  // Check that new fields are normalized correctly
+  const passedNormalization = STATE.rooms[0].wifiFee === 0 && STATE.rooms[0].manageFee === 0 && STATE.rooms[0].trashFee === 50000 && STATE.rooms[0].waterPrev === 0;
+  // Check that pre-existing settings (like bankAccount, reminderEnabled) are preserved/merged correctly
+  const passedSettings = STATE.settings.bankAccount === '1234567890' && STATE.settings.reminderEnabled === true && STATE.settings.deduction === 500000;
+  
+  // 6. Verify that the merged state was written to localStorage
+  const rawSaved = localStorage.getItem(STORAGE_KEY);
+  let passedPersistence = false;
+  if (rawSaved) {
+    try {
+      const parsedSaved = JSON.parse(rawSaved);
+      passedPersistence = parsedSaved.settings && parsedSaved.settings.bankAccount === '1234567890' && parsedSaved.rooms && parsedSaved.rooms[0].wifiFee === 0 && parsedSaved.rooms[0].waterPrev === 0;
+    } catch(e) {}
+  }
+  
+  const allPassed = passedRooms && passedNormalization && passedSettings && passedPersistence;
+  
+  // Create UI overlay to show test result clearly
+  const resultDiv = document.createElement('div');
+  resultDiv.id = 'test-result-overlay';
+  resultDiv.style.position = 'fixed';
+  resultDiv.style.top = '0';
+  resultDiv.style.left = '0';
+  resultDiv.style.width = '100%';
+  resultDiv.style.height = '100%';
+  resultDiv.style.background = allPassed ? 'rgba(0, 128, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)';
+  resultDiv.style.color = '#fff';
+  resultDiv.style.display = 'flex';
+  resultDiv.style.flexDirection = 'column';
+  resultDiv.style.alignItems = 'center';
+  resultDiv.style.justifyContent = 'center';
+  resultDiv.style.zIndex = '999999';
+  resultDiv.style.fontFamily = 'sans-serif';
+  
+  resultDiv.innerHTML = `
+    <h1 style="font-size: 3rem; margin-bottom: 20px;">${allPassed ? '✓ REGRESSION TEST PASSED' : '✗ REGRESSION TEST FAILED'}</h1>
+    <div style="font-size: 1.2rem; line-height: 1.8; max-width: 600px; text-align: left;">
+      <p><b>Rooms count correct:</b> ${passedRooms ? 'YES' : 'NO'}</p>
+      <p><b>WiFi/Manage/Water prev normalized:</b> ${passedNormalization ? 'YES' : 'NO'}</p>
+      <p><b>Pre-existing settings merged & preserved:</b> ${passedSettings ? 'YES' : 'NO'}</p>
+      <p><b>Correctly saved to localStorage:</b> ${passedPersistence ? 'YES' : 'NO'}</p>
+    </div>
+  `;
+  document.body.appendChild(resultDiv);
+}
+
+// ============================================================
+//  AUTH GATE + BOOT
+// ============================================================
+let _appStarted = false;
+
+function showAuthScreen(show) {
+  const el = document.getElementById('auth-screen');
+  const nav = document.getElementById('main-nav');
+  const bottomNav = document.getElementById('bottom-nav');
+  const logoutBtn = document.getElementById('logout-btn');
+  if (el) el.hidden = !show;
+  // Ẩn/hiện phần app
+  document.querySelectorAll('.page').forEach(p => { p.style.visibility = show ? 'hidden' : ''; });
+  if (nav) nav.style.visibility = show ? 'hidden' : '';
+  if (bottomNav) bottomNav.style.display = show ? 'none' : '';
+  if (logoutBtn) logoutBtn.hidden = show;
+  const adminBtn = document.getElementById('admin-entry');
+  if (adminBtn && show) { adminBtn.hidden = true; adminBtn.classList.remove('show'); }
+}
+
+function handleAuthExpired() {
+  _appStarted = false;
+  API.logout();
+  if (typeof showToast === 'function') showToast('Phiên đăng nhập đã hết hạn', 'error', 3000);
+  showAuthScreen(true);
+}
+
+async function startApp() {
+  // Nạp state từ server rồi khởi động UI
+  const serverState = await API.getState();
+  loadState(serverState);
+  loadDonateConfig();
+  showAuthScreen(false);
+  updateAdminEntry();
+  if (!_appStarted) {
+    init();
+    _appStarted = true;
+  } else {
+    initPeriod();
+    initTheme();
+    navigate('dashboard');
+  }
+}
+
+// Hiện nút vào trang quản trị nếu tài khoản là admin
+async function updateAdminEntry() {
+  const btn = document.getElementById('admin-entry');
+  if (!btn) return;
+  try {
+    const me = await API.me();
+    if (me && me.isAdmin) {
+      btn.hidden = false;
+      btn.classList.add('show');
+    } else {
+      btn.hidden = true;
+      btn.classList.remove('show');
+    }
+  } catch (_) {
+    btn.hidden = true;
+  }
+}
+
+function initAuthUI() {
+  let mode = 'login'; // 'login' | 'register'
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabReg = document.getElementById('auth-tab-register');
+  const form = document.getElementById('auth-form');
+  const emailEl = document.getElementById('auth-email');
+  const passEl = document.getElementById('auth-password');
+  const errEl = document.getElementById('auth-error');
+  const submitBtn = document.getElementById('auth-submit');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  function setMode(m) {
+    mode = m;
+    tabLogin.classList.toggle('active', m === 'login');
+    tabReg.classList.toggle('active', m === 'register');
+    submitBtn.textContent = m === 'login' ? 'Đăng nhập' : 'Đăng ký';
+    passEl.setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
+    errEl.hidden = true;
+  }
+  tabLogin.addEventListener('click', () => setMode('login'));
+  tabReg.addEventListener('click', () => setMode('register'));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.hidden = true;
+    const email = emailEl.value.trim();
+    const password = passEl.value;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Đang xử lý...';
+    try {
+      if (mode === 'login') await API.login(email, password);
+      else await API.register(email, password);
+      await startApp();
+    } catch (err) {
+      errEl.textContent = err.message || 'Có lỗi xảy ra';
+      errEl.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = mode === 'login' ? 'Đăng nhập' : 'Đăng ký';
+    }
+  });
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await flushState();
+      API.logout();
+      handleAuthExpired();
+    });
+  }
+}
+
+async function boot() {
+  initAuthUI();
+  if (API.isLoggedIn()) {
+    try {
+      await startApp();
+      return;
+    } catch (err) {
+      if (err.code === 401) { API.logout(); }
+      else console.warn('Không nạp được state:', err.message);
+    }
+  }
+  showAuthScreen(true);
+}
+
+boot();
+
