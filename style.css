@@ -132,7 +132,48 @@ body {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 6px 12px;
 }
+.period-switcher--compact {
+  padding: 6px 8px;
+}
 .period-label { font-weight: 700; font-size: 1rem; min-width: 76px; text-align: center; }
+.period-month-input {
+  width: 140px;
+  padding: 6px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+}
+.period-month-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg);
+}
+.transfer-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  color: var(--text);
+  cursor: pointer;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+.transfer-option input[type="radio"] {
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+.transfer-period-note {
+  font-size: .83rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
 .btn-icon {
   width: 30px; height: 30px; border: none;
   background: var(--bg3); color: var(--text);
@@ -246,6 +287,45 @@ body {
 /* ===========================
    BILLING TABLE
    =========================== */
+.billing-progress {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.billing-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.billing-progress-title {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.billing-progress-meta {
+  font-size: .82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.billing-progress-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg3);
+}
+.billing-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), #34d399);
+  transition: width .25s ease;
+}
 .billing-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
 .billing-table {
   width: 100%; border-collapse: separate; border-spacing: 0;
@@ -276,8 +356,20 @@ body {
   z-index: 11;
   background: var(--bg3);
 }
+.billing-row--complete td {
+  background: rgba(22, 163, 74, 0.05);
+}
+.billing-row--complete td:first-child {
+  background: rgba(22, 163, 74, 0.08);
+}
+.billing-row--celebrate td {
+  animation: billingCompletePulse .7s ease;
+}
 .billing-table tr:last-child td { border-bottom: none; }
 .billing-table tr:hover td { background: var(--bg3); }
+.billing-row--complete:hover td {
+  background: rgba(22, 163, 74, 0.09);
+}
 .billing-table input[type="number"] {
   width: 100%; padding: 7px 9px;
   background: var(--bg3); border: 1px solid var(--border);
@@ -287,9 +379,55 @@ body {
   min-width: 84px;
 }
 .billing-table input[type="number"]:focus { outline: none; border-color: var(--primary); background: var(--bg); }
+.billing-room-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.billing-inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .74rem;
+  color: var(--text-muted);
+}
+.billing-inline-toggle input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+.billing-status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .2px;
+  text-transform: uppercase;
+}
+.billing-status-badge--pending {
+  background: rgba(136,146,164,.12);
+  color: var(--text-muted);
+}
+.billing-status-badge--done {
+  background: rgba(22,163,74,.14);
+  color: var(--green);
+}
+.billing-fee-muted {
+  display: inline-block;
+  font-size: .78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
 .kwh-cell   { font-weight: 700; color: var(--electric); }
 .total-cell { font-weight: 700; color: var(--green); white-space: nowrap; }
 .empty-cell { text-align: center; color: var(--text-muted); padding: 32px; }
+
+@keyframes billingCompletePulse {
+  0% { box-shadow: inset 0 0 0 0 rgba(22,163,74,0); }
+  35% { box-shadow: inset 0 0 0 999px rgba(22,163,74,0.08); }
+  100% { box-shadow: inset 0 0 0 999px rgba(22,163,74,0); }
+}
 
 /* Wifi toggle in billing */
 .wifi-toggle {
@@ -560,6 +698,7 @@ body {
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
   .period-switcher { align-self: flex-start; }
+  .period-month-input { width: 132px; }
 }
 
 /* ===========================
@@ -941,6 +1080,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.report-bill-note--warning {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
 }
 
 /* Responsive Navigation Bar for Mobile vs Desktop */

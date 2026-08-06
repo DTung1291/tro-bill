@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=44" />
+  <link rel="stylesheet" href="style.css?v=48" />
 </head>
 
 <body>
@@ -169,6 +169,23 @@
         <div>
           <h1 class="page-title">Nhập chỉ số</h1>
           <p class="page-sub" id="billing-period-label">Tháng --/----</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn--ghost btn--sm" id="btn-transfer-period">Chuyển dữ liệu tháng</button>
+          <div class="period-switcher period-switcher--compact">
+            <button class="btn-icon" id="billing-prev-month" title="Tháng trước">‹</button>
+            <input type="month" class="period-month-input" id="billing-month-input" aria-label="Chọn tháng nhập chỉ số" />
+            <button class="btn-icon" id="billing-next-month" title="Tháng sau">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="billing-progress" id="billing-progress">
+        <div class="billing-progress-top">
+          <div class="billing-progress-title">Tiến độ nhập tháng</div>
+          <div class="billing-progress-meta" id="billing-progress-meta">0/0 phòng hoàn thành</div>
+        </div>
+        <div class="billing-progress-bar">
+          <div class="billing-progress-fill" id="billing-progress-fill"></div>
         </div>
       </div>
       <div class="billing-table-wrap">
@@ -540,6 +557,42 @@
     </div>
   </div>
 
+  <!-- MODAL: Transfer Billing Period -->
+  <div class="modal-overlay" id="transfer-period-modal" hidden>
+    <div class="modal" style="max-width:460px">
+      <div class="modal-header">
+        <h2 class="modal-title">Chuyển dữ liệu tháng</h2>
+        <button class="modal-close" id="transfer-period-close">✕</button>
+      </div>
+      <div class="modal-form">
+        <div class="form-row">
+          <label class="form-label">Tháng nguồn</label>
+          <input type="text" class="form-input" id="transfer-source-period" readonly />
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="transfer-target-period">Tháng đích</label>
+          <input type="month" class="form-input" id="transfer-target-period" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Cách xử lý</label>
+          <label class="transfer-option">
+            <input type="radio" name="transfer-mode" value="move" checked />
+            <span>Chuyển hẳn sang tháng mới và xóa dữ liệu ở tháng cũ</span>
+          </label>
+          <label class="transfer-option">
+            <input type="radio" name="transfer-mode" value="copy" />
+            <span>Sao chép sang tháng mới và giữ lại tháng cũ</span>
+          </label>
+        </div>
+        <p class="transfer-period-note">Dùng khi bạn đã nhập đúng số nhưng lỡ chọn sai tháng.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="transfer-period-cancel">Hủy</button>
+          <button type="button" class="btn btn--primary" id="transfer-period-submit">Thực hiện</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- MODAL: Room Tenants Management -->
   <div class="modal-overlay" id="tenants-modal" hidden>
@@ -701,9 +754,9 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=44"></script>
-  <script src="ocr.js?v=44"></script>
-  <script src="app.js?v=44"></script>
+  <script src="api.js?v=48"></script>
+  <script src="ocr.js?v=48"></script>
+  <script src="app.js?v=48"></script>
 </body>
 
 </html>

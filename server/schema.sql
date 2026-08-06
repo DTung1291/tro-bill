@@ -88,9 +88,11 @@ CREATE TABLE IF NOT EXISTS billing_entries (
   electric_old_override NUMERIC,
   water_old_override    NUMERIC,
   note                  TEXT,
+  utility_only          BOOLEAN NOT NULL DEFAULT false,
   paid                  BOOLEAN NOT NULL DEFAULT false,
   PRIMARY KEY (user_id, period, room_id)
 );
+ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS utility_only BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS idx_billing_user_period ON billing_entries(user_id, period);
 
 -- Ảnh chụp tháng đã lưu (snapshot) + các bill trong đó
@@ -124,8 +126,10 @@ CREATE TABLE IF NOT EXISTS history_bills (
   trash_fee    NUMERIC DEFAULT 0,
   wifi_fee     NUMERIC DEFAULT 0,
   manage_fee   NUMERIC DEFAULT 0,
+  utility_only BOOLEAN NOT NULL DEFAULT false,
   total        NUMERIC DEFAULT 0,
   paid         BOOLEAN NOT NULL DEFAULT false,
   sort_order   INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS utility_only BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS idx_history_bills_snapshot ON history_bills(snapshot_id);

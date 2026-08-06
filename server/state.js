@@ -80,6 +80,7 @@ async function buildState(uid) {
       electricNew: orEmpty(b.electric_new),
       waterUnits: orEmpty(b.water_units),
       waterNew: orEmpty(b.water_new),
+      utilityOnly: !!b.utility_only,
       paid: !!b.paid
     };
     if (b.electric_old_override !== null) entry.electricOldOverride = Number(b.electric_old_override);
@@ -109,6 +110,7 @@ async function buildState(uid) {
       trashFee: num(hb.trash_fee),
       wifiFee: num(hb.wifi_fee),
       manageFee: num(hb.manage_fee),
+      utilityOnly: !!hb.utility_only,
       total: num(hb.total),
       paid: !!hb.paid
     });
@@ -212,12 +214,12 @@ async function putState(req, res) {
         await client.query(
           `INSERT INTO billing_entries
              (user_id, period, room_id, electric_new, water_units, water_new,
-              electric_old_override, water_old_override, note, paid)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+              electric_old_override, water_old_override, note, utility_only, paid)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
           [
             uid, period, roomId, orNull(e.electricNew), orNull(e.waterUnits),
             orNull(e.waterNew), orNull(e.electricOldOverride), orNull(e.waterOldOverride),
-            strOrNull(e.note), !!e.paid
+            strOrNull(e.note), !!e.utilityOnly, !!e.paid
           ]
         );
       }
@@ -237,8 +239,8 @@ async function putState(req, res) {
           `INSERT INTO history_bills
              (snapshot_id, room_id, room_name, rent_price, electric_old, electric_new,
               electric_rate, kwh, electric_amt, water_type, water_rate, water_units,
-              water_amt, water_prev, water_new, trash_fee, wifi_fee, manage_fee, total, paid, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+              water_amt, water_prev, water_new, trash_fee, wifi_fee, manage_fee, utility_only, total, paid, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
           [
             snapId, b.roomId, b.roomName, num(b.rentPrice), num(b.electricOld),
             b.electricNew === null || b.electricNew === undefined ? null : Number(b.electricNew),
@@ -246,7 +248,7 @@ async function putState(req, res) {
             num(b.waterRate), num(b.waterUnits), num(b.waterAmt),
             b.waterPrev === null || b.waterPrev === undefined ? null : Number(b.waterPrev),
             b.waterNew === null || b.waterNew === undefined ? null : Number(b.waterNew),
-            num(b.trashFee), num(b.wifiFee), num(b.manageFee), num(b.total), !!b.paid, bIdx++
+            num(b.trashFee), num(b.wifiFee), num(b.manageFee), !!b.utilityOnly, num(b.total), !!b.paid, bIdx++
           ]
         );
       }
