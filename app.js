@@ -12,6 +12,7 @@
 const STATE = {
   rooms: [],            // Room[]
   billingData: {},      // { "YYYY-MM": { roomId: { electricNew, waterUnits, paid } } }
+  expenses: {},         // { "YYYY-MM": Expense[] } chi thực tế trả nhà cung cấp
   settings: {
     deduction: 450000,   // Chi phí khấu trừ hàng tháng
     bankId: '',
@@ -42,6 +43,7 @@ function _serializeState() {
   return {
     rooms: STATE.rooms,
     billingData: STATE.billingData,
+    expenses: STATE.expenses,
     settings: STATE.settings,
     history: STATE.history,
     theme: STATE.theme
@@ -126,6 +128,17 @@ function loadState(savedObj) {
     }));
 
     STATE.billingData = saved.billingData || {};
+    STATE.expenses = Object.fromEntries(Object.entries(saved.expenses || {}).map(([period, items]) => [
+      period,
+      (Array.isArray(items) ? items : []).map(item => ({
+        id: item.id || uuid(),
+        category: item.category || 'other',
+        name: item.name || '',
+        amount: item.amount !== undefined ? Number(item.amount) : 0,
+        paidDate: item.paidDate || '',
+        note: item.note || ''
+      }))
+    ]));
     STATE.settings = { ...STATE.settings, ...(saved.settings || {}) };
     
     // Normalize history snapshots
@@ -248,6 +261,13 @@ function periodInputValue(key) {
 
 function clonePeriodRecords(records) {
   return JSON.parse(JSON.stringify(records || {}));
+}
+
+function cloneExpenseRecords(records, regenerateIds = false) {
+  return (records || []).map(record => ({
+    ...record,
+    id: regenerateIds ? uuid() : record.id
+  }));
 }
 
 function isUtilityOnlyRecord(record) {
@@ -625,6 +645,81 @@ function openTransferPeriodModal() {
   modal.onclick = (e) => { if (e.target === modal) cleanup(); };
 }
 
+function closeTransferExpensesModal() {
+  document.getElementById('transfer-expenses-modal').hidden = true;
+}
+
+function executeTransferExpenses(sourcePeriod, targetPeriod, mode) {
+  // Bản sao cần mã mới vì id khoản chi là khóa duy nhất trong cơ sở dữ liệu.
+  STATE.expenses[targetPeriod] = cloneExpenseRecords(STATE.expenses[sourcePeriod], mode === 'copy');
+  if (mode === 'move') delete STATE.expenses[sourcePeriod];
+  STATE.currentPeriod = targetPeriod;
+  saveState();
+  closeTransferExpensesModal();
+  resetExpenseForm();
+  renderPage(activePage);
+  renderDashboard();
+  showToast(`Đã ${mode === 'move' ? 'chuyển' : 'sao chép'} chi phí sang ${periodLabel(targetPeriod)} ✓`, 'success');
+}
+
+function openTransferExpensesModal() {
+  const sourcePeriod = STATE.currentPeriod;
+  const sourceData = getPeriodExpenses(sourcePeriod);
+  if (sourceData.length === 0) {
+    showToast('Tháng này chưa có chi phí để chuyển', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('transfer-expenses-modal');
+  const sourceInput = document.getElementById('transfer-expenses-source-period');
+  const targetInput = document.getElementById('transfer-expenses-target-period');
+  const submitBtn = document.getElementById('transfer-expenses-submit');
+  const cancelBtn = document.getElementById('transfer-expenses-cancel');
+  const closeBtn = document.getElementById('transfer-expenses-close');
+
+  sourceInput.value = periodLabel(sourcePeriod);
+  targetInput.value = '';
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; };
+  const newSubmit = submitBtn.cloneNode(true);
+  const newCancel = cancelBtn.cloneNode(true);
+  const newClose = closeBtn.cloneNode(true);
+  submitBtn.replaceWith(newSubmit);
+  cancelBtn.replaceWith(newCancel);
+  closeBtn.replaceWith(newClose);
+
+  newSubmit.addEventListener('click', () => {
+    const targetPeriod = targetInput.value;
+    const mode = document.querySelector('input[name="transfer-expenses-mode"]:checked')?.value || 'move';
+    if (!targetPeriod) {
+      showToast('Vui lòng chọn tháng đích', 'error');
+      return;
+    }
+    if (targetPeriod === sourcePeriod) {
+      showToast('Tháng đích phải khác tháng nguồn', 'error');
+      return;
+    }
+
+    const transfer = () => executeTransferExpenses(sourcePeriod, targetPeriod, mode);
+    if (getPeriodExpenses(targetPeriod).length > 0) {
+      const action = mode === 'move' ? 'chuyển' : 'sao chép';
+      showConfirm(
+        `${periodLabel(targetPeriod)} đã có chi phí. Bạn có muốn ghi đè bằng dữ liệu từ ${periodLabel(sourcePeriod)} không?`,
+        transfer,
+        null,
+        `Ghi đè & ${action}`
+      );
+      return;
+    }
+    transfer();
+  });
+
+  newCancel.addEventListener('click', cleanup);
+  newClose.addEventListener('click', cleanup);
+  modal.onclick = (e) => { if (e.target === modal) cleanup(); };
+}
+
 
 // ============================================================
 //  BILLING CALCULATIONS
@@ -678,6 +773,26 @@ function getPeriodRecord(roomId, period) {
   return STATE.billingData[period]?.[roomId] || null;
 }
 
+const EXPENSE_CATEGORIES = {
+  electric: { icon: '⚡', label: 'Tiền điện nhà nước' },
+  water: { icon: '💧', label: 'Tiền nước nhà nước' },
+  trash: { icon: '🗑️', label: 'Phí rác' },
+  internet: { icon: '📶', label: 'Tiền Internet' },
+  other: { icon: '➕', label: 'Chi phí khác' }
+};
+
+function getPeriodExpenses(period = STATE.currentPeriod) {
+  return Array.isArray(STATE.expenses[period]) ? STATE.expenses[period] : [];
+}
+
+function getExpenseTotal(period = STATE.currentPeriod) {
+  return getPeriodExpenses(period).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+}
+
+function getExpenseMeta(category) {
+  return EXPENSE_CATEGORIES[category] || EXPENSE_CATEGORIES.other;
+}
+
 // ============================================================
 //  NAVIGATION
 // ============================================================
@@ -702,6 +817,7 @@ function renderPage(page) {
     case 'dashboard': renderDashboard(); break;
     case 'rooms':     renderRooms();     break;
     case 'billing':   renderBilling();   break;
+    case 'expenses':  renderExpenses();  break;
     case 'report':    renderReport();    break;
     case 'history':   renderHistory();   break;
     case 'settings':  break;
@@ -785,7 +901,7 @@ function renderDashboard() {
   if (reminderDaySelect) reminderDaySelect.value = STATE.settings.reminderDay || 30;
   if (reminderTimeInput) reminderTimeInput.value = STATE.settings.reminderTime || '20:00';
 
-  let totalAmt = 0, totalElec = 0, totalWater = 0;
+  let totalAmt = 0, totalPaid = 0, totalElec = 0, totalWater = 0;
   let entered = 0;
 
   const listEl = document.getElementById('room-status-list');
@@ -805,6 +921,7 @@ function renderDashboard() {
       totalAmt   += bill.total;
       totalElec  += bill.electricAmt;
       totalWater += bill.waterAmt;
+      if (rec.paid) totalPaid += bill.total;
       entered++;
     }
 
@@ -828,13 +945,108 @@ function renderDashboard() {
     listEl.appendChild(item);
   }
 
-  const netAmt = totalAmt - (STATE.settings.deduction || 0);
+  const totalExpenses = getExpenseTotal(period);
   document.getElementById('total-amount').textContent = fmt(totalAmt);
-  document.getElementById('total-net').textContent     = `Thực thu: ${fmt(netAmt)}`;
+  document.getElementById('total-net').textContent     = `Đã thu: ${fmt(totalPaid)}`;
   document.getElementById('total-electric').textContent = fmt(totalElec);
   document.getElementById('total-water').textContent    = fmt(totalWater);
+  document.getElementById('total-expenses').textContent = fmt(totalExpenses);
+  document.getElementById('total-profit').textContent   = fmt(totalPaid - totalExpenses);
   document.getElementById('rooms-entered').textContent  = entered;
   document.getElementById('rooms-total').textContent    = STATE.rooms.length;
+}
+
+// ============================================================
+//  EXPENSES — Chi phí chủ trọ thanh toán thực tế
+// ============================================================
+function resetExpenseForm() {
+  const form = document.getElementById('expense-form');
+  form.reset();
+  document.getElementById('expense-id').value = '';
+  document.getElementById('expense-name-row').hidden = true;
+  document.getElementById('expense-form-cancel').hidden = true;
+  document.getElementById('expense-form-submit').textContent = '+ Lưu chi phí';
+}
+
+function renderExpenses() {
+  const period = STATE.currentPeriod;
+  const expenses = getPeriodExpenses(period);
+  const listEl = document.getElementById('expense-list');
+  const summaryEl = document.getElementById('expense-summary');
+
+  document.getElementById('expenses-period-label').textContent = periodLabel(period);
+  document.getElementById('expenses-month-input').value = periodInputValue(period);
+  document.getElementById('expense-total').textContent = fmt(getExpenseTotal(period));
+
+  summaryEl.innerHTML = Object.entries(EXPENSE_CATEGORIES)
+    .filter(([category]) => category !== 'other')
+    .map(([category, meta]) => {
+      const total = expenses
+        .filter(item => item.category === category)
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      return `<div class="expense-summary-item"><div class="expense-summary-label">${meta.icon} ${meta.label}</div><div class="expense-summary-value">${fmt(total)}</div></div>`;
+    }).join('');
+
+  if (expenses.length === 0) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">💸</div><p>Chưa ghi nhận chi phí nào trong tháng này.</p></div>`;
+    return;
+  }
+
+  listEl.innerHTML = expenses.map(item => {
+    const meta = getExpenseMeta(item.category);
+    const name = item.category === 'other' && item.name ? item.name : meta.label;
+    const details = [item.paidDate ? `Ngày trả: ${new Date(`${item.paidDate}T00:00:00`).toLocaleDateString('vi-VN')}` : '', item.note]
+      .filter(Boolean).join(' | ') || 'Chưa có ghi chú';
+    return `
+      <div class="expense-item">
+        <div class="expense-item-icon">${meta.icon}</div>
+        <div class="expense-item-main">
+          <div class="expense-item-name">${name}</div>
+          <div class="expense-item-meta">${details}</div>
+        </div>
+        <div class="expense-item-amount">${fmt(item.amount)}</div>
+        <div class="expense-item-actions">
+          <button class="btn btn--ghost btn--sm" data-edit-expense="${item.id}" title="Sửa">✏️</button>
+          <button class="btn btn--danger btn--sm" data-delete-expense="${item.id}" title="Xóa">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('[data-edit-expense]').forEach(button => {
+    button.addEventListener('click', () => editExpense(button.dataset.editExpense));
+  });
+  listEl.querySelectorAll('[data-delete-expense]').forEach(button => {
+    button.addEventListener('click', () => deleteExpense(button.dataset.deleteExpense));
+  });
+}
+
+function editExpense(id) {
+  const item = getPeriodExpenses().find(expense => expense.id === id);
+  if (!item) return;
+  document.getElementById('expense-id').value = item.id;
+  document.getElementById('expense-category').value = item.category;
+  document.getElementById('expense-name').value = item.name || '';
+  document.getElementById('expense-amount').value = item.amount;
+  document.getElementById('expense-date').value = item.paidDate || '';
+  document.getElementById('expense-note').value = item.note || '';
+  document.getElementById('expense-name-row').hidden = item.category !== 'other';
+  document.getElementById('expense-form-cancel').hidden = false;
+  document.getElementById('expense-form-submit').textContent = 'Lưu thay đổi';
+  document.getElementById('expense-amount').focus();
+}
+
+function deleteExpense(id) {
+  const item = getPeriodExpenses().find(expense => expense.id === id);
+  if (!item) return;
+  const meta = getExpenseMeta(item.category);
+  showConfirm(`Xóa khoản “${item.name || meta.label}” của ${periodLabel(STATE.currentPeriod)}?`, () => {
+    STATE.expenses[STATE.currentPeriod] = getPeriodExpenses().filter(expense => expense.id !== id);
+    if (STATE.expenses[STATE.currentPeriod].length === 0) delete STATE.expenses[STATE.currentPeriod];
+    saveState();
+    renderExpenses();
+    renderDashboard();
+    showToast('Đã xóa khoản chi', 'info');
+  });
 }
 
 // ============================================================
@@ -2194,6 +2406,51 @@ document.getElementById('billing-month-input').addEventListener('change', (e) =>
   renderPage(activePage);
 });
 document.getElementById('btn-transfer-period').addEventListener('click', openTransferPeriodModal);
+document.getElementById('btn-transfer-expenses').addEventListener('click', openTransferExpensesModal);
+document.getElementById('expenses-prev-month').addEventListener('click', () => shiftPeriod(-1));
+document.getElementById('expenses-next-month').addEventListener('click', () => shiftPeriod(+1));
+document.getElementById('expenses-month-input').addEventListener('change', (e) => {
+  if (!e.target.value) return;
+  STATE.currentPeriod = e.target.value;
+  renderPage(activePage);
+});
+document.getElementById('expense-category').addEventListener('change', (e) => {
+  document.getElementById('expense-name-row').hidden = e.target.value !== 'other';
+});
+document.getElementById('expense-form-cancel').addEventListener('click', resetExpenseForm);
+document.getElementById('expense-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('expense-id').value;
+  const category = document.getElementById('expense-category').value;
+  const amount = Number(document.getElementById('expense-amount').value);
+  const name = document.getElementById('expense-name').value.trim();
+  if (!Number.isFinite(amount) || amount < 0) {
+    showToast('Vui lòng nhập số tiền hợp lệ', 'error');
+    return;
+  }
+  if (category === 'other' && !name) {
+    showToast('Vui lòng nhập tên chi phí khác', 'error');
+    return;
+  }
+  const item = {
+    id: id || uuid(),
+    category,
+    name: category === 'other' ? name : '',
+    amount,
+    paidDate: document.getElementById('expense-date').value,
+    note: document.getElementById('expense-note').value.trim()
+  };
+  const expenses = getPeriodExpenses();
+  const index = expenses.findIndex(expense => expense.id === item.id);
+  if (index >= 0) expenses[index] = item;
+  else expenses.push(item);
+  STATE.expenses[STATE.currentPeriod] = expenses;
+  saveState();
+  resetExpenseForm();
+  renderExpenses();
+  renderDashboard();
+  showToast(index >= 0 ? 'Đã cập nhật khoản chi ✓' : 'Đã lưu khoản chi ✓', 'success');
+});
 
 // ============================================================
 //  SETTINGS
@@ -2291,6 +2548,9 @@ if (saveReminderBtn) {
 // ============================================================
 //  PREMIUM & ADS (Android Only)
 // ============================================================
+// Tạm thời chưa mở bán Premium: ẩn UI và cho phép dùng toàn bộ tính năng.
+const PREMIUM_FEATURES_ENABLED = false;
+
 function updatePremiumUI(isPremium) {
   const premiumStatusSpan = document.getElementById('premium-status');
   const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
@@ -2470,7 +2730,7 @@ function isPremiumUser() {
 }
 
 function checkPremiumFeature(featureName, onApproved) {
-  if (isPremiumUser()) {
+  if (!PREMIUM_FEATURES_ENABLED || isPremiumUser()) {
     onApproved();
   } else {
     showConfirm(
@@ -3094,8 +3354,8 @@ function init() {
   if (typeof initOcrModalEvents === 'function') initOcrModalEvents();
   if (typeof initTenantsEvents === 'function') initTenantsEvents();
 
-  // Premium & Ads Initialization
-  if (typeof AndroidApp !== 'undefined') {
+  // Chỉ nạp gói nâng cấp khi tính năng này được mở lại.
+  if (PREMIUM_FEATURES_ENABLED && typeof AndroidApp !== 'undefined') {
     const premiumCard = document.getElementById('premium-card');
     if (premiumCard) {
       premiumCard.removeAttribute('hidden');

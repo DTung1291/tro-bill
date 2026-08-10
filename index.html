@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=48" />
+  <link rel="stylesheet" href="style.css?v=57" />
 </head>
 
 <body>
@@ -64,6 +64,9 @@
           <button class="nav-tab" data-page="billing" id="tab-billing">
             <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
           </button>
+          <button class="nav-tab" data-page="expenses" id="tab-expenses">
+            <span class="tab-icon">💸</span><span class="tab-label">Chi phí</span>
+          </button>
           <button class="nav-tab" data-page="report" id="tab-report">
             <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
           </button>
@@ -91,6 +94,9 @@
     </button>
     <button class="nav-tab" data-page="billing" id="btab-billing">
       <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
+    </button>
+    <button class="nav-tab" data-page="expenses" id="btab-expenses">
+      <span class="tab-icon">💸</span><span class="tab-label">Chi phí</span>
     </button>
     <button class="nav-tab" data-page="report" id="btab-report">
       <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
@@ -122,9 +128,9 @@
 
       <div class="cards-grid">
         <div class="card card--primary">
-          <div class="card-label">Tổng thu tháng</div>
+          <div class="card-label">Tổng phải thu</div>
           <div class="card-value" id="total-amount">0 đ</div>
-          <div class="card-sub" id="total-net">Thực thu: 0 đ</div>
+          <div class="card-sub" id="total-net">Đã thu: 0 đ</div>
         </div>
         <div class="card card--electric">
           <div class="card-label">Tiền điện</div>
@@ -133,6 +139,16 @@
         <div class="card card--water">
           <div class="card-label">Tiền nước</div>
           <div class="card-value" id="total-water">0 đ</div>
+        </div>
+        <div class="card card--expense">
+          <div class="card-label">Chi phí thực tế</div>
+          <div class="card-value" id="total-expenses">0 đ</div>
+          <div class="card-sub">Đã trả nhà cung cấp</div>
+        </div>
+        <div class="card card--profit">
+          <div class="card-label">Còn lại sau chi phí</div>
+          <div class="card-value" id="total-profit">0 đ</div>
+          <div class="card-sub">Tiền đã thu - chi phí thực tế</div>
         </div>
         <div class="card card--status">
           <div class="card-label">Phòng đã nhập</div>
@@ -214,6 +230,71 @@
       <div class="billing-legend" id="billing-legend"></div>
     </section>
 
+    <!-- PAGE: EXPENSES -->
+    <section class="page" id="page-expenses">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Chi phí thực tế</h1>
+          <p class="page-sub" id="expenses-period-label">Tháng --/----</p>
+        </div>
+        <div class="expenses-toolbar">
+          <button class="btn btn--ghost btn--sm" id="btn-transfer-expenses">Chuyển dữ liệu tháng</button>
+          <div class="period-switcher period-switcher--compact">
+            <button class="btn-icon" id="expenses-prev-month" title="Tháng trước">‹</button>
+            <input type="month" class="period-month-input" id="expenses-month-input" aria-label="Chọn tháng chi phí" />
+            <button class="btn-icon" id="expenses-next-month" title="Tháng sau">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="expense-summary" id="expense-summary"></div>
+      <div class="expense-layout">
+        <form class="expense-form" id="expense-form">
+          <h2 class="section-title">Thêm khoản đã trả</h2>
+          <p class="expense-help">Ghi số tiền bạn thực tế thanh toán cho nhà cung cấp, tách biệt với tiền thu của khách.</p>
+          <input type="hidden" id="expense-id" />
+          <div class="form-row">
+            <label class="form-label" for="expense-category">Loại chi phí</label>
+            <select class="form-input" id="expense-category">
+              <option value="electric">⚡ Tiền điện nhà nước</option>
+              <option value="water">💧 Tiền nước nhà nước</option>
+              <option value="trash">🗑️ Phí rác</option>
+              <option value="internet">📶 Tiền Internet</option>
+              <option value="other">➕ Chi phí khác</option>
+            </select>
+          </div>
+          <div class="form-row" id="expense-name-row" hidden>
+            <label class="form-label" for="expense-name">Tên chi phí</label>
+            <input class="form-input" type="text" id="expense-name" placeholder="VD: Sửa máy bơm" />
+          </div>
+          <div class="form-row form-row--2col">
+            <div>
+              <label class="form-label" for="expense-amount">Số tiền (đ) *</label>
+              <input class="form-input" type="number" id="expense-amount" min="0" placeholder="0" required />
+            </div>
+            <div>
+              <label class="form-label" for="expense-date">Ngày thanh toán</label>
+              <input class="form-input" type="date" id="expense-date" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="expense-note">Ghi chú</label>
+            <input class="form-input" type="text" id="expense-note" placeholder="VD: Hóa đơn tháng 6" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn--ghost" id="expense-form-cancel" hidden>Hủy sửa</button>
+            <button type="submit" class="btn btn--primary" id="expense-form-submit">+ Lưu chi phí</button>
+          </div>
+        </form>
+        <div class="expense-list-card">
+          <div class="section-header">
+            <h2 class="section-title">Khoản đã thanh toán</h2>
+            <span class="expense-total" id="expense-total">0 đ</span>
+          </div>
+          <div class="expense-list" id="expense-list"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- PAGE: REPORT -->
     <section class="page" id="page-report">
       <div class="page-header">
@@ -256,7 +337,7 @@
       </div>
 
       <div class="settings-card">
-        <span>⚙️ Chi phí khấu trừ hàng tháng:</span>
+        <span>⚙️ Khoản khấu trừ thêm khi in báo cáo:</span>
         <div class="settings-inline">
           <input type="number" id="deduction-input" class="inline-input" placeholder="450000" />
           <span>đ</span>
@@ -350,16 +431,6 @@
           <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất file JSON</button>
           <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập file JSON</button>
           <input type="file" id="import-file-input" accept=".json" style="display:none" />
-        </div>
-      </div>
-
-      <!-- 👑 Gói Premium (Chỉ hiện trên Android) -->
-      <div class="settings-card" id="premium-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;" hidden>
-        <span style="font-weight: 600; color: var(--text)">👑 Gói nâng cấp (Premium):</span>
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <span id="premium-status" style="font-size: 0.85rem; font-weight: 600; margin-right: 10px;"></span>
-          <button class="btn btn--sm btn--ghost" id="btn-buy-premium-yearly">📅 Gói năm (~120k)</button>
-          <button class="btn btn--sm btn--primary" id="btn-buy-premium-lifetime">♾️ Trọn đời (~370k)</button>
         </div>
       </div>
 
@@ -593,6 +664,42 @@
     </div>
   </div>
 
+  <!-- MODAL: Transfer Expenses Period -->
+  <div class="modal-overlay" id="transfer-expenses-modal" hidden>
+    <div class="modal" style="max-width:460px">
+      <div class="modal-header">
+        <h2 class="modal-title">Chuyển dữ liệu chi phí</h2>
+        <button class="modal-close" id="transfer-expenses-close">✕</button>
+      </div>
+      <div class="modal-form">
+        <div class="form-row">
+          <label class="form-label">Tháng nguồn</label>
+          <input type="text" class="form-input" id="transfer-expenses-source-period" readonly />
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="transfer-expenses-target-period">Tháng đích</label>
+          <input type="month" class="form-input" id="transfer-expenses-target-period" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">Cách xử lý</label>
+          <label class="transfer-option">
+            <input type="radio" name="transfer-expenses-mode" value="move" checked />
+            <span>Chuyển hẳn sang tháng mới và xóa chi phí ở tháng cũ</span>
+          </label>
+          <label class="transfer-option">
+            <input type="radio" name="transfer-expenses-mode" value="copy" />
+            <span>Sao chép sang tháng mới và giữ lại tháng cũ</span>
+          </label>
+        </div>
+        <p class="transfer-period-note">Dùng khi bạn đã nhập chi phí đúng nhưng lỡ chọn sai tháng.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="transfer-expenses-cancel">Hủy</button>
+          <button type="button" class="btn btn--primary" id="transfer-expenses-submit">Thực hiện</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- MODAL: Room Tenants Management -->
   <div class="modal-overlay" id="tenants-modal" hidden>
@@ -754,9 +861,9 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=48"></script>
-  <script src="ocr.js?v=48"></script>
-  <script src="app.js?v=48"></script>
+  <script src="api.js?v=55"></script>
+  <script src="ocr.js?v=55"></script>
+  <script src="app.js?v=55"></script>
 </body>
 
 </html>

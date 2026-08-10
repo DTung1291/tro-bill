@@ -95,6 +95,20 @@ CREATE TABLE IF NOT EXISTS billing_entries (
 ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS utility_only BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS idx_billing_user_period ON billing_entries(user_id, period);
 
+-- Chi phí chủ trọ đã thanh toán thực tế theo tháng (tách khỏi hóa đơn khách)
+CREATE TABLE IF NOT EXISTS expense_entries (
+  id        TEXT PRIMARY KEY,
+  user_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  period    TEXT NOT NULL,
+  category  TEXT NOT NULL DEFAULT 'other',
+  name      TEXT NOT NULL DEFAULT '',
+  amount    NUMERIC NOT NULL DEFAULT 0,
+  paid_date TEXT NOT NULL DEFAULT '',
+  note      TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_period ON expense_entries(user_id, period);
+
 -- Ảnh chụp tháng đã lưu (snapshot) + các bill trong đó
 CREATE TABLE IF NOT EXISTS history_snapshots (
   id         BIGSERIAL PRIMARY KEY,

@@ -11,14 +11,15 @@ const orNull = (v) => (v === '' || v === undefined || v === null ? null : Number
 const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : String(v));
 
 // ============================================================
-//  GET /api/state — lắp ráp toàn bộ state từ 7 bảng
+//  GET /api/state — lắp ráp toàn bộ state từ các bảng dữ liệu
 // ============================================================
 async function buildState(uid) {
-  const [settingsR, roomsR, tenantsR, billingR, snapsR, billsR] = await Promise.all([
+  const [settingsR, roomsR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
     db.query('SELECT * FROM settings WHERE user_id=$1', [uid]),
     db.query('SELECT * FROM rooms WHERE user_id=$1 ORDER BY sort_order, name', [uid]),
     db.query('SELECT * FROM tenants WHERE user_id=$1 ORDER BY sort_order', [uid]),
     db.query('SELECT * FROM billing_entries WHERE user_id=$1', [uid]),
+    db.query('SELECT * FROM expense_entries WHERE user_id=$1 ORDER BY period, sort_order', [uid]),
     db.query('SELECT * FROM history_snapshots WHERE user_id=$1 ORDER BY period', [uid]),
     db.query(
       `SELECT hb.* FROM history_bills hb
@@ -89,6 +90,18 @@ async function buildState(uid) {
     (billingData[b.period] ||= {})[b.room_id] = entry;
   }
 
+  const expenses = {};
+  for (const expense of expensesR.rows) {
+    (expenses[expense.period] ||= []).push({
+      id: expense.id,
+      category: expense.category || 'other',
+      name: expense.name || '',
+      amount: num(expense.amount),
+      paidDate: expense.paid_date || '',
+      note: expense.note || ''
+    });
+  }
+
   // history: snapshot + bills
   const billsBySnap = {};
   for (const hb of billsR.rows) {
@@ -122,7 +135,7 @@ async function buildState(uid) {
     bills: billsBySnap[hs.id] || []
   }));
 
-  return { rooms, billingData, settings, history, theme };
+  return { rooms, billingData, expenses, settings, history, theme };
 }
 
 async function getState(req, res) {
@@ -139,6 +152,7 @@ async function putState(req, res) {
   const body = req.body || {};
   const rooms = Array.isArray(body.rooms) ? body.rooms : [];
   const billingData = body.billingData && typeof body.billingData === 'object' ? body.billingData : {};
+  const expenses = body.expenses && typeof body.expenses === 'object' ? body.expenses : {};
   const settings = body.settings && typeof body.settings === 'object' ? body.settings : {};
   const history = Array.isArray(body.history) ? body.history : [];
   const theme = body.theme || 'system';
@@ -173,6 +187,7 @@ async function putState(req, res) {
 
     // Xóa dữ liệu con của user (cascade sẽ dọn tenants/history_bills)
     await client.query('DELETE FROM billing_entries WHERE user_id=$1', [uid]);
+    await client.query('DELETE FROM expense_entries WHERE user_id=$1', [uid]);
     await client.query('DELETE FROM history_snapshots WHERE user_id=$1', [uid]);
     await client.query('DELETE FROM rooms WHERE user_id=$1', [uid]);
 
@@ -220,6 +235,23 @@ async function putState(req, res) {
             uid, period, roomId, orNull(e.electricNew), orNull(e.waterUnits),
             orNull(e.waterNew), orNull(e.electricOldOverride), orNull(e.waterOldOverride),
             strOrNull(e.note), !!e.utilityOnly, !!e.paid
+          ]
+        );
+      }
+    }
+
+    // expense_entries
+    for (const period of Object.keys(expenses)) {
+      const items = Array.isArray(expenses[period]) ? expenses[period] : [];
+      let expenseIndex = 0;
+      for (const expense of items) {
+        await client.query(
+          `INSERT INTO expense_entries
+             (id, user_id, period, category, name, amount, paid_date, note, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [
+            expense.id, uid, period, expense.category || 'other', expense.name || '',
+            num(expense.amount), expense.paidDate || '', expense.note || '', expenseIndex++
           ]
         );
       }
