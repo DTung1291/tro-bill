@@ -14,8 +14,8 @@ tro-bill/
     ├── index.js       # serve frontend tĩnh + API, cùng 1 origin
     ├── db.js          # pg Pool từ DATABASE_URL
     ├── auth.js        # register/login (bcrypt) + middleware JWT
-    ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách 7 bảng
-    ├── schema.sql     # 7 bảng chuẩn hóa
+    ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách các bảng dữ liệu
+    ├── schema.sql     # schema chuẩn hóa + lịch sử biểu phí theo tháng
     ├── init-db.js     # chạy schema.sql lên Neon
     └── .env           # DATABASE_URL + JWT_SECRET (KHÔNG commit)
 ```
@@ -37,11 +37,29 @@ có dữ liệu riêng, tách biệt hoàn toàn.
 
 - Frontend giữ nguyên logic tính tiền cũ. `saveState()` vẫn gọi đồng bộ khắp
   nơi nhưng bên trong **debounce ~600ms** rồi `PUT /api/state` gửi toàn bộ state.
-- Server nhận state và **tách vào 7 bảng trong 1 transaction** (settings, rooms,
-  tenants, billing_entries, history_snapshots, history_bills + users).
-- `GET /api/state` lắp ráp ngược từ 7 bảng thành đúng shape frontend cần. Giá
+- Server nhận state và **tách vào các bảng trong 1 transaction** (settings, rooms,
+  room_rate_history, tenants, billing_entries, expense_entries,
+  history_snapshots, history_bills + users).
+- `GET /api/state` lắp ráp ngược từ các bảng thành đúng shape frontend cần. Giá
   trị "chưa nhập" (`''` phía client) lưu `NULL` trong DB và đổi lại `''` khi đọc.
 - Đã bỏ chế độ offline/PWA: service worker cũ được tự gỡ khi tải trang.
+
+## Biểu phí theo tháng
+
+Mỗi phòng có lịch sử biểu phí với mốc `effectiveFrom` dạng `YYYY-MM`. Khi tính
+hóa đơn, ứng dụng lấy mốc gần nhất không lớn hơn tháng hóa đơn. Vì vậy một giá
+mới có thể bắt đầu từ tháng 2 hoặc tháng 4 mà không làm thay đổi các tháng trước.
+
+Mỗi mốc lưu đồng thời tiền thuê, giá điện, giá nước, phí rác, Wifi và phí quản
+lý. Các bản cài đặt cũ sẽ được tạo tự động một mốc nền `1970-01` khi chạy lại:
+
+```bash
+cd server
+npm run init-db
+```
+
+Các hóa đơn đã lưu trong `history_bills` vẫn là snapshot độc lập, không bị tính
+lại khi biểu phí phòng thay đổi.
 
 ## API
 

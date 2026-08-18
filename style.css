@@ -877,6 +877,76 @@ body {
 .form-input:focus { outline: none; border-color: var(--primary); }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }
 
+.rate-effective-panel {
+  display: grid;
+  grid-template-columns: minmax(170px, .75fr) minmax(0, 1.25fr);
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg3));
+}
+.rate-effective-panel > div { display: flex; flex-direction: column; gap: 6px; }
+.rate-effective-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.room-rate-history {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.room-rate-history[hidden] { display: none !important; }
+.room-rate-history__header h3 { margin: 0; font-size: .9rem; }
+.room-rate-history__header p {
+  margin: 3px 0 10px;
+  color: var(--text-muted);
+  font-size: .75rem;
+  line-height: 1.4;
+}
+.room-rate-history__list { display: flex; flex-direction: column; gap: 7px; }
+.room-rate-history__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.room-rate-history__load {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.room-rate-history__load:hover { border-color: var(--primary); }
+.room-rate-history__period { font-size: .78rem; font-weight: 800; color: var(--primary); }
+.room-rate-history__summary {
+  max-width: 100%;
+  color: var(--text-muted);
+  font-size: .72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-detail-chip--rate-period {
+  color: var(--primary);
+  border-color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
 /* ===========================
    EXPENSES
    =========================== */
@@ -993,6 +1063,7 @@ body {
   .cards-grid { grid-template-columns: 1fr 1fr; }
   .expense-layout { grid-template-columns: 1fr; }
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
+  .rate-effective-panel { grid-template-columns: 1fr; align-items: stretch; }
   .page-header { flex-direction: column; }
   .period-switcher { align-self: flex-start; }
   .period-month-input { width: 132px; }

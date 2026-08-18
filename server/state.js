@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('./db');
+const RoomRates = require('../rate-history');
 
 // ---------- helpers chuyển đổi kiểu ----------
 const num = (v, d = 0) => (v === null || v === undefined || v === '' ? d : Number(v));
@@ -14,9 +15,10 @@ const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : Str
 //  GET /api/state — lắp ráp toàn bộ state từ các bảng dữ liệu
 // ============================================================
 async function buildState(uid) {
-  const [settingsR, roomsR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
+  const [settingsR, roomsR, ratesR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
     db.query('SELECT * FROM settings WHERE user_id=$1', [uid]),
     db.query('SELECT * FROM rooms WHERE user_id=$1 ORDER BY sort_order, name', [uid]),
+    db.query('SELECT * FROM room_rate_history WHERE user_id=$1 ORDER BY room_id, effective_from', [uid]),
     db.query('SELECT * FROM tenants WHERE user_id=$1 ORDER BY sort_order', [uid]),
     db.query('SELECT * FROM billing_entries WHERE user_id=$1', [uid]),
     db.query('SELECT * FROM expense_entries WHERE user_id=$1 ORDER BY period, sort_order', [uid]),
@@ -57,22 +59,40 @@ async function buildState(uid) {
     });
   }
 
-  const rooms = roomsR.rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    rentPrice: num(r.rent_price),
-    electricRate: num(r.electric_rate, 3200),
-    waterRate: num(r.water_rate, 50000),
-    waterType: r.water_type || 'người',
-    peopleCount: num(r.people_count, 1),
-    trashFee: num(r.trash_fee, 50000),
-    wifiFee: num(r.wifi_fee),
-    manageFee: num(r.manage_fee),
-    electricPrev: num(r.electric_prev),
-    waterPrev: num(r.water_prev),
-    notes: r.notes || '',
-    tenants: tenantsByRoom[r.id] || []
-  }));
+  const ratesByRoom = {};
+  for (const rate of ratesR.rows) {
+    (ratesByRoom[rate.room_id] ||= []).push({
+      effectiveFrom: rate.effective_from,
+      rentPrice: num(rate.rent_price),
+      electricRate: num(rate.electric_rate, 3200),
+      waterRate: num(rate.water_rate, 50000),
+      trashFee: num(rate.trash_fee, 50000),
+      wifiFee: num(rate.wifi_fee),
+      manageFee: num(rate.manage_fee)
+    });
+  }
+
+  const rooms = roomsR.rows.map((r) => {
+    const room = {
+      id: r.id,
+      name: r.name,
+      rentPrice: num(r.rent_price),
+      electricRate: num(r.electric_rate, 3200),
+      waterRate: num(r.water_rate, 50000),
+      waterType: r.water_type || 'người',
+      peopleCount: num(r.people_count, 1),
+      trashFee: num(r.trash_fee, 50000),
+      wifiFee: num(r.wifi_fee),
+      manageFee: num(r.manage_fee),
+      electricPrev: num(r.electric_prev),
+      waterPrev: num(r.water_prev),
+      notes: r.notes || '',
+      tenants: tenantsByRoom[r.id] || [],
+      rateHistory: ratesByRoom[r.id] || []
+    };
+    room.rateHistory = RoomRates.normalizeHistory(room);
+    return room;
+  });
 
   // billingData: { period: { roomId: entry } }
   const billingData = {};
@@ -143,7 +163,7 @@ async function getState(req, res) {
 }
 
 // ============================================================
-//  PUT /api/state — nhận toàn bộ state, tách vào 7 bảng (1 transaction)
+//  PUT /api/state — nhận toàn bộ state, tách vào các bảng (1 transaction)
 //  Chiến lược: xóa sạch dữ liệu cũ của user rồi ghi lại (đơn giản, an toàn
 //  với quy mô nhà trọ; toàn bộ nằm trong transaction nên không mất dữ liệu).
 // ============================================================
@@ -191,22 +211,36 @@ async function putState(req, res) {
     await client.query('DELETE FROM history_snapshots WHERE user_id=$1', [uid]);
     await client.query('DELETE FROM rooms WHERE user_id=$1', [uid]);
 
-    // rooms + tenants
+    // rooms + lịch sử biểu phí + tenants
     let rIdx = 0;
     for (const r of rooms) {
+      const rateHistory = RoomRates.normalizeHistory(r);
+      const latestRates = rateHistory[rateHistory.length - 1];
       await client.query(
         `INSERT INTO rooms
-           (id, user_id, name, rent_price, electric_rate, water_rate, water_type,
+            (id, user_id, name, rent_price, electric_rate, water_rate, water_type,
             people_count, trash_fee, wifi_fee, manage_fee, electric_prev, water_prev,
             notes, sort_order)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
         [
-          r.id, uid, r.name || 'Phòng không tên', num(r.rentPrice), num(r.electricRate, 3200),
-          num(r.waterRate, 50000), r.waterType || 'người', num(r.peopleCount, 1),
-          num(r.trashFee, 50000), num(r.wifiFee), num(r.manageFee), num(r.electricPrev),
+          r.id, uid, r.name || 'Phòng không tên', latestRates.rentPrice, latestRates.electricRate,
+          latestRates.waterRate, r.waterType || 'người', num(r.peopleCount, 1),
+          latestRates.trashFee, latestRates.wifiFee, latestRates.manageFee, num(r.electricPrev),
           num(r.waterPrev), r.notes || '', rIdx++
         ]
       );
+      for (const rate of rateHistory) {
+        await client.query(
+          `INSERT INTO room_rate_history
+             (user_id, room_id, effective_from, rent_price, electric_rate, water_rate,
+              trash_fee, wifi_fee, manage_fee)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [
+            uid, r.id, rate.effectiveFrom, rate.rentPrice, rate.electricRate,
+            rate.waterRate, rate.trashFee, rate.wifiFee, rate.manageFee
+          ]
+        );
+      }
       let tIdx = 0;
       for (const t of Array.isArray(r.tenants) ? r.tenants : []) {
         await client.query(

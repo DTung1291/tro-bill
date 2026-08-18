@@ -101,31 +101,36 @@ function loadState(savedObj) {
   try {
 
     // Normalize rooms
-    STATE.rooms = (saved.rooms || []).map(r => ({
-      id: r.id || uuid(),
-      name: r.name || 'Phòng không tên',
-      rentPrice: r.rentPrice !== undefined ? Number(r.rentPrice) : 0,
-      electricRate: r.electricRate !== undefined ? Number(r.electricRate) : 3200,
-      waterRate: r.waterRate !== undefined ? Number(r.waterRate) : 50000,
-      waterType: r.waterType || 'người',
-      peopleCount: r.peopleCount !== undefined ? Number(r.peopleCount) : 1,
-      trashFee: r.trashFee !== undefined ? Number(r.trashFee) : 50000,
-      wifiFee: r.wifiFee !== undefined ? Number(r.wifiFee) : 0,
-      manageFee: r.manageFee !== undefined ? Number(r.manageFee) : 0,
-      electricPrev: r.electricPrev !== undefined ? Number(r.electricPrev) : 0,
-      waterPrev: r.waterPrev !== undefined ? Number(r.waterPrev) : 0,
-      notes: r.notes || '',
-      tenants: Array.isArray(r.tenants) ? r.tenants.map(t => ({
-        id: t.id || uuid(),
-        fullName: t.fullName || '',
-        phone: t.phone || '',
-        cccd: t.cccd || '',
-        issueDate: t.issueDate || '',
-        dob: t.dob || '',
-        gender: t.gender || 'Nam',
-        address: t.address || ''
-      })) : []
-    }));
+    STATE.rooms = (saved.rooms || []).map(r => {
+      const room = {
+        id: r.id || uuid(),
+        name: r.name || 'Phòng không tên',
+        rentPrice: r.rentPrice !== undefined ? Number(r.rentPrice) : 0,
+        electricRate: r.electricRate !== undefined ? Number(r.electricRate) : 3200,
+        waterRate: r.waterRate !== undefined ? Number(r.waterRate) : 50000,
+        waterType: r.waterType || 'người',
+        peopleCount: r.peopleCount !== undefined ? Number(r.peopleCount) : 1,
+        trashFee: r.trashFee !== undefined ? Number(r.trashFee) : 50000,
+        wifiFee: r.wifiFee !== undefined ? Number(r.wifiFee) : 0,
+        manageFee: r.manageFee !== undefined ? Number(r.manageFee) : 0,
+        electricPrev: r.electricPrev !== undefined ? Number(r.electricPrev) : 0,
+        waterPrev: r.waterPrev !== undefined ? Number(r.waterPrev) : 0,
+        notes: r.notes || '',
+        tenants: Array.isArray(r.tenants) ? r.tenants.map(t => ({
+          id: t.id || uuid(),
+          fullName: t.fullName || '',
+          phone: t.phone || '',
+          cccd: t.cccd || '',
+          issueDate: t.issueDate || '',
+          dob: t.dob || '',
+          gender: t.gender || 'Nam',
+          address: t.address || ''
+        })) : [],
+        rateHistory: Array.isArray(r.rateHistory) ? r.rateHistory : []
+      };
+      room.rateHistory = RoomRates.normalizeHistory(room);
+      return room;
+    });
 
     STATE.billingData = saved.billingData || {};
     STATE.expenses = Object.fromEntries(Object.entries(saved.expenses || {}).map(([period, items]) => [
@@ -257,6 +262,14 @@ function periodLabel(key) {
 function periodInputValue(key) {
   if (!key) return '';
   return /^\d{4}-\d{2}$/.test(key) ? key : '';
+}
+
+function getRoomRates(room, period = STATE.currentPeriod) {
+  return RoomRates.resolve(room, period);
+}
+
+function ratePeriodLabel(period) {
+  return period === RoomRates.BASE_PERIOD ? 'Giá ban đầu' : `Từ ${periodLabel(period).toLowerCase()}`;
 }
 
 function clonePeriodRecords(records) {
@@ -726,12 +739,13 @@ function openTransferExpensesModal() {
 // ============================================================
 function calcBill(room, record, period = null) {
   if (!record) return null;
-  
+
+  const rates = getRoomRates(room, period || STATE.currentPeriod);
   const electricOld = period ? getElectricOld(room, period) : (room.electricPrev || 0);
   const electricNew = record.electricNew !== undefined && record.electricNew !== '' ? Number(record.electricNew) : electricOld;
   const kwh = electricNew - electricOld;
   const safeKwh = Math.max(0, kwh);
-  const electricAmt = safeKwh * (room.electricRate || 0);
+  const electricAmt = safeKwh * rates.electricRate;
   const utilityOnly = isUtilityOnlyRecord(record);
   
   // Calculate water based on unit type (default: người)
@@ -748,24 +762,27 @@ function calcBill(room, record, period = null) {
     const isWaterByPerson = (room.waterType || 'người') === 'người';
     waterUnits = record.waterUnits !== undefined && record.waterUnits !== '' ? Number(record.waterUnits) : (isWaterByPerson ? (room.peopleCount || 1) : 0);
   }
-  const waterAmt = waterUnits * (room.waterRate || 50000);
-  
-  const trashAmt = utilityOnly ? 0 : (room.trashFee || 0);
-  const wifiAmt = utilityOnly ? 0 : (room.wifiFee || 0);
-  const manageAmt = utilityOnly ? 0 : (room.manageFee || 0);
-  const rentAmt = utilityOnly ? 0 : (room.rentPrice || 0);
+  const waterAmt = waterUnits * rates.waterRate;
+
+  const trashAmt = utilityOnly ? 0 : rates.trashFee;
+  const wifiAmt = utilityOnly ? 0 : rates.wifiFee;
+  const manageAmt = utilityOnly ? 0 : rates.manageFee;
+  const rentAmt = utilityOnly ? 0 : rates.rentPrice;
   const total = electricAmt + waterAmt + trashAmt + wifiAmt + manageAmt + rentAmt;
-  
-  return { 
-    kwh: safeKwh, 
-    electricAmt, 
-    waterUnits, 
-    waterAmt, 
-    trashAmt, 
-    wifiAmt, 
-    manageAmt, 
-    rentAmt, 
-    total 
+
+  return {
+    kwh: safeKwh,
+    electricRate: rates.electricRate,
+    electricAmt,
+    waterUnits,
+    waterRate: rates.waterRate,
+    waterAmt,
+    trashAmt,
+    wifiAmt,
+    manageAmt,
+    rentAmt,
+    total,
+    rateEffectiveFrom: rates.effectiveFrom
   };
 }
 
@@ -1064,7 +1081,8 @@ function renderRooms() {
   for (const room of STATE.rooms) {
     const card = document.createElement('div');
     card.className = 'room-card';
-    const hasWifi = room.wifiFee > 0;
+    const rates = getRoomRates(room, STATE.currentPeriod);
+    const hasWifi = rates.wifiFee > 0;
     const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
     const latestPaid = getLatestPaidElectric(room);
     const latestText = latestPaid !== null 
@@ -1084,13 +1102,14 @@ function renderRooms() {
       <div class="room-card-info">
         <div class="room-card-name">${room.name}</div>
         <div class="room-card-details">
-          <span class="room-detail-chip">🏷️ Thuê: ${fmt(room.rentPrice)}/tháng</span>
-          <span class="room-detail-chip">⚡ Điện: ${fmtNum(room.electricRate)}đ/kWh</span>
-          <span class="room-detail-chip">💧 Nước: ${fmtNum(room.waterRate)}đ/${waterUnitText}</span>
+          <span class="room-detail-chip room-detail-chip--rate-period">🗓️ ${ratePeriodLabel(rates.effectiveFrom)}</span>
+          <span class="room-detail-chip">🏷️ Thuê: ${fmt(rates.rentPrice)}/tháng</span>
+          <span class="room-detail-chip">⚡ Điện: ${fmtNum(rates.electricRate)}đ/kWh</span>
+          <span class="room-detail-chip">💧 Nước: ${fmtNum(rates.waterRate)}đ/${waterUnitText}</span>
           <span class="room-detail-chip">👥 Số người: ${room.peopleCount || 1}</span>
-          <span class="room-detail-chip">🗑️ Rác: ${fmt(room.trashFee)}</span>
-          ${hasWifi ? `<span class="room-detail-chip">📶 Wifi: ${fmt(room.wifiFee)}</span>` : ''}
-          ${room.manageFee && room.manageFee > 0 ? `<span class="room-detail-chip">💼 QL & DV: ${fmt(room.manageFee)}</span>` : ''}
+          <span class="room-detail-chip">🗑️ Rác: ${fmt(rates.trashFee)}</span>
+          ${hasWifi ? `<span class="room-detail-chip">📶 Wifi: ${fmt(rates.wifiFee)}</span>` : ''}
+          ${rates.manageFee > 0 ? `<span class="room-detail-chip">💼 QL & DV: ${fmt(rates.manageFee)}</span>` : ''}
           ${room.notes ? `<span class="room-detail-chip">📝 ${room.notes}</span>` : ''}
         </div>
         <div style="font-size:.75rem;color:var(--text-muted);margin-top:6px;display:flex;flex-direction:column;gap:2px">
@@ -1133,27 +1152,116 @@ function deleteRoom(id) {
 // ============================================================
 //  ROOM MODAL (CRUD Form)
 // ============================================================
+let roomRateHistoryDraft = [];
+
+function readRoomRateInputs() {
+  const hasWifi = document.getElementById('room-has-wifi').checked;
+  return {
+    rentPrice: parseFloat(document.getElementById('room-rent').value) || 0,
+    electricRate: parseFloat(document.getElementById('room-elec-rate').value) || 0,
+    waterRate: parseFloat(document.getElementById('room-water-rate').value) || 0,
+    trashFee: parseFloat(document.getElementById('room-trash').value) || 0,
+    wifiFee: hasWifi ? (parseFloat(document.getElementById('room-wifi-fee').value) || 0) : 0,
+    manageFee: parseFloat(document.getElementById('room-manage-fee').value) || 0
+  };
+}
+
+function fillRoomRateInputs(rates) {
+  document.getElementById('room-rent').value = rates.rentPrice;
+  document.getElementById('room-elec-rate').value = rates.electricRate;
+  document.getElementById('room-water-rate').value = rates.waterRate;
+  document.getElementById('room-trash').value = rates.trashFee;
+  document.getElementById('room-has-wifi').checked = rates.wifiFee > 0;
+  document.getElementById('room-wifi-fee').value = rates.wifiFee > 0 ? rates.wifiFee : 40000;
+  document.getElementById('room-manage-fee').value = rates.manageFee;
+}
+
+function updateRoomRateEffectiveHint() {
+  const hint = document.getElementById('room-rate-effective-hint');
+  const period = document.getElementById('room-rate-effective-from').value;
+  const exactEntry = roomRateHistoryDraft.find(entry => entry.effectiveFrom === period);
+  hint.textContent = exactEntry
+    ? `Bạn đang chỉnh sửa mốc ${periodLabel(period).toLowerCase()}.`
+    : `Biểu phí mới sẽ áp dụng từ ${periodLabel(period).toLowerCase()}; các tháng trước không đổi.`;
+}
+
+function loadRoomRatesForPeriod(period) {
+  const roomId = document.getElementById('room-id').value;
+  const room = STATE.rooms.find(item => item.id === roomId);
+  if (!room || !RoomRates.isPeriod(period)) return;
+  fillRoomRateInputs(RoomRates.resolve({ ...room, rateHistory: roomRateHistoryDraft }, period));
+  updateRoomRateEffectiveHint();
+}
+
+function renderRoomRateHistoryDraft() {
+  const section = document.getElementById('room-rate-history-section');
+  const list = document.getElementById('room-rate-history-list');
+  const isEditing = !!document.getElementById('room-id').value;
+  section.hidden = !isEditing;
+  list.innerHTML = '';
+  if (!isEditing) return;
+
+  roomRateHistoryDraft.forEach((entry, index) => {
+    const item = document.createElement('div');
+    item.className = 'room-rate-history__item';
+    item.innerHTML = `
+      <button type="button" class="room-rate-history__load" data-rate-load="${entry.effectiveFrom}">
+        <span class="room-rate-history__period">${ratePeriodLabel(entry.effectiveFrom)}</span>
+        <span class="room-rate-history__summary">
+          Thuê ${fmt(entry.rentPrice)} · Điện ${fmtNum(entry.electricRate)}đ · Nước ${fmtNum(entry.waterRate)}đ
+        </span>
+      </button>
+      ${index > 0 ? `<button type="button" class="btn btn--danger btn--sm" data-rate-delete="${entry.effectiveFrom}" title="Xóa mốc biểu phí">🗑️</button>` : ''}
+    `;
+    list.appendChild(item);
+  });
+
+  list.querySelectorAll('[data-rate-load]').forEach(button => {
+    button.addEventListener('click', () => {
+      const period = button.dataset.rateLoad;
+      const entry = roomRateHistoryDraft.find(item => item.effectiveFrom === period);
+      if (!entry) return;
+      document.getElementById('room-rate-effective-from').value = period;
+      fillRoomRateInputs(entry);
+      updateRoomRateEffectiveHint();
+    });
+  });
+
+  list.querySelectorAll('[data-rate-delete]').forEach(button => {
+    button.addEventListener('click', () => {
+      const period = button.dataset.rateDelete;
+      showConfirm(`Xóa mốc biểu phí từ ${periodLabel(period).toLowerCase()}?`, () => {
+        roomRateHistoryDraft = roomRateHistoryDraft.filter(entry => entry.effectiveFrom !== period);
+        const selectedPeriod = document.getElementById('room-rate-effective-from').value;
+        if (selectedPeriod === period) {
+          document.getElementById('room-rate-effective-from').value = STATE.currentPeriod;
+          loadRoomRatesForPeriod(STATE.currentPeriod);
+        }
+        renderRoomRateHistoryDraft();
+      }, null, 'Xóa mốc giá');
+    });
+  });
+}
+
 function openRoomModal(roomId = null) {
   const modal = document.getElementById('room-modal');
   const title = document.getElementById('room-modal-title');
   const form  = document.getElementById('room-form');
   form.reset();
+  const effectiveFrom = STATE.currentPeriod || periodKey(new Date().getFullYear(), new Date().getMonth() + 1);
+  document.getElementById('room-rate-effective-from').value = effectiveFrom;
 
   if (roomId) {
     const room = STATE.rooms.find(r => r.id === roomId);
     if (!room) return;
+    roomRateHistoryDraft = RoomRates.normalizeHistory(room).map(entry => ({ ...entry }));
+    const activeRates = RoomRates.resolve(room, effectiveFrom);
     title.textContent = 'Sửa phòng';
     document.getElementById('room-id').value          = room.id;
     document.getElementById('room-name').value        = room.name;
-    document.getElementById('room-rent').value        = room.rentPrice;
-    document.getElementById('room-elec-rate').value   = room.electricRate;
+    fillRoomRateInputs(activeRates);
     document.getElementById('room-water-type').value  = room.waterType || 'người';
-    document.getElementById('room-water-rate').value  = room.waterRate ?? 50000;
     document.getElementById('room-people-count').value= room.peopleCount ?? 1;
-    document.getElementById('room-trash').value       = room.trashFee ?? 50000;
-    document.getElementById('room-has-wifi').checked  = !!(room.wifiFee && room.wifiFee > 0);
-    document.getElementById('room-wifi-fee').value    = room.wifiFee || 40000;
-    document.getElementById('room-manage-fee').value  = room.manageFee || 0;
     document.getElementById('room-elec-prev').value   = room.electricPrev || 0;
     document.getElementById('room-water-prev').value  = room.waterPrev || 0;
     document.getElementById('room-notes').value       = room.notes || '';
@@ -1162,8 +1270,10 @@ function openRoomModal(roomId = null) {
     document.getElementById('room-water-prev-container').style.display = isWaterByKhối ? 'flex' : 'none';
     document.getElementById('room-people-count-container').style.display = isWaterByKhối ? 'none' : 'flex';
   } else {
+    roomRateHistoryDraft = [];
     title.textContent = 'Thêm phòng';
     document.getElementById('room-id').value = '';
+    document.getElementById('room-elec-rate').value = 3200;
     document.getElementById('room-water-type').value = 'người';
     document.getElementById('room-water-rate').value = 50000;
     document.getElementById('room-people-count').value = 1;
@@ -1176,10 +1286,13 @@ function openRoomModal(roomId = null) {
     document.getElementById('room-water-prev-container').style.display = 'none';
     document.getElementById('room-people-count-container').style.display = 'flex';
   }
+  updateRoomRateEffectiveHint();
+  renderRoomRateHistoryDraft();
   modal.hidden = false;
 }
 
 function closeRoomModal() {
+  roomRateHistoryDraft = [];
   document.getElementById('room-modal').hidden = true;
 }
 
@@ -1187,40 +1300,44 @@ document.getElementById('room-form').addEventListener('submit', e => {
   e.preventDefault();
   const id        = document.getElementById('room-id').value;
   const name      = document.getElementById('room-name').value.trim();
-  const rentPrice = parseFloat(document.getElementById('room-rent').value) || 0;
-  const electricRate = parseFloat(document.getElementById('room-elec-rate').value) || 0;
+  const effectiveFrom = document.getElementById('room-rate-effective-from').value;
+  const rates = readRoomRateInputs();
   const waterType    = document.getElementById('room-water-type').value;
-  const waterRate    = parseFloat(document.getElementById('room-water-rate').value) || 0;
   const peopleCount  = parseInt(document.getElementById('room-people-count').value) || 1;
-  const trashFee     = parseFloat(document.getElementById('room-trash').value) || 0;
-  const hasWifi      = document.getElementById('room-has-wifi').checked;
-  const wifiFeeVal   = parseFloat(document.getElementById('room-wifi-fee').value) || 0;
-  const wifiFee      = hasWifi ? wifiFeeVal : 0;
-  const manageFee    = parseFloat(document.getElementById('room-manage-fee').value) || 0;
   const electricPrev = parseFloat(document.getElementById('room-elec-prev').value) || 0;
   const waterPrev    = parseFloat(document.getElementById('room-water-prev').value) || 0;
   const notes        = document.getElementById('room-notes').value.trim();
 
-  if (!name || isNaN(rentPrice) || isNaN(electricRate)) {
+  if (!name || !RoomRates.isPeriod(effectiveFrom)) {
     showToast('Vui lòng điền đủ thông tin bắt buộc', 'error');
     return;
   }
 
+  const existingRoom = id ? STATE.rooms.find(room => room.id === id) : null;
+  const exactRateIndex = roomRateHistoryDraft.findIndex(entry => entry.effectiveFrom === effectiveFrom);
+  const activeRates = existingRoom
+    ? RoomRates.resolve({ ...existingRoom, rateHistory: roomRateHistoryDraft }, effectiveFrom)
+    : null;
+  if (!existingRoom || exactRateIndex >= 0 || !RoomRates.sameRates(activeRates, rates)) {
+    const rateEntry = { effectiveFrom, ...RoomRates.snapshot(rates) };
+    if (exactRateIndex >= 0) roomRateHistoryDraft[exactRateIndex] = rateEntry;
+    else roomRateHistoryDraft.push(rateEntry);
+  }
+  roomRateHistoryDraft.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+
   const roomData = {
     id: id || uuid(),
     name,
-    rentPrice,
-    electricRate,
+    ...rates,
     waterType,
-    waterRate,
     peopleCount,
-    trashFee,
-    wifiFee,
-    manageFee,
     electricPrev,
     waterPrev,
-    notes
+    notes,
+    rateHistory: roomRateHistoryDraft.map(entry => ({ ...entry }))
   };
+  roomData.rateHistory = RoomRates.normalizeHistory(roomData);
+  Object.assign(roomData, RoomRates.snapshot(RoomRates.latest(roomData)));
 
   if (id) {
     const idx = STATE.rooms.findIndex(r => r.id === id);
@@ -1245,6 +1362,10 @@ document.getElementById('room-modal-close').addEventListener('click', closeRoomM
 document.getElementById('room-modal-cancel').addEventListener('click', closeRoomModal);
 document.getElementById('room-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('room-modal')) closeRoomModal();
+});
+document.getElementById('room-rate-effective-from').addEventListener('change', e => {
+  loadRoomRatesForPeriod(e.target.value);
+  updateRoomRateEffectiveHint();
 });
 document.getElementById('btn-add-room').addEventListener('click', () => {
   if (STATE.rooms.length >= 3) {
@@ -1283,6 +1404,7 @@ function renderBilling() {
   for (const room of STATE.rooms) {
     const periodRec = STATE.billingData[period] || {};
     const rec = periodRec[room.id] || {};
+    const rates = getRoomRates(room, period);
     const utilityOnly = isUtilityOnlyRecord(rec);
     const electricOld = getElectricOld(room, period);
     const electricNew = rec.electricNew ?? '';
@@ -1336,8 +1458,8 @@ function renderBilling() {
     const waterPlaceholder = room.waterType === 'người' ? 'Số người' : 'Số khối';
     const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
     
-    const wifiText = room.wifiFee > 0 ? `📶 ${fmtShorthand(room.wifiFee)}` : '—';
-    const wifiBadgeClass = room.wifiFee > 0 ? 'badge badge--paid' : 'badge badge--empty';
+    const wifiText = rates.wifiFee > 0 ? `📶 ${fmtShorthand(rates.wifiFee)}` : '—';
+    const wifiBadgeClass = rates.wifiFee > 0 ? 'badge badge--paid' : 'badge badge--empty';
 
     // Check if electricOld is auto-rolled, overridden, or static
     const prevPeriod = getPreviousPeriodKey(period);
@@ -1420,9 +1542,9 @@ function renderBilling() {
       </td>
       <td class="billing-field billing-electric-used kwh-cell" data-label="Điện tiêu thụ" id="kwh-${room.id}">${kwhHtml}</td>
       <td class="billing-field billing-water" data-label="Chỉ số nước">${waterCellHtml}</td>
-      <td class="billing-field billing-fee billing-trash" data-label="Rác">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(room.trashFee || 0)}</span>`}</td>
+      <td class="billing-field billing-fee billing-trash" data-label="Rác">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(rates.trashFee)}</span>`}</td>
       <td class="billing-field billing-fee billing-wifi" data-label="Wifi">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="${wifiBadgeClass}">${wifiText}</span>`}</td>
-      <td class="billing-field billing-fee billing-manage" data-label="Phí QL & DV">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(room.manageFee || 0)}</span>`}</td>
+      <td class="billing-field billing-fee billing-manage" data-label="Phí QL & DV">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(rates.manageFee)}</span>`}</td>
       <td class="billing-field billing-note" data-label="Ghi chú">
         <input type="text" class="bill-note-input" data-room="${room.id}"
           value="${rec.note || ''}" placeholder="Ghi chú tháng..." aria-label="Ghi chú tháng" />
@@ -1642,24 +1764,25 @@ function renderBillingLegend() {
   }
 
   const items = [];
+  const roomRates = STATE.rooms.map(room => getRoomRates(room, STATE.currentPeriod));
 
   // Nước: show only if rate AND type are uniform across all rooms
-  const waterRates = [...new Set(STATE.rooms.map(r => r.waterRate || 50000))];
+  const waterRates = [...new Set(roomRates.map(rates => rates.waterRate))];
   const waterTypes = [...new Set(STATE.rooms.map(r => r.waterType || 'người'))];
   if (waterRates.length === 1 && waterTypes.length === 1) {
     items.push(`💧 Nước: <strong>${fmtNum(waterRates[0])}đ/${waterTypes[0]}</strong>`);
   }
 
   // Rác: show only if uniform across ALL rooms
-  const trashFees = [...new Set(STATE.rooms.map(r => r.trashFee || 0))];
+  const trashFees = [...new Set(roomRates.map(rates => rates.trashFee))];
   if (trashFees.length === 1 && trashFees[0] > 0) {
     items.push(`🗑️ Rác: <strong>${fmtNum(trashFees[0])}đ/tháng</strong>`);
   }
 
   // Wifi: only mention if ≥1 room has wifi; show rate if uniform among wifi rooms
-  const wifiRooms = STATE.rooms.filter(r => (r.wifiFee || 0) > 0);
-  if (wifiRooms.length > 0) {
-    const wifiFees = [...new Set(wifiRooms.map(r => r.wifiFee))];
+  const wifiRates = roomRates.filter(rates => rates.wifiFee > 0);
+  if (wifiRates.length > 0) {
+    const wifiFees = [...new Set(wifiRates.map(rates => rates.wifiFee))];
     if (wifiFees.length === 1) {
       items.push(`📶 Wifi: <strong>${fmtNum(wifiFees[0])}đ/nhà</strong> (nếu có)`);
     } else {
@@ -1668,9 +1791,9 @@ function renderBillingLegend() {
   }
 
   // Phí QL & DV: only mention if ≥1 room has it; show rate if uniform
-  const manageRooms = STATE.rooms.filter(r => (r.manageFee || 0) > 0);
-  if (manageRooms.length > 0) {
-    const manageFees = [...new Set(manageRooms.map(r => r.manageFee))];
+  const manageRates = roomRates.filter(rates => rates.manageFee > 0);
+  if (manageRates.length > 0) {
+    const manageFees = [...new Set(manageRates.map(rates => rates.manageFee))];
     if (manageFees.length === 1) {
       items.push(`💼 QL & DV: <strong>${fmtNum(manageFees[0])}đ/tháng</strong> (nếu có)`);
     } else {
@@ -1786,7 +1909,7 @@ function renderReport() {
           <div class="bill-row">
             <div>
               <div class="bill-row-label">⚡ Tiền điện</div>
-              <div class="bill-row-formula">${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ</div>
+              <div class="bill-row-formula">${fmtNum(bill.kwh)} kWh × ${fmtNum(bill.electricRate)}đ</div>
             </div>
             <div class="bill-row-val">${fmt(bill.electricAmt)}</div>
           </div>
@@ -1801,7 +1924,7 @@ function renderReport() {
           <div class="bill-row">
             <div>
               <div class="bill-row-label">💧 Tiền nước</div>
-              <div class="bill-row-formula">${fmtNum(bill.waterUnits)} khối × ${fmtNum(room.waterRate)}đ</div>
+              <div class="bill-row-formula">${fmtNum(bill.waterUnits)} khối × ${fmtNum(bill.waterRate)}đ</div>
             </div>
             <div class="bill-row-val">${fmt(bill.waterAmt)}</div>
           </div>
@@ -1809,7 +1932,7 @@ function renderReport() {
           <div class="bill-row">
             <div>
               <div class="bill-row-label">💧 Tiền nước</div>
-              <div class="bill-row-formula">${bill.waterUnits} ${waterUnit} × ${fmtNum(room.waterRate)}đ</div>
+              <div class="bill-row-formula">${bill.waterUnits} ${waterUnit} × ${fmtNum(bill.waterRate)}đ</div>
             </div>
             <div class="bill-row-val">${fmt(bill.waterAmt)}</div>
           </div>
@@ -1907,13 +2030,13 @@ function renderReport() {
       const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
 
       const waterLine = room.waterType === 'khối'
-        ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`
-        : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`;
+        ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
+        : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`;
 
       const lines = [
         `🏠 HÓA ĐƠN THÁNG ${pLabel.replace('Tháng ', '').toUpperCase()} — ${room.name.toUpperCase()}`,
         ``,
-        `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ = ${fmt(bill.electricAmt)}`,
+        `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(bill.electricRate)}đ = ${fmt(bill.electricAmt)}`,
         waterLine,
         utilityOnlyLine,
         trashLine,
@@ -1951,8 +2074,8 @@ function copyBillText(room, rec, bill, period) {
   const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
   
   const waterLine = room.waterType === 'khối'
-    ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`
-    : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(room.waterRate)}đ = ${fmt(bill.waterAmt)}`;
+    ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
+    : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`;
 
   const qrUrl = genVietQrUrl(room, bill, period);
   const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
@@ -1960,7 +2083,7 @@ function copyBillText(room, rec, bill, period) {
   const lines = [
     `🏠 HÓA ĐƠN THÁNG ${pLabel.replace('Tháng ', '').toUpperCase()} — ${room.name.toUpperCase()}`,
     ``,
-    `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(room.electricRate)}đ = ${fmt(bill.electricAmt)}`,
+    `⚡ Tiền điện: (Cũ: ${fmtNum(electricOld)} - Mới: ${fmtNum(rec.electricNew)}) = ${fmtNum(bill.kwh)} kWh × ${fmtNum(bill.electricRate)}đ = ${fmt(bill.electricAmt)}`,
     waterLine,
     utilityOnlyLine,
     trashLine,
@@ -2021,18 +2144,18 @@ function saveMonth() {
     timestamp: Date.now(),
     bills: STATE.rooms.map(room => {
       const rec = getPeriodRecord(room.id, period) || {};
-      const bill = calcBill(room, rec, period) || { kwh: 0, electricAmt: 0, waterUnits: 0, waterAmt: 0, trashAmt: room.trashFee, wifiAmt: room.wifiFee, rentAmt: room.rentPrice, total: room.rentPrice };
+      const bill = calcBill(room, rec, period);
       return {
         roomId: room.id,
         roomName: room.name,
         rentPrice: bill.rentAmt || 0,
         electricOld: getElectricOld(room, period),
         electricNew: rec.electricNew ?? null,
-        electricRate: room.electricRate || 0,
+        electricRate: bill.electricRate,
         kwh: bill.kwh,
         electricAmt: bill.electricAmt,
         waterType: room.waterType || 'người',
-        waterRate: room.waterRate || 50000,
+        waterRate: bill.waterRate,
         waterUnits: bill.waterUnits,
         waterAmt: bill.waterAmt,
         waterPrev: room.waterType === 'khối' ? getWaterOld(room, period) : null,
@@ -2345,17 +2468,17 @@ function printActiveReport() {
 
   const bills = STATE.rooms.map(room => {
     const rec = getPeriodRecord(room.id, period) || {};
-    const bill = calcBill(room, rec, period) || { kwh: 0, electricAmt: 0, waterUnits: 0, waterAmt: 0, trashAmt: room.trashFee, wifiAmt: room.wifiFee, rentAmt: room.rentPrice, total: room.rentPrice };
+    const bill = calcBill(room, rec, period);
     return {
       roomName: room.name,
       rentPrice: bill.rentAmt || 0,
       electricOld: getElectricOld(room, period),
       electricNew: rec.electricNew !== undefined && rec.electricNew !== '' ? Number(rec.electricNew) : (getElectricOld(room, period) || 0),
-      electricRate: room.electricRate || 0,
+      electricRate: bill.electricRate,
       kwh: bill.kwh,
       electricAmt: bill.electricAmt,
       waterType: room.waterType || 'người',
-      waterRate: room.waterRate || 50000,
+      waterRate: bill.waterRate,
       waterUnits: bill.waterUnits,
       waterAmt: bill.waterAmt,
       waterPrev: room.waterType === 'khối' ? getWaterOld(room, period) : null,

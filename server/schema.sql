@@ -59,6 +59,36 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 CREATE INDEX IF NOT EXISTS idx_rooms_user ON rooms(user_id);
 
+-- Lịch sử biểu phí của phòng. Mỗi dòng bắt đầu có hiệu lực từ một tháng
+-- (YYYY-MM) và tiếp tục được dùng cho tới mốc thay đổi kế tiếp.
+CREATE TABLE IF NOT EXISTS room_rate_history (
+  user_id        BIGINT  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  room_id        TEXT    NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  effective_from TEXT    NOT NULL,
+  rent_price     NUMERIC NOT NULL DEFAULT 0,
+  electric_rate  NUMERIC NOT NULL DEFAULT 3200,
+  water_rate     NUMERIC NOT NULL DEFAULT 50000,
+  trash_fee      NUMERIC NOT NULL DEFAULT 50000,
+  wifi_fee       NUMERIC NOT NULL DEFAULT 0,
+  manage_fee     NUMERIC NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, room_id, effective_from)
+);
+CREATE INDEX IF NOT EXISTS idx_room_rates_user_room_period
+  ON room_rate_history(user_id, room_id, effective_from);
+
+-- Dữ liệu cũ chỉ có một biểu phí trong rooms: tạo mốc nền để các hóa đơn cũ
+-- vẫn dùng đúng cấu hình hiện có sau khi nâng cấp schema.
+INSERT INTO room_rate_history
+  (user_id, room_id, effective_from, rent_price, electric_rate, water_rate,
+   trash_fee, wifi_fee, manage_fee)
+SELECT
+  r.user_id, r.id, '1970-01', r.rent_price, r.electric_rate, r.water_rate,
+  r.trash_fee, r.wifi_fee, r.manage_fee
+FROM rooms r
+WHERE NOT EXISTS (
+  SELECT 1 FROM room_rate_history rr WHERE rr.room_id = r.id
+);
+
 -- Người thuê — thuộc về 1 phòng
 CREATE TABLE IF NOT EXISTS tenants (
   id         TEXT PRIMARY KEY,
