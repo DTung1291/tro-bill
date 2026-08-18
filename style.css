@@ -835,6 +835,9 @@ body {
   overflow-y: auto;
 }
 .modal-overlay[hidden] { display: none !important; }
+/* Popup xác nhận có thể được mở từ bên trong một modal khác (khách trọ,
+   lịch sử biểu phí...). Luôn đặt nó trên modal đang hoạt động. */
+#confirm-modal { z-index: 1300; }
 .modal {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: 16px; width: 100%; max-width: 520px;
@@ -999,7 +1002,7 @@ body {
   background: var(--bg3); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px 20px;
   font-size: .88rem; font-weight: 600;
-  box-shadow: var(--shadow); z-index: 300; animation: fadeIn .2s ease;
+  box-shadow: var(--shadow); z-index: 1400; animation: fadeIn .2s ease;
   white-space: nowrap;
 }
 .toast[hidden] { display: none !important; }
