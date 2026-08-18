@@ -1275,7 +1275,7 @@ function renderBilling() {
   refreshBillingProgress();
 
   if (STATE.rooms.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-cell">Chưa có phòng. Vào tab Phòng để thêm.</td></tr>`;
+    tbody.innerHTML = `<tr class="billing-empty-row"><td colspan="10" class="empty-cell">Chưa có phòng. Vào tab Phòng để thêm.</td></tr>`;
     refreshBillingProgress();
     return;
   }
@@ -1315,7 +1315,7 @@ function renderBilling() {
 
     let kwhHtml = '—';
     if (electricNew !== '') {
-      kwhHtml = `${fmtNum(kwh)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">(${fmtNum(electricNew)} - ${fmtNum(electricOld)})</div>`;
+      kwhHtml = `<strong>${fmtNum(kwh)} kWh</strong><div class="billing-calculation">${fmtNum(electricNew)} − ${fmtNum(electricOld)}</div>`;
     }
 
     let totalHtml = '—';
@@ -1328,7 +1328,7 @@ function renderBilling() {
       if (bill.manageAmt > 0) parts.push(fmtShorthand(bill.manageAmt));
       if (bill.rentAmt > 0) parts.push(fmtShorthand(bill.rentAmt));
       const breakdown = parts.join(' + ');
-      totalHtml = `${fmt(bill.total)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">${breakdown}</div>`;
+      totalHtml = `<strong>${fmt(bill.total)}</strong><div class="billing-breakdown">${breakdown}</div>`;
     }
 
     const tr = document.createElement('tr');
@@ -1349,11 +1349,11 @@ function renderBilling() {
     if (isElecOverridden) electricOldSubText = '✏️ tùy chỉnh';
 
     const electricOldHtml = `
-      <div style="display:flex;align-items:center;gap:4px">
-        <span>${fmtNum(electricOld)}</span>
+      <div class="billing-previous-reading">
+        <strong>${fmtNum(electricOld)}</strong>
         <button class="btn-edit-old" data-room="${room.id}" data-type="elec" title="Sửa số điện cũ tháng này">✏️</button>
       </div>
-      ${electricOldSubText ? `<div style="font-size:0.65rem;color:${isElecOverridden ? 'var(--primary)' : 'var(--wifi)'};margin-top:1px">${electricOldSubText}</div>` : ''}
+      ${electricOldSubText ? `<div class="billing-reading-source ${isElecOverridden ? 'billing-reading-source--custom' : ''}">${electricOldSubText}</div>` : ''}
     `;
 
     let waterCellHtml = '';
@@ -1367,65 +1367,67 @@ function renderBilling() {
       const waterOldHtml = `
         <span>${fmtNum(waterOld)}</span>
         <button class="btn-edit-old" data-room="${room.id}" data-type="water" title="Sửa số nước cũ tháng này">✏️</button>
-        ${waterOldSubText ? `<span style="font-size:0.65rem;color:${isWaterOverridden ? 'var(--primary)' : 'var(--wifi)'};margin-left:4px">${waterOldSubText}</span>` : ''}
+        ${waterOldSubText ? `<span class="billing-reading-source ${isWaterOverridden ? 'billing-reading-source--custom' : ''}">${waterOldSubText}</span>` : ''}
       `;
 
       waterCellHtml = `
-        <div style="display:flex; flex-direction:column; gap:4px;">
-          <div style="font-size:0.75rem; color:var(--text-muted)">Cũ: <strong>${waterOldHtml}</strong></div>
+        <div class="billing-water-reading">
+          <div class="billing-water-previous">Cũ: <strong>${waterOldHtml}</strong></div>
           <div class="ocr-input-wrap">
             <input type="number" class="water-new-input" data-room="${room.id}"
-              value="${waterNew}" placeholder="Số mới" min="${waterOld}" style="width:90px" />
+              value="${waterNew}" placeholder="Số mới" min="${waterOld}" aria-label="Số nước mới" />
             <button class="btn-ocr" data-room="${room.id}" data-target="water"
               title="Chụp ảnh công tơ nước">📷</button>
           </div>
-          <div class="water-units-display" id="water-units-${room.id}" style="font-size:0.75rem; color:var(--water); font-weight:600">
+          <div class="water-units-display" id="water-units-${room.id}">
             ${waterNew !== '' ? `${fmtNum(Math.max(0, waterNew - waterOld))} khối` : '—'}
           </div>
         </div>
       `;
     } else {
       waterCellHtml = `
-        <div style="display:flex;align-items:center;gap:4px">
+        <div class="billing-water-flat">
           <input type="number" class="water-input" data-room="${room.id}"
-            value="${waterUnits}" placeholder="${waterPlaceholder}" min="0" style="width:80px" />
-          <span style="font-size:0.75rem;color:var(--text-muted)">${waterUnitText}</span>
+            value="${waterUnits}" placeholder="${waterPlaceholder}" min="0" aria-label="Số lượng nước" />
+          <span>${waterUnitText}</span>
         </div>
       `;
     }
 
     tr.innerHTML = `
-      <td>
+      <td class="billing-room-summary">
         <div class="billing-room-cell">
-          <strong>${room.name}</strong>
-          <span class="billing-status-badge ${bill ? 'billing-status-badge--done' : 'billing-status-badge--pending'}">
-            ${bill ? 'Hoàn thành' : 'Chưa xong'}
-          </span>
+          <div class="billing-room-heading">
+            <strong class="billing-room-name">${room.name}</strong>
+            <span class="billing-status-badge ${bill ? 'billing-status-badge--done' : 'billing-status-badge--pending'}">
+              ${bill ? 'Hoàn thành' : 'Chưa xong'}
+            </span>
+          </div>
           <label class="billing-inline-toggle">
             <input type="checkbox" class="billing-utility-toggle" data-room="${room.id}" ${utilityOnly ? 'checked' : ''} />
             <span>Chỉ thu điện nước</span>
           </label>
         </div>
       </td>
-      <td style="color:var(--text-muted)">${electricOldHtml}</td>
-      <td>
+      <td class="billing-field billing-electric-old" data-label="Số điện cũ">${electricOldHtml}</td>
+      <td class="billing-field billing-electric-new" data-label="Số điện mới">
         <div class="ocr-input-wrap">
           <input type="number" class="elec-new-input" data-room="${room.id}"
-            value="${electricNew}" placeholder="Số mới" min="${electricOld}" style="width:90px" />
+            value="${electricNew}" placeholder="Số mới" min="${electricOld}" aria-label="Số điện mới" />
           <button class="btn-ocr" data-room="${room.id}" data-target="elec"
             title="Chụp ảnh công tơ điện">📷</button>
         </div>
       </td>
-      <td class="kwh-cell" id="kwh-${room.id}">${kwhHtml}</td>
-      <td>${waterCellHtml}</td>
-      <td>${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span style="font-size:0.85rem">${fmt(room.trashFee || 0)}</span>`}</td>
-      <td>${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="${wifiBadgeClass}">${wifiText}</span>`}</td>
-      <td>${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span style="font-size:0.85rem">${fmt(room.manageFee || 0)}</span>`}</td>
-      <td>
+      <td class="billing-field billing-electric-used kwh-cell" data-label="Điện tiêu thụ" id="kwh-${room.id}">${kwhHtml}</td>
+      <td class="billing-field billing-water" data-label="Chỉ số nước">${waterCellHtml}</td>
+      <td class="billing-field billing-fee billing-trash" data-label="Rác">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(room.trashFee || 0)}</span>`}</td>
+      <td class="billing-field billing-fee billing-wifi" data-label="Wifi">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="${wifiBadgeClass}">${wifiText}</span>`}</td>
+      <td class="billing-field billing-fee billing-manage" data-label="Phí QL & DV">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(room.manageFee || 0)}</span>`}</td>
+      <td class="billing-field billing-note" data-label="Ghi chú">
         <input type="text" class="bill-note-input" data-room="${room.id}"
-          value="${rec.note || ''}" placeholder="Ghi chú tháng..." />
+          value="${rec.note || ''}" placeholder="Ghi chú tháng..." aria-label="Ghi chú tháng" />
       </td>
-      <td class="total-cell" id="total-${room.id}">${totalHtml}</td>
+      <td class="billing-field billing-total total-cell" data-label="Thành tiền" id="total-${room.id}">${totalHtml}</td>
     `;
 
     // Live calculation
@@ -1502,7 +1504,7 @@ function renderBilling() {
       const kwhVal = hasValue ? Math.max(0, eNew - electricOld) : null;
 
       if (kwhVal !== null) {
-        document.getElementById(`kwh-${room.id}`).innerHTML = `${fmtNum(kwhVal)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">(${fmtNum(eNew)} - ${fmtNum(electricOld)})</div>`;
+        document.getElementById(`kwh-${room.id}`).innerHTML = `<strong>${fmtNum(kwhVal)} kWh</strong><div class="billing-calculation">${fmtNum(eNew)} − ${fmtNum(electricOld)}</div>`;
       } else {
         document.getElementById(`kwh-${room.id}`).innerHTML = '—';
       }
@@ -1520,7 +1522,7 @@ function renderBilling() {
         if (b.manageAmt > 0) parts.push(fmtShorthand(b.manageAmt));
         if (b.rentAmt > 0) parts.push(fmtShorthand(b.rentAmt));
         const breakdown = parts.join(' + ');
-        document.getElementById(`total-${room.id}`).innerHTML = `${fmt(b.total)}<div style="font-size:0.7rem;color:var(--text-muted);font-weight:normal;margin-top:2px">${breakdown}</div>`;
+        document.getElementById(`total-${room.id}`).innerHTML = `<strong>${fmt(b.total)}</strong><div class="billing-breakdown">${breakdown}</div>`;
       } else {
         document.getElementById(`total-${room.id}`).innerHTML = '—';
       }
@@ -1687,6 +1689,7 @@ function renderReport() {
   const listEl = document.getElementById('report-list');
   const summaryEl = document.getElementById('report-summary-bar');
   document.getElementById('report-period-label').textContent = periodLabel(period);
+  document.getElementById('report-month-input').value = periodInputValue(period);
   listEl.innerHTML = '';
   if (summaryEl) summaryEl.innerHTML = '';
 
@@ -2403,6 +2406,13 @@ document.getElementById('billing-month-input').addEventListener('change', (e) =>
   const nextPeriod = e.target.value;
   if (!nextPeriod) return;
   STATE.currentPeriod = nextPeriod;
+  renderPage(activePage);
+});
+document.getElementById('report-prev-month').addEventListener('click', () => shiftPeriod(-1));
+document.getElementById('report-next-month').addEventListener('click', () => shiftPeriod(+1));
+document.getElementById('report-month-input').addEventListener('change', (e) => {
+  if (!e.target.value) return;
+  STATE.currentPeriod = e.target.value;
   renderPage(activePage);
 });
 document.getElementById('btn-transfer-period').addEventListener('click', openTransferPeriodModal);

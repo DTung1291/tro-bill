@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=57" />
+  <link rel="stylesheet" href="style.css?v=59" />
 </head>
 
 <body>
@@ -186,7 +186,7 @@
           <h1 class="page-title">Nhập chỉ số</h1>
           <p class="page-sub" id="billing-period-label">Tháng --/----</p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="billing-toolbar">
           <button class="btn btn--ghost btn--sm" id="btn-transfer-period">Chuyển dữ liệu tháng</button>
           <div class="period-switcher period-switcher--compact">
             <button class="btn-icon" id="billing-prev-month" title="Tháng trước">‹</button>
@@ -221,7 +221,7 @@
             </tr>
           </thead>
           <tbody id="billing-tbody">
-            <tr>
+            <tr class="billing-empty-row">
               <td colspan="10" class="empty-cell">Chưa có phòng</td>
             </tr>
           </tbody>
@@ -302,10 +302,17 @@
           <h1 class="page-title">Hóa đơn</h1>
           <p class="page-sub" id="report-period-label">Tháng --/----</p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn--ghost" id="btn-save-month">💾 Lưu tháng này</button>
-          <button class="btn btn--ghost" id="btn-copy-all">📋 Copy tất cả</button>
-          <button class="btn btn--primary" id="btn-print">🖨️ In báo cáo</button>
+        <div class="report-toolbar">
+          <div class="period-switcher period-switcher--compact" aria-label="Chọn tháng hóa đơn">
+            <button class="btn-icon" id="report-prev-month" title="Tháng trước" aria-label="Tháng trước">‹</button>
+            <input type="month" class="period-month-input" id="report-month-input" aria-label="Chọn tháng hóa đơn" />
+            <button class="btn-icon" id="report-next-month" title="Tháng sau" aria-label="Tháng sau">›</button>
+          </div>
+          <div class="report-actions">
+            <button class="btn btn--ghost" id="btn-save-month">💾 Lưu tháng này</button>
+            <button class="btn btn--ghost" id="btn-copy-all">📋 Copy tất cả</button>
+            <button class="btn btn--primary" id="btn-print">🖨️ In báo cáo</button>
+          </div>
         </div>
       </div>
       <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
@@ -863,7 +870,7 @@
   <script src="vendor/html5-qrcode.min.js"></script>
   <script src="api.js?v=55"></script>
   <script src="ocr.js?v=55"></script>
-  <script src="app.js?v=55"></script>
+  <script src="app.js?v=59"></script>
 </body>
 
 </html>
