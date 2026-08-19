@@ -105,8 +105,8 @@
     return isPeriod(period) && day >= 1 && day <= daysInPeriod(period);
   }
 
-  // Ngày bắt đầu thuê không tính tiền, đúng theo quy ước:
-  // số ngày thực tế = số ngày trong tháng - ngày bắt đầu thuê.
+  // Ngày bắt đầu thuê được tính tiền:
+  // số ngày thực tế = số ngày trong tháng - ngày bắt đầu thuê + 1.
   function calculateRent(basePrice, period, rentStartDate = '') {
     const normalizedBasePrice = amount(basePrice);
     const periodDays = daysInPeriod(period);
@@ -135,7 +135,7 @@
     if (period > startPeriod) return result;
 
     const startDay = Number(result.startDate.slice(8, 10));
-    const chargedDays = Math.max(0, periodDays - startDay);
+    const chargedDays = Math.max(0, periodDays - startDay + 1);
     return {
       ...result,
       amount: Math.round(normalizedBasePrice * chargedDays / periodDays),

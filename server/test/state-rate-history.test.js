@@ -48,13 +48,13 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
           snapshot_id: 99,
           room_id: 'room-1',
           room_name: 'Phòng 1',
-          rent_price: '2100000',
+          rent_price: '2200000',
           rent_base_price: '3100000',
-          rent_days: 21,
+          rent_days: 22,
           rent_days_in_month: 31,
           rent_prorated: true,
           rent_starts_after_period: false,
-          total: '2100000'
+          total: '2200000'
         }]
       };
     }
@@ -71,7 +71,7 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   assert.equal(state.rooms[0].rateHistory[1].rentPrice, 2500000);
   assert.equal(state.rooms[0].rentStartDate, '2026-08-10');
   assert.equal(state.history[0].bills[0].rentBasePrice, 3100000);
-  assert.equal(state.history[0].bills[0].rentDays, 21);
+  assert.equal(state.history[0].bills[0].rentDays, 22);
   assert.equal(state.history[0].bills[0].rentDaysInMonth, 31);
   assert.equal(state.history[0].bills[0].rentProrated, true);
 });
@@ -117,13 +117,13 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
     bills: [{
       roomId: 'room-1',
       roomName: 'Phòng 1',
-      rentPrice: 2100000,
+      rentPrice: 2200000,
       rentBasePrice: 3100000,
-      rentDays: 21,
+      rentDays: 22,
       rentDaysInMonth: 31,
       rentProrated: true,
       rentStartsAfterPeriod: false,
-      total: 2100000
+      total: 2200000
     }]
   }];
 
@@ -136,7 +136,7 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
   const historyBillInsert = calls.find(call => call.sql.includes('INSERT INTO history_bills'));
   assert.equal(roomInsert.params[3], '2026-08-10');
   assert.equal(roomInsert.params[4], 2500000, 'rooms.rent_price giữ giá mới nhất để tương thích bản cũ');
-  assert.deepEqual(historyBillInsert.params.slice(3, 9), [2100000, 3100000, 21, 31, true, false]);
+  assert.deepEqual(historyBillInsert.params.slice(3, 9), [2200000, 3100000, 22, 31, true, false]);
   assert.deepEqual(responseBody, { ok: true });
   assert.equal(calls[0].sql, 'BEGIN');
   assert.equal(calls.at(-1).sql, 'COMMIT');

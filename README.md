@@ -64,11 +64,11 @@ lại khi biểu phí phòng thay đổi.
 Nếu phòng có `rentStartDate`, riêng tháng bắt đầu thuê sẽ tính tiền theo ngày:
 
 ```text
-tiền thuê = làm tròn(giá tháng / số ngày trong tháng × (số ngày trong tháng - ngày vào ở))
+tiền thuê = làm tròn(giá tháng / số ngày trong tháng × (số ngày trong tháng - ngày vào ở + 1))
 ```
 
-Ngày vào ở không được tính tiền theo quy ước này. Ví dụ vào ngày 10/08 thì
-tháng 8 tính 21/31 ngày; từ tháng 9 trở đi thu đủ giá tháng. Nếu để trống ngày
+Ngày vào ở được tính tiền. Ví dụ vào ngày 10/08 thì tháng 8 tính 22/31 ngày;
+từ tháng 9 trở đi thu đủ giá tháng. Nếu để trống ngày
 bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 
 ## API

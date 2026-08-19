@@ -80,15 +80,15 @@ test('tính tiền thuê theo số ngày thực tế của tháng bắt đầu t
   const rent = RoomRates.calculateRent(3100000, '2026-08', '2026-08-10');
 
   assert.equal(rent.daysInMonth, 31);
-  assert.equal(rent.chargedDays, 21);
-  assert.equal(rent.amount, 2100000);
+  assert.equal(rent.chargedDays, 22);
+  assert.equal(rent.amount, 2200000);
   assert.equal(rent.prorated, true);
 });
 
 test('làm tròn tiền thuê theo ngày đến đơn vị đồng', () => {
   const rent = RoomRates.calculateRent(2200000, '2026-08', '2026-08-10');
 
-  assert.equal(rent.amount, 1490323);
+  assert.equal(rent.amount, 1561290);
 });
 
 test('xử lý đúng tháng nhuận và chỉ chia tiền ở tháng bắt đầu', () => {
@@ -97,8 +97,8 @@ test('xử lý đúng tháng nhuận và chỉ chia tiền ở tháng bắt đ�
   const previousMonth = RoomRates.calculateRent(2900000, '2024-01', '2024-02-10');
 
   assert.equal(firstMonth.daysInMonth, 29);
-  assert.equal(firstMonth.chargedDays, 19);
-  assert.equal(firstMonth.amount, 1900000);
+  assert.equal(firstMonth.chargedDays, 20);
+  assert.equal(firstMonth.amount, 2000000);
   assert.equal(nextMonth.amount, 2900000);
   assert.equal(nextMonth.prorated, false);
   assert.equal(previousMonth.amount, 0);
@@ -115,10 +115,10 @@ test('không có ngày bắt đầu thuê thì vẫn thu đủ giá tháng', () 
 
 test('xác định đúng số ngày cho tháng 28, 29, 30 và 31 ngày', () => {
   const cases = [
-    ['2025-02', '2025-02-10', 28, 18],
-    ['2024-02', '2024-02-10', 29, 19],
-    ['2026-04', '2026-04-10', 30, 20],
-    ['2026-08', '2026-08-10', 31, 21]
+    ['2025-02', '2025-02-10', 28, 19],
+    ['2024-02', '2024-02-10', 29, 20],
+    ['2026-04', '2026-04-10', 30, 21],
+    ['2026-08', '2026-08-10', 31, 22]
   ];
 
   for (const [period, startDate, daysInMonth, chargedDays] of cases) {
@@ -127,4 +127,16 @@ test('xác định đúng số ngày cho tháng 28, 29, 30 và 31 ngày', () => 
     assert.equal(rent.chargedDays, chargedDays);
     assert.equal(rent.amount, chargedDays * 100000);
   }
+});
+
+test('tính đủ tháng khi bắt đầu ngày 1 và tính một ngày khi bắt đầu ngày cuối tháng', () => {
+  const firstDay = RoomRates.calculateRent(3100000, '2026-08', '2026-08-01');
+  const lastDay = RoomRates.calculateRent(3100000, '2026-08', '2026-08-31');
+
+  assert.equal(firstDay.chargedDays, 31);
+  assert.equal(firstDay.amount, 3100000);
+  assert.equal(firstDay.prorated, false);
+  assert.equal(lastDay.chargedDays, 1);
+  assert.equal(lastDay.amount, 100000);
+  assert.equal(lastDay.prorated, true);
 });
