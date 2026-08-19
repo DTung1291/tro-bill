@@ -974,8 +974,19 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
+  min-width: 0;
 }
 .expense-form { display: flex; flex-direction: column; gap: 14px; }
+.expense-form .form-row,
+.expense-form .form-row--2col > * {
+  min-width: 0;
+}
+.expense-form .form-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .expense-help { margin: -6px 0 2px; color: var(--text-muted); font-size: .84rem; line-height: 1.5; }
 .expense-total { font-size: 1.05rem; font-weight: 800; color: var(--red); }
 .expense-list { display: flex; flex-direction: column; gap: 8px; }
