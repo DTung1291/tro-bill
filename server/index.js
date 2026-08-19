@@ -52,11 +52,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
 });
 
-app.listen(PORT, async () => {
-  console.log(`✅ TrọBill chạy tại http://localhost:${PORT}`);
-  try {
-    await seedAdmin();
-  } catch (e) {
-    console.error('⚠️  Seed admin lỗi:', e.message);
-  }
-});
+// Chạy HTTP server khi phát triển/local. Trên Vercel, api/index.js export app
+// thành Serverless Function nên không được gọi app.listen().
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    console.log(`✅ TrọBill chạy tại http://localhost:${PORT}`);
+    try {
+      await seedAdmin();
+    } catch (e) {
+      console.error('⚠️  Seed admin lỗi:', e.message);
+    }
+  });
+} else if (process.env.VERCEL) {
+  // Seed idempotent trên cold start để ADMIN_EMAIL vẫn hoạt động trên Vercel.
+  seedAdmin().catch((e) => console.error('⚠️  Seed admin lỗi:', e.message));
+}
+
+module.exports = app;
