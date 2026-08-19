@@ -405,6 +405,40 @@ function showToast(msg, type = 'info', duration = 2500) {
   el._timer = setTimeout(() => { el.hidden = true; }, duration);
 }
 
+let modalScrollPosition = 0;
+let modalScrollLocked = false;
+
+function syncModalScrollLock() {
+  const hasOpenModal = Array.from(document.querySelectorAll('.modal-overlay'))
+    .some(modal => !modal.hidden);
+
+  if (hasOpenModal === modalScrollLocked) return;
+
+  if (hasOpenModal) {
+    modalScrollPosition = window.scrollY;
+    document.documentElement.classList.add('modal-open');
+    document.body.classList.add('modal-open');
+    document.body.style.top = `-${modalScrollPosition}px`;
+    modalScrollLocked = true;
+    return;
+  }
+
+  document.documentElement.classList.remove('modal-open');
+  document.body.classList.remove('modal-open');
+  document.body.style.removeProperty('top');
+  const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = 'auto';
+  window.scrollTo(0, modalScrollPosition);
+  document.documentElement.style.scrollBehavior = previousScrollBehavior;
+  modalScrollLocked = false;
+}
+
+const modalScrollObserver = new MutationObserver(syncModalScrollLock);
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+  modalScrollObserver.observe(modal, { attributes: true, attributeFilter: ['hidden'] });
+});
+syncModalScrollLock();
+
 // Custom confirm dialog (replaces window.confirm which Chrome blocks on file://)
 function showConfirm(message, onOk, onCancel = null, okText = 'Xóa') {
   triggerHaptic('warning');
