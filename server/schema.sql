@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,
   user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name          TEXT    NOT NULL DEFAULT 'Phòng không tên',
+  rent_start_date TEXT  NOT NULL DEFAULT '',
   rent_price    NUMERIC NOT NULL DEFAULT 0,
   electric_rate NUMERIC NOT NULL DEFAULT 3200,
   water_rate    NUMERIC NOT NULL DEFAULT 50000,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   notes         TEXT    NOT NULL DEFAULT '',
   sort_order    INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS rent_start_date TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_rooms_user ON rooms(user_id);
 
 -- Lịch sử biểu phí của phòng. Mỗi dòng bắt đầu có hiệu lực từ một tháng
@@ -156,6 +158,11 @@ CREATE TABLE IF NOT EXISTS history_bills (
   room_id      TEXT,
   room_name    TEXT,
   rent_price   NUMERIC DEFAULT 0,
+  rent_base_price NUMERIC DEFAULT 0,
+  rent_days INTEGER,
+  rent_days_in_month INTEGER,
+  rent_prorated BOOLEAN NOT NULL DEFAULT false,
+  rent_starts_after_period BOOLEAN NOT NULL DEFAULT false,
   electric_old NUMERIC DEFAULT 0,
   electric_new NUMERIC,                            -- NULL = chưa nhập
   electric_rate NUMERIC DEFAULT 0,
@@ -176,4 +183,12 @@ CREATE TABLE IF NOT EXISTS history_bills (
   sort_order   INTEGER NOT NULL DEFAULT 0
 );
 ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS utility_only BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_base_price NUMERIC DEFAULT 0;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_days INTEGER;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_days_in_month INTEGER;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_prorated BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_starts_after_period BOOLEAN NOT NULL DEFAULT false;
+UPDATE history_bills
+SET rent_base_price = rent_price
+WHERE rent_base_price = 0 AND rent_price <> 0;
 CREATE INDEX IF NOT EXISTS idx_history_bills_snapshot ON history_bills(snapshot_id);

@@ -517,9 +517,16 @@
       </div>
       <form class="modal-form" id="room-form">
         <input type="hidden" id="room-id" />
-        <div class="form-row">
-          <label class="form-label">Tên phòng *</label>
-          <input class="form-input" type="text" id="room-name" placeholder="VD: Nhà 1, Phòng A101..." required />
+        <div class="form-row form-row--2col">
+          <div>
+            <label class="form-label">Tên phòng *</label>
+            <input class="form-input" type="text" id="room-name" placeholder="VD: Nhà 1, Phòng A101..." required />
+          </div>
+          <div>
+            <label class="form-label">Ngày bắt đầu thuê</label>
+            <input class="form-input" type="date" id="room-rent-start-date" />
+            <p class="rate-effective-hint">Bỏ trống nếu luôn thu đủ tháng. Ngày vào ở không tính tiền.</p>
+          </div>
         </div>
         <div class="form-row rate-effective-panel">
           <div>
@@ -888,8 +895,8 @@
   <script src="vendor/html5-qrcode.min.js"></script>
   <script src="api.js?v=55"></script>
   <script src="ocr.js?v=55"></script>
-  <script src="rate-history.js?v=60"></script>
-  <script src="app.js?v=60"></script>
+  <script src="rate-history.js?v=61"></script>
+  <script src="app.js?v=61"></script>
 </body>
 
 </html>

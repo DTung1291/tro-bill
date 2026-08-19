@@ -105,6 +105,7 @@ function loadState(savedObj) {
       const room = {
         id: r.id || uuid(),
         name: r.name || 'Phòng không tên',
+        rentStartDate: r.rentStartDate || '',
         rentPrice: r.rentPrice !== undefined ? Number(r.rentPrice) : 0,
         electricRate: r.electricRate !== undefined ? Number(r.electricRate) : 3200,
         waterRate: r.waterRate !== undefined ? Number(r.waterRate) : 50000,
@@ -155,6 +156,11 @@ function loadState(savedObj) {
         roomId: b.roomId,
         roomName: b.roomName,
         rentPrice: b.rentPrice !== undefined ? Number(b.rentPrice) : 0,
+        rentBasePrice: b.rentBasePrice !== undefined ? Number(b.rentBasePrice) : (b.rentPrice !== undefined ? Number(b.rentPrice) : 0),
+        rentDays: b.rentDays !== undefined && b.rentDays !== null ? Number(b.rentDays) : null,
+        rentDaysInMonth: b.rentDaysInMonth !== undefined && b.rentDaysInMonth !== null ? Number(b.rentDaysInMonth) : null,
+        rentProrated: !!b.rentProrated,
+        rentStartsAfterPeriod: !!b.rentStartsAfterPeriod,
         electricOld: b.electricOld !== undefined ? Number(b.electricOld) : 0,
         electricNew: b.electricNew !== undefined && b.electricNew !== null ? Number(b.electricNew) : null,
         electricRate: b.electricRate !== undefined ? Number(b.electricRate) : 0,
@@ -270,6 +276,25 @@ function getRoomRates(room, period = STATE.currentPeriod) {
 
 function ratePeriodLabel(period) {
   return period === RoomRates.BASE_PERIOD ? 'Giá ban đầu' : `Từ ${periodLabel(period).toLowerCase()}`;
+}
+
+function dateLabel(value) {
+  if (!RoomRates.isIsoDate(value)) return '';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function rentFormulaText(bill) {
+  if (bill.rentStartsAfterPeriod) return 'Chưa đến ngày bắt đầu thuê';
+  if (!bill.rentProrated) return 'Cố định hàng tháng';
+  return `${fmt(bill.rentBasePrice)} ÷ ${bill.rentDaysInMonth} ngày × ${bill.rentDays} ngày`;
+}
+
+function rentMessageLine(bill) {
+  if (bill.rentStartsAfterPeriod) return '🏠 Tiền thuê: 0 đ (chưa bắt đầu thuê)';
+  if (bill.rentAmt <= 0) return '';
+  if (!bill.rentProrated) return `🏠 Tiền thuê: ${fmt(bill.rentAmt)}`;
+  return `🏠 Tiền thuê: ${fmt(bill.rentBasePrice)} ÷ ${bill.rentDaysInMonth} ngày × ${bill.rentDays} ngày = ${fmt(bill.rentAmt)}`;
 }
 
 function clonePeriodRecords(records) {
@@ -767,7 +792,8 @@ function calcBill(room, record, period = null) {
   const trashAmt = utilityOnly ? 0 : rates.trashFee;
   const wifiAmt = utilityOnly ? 0 : rates.wifiFee;
   const manageAmt = utilityOnly ? 0 : rates.manageFee;
-  const rentAmt = utilityOnly ? 0 : rates.rentPrice;
+  const rent = RoomRates.calculateRent(rates.rentPrice, period || STATE.currentPeriod, room.rentStartDate);
+  const rentAmt = utilityOnly ? 0 : rent.amount;
   const total = electricAmt + waterAmt + trashAmt + wifiAmt + manageAmt + rentAmt;
 
   return {
@@ -781,6 +807,11 @@ function calcBill(room, record, period = null) {
     wifiAmt,
     manageAmt,
     rentAmt,
+    rentBasePrice: rent.basePrice,
+    rentDays: rent.chargedDays,
+    rentDaysInMonth: rent.daysInMonth,
+    rentProrated: !utilityOnly && rent.prorated,
+    rentStartsAfterPeriod: !utilityOnly && rent.startsAfterPeriod,
     total,
     rateEffectiveFrom: rates.effectiveFrom
   };
@@ -1083,6 +1114,7 @@ function renderRooms() {
     card.className = 'room-card';
     const rates = getRoomRates(room, STATE.currentPeriod);
     const hasWifi = rates.wifiFee > 0;
+    const rentStartLabel = dateLabel(room.rentStartDate);
     const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
     const latestPaid = getLatestPaidElectric(room);
     const latestText = latestPaid !== null 
@@ -1103,6 +1135,7 @@ function renderRooms() {
         <div class="room-card-name">${room.name}</div>
         <div class="room-card-details">
           <span class="room-detail-chip room-detail-chip--rate-period">🗓️ ${ratePeriodLabel(rates.effectiveFrom)}</span>
+          ${rentStartLabel ? `<span class="room-detail-chip">🔑 Bắt đầu thuê: ${rentStartLabel}</span>` : ''}
           <span class="room-detail-chip">🏷️ Thuê: ${fmt(rates.rentPrice)}/tháng</span>
           <span class="room-detail-chip">⚡ Điện: ${fmtNum(rates.electricRate)}đ/kWh</span>
           <span class="room-detail-chip">💧 Nước: ${fmtNum(rates.waterRate)}đ/${waterUnitText}</span>
@@ -1259,6 +1292,7 @@ function openRoomModal(roomId = null) {
     title.textContent = 'Sửa phòng';
     document.getElementById('room-id').value          = room.id;
     document.getElementById('room-name').value        = room.name;
+    document.getElementById('room-rent-start-date').value = room.rentStartDate || '';
     fillRoomRateInputs(activeRates);
     document.getElementById('room-water-type').value  = room.waterType || 'người';
     document.getElementById('room-people-count').value= room.peopleCount ?? 1;
@@ -1273,6 +1307,7 @@ function openRoomModal(roomId = null) {
     roomRateHistoryDraft = [];
     title.textContent = 'Thêm phòng';
     document.getElementById('room-id').value = '';
+    document.getElementById('room-rent-start-date').value = '';
     document.getElementById('room-elec-rate').value = 3200;
     document.getElementById('room-water-type').value = 'người';
     document.getElementById('room-water-rate').value = 50000;
@@ -1300,6 +1335,7 @@ document.getElementById('room-form').addEventListener('submit', e => {
   e.preventDefault();
   const id        = document.getElementById('room-id').value;
   const name      = document.getElementById('room-name').value.trim();
+  const rentStartDate = document.getElementById('room-rent-start-date').value;
   const effectiveFrom = document.getElementById('room-rate-effective-from').value;
   const rates = readRoomRateInputs();
   const waterType    = document.getElementById('room-water-type').value;
@@ -1308,7 +1344,7 @@ document.getElementById('room-form').addEventListener('submit', e => {
   const waterPrev    = parseFloat(document.getElementById('room-water-prev').value) || 0;
   const notes        = document.getElementById('room-notes').value.trim();
 
-  if (!name || !RoomRates.isPeriod(effectiveFrom)) {
+  if (!name || !RoomRates.isPeriod(effectiveFrom) || (rentStartDate && !RoomRates.isIsoDate(rentStartDate))) {
     showToast('Vui lòng điền đủ thông tin bắt buộc', 'error');
     return;
   }
@@ -1328,6 +1364,7 @@ document.getElementById('room-form').addEventListener('submit', e => {
   const roomData = {
     id: id || uuid(),
     name,
+    rentStartDate,
     ...rates,
     waterType,
     peopleCount,
@@ -1962,8 +1999,11 @@ function renderReport() {
             <div class="bill-row-val">${fmt(bill.manageAmt)}</div>
           </div>
           ` : ''}
-          ${bill.rentAmt > 0 ? `<div class="bill-row">
-            <div class="bill-row-label">🏠 Tiền thuê</div>
+          ${bill.rentAmt > 0 || bill.rentStartsAfterPeriod ? `<div class="bill-row">
+            <div>
+              <div class="bill-row-label">🏠 Tiền thuê</div>
+              <div class="bill-row-formula">${rentFormulaText(bill)}</div>
+            </div>
             <div class="bill-row-val">${fmt(bill.rentAmt)}</div>
           </div>` : ''}
         </div>
@@ -2024,7 +2064,7 @@ function renderReport() {
       const trashLine = bill.trashAmt > 0 ? `🗑️ Tiền rác: ${fmt(bill.trashAmt)}` : '';
       const wifiLine = bill.wifiAmt > 0 ? `📶 Mạng Wifi: ${fmt(bill.wifiAmt)}` : '';
       const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
-      const rentLine = bill.rentAmt > 0 ? `🏠 Tiền thuê: ${fmt(bill.rentAmt)}` : '';
+      const rentLine = rentMessageLine(bill);
       const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
       const qrUrl = genVietQrUrl(room, bill, period);
       const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
@@ -2067,7 +2107,7 @@ function copyBillText(room, rec, bill, period) {
   const trashLine = bill.trashAmt > 0 ? `🗑️ Tiền rác: ${fmt(bill.trashAmt)}` : '';
   const wifiLine = bill.wifiAmt > 0 ? `📶 Mạng Wifi: ${fmt(bill.wifiAmt)}` : '';
   const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
-  const rentLine = bill.rentAmt > 0 ? `🏠 Tiền thuê: ${fmt(bill.rentAmt)}` : '';
+  const rentLine = rentMessageLine(bill);
   const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
 
   const electricOld = getElectricOld(room, period);
@@ -2149,6 +2189,11 @@ function saveMonth() {
         roomId: room.id,
         roomName: room.name,
         rentPrice: bill.rentAmt || 0,
+        rentBasePrice: bill.rentBasePrice,
+        rentDays: bill.rentDays,
+        rentDaysInMonth: bill.rentDaysInMonth,
+        rentProrated: bill.rentProrated,
+        rentStartsAfterPeriod: bill.rentStartsAfterPeriod,
         electricOld: getElectricOld(room, period),
         electricNew: rec.electricNew ?? null,
         electricRate: bill.electricRate,
@@ -2250,12 +2295,17 @@ function renderHistory() {
             const waterDesc = b.waterType === 'khối' && b.waterNew !== undefined && b.waterNew !== null && b.waterPrev !== undefined && b.waterPrev !== null
               ? `💧 ${fmtNum(b.waterUnits)} khối (${fmtNum(b.waterNew)} - ${fmtNum(b.waterPrev)})`
               : `💧 ${b.waterUnits} ${waterUnit}`;
+            const rentDesc = b.rentStartsAfterPeriod
+              ? ' | 🏠 0 đ (chưa bắt đầu thuê)'
+              : b.rentPrice > 0
+                ? ` | 🏠 ${fmt(b.rentPrice)}${b.rentProrated ? ` (${b.rentDays}/${b.rentDaysInMonth} ngày)` : ''}`
+                : '';
             return `
             <div class="history-room-row">
               <div>
                 <span class="history-room-name">${b.roomName}</span>
                 <div style="font-size:0.75rem;color:var(--text-muted)">
-                  ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${b.rentPrice > 0 ? ` | 🏠 ${fmt(b.rentPrice)}` : ''}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
+                  ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${rentDesc}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:10px">
@@ -2397,8 +2447,12 @@ function generatePrintHTML(period, deduction, bills) {
           </div>
           <div class="print-bill-body" style="padding:10px; display:flex; gap:15px; align-items:center; justify-content:space-between">
             <table class="print-bill-table" style="flex:1; border-collapse:collapse; font-size:13px">
-              ${b.rentPrice > 0 ? `<tr style="border-bottom:1px solid #eee">
-                <td style="padding:6px 0">Tiền thuê phòng</td>
+              ${b.rentPrice > 0 || b.rentStartsAfterPeriod ? `<tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Tiền thuê phòng${b.rentStartsAfterPeriod
+                  ? ' (chưa bắt đầu thuê)'
+                  : b.rentProrated
+                    ? ` (${fmt(b.rentBasePrice)} ÷ ${b.rentDaysInMonth} ngày × ${b.rentDays} ngày)`
+                    : ''}</td>
                 <td style="text-align:right">${fmt(b.rentPrice)}</td>
               </tr>` : ''}
               ${b.utilityOnly ? `
@@ -2472,6 +2526,11 @@ function printActiveReport() {
     return {
       roomName: room.name,
       rentPrice: bill.rentAmt || 0,
+      rentBasePrice: bill.rentBasePrice,
+      rentDays: bill.rentDays,
+      rentDaysInMonth: bill.rentDaysInMonth,
+      rentProrated: bill.rentProrated,
+      rentStartsAfterPeriod: bill.rentStartsAfterPeriod,
       electricOld: getElectricOld(room, period),
       electricNew: rec.electricNew !== undefined && rec.electricNew !== '' ? Number(rec.electricNew) : (getElectricOld(room, period) || 0),
       electricRate: bill.electricRate,

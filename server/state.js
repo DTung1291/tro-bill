@@ -76,6 +76,7 @@ async function buildState(uid) {
     const room = {
       id: r.id,
       name: r.name,
+      rentStartDate: r.rent_start_date || '',
       rentPrice: num(r.rent_price),
       electricRate: num(r.electric_rate, 3200),
       waterRate: num(r.water_rate, 50000),
@@ -129,6 +130,11 @@ async function buildState(uid) {
       roomId: hb.room_id,
       roomName: hb.room_name,
       rentPrice: num(hb.rent_price),
+      rentBasePrice: num(hb.rent_base_price, num(hb.rent_price)),
+      rentDays: hb.rent_days === null ? null : Number(hb.rent_days),
+      rentDaysInMonth: hb.rent_days_in_month === null ? null : Number(hb.rent_days_in_month),
+      rentProrated: !!hb.rent_prorated,
+      rentStartsAfterPeriod: !!hb.rent_starts_after_period,
       electricOld: num(hb.electric_old),
       electricNew: hb.electric_new === null ? null : Number(hb.electric_new),
       electricRate: num(hb.electric_rate),
@@ -218,12 +224,12 @@ async function putState(req, res) {
       const latestRates = rateHistory[rateHistory.length - 1];
       await client.query(
         `INSERT INTO rooms
-            (id, user_id, name, rent_price, electric_rate, water_rate, water_type,
+            (id, user_id, name, rent_start_date, rent_price, electric_rate, water_rate, water_type,
             people_count, trash_fee, wifi_fee, manage_fee, electric_prev, water_prev,
             notes, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
         [
-          r.id, uid, r.name || 'Phòng không tên', latestRates.rentPrice, latestRates.electricRate,
+          r.id, uid, r.name || 'Phòng không tên', r.rentStartDate || '', latestRates.rentPrice, latestRates.electricRate,
           latestRates.waterRate, r.waterType || 'người', num(r.peopleCount, 1),
           latestRates.trashFee, latestRates.wifiFee, latestRates.manageFee, num(r.electricPrev),
           num(r.waterPrev), r.notes || '', rIdx++
@@ -303,12 +309,15 @@ async function putState(req, res) {
       for (const b of Array.isArray(h.bills) ? h.bills : []) {
         await client.query(
           `INSERT INTO history_bills
-             (snapshot_id, room_id, room_name, rent_price, electric_old, electric_new,
+             (snapshot_id, room_id, room_name, rent_price, rent_base_price, rent_days,
+              rent_days_in_month, rent_prorated, rent_starts_after_period, electric_old, electric_new,
               electric_rate, kwh, electric_amt, water_type, water_rate, water_units,
               water_amt, water_prev, water_new, trash_fee, wifi_fee, manage_fee, utility_only, total, paid, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
           [
-            snapId, b.roomId, b.roomName, num(b.rentPrice), num(b.electricOld),
+            snapId, b.roomId, b.roomName, num(b.rentPrice), num(b.rentBasePrice, num(b.rentPrice)),
+            orNull(b.rentDays), orNull(b.rentDaysInMonth), !!b.rentProrated, !!b.rentStartsAfterPeriod,
+            num(b.electricOld),
             b.electricNew === null || b.electricNew === undefined ? null : Number(b.electricNew),
             num(b.electricRate), num(b.kwh), num(b.electricAmt), b.waterType || 'người',
             num(b.waterRate), num(b.waterUnits), num(b.waterAmt),

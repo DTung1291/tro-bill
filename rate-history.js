@@ -91,6 +91,59 @@
     return RATE_FIELDS.every((field) => amount(left[field]) === amount(right[field]));
   }
 
+  function daysInPeriod(period) {
+    if (!isPeriod(period)) return 0;
+    const [year, month] = period.split('-').map(Number);
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  function isIsoDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!match) return false;
+    const period = `${match[1]}-${match[2]}`;
+    const day = Number(match[3]);
+    return isPeriod(period) && day >= 1 && day <= daysInPeriod(period);
+  }
+
+  // Ngày bắt đầu thuê không tính tiền, đúng theo quy ước:
+  // số ngày thực tế = số ngày trong tháng - ngày bắt đầu thuê.
+  function calculateRent(basePrice, period, rentStartDate = '') {
+    const normalizedBasePrice = amount(basePrice);
+    const periodDays = daysInPeriod(period);
+    const result = {
+      amount: normalizedBasePrice,
+      basePrice: normalizedBasePrice,
+      chargedDays: periodDays,
+      daysInMonth: periodDays,
+      prorated: false,
+      startsAfterPeriod: false,
+      startDate: isIsoDate(rentStartDate) ? rentStartDate : ''
+    };
+
+    if (!periodDays || !result.startDate) return result;
+
+    const startPeriod = result.startDate.slice(0, 7);
+    if (period < startPeriod) {
+      return {
+        ...result,
+        amount: 0,
+        chargedDays: 0,
+        prorated: true,
+        startsAfterPeriod: true
+      };
+    }
+    if (period > startPeriod) return result;
+
+    const startDay = Number(result.startDate.slice(8, 10));
+    const chargedDays = Math.max(0, periodDays - startDay);
+    return {
+      ...result,
+      amount: Math.round(normalizedBasePrice * chargedDays / periodDays),
+      chargedDays,
+      prorated: chargedDays < periodDays
+    };
+  }
+
   return {
     BASE_PERIOD,
     RATE_FIELDS,
@@ -101,6 +154,9 @@
     normalizeHistory,
     resolve,
     latest,
-    sameRates
+    sameRates,
+    daysInPeriod,
+    isIsoDate,
+    calculateRent
   };
 });
