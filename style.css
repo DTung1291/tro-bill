@@ -838,6 +838,24 @@ body {
 /* Popup xác nhận có thể được mở từ bên trong một modal khác (khách trọ,
    lịch sử biểu phí...). Luôn đặt nó trên modal đang hoạt động. */
 #confirm-modal { z-index: 1300; }
+.modal.modal--confirm { max-width: 420px; }
+.confirm-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 18px 20px 20px;
+  min-width: 0;
+}
+.confirm-modal-message {
+  color: var(--text-muted);
+  font-size: .9rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.confirm-modal-content .modal-actions {
+  flex-wrap: wrap;
+  padding-top: 0;
+}
 .modal {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: 16px; width: 100%; max-width: 520px;
