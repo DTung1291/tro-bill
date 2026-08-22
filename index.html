@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=64" />
+  <link rel="stylesheet" href="style.css?v=65" />
 </head>
 
 <body>
@@ -640,6 +640,21 @@
     </div>
   </div>
 
+  <!-- MODAL: Bill preview + VietQR -->
+  <div class="modal-overlay" id="bill-preview-modal" hidden>
+    <div class="modal bill-preview-modal">
+      <div class="modal-header bill-preview-header">
+        <h2 class="modal-title bill-preview-title" id="bill-preview-title">Hóa đơn</h2>
+        <button type="button" class="btn btn--ghost" id="bill-preview-close-header">Đóng</button>
+      </div>
+      <div class="bill-preview-content" id="bill-preview-content"></div>
+      <div class="bill-preview-footer">
+        <button type="button" class="btn btn--ghost" id="bill-preview-close-footer">Đóng</button>
+        <button type="button" class="btn btn--primary" id="bill-preview-print">🖨️ In bill</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Edit Old Meter Reading -->
   <div class="modal-overlay" id="edit-old-modal" hidden>
     <div class="modal" style="max-width:420px">
@@ -900,7 +915,7 @@
   <script src="api.js?v=55"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
 </body>
 
 </html>

@@ -337,31 +337,58 @@ function removeVietnameseTones(str) {
   return str;
 }
 
-function genVietQrUrl(room, bill, period) {
-  const bankId = STATE.settings.bankId || '';
-  const account = STATE.settings.bankAccount || '';
-  const owner = STATE.settings.bankOwnerName || '';
-  
-  if (!bankId || !account) return null;
-
-  const amount = bill.total || 0;
-  
+function getVietQrDescription(room, period) {
   const pattern = STATE.settings.bankTransferPattern || '{room} {period}';
   const { year, month } = parsePeriod(period);
   const formattedPeriod = `${String(month).padStart(2, '0')}${year}`;
-  
+
   let desc = pattern
     .replace(/{room}/gi, room.name)
     .replace(/{period}/gi, formattedPeriod)
     .replace(/{month}/gi, String(month).padStart(2, '0'))
     .replace(/{year}/gi, String(year));
-    
-  desc = removeVietnameseTones(desc).replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
-  
+
+  return removeVietnameseTones(desc)
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function genVietQrUrl(room, bill, period, amountOverride = null) {
+  const bankId = STATE.settings.bankId || '';
+  const account = STATE.settings.bankAccount || '';
+  const owner = STATE.settings.bankOwnerName || '';
+
+  if (!bankId || !account) return null;
+
+  const amount = amountOverride === null ? (bill.total || 0) : Math.max(0, Number(amountOverride) || 0);
+  const desc = getVietQrDescription(room, period);
   const encodedDesc = encodeURIComponent(desc);
   const encodedOwner = encodeURIComponent(owner);
-  
+
   return `https://img.vietqr.io/image/${bankId}-${account}-compact.png?amount=${amount}&addInfo=${encodedDesc}&accountName=${encodedOwner}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function billCode(room, period) {
+  const roomPart = String(room.id || removeVietnameseTones(room.name) || 'ROOM')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 8)
+    .toUpperCase();
+  return `TB-${period.replace('-', '')}-${roomPart || 'ROOM'}`;
+}
+
+function billDueDate(period) {
+  const days = RoomRates.daysInPeriod(period);
+  return days ? `${period}-${String(days).padStart(2, '0')}` : period;
 }
 
 function triggerHaptic(type = 'light') {
@@ -1878,6 +1905,180 @@ function renderBillingLegend() {
 // ============================================================
 //  REPORTS (Hóa đơn chi tiết)
 // ============================================================
+let activeBillPreview = null;
+
+function billPreviewDetailRows(room, rec, bill, period) {
+  const electricOld = getElectricOld(room, period);
+  const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
+  const rows = [];
+
+  if (bill.rentAmt > 0 || bill.rentStartsAfterPeriod) {
+    rows.push({
+      label: 'Tiền phòng',
+      formula: rentFormulaText(bill),
+      amount: bill.rentAmt
+    });
+  }
+
+  rows.push({
+    label: 'Tiền điện',
+    formula: `${fmtNum(electricOld)} → ${fmtNum(rec.electricNew)} = ${fmtNum(bill.kwh)} kWh × ${fmtNum(bill.electricRate)}đ`,
+    amount: bill.electricAmt
+  });
+
+  rows.push({
+    label: 'Tiền nước',
+    formula: room.waterType === 'khối'
+      ? `${fmtNum(waterOld)} → ${fmtNum(rec.waterNew)} = ${fmtNum(bill.waterUnits)} khối × ${fmtNum(bill.waterRate)}đ`
+      : `${fmtNum(bill.waterUnits)} người × ${fmtNum(bill.waterRate)}đ`,
+    amount: bill.waterAmt
+  });
+
+  if (bill.trashAmt > 0) rows.push({ label: 'Phí rác', formula: 'Cố định hàng tháng', amount: bill.trashAmt });
+  if (bill.wifiAmt > 0) rows.push({ label: 'Mạng Wifi', formula: 'Cố định hàng tháng', amount: bill.wifiAmt });
+  if (bill.manageAmt > 0) rows.push({ label: 'Phí quản lý & DV khác', formula: 'Cố định hàng tháng', amount: bill.manageAmt });
+
+  return rows.map(row => `
+    <div class="bill-preview-detail-row">
+      <div class="bill-preview-detail-main">
+        <strong>${escapeHtml(row.label)}</strong>
+        <span>${escapeHtml(row.formula)}</span>
+      </div>
+      <strong class="bill-preview-detail-amount">${fmt(row.amount)}</strong>
+    </div>
+  `).join('');
+}
+
+function buildBillPreviewContent(room, rec, bill, period) {
+  const paidAmount = rec.paid ? bill.total : 0;
+  const remaining = Math.max(0, bill.total - paidAmount);
+  const transferContent = getVietQrDescription(room, period);
+  const qrUrl = remaining > 0 ? genVietQrUrl(room, bill, period, remaining) : null;
+  const hasBankConfig = !!(STATE.settings.bankId && STATE.settings.bankAccount);
+  const waterUsage = room.waterType === 'khối'
+    ? `${fmtNum(bill.waterUnits)} m³`
+    : `${fmtNum(bill.waterUnits)} người`;
+
+  let qrContent = '';
+  if (remaining === 0) {
+    qrContent = `
+      <div class="bill-preview-qr-empty bill-preview-qr-empty--paid">
+        <span>✓</span>
+        <strong>Hóa đơn đã thu đủ</strong>
+        <p>Không còn số tiền cần thanh toán.</p>
+      </div>`;
+  } else if (!hasBankConfig || !qrUrl) {
+    qrContent = `
+      <div class="bill-preview-qr-empty">
+        <span>🏦</span>
+        <strong>Chưa cấu hình VietQR</strong>
+        <p>Vào Cài đặt để thêm ngân hàng và số tài khoản nhận tiền.</p>
+      </div>`;
+  } else {
+    qrContent = `
+      <div class="bill-preview-qr-frame">
+        <img src="${escapeHtml(qrUrl)}" alt="VietQR thanh toán ${escapeHtml(room.name)}" />
+      </div>
+      <p class="bill-preview-qr-amount">Số tiền trên mã: <strong>${fmt(remaining)}</strong></p>`;
+  }
+
+  return `
+    <div class="bill-preview-layout">
+      <div class="bill-preview-info">
+        <div class="bill-preview-meta">
+          <div class="bill-preview-meta-item">
+            <strong>Mã hóa đơn:</strong>
+            <span>${escapeHtml(billCode(room, period))}</span>
+          </div>
+          <div class="bill-preview-meta-item">
+            <strong>Hạn thanh toán:</strong>
+            <span>${escapeHtml(billDueDate(period))}</span>
+          </div>
+          <div class="bill-preview-meta-item">
+            <strong>Điện sử dụng:</strong>
+            <span>${fmtNum(bill.kwh)} kWh</span>
+          </div>
+          <div class="bill-preview-meta-item">
+            <strong>Nước sử dụng:</strong>
+            <span>${waterUsage}</span>
+          </div>
+          <div class="bill-preview-meta-item bill-preview-meta-item--wide">
+            <strong>Nội dung VietQR:</strong>
+            <span>${escapeHtml(transferContent || '—')}</span>
+          </div>
+        </div>
+
+        <section class="bill-preview-details">
+          <h3>Chi tiết hóa đơn</h3>
+          <div class="bill-preview-detail-list">
+            ${billPreviewDetailRows(room, rec, bill, period)}
+          </div>
+          ${isUtilityOnlyRecord(rec) ? '<p class="bill-preview-note bill-preview-note--warning">Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</p>' : ''}
+          ${rec.note ? `<p class="bill-preview-note">Ghi chú: ${escapeHtml(rec.note)}</p>` : ''}
+        </section>
+
+        <div class="bill-preview-summary">
+          <div><span>Tổng</span><strong>${fmt(bill.total)}</strong></div>
+          <div><span>Đã thu</span><strong>${fmt(paidAmount)}</strong></div>
+          <div><span>Còn lại</span><strong>${fmt(remaining)}</strong></div>
+        </div>
+      </div>
+
+      <aside class="bill-preview-qr-panel">
+        <h3>VietQR thanh toán</h3>
+        ${qrContent}
+      </aside>
+    </div>
+  `;
+}
+
+function openBillPreview(room, rec, bill, period) {
+  activeBillPreview = { room, rec, bill, period };
+  document.getElementById('bill-preview-title').textContent = `Hóa đơn ${room.name} – ${period}`;
+  document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(room, rec, bill, period);
+  document.getElementById('bill-preview-modal').hidden = false;
+}
+
+function closeBillPreview() {
+  document.getElementById('bill-preview-modal').hidden = true;
+}
+
+async function waitForBillPreviewImages(container) {
+  const images = Array.from(container.querySelectorAll('img'));
+  await Promise.all(images.map(image => {
+    if (image.complete) return Promise.resolve();
+    return new Promise(resolve => {
+      const finish = () => resolve();
+      image.addEventListener('load', finish, { once: true });
+      image.addEventListener('error', finish, { once: true });
+      setTimeout(finish, 2500);
+    });
+  }));
+}
+
+async function printBillPreview() {
+  if (!activeBillPreview) return;
+  const { room, rec, bill, period } = activeBillPreview;
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = `
+    <article class="single-bill-print">
+      <h1>Hóa đơn ${escapeHtml(room.name)} – ${escapeHtml(period)}</h1>
+      ${buildBillPreviewContent(room, rec, bill, period)}
+    </article>`;
+  await waitForBillPreviewImages(printArea);
+  closeBillPreview();
+  syncModalScrollLock();
+  const filenameRoom = removeVietnameseTones(room.name).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'phong';
+  triggerPrint(`hoa-don-${filenameRoom}-${period}.pdf`);
+}
+
+document.getElementById('bill-preview-close-header').addEventListener('click', closeBillPreview);
+document.getElementById('bill-preview-close-footer').addEventListener('click', closeBillPreview);
+document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
+document.getElementById('bill-preview-modal').addEventListener('click', event => {
+  if (event.target === document.getElementById('bill-preview-modal')) closeBillPreview();
+});
+
 function renderReport() {
   const period = STATE.currentPeriod;
   const listEl = document.getElementById('report-list');
@@ -1940,23 +2141,7 @@ function renderReport() {
     const electricOld = getElectricOld(room, period);
     const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
 
-    const qrUrl = genVietQrUrl(room, bill, period);
-    const qrBtnHtml = qrUrl ? `<button class="btn btn--ghost btn--sm" data-qr-room="${room.id}">📲 Mã QR</button>` : '';
-    const isAndroid = typeof AndroidApp !== 'undefined';
-    const downloadAttr = isAndroid
-      ? `href="#" onclick="AndroidApp.downloadImage('${qrUrl}', 'qr-${room.name}-${period}.png'); return false;"`
-      : `href="${qrUrl}" download="qr-${room.name}-${period}.png" target="_blank"`;
-    const qrBoxHtml = qrUrl ? `
-    <div class="qr-box-container" id="qr-box-${room.id}" style="display:none; text-align:center; padding-top:14px; border-top:1px dashed var(--border); margin-top:12px">
-      <div style="font-size:0.8rem; font-weight:600; margin-bottom:8px; color:var(--text)">Quét QR để thanh toán nhanh:</div>
-      <div class="qr-img-wrapper" style="position:relative; display:inline-block; background:#fff; padding:8px; border-radius:8px; border:1px solid var(--border)">
-        <img src="${qrUrl}" alt="VietQR" style="max-width:160px; height:auto; display:block" />
-      </div>
-      <div style="margin-top:8px; display:flex; justify-content:center; gap:8px">
-        <a ${downloadAttr} class="btn btn--ghost btn--sm" style="text-decoration:none">💾 Tải ảnh QR</a>
-      </div>
-    </div>
-    ` : '';
+    const billPreviewBtnHtml = `<button class="btn btn--ghost btn--sm bill-preview-trigger" data-bill-preview-room="${room.id}">Xem bill + VietQR</button>`;
 
     const card = document.createElement('div');
     card.className = 'bill-card';
@@ -2048,12 +2233,11 @@ function renderReport() {
           <div>TỔNG CỘNG</div>
           <div style="color:var(--primary)">${fmt(bill.total)}</div>
         </div>
-        ${qrBoxHtml}
         <div class="bill-footer">
           <button class="btn btn--paid btn--sm ${paid ? 'is-paid' : ''}" data-paid-room="${room.id}">
             ${paid ? '✅ Đã thu tiền' : '💰 Đánh dấu đã thu'}
           </button>
-          ${qrBtnHtml}
+          ${billPreviewBtnHtml}
           <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
           <button class="btn btn--ghost btn--sm" data-share-room="${room.id}">📤 Gửi</button>
         </div>
@@ -2071,20 +2255,10 @@ function renderReport() {
       renderDashboard();
     });
 
-    if (qrUrl) {
-      const qrBtn = card.querySelector(`[data-qr-room="${room.id}"]`);
-      if (qrBtn) {
-        qrBtn.addEventListener('click', () => {
-          triggerHaptic('light');
-          const qrBox = card.querySelector(`#qr-box-${room.id}`);
-          if (qrBox) {
-            const isHidden = qrBox.style.display === 'none';
-            qrBox.style.display = isHidden ? 'block' : 'none';
-            qrBtn.classList.toggle('is-paid', isHidden);
-          }
-        });
-      }
-    }
+    card.querySelector(`[data-bill-preview-room="${room.id}"]`).addEventListener('click', () => {
+      triggerHaptic('light');
+      openBillPreview(room, rec, bill, period);
+    });
 
     card.querySelector(`[data-copy-room]`).addEventListener('click', () => {
       triggerHaptic('light');
