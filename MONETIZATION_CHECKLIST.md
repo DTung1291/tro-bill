@@ -116,8 +116,8 @@ Trạng thái ngày 24/08/2026:
 - [x] Tạo bảng `subscriptions` lưu gói hiện tại, ngày bắt đầu, ngày hết hạn và trạng thái.
 - [x] Tạo bảng `subscription_payments` lưu từng lần thanh toán.
 - [x] Tạo bảng `payment_events` để lưu webhook và chống xử lý trùng.
-- [ ] Tạo entitlement phía server cho từng tính năng trả phí.
-- [ ] Không dùng biến hoặc trạng thái phía client để tự quyết định tài khoản Premium.
+- [x] Tạo entitlement phía server cho từng tính năng trả phí.
+- [x] Không dùng biến hoặc trạng thái phía client để tự quyết định tài khoản Premium.
 
 ### Vòng đời gói dịch vụ
 

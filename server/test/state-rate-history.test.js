@@ -87,6 +87,14 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
   const client = {
     query: async (sql, params = []) => {
       calls.push({ sql, params });
+      if (sql.includes('FROM subscriptions s')) {
+        return {
+          rows: [{
+            subscription_id: 10, status: 'active', starts_at: new Date(), ends_at: null,
+            plan_id: 1, plan_code: 'free', plan_name: 'Free', room_limit: 10, staff_limit: 0
+          }]
+        };
+      }
       if (sql.includes('INSERT INTO history_snapshots')) return { rows: [{ id: 99 }] };
       return { rows: [] };
     },

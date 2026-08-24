@@ -28,6 +28,25 @@ const STATE = {
   theme: 'system'       // 'light' | 'dark' | 'system'
 };
 
+// Chỉ là bản sao read-only phục vụ UX. Quyền ghi thực tế luôn được server
+// kiểm tra lại từ subscriptions/plans khi nhận PUT /api/state.
+let SERVER_ENTITLEMENTS = {
+  accessMode: 'read_only',
+  plan: { code: '', name: '', roomLimit: 0, staffLimit: 0 },
+  features: {
+    roomManagement: { enabled: false, limit: 0 },
+    staffManagement: { enabled: false, limit: 0 },
+    dataExport: { enabled: true }
+  }
+};
+
+function applyServerEntitlements(value) {
+  if (!value || !value.plan || !value.features) {
+    throw new Error('Máy chủ trả về trạng thái gói không hợp lệ');
+  }
+  SERVER_ENTITLEMENTS = value;
+}
+
 // ============================================================
 //  PERSISTENCE (backend API — Neon Postgres)
 //  saveState() giữ chữ ký đồng bộ như cũ, nhưng bên trong
@@ -63,7 +82,10 @@ async function flushState(options = {}) {
   } catch (e) {
     if (e.code === 401) return handleAuthExpired();
     console.warn('Lưu lên server thất bại:', e.message);
-    if (typeof showToast === 'function') showToast('⚠️ Chưa lưu được, sẽ thử lại', 'error', 2500);
+    if (typeof showToast === 'function') {
+      const entitlementError = ['ROOM_LIMIT_EXCEEDED', 'SUBSCRIPTION_READ_ONLY'].includes(e.errorCode);
+      showToast(entitlementError ? e.message : '⚠️ Chưa lưu được, sẽ thử lại', 'error', 3000);
+    }
     if (options.throwOnError) throw e;
   }
 }
@@ -1492,11 +1514,20 @@ document.getElementById('room-rate-effective-from').addEventListener('change', e
   updateRoomRateEffectiveHint();
 });
 document.getElementById('btn-add-room').addEventListener('click', () => {
-  if (STATE.rooms.length >= 3) {
-    checkPremiumFeature('Quản lý từ phòng thứ 4', () => openRoomModal());
-  } else {
-    openRoomModal();
+  const roomFeature = SERVER_ENTITLEMENTS.features.roomManagement;
+  if (!roomFeature.enabled) {
+    showToast('Gói hiện tại chỉ cho phép xem dữ liệu.', 'error', 3000);
+    return;
   }
+  if (STATE.rooms.length >= roomFeature.limit) {
+    showToast(
+      `Gói ${SERVER_ENTITLEMENTS.plan.name} hỗ trợ tối đa ${roomFeature.limit} phòng.`,
+      'error',
+      3500
+    );
+    return;
+  }
+  openRoomModal();
 });
 
 document.getElementById('room-water-type').addEventListener('change', (e) => {
@@ -3120,68 +3151,6 @@ function initPrivacyEvents() {
 }
 
 // ============================================================
-//  PREMIUM & ADS (Android Only)
-// ============================================================
-// Tạm thời chưa mở bán Premium: ẩn UI và cho phép dùng toàn bộ tính năng.
-const PREMIUM_FEATURES_ENABLED = false;
-
-function updatePremiumUI(isPremium) {
-  const premiumStatusSpan = document.getElementById('premium-status');
-  const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
-  const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
-  
-  if (!premiumStatusSpan) return;
-  
-  if (isPremium) {
-    premiumStatusSpan.textContent = 'Đã kích hoạt (Premium) ✓';
-    premiumStatusSpan.style.color = 'var(--success)';
-    if (buyPremiumYearlyBtn) buyPremiumYearlyBtn.style.display = 'none';
-    if (buyPremiumLifetimeBtn) buyPremiumLifetimeBtn.style.display = 'none';
-  } else {
-    premiumStatusSpan.textContent = 'Bản miễn phí (Có quảng cáo)';
-    premiumStatusSpan.style.color = 'var(--text-muted)';
-    if (buyPremiumYearlyBtn) buyPremiumYearlyBtn.style.display = 'inline-block';
-    if (buyPremiumLifetimeBtn) buyPremiumLifetimeBtn.style.display = 'inline-block';
-  }
-}
-
-// Global callback for Android App update
-window.onPremiumStatusChanged = function(isPremium) {
-  updatePremiumUI(isPremium);
-};
-
-// Global callback for localized prices loaded dynamically from Play Store
-window.onPremiumPricesLoaded = function(yearlyPrice, lifetimePrice) {
-  const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
-  const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
-  
-  if (yearlyPrice && buyPremiumYearlyBtn) {
-    buyPremiumYearlyBtn.textContent = `📅 Gói năm (${yearlyPrice})`;
-  }
-  if (lifetimePrice && buyPremiumLifetimeBtn) {
-    buyPremiumLifetimeBtn.textContent = `♾️ Trọn đời (${lifetimePrice})`;
-  }
-};
-
-const buyPremiumYearlyBtn = document.getElementById('btn-buy-premium-yearly');
-if (buyPremiumYearlyBtn) {
-  buyPremiumYearlyBtn.addEventListener('click', () => {
-    if (typeof AndroidApp !== 'undefined' && AndroidApp.buyRemoveAds) {
-      AndroidApp.buyRemoveAds('yearly');
-    }
-  });
-}
-
-const buyPremiumLifetimeBtn = document.getElementById('btn-buy-premium-lifetime');
-if (buyPremiumLifetimeBtn) {
-  buyPremiumLifetimeBtn.addEventListener('click', () => {
-    if (typeof AndroidApp !== 'undefined' && AndroidApp.buyRemoveAds) {
-      AndroidApp.buyRemoveAds('lifetime');
-    }
-  });
-}
-
-// ============================================================
 //  DONATE — VietQR + Google Play Consumable IAP
 // ============================================================
 // Thông tin ủng hộ là cấu hình TOÀN CỤC do admin thiết lập (GET /api/config).
@@ -3295,37 +3264,12 @@ window.onDonationSuccess = function(productId) {
   showToast('💜 Cảm ơn bạn đã ủng hộ TrọBill!', 'success');
 };
 
-function isPremiumUser() {
-  if (typeof AndroidApp !== 'undefined' && AndroidApp.isPremiumUser) {
-    return AndroidApp.isPremiumUser();
-  }
-  // Web / Browser environment: bypass IAP and unlock all premium features
-  return true;
-}
-
-function checkPremiumFeature(featureName, onApproved) {
-  if (!PREMIUM_FEATURES_ENABLED || isPremiumUser()) {
+function checkServerEntitlement(featureName, onApproved, featureCode = 'roomManagement') {
+  const feature = SERVER_ENTITLEMENTS.features[featureCode];
+  if (feature && feature.enabled) {
     onApproved();
   } else {
-    showConfirm(
-      `Tính năng "${featureName}" chỉ dành cho phiên bản Premium. Bạn có muốn chuyển sang mục Cài đặt để xem các gói nâng cấp không?`,
-      () => {
-        navigate('settings');
-        const premiumCard = document.getElementById('premium-card');
-        if (premiumCard) {
-          premiumCard.removeAttribute('hidden');
-          premiumCard.scrollIntoView({ behavior: 'smooth' });
-          // Highlight it briefly to draw user attention
-          premiumCard.style.outline = '2px solid var(--primary)';
-          setTimeout(() => {
-            premiumCard.style.outline = 'none';
-          }, 2000);
-        }
-        showToast('Vui lòng chọn gói Premium phù hợp với bạn.', 'info');
-      },
-      null,
-      'Xem các gói'
-    );
+    showToast(`Gói hiện tại chưa cho phép ${featureName}.`, 'error', 3000);
   }
 }
 
@@ -3575,7 +3519,7 @@ let activeTenantRoomId = null;
 let _cccdScanner = null;
 
 function openTenantsModal(roomId) {
-  checkPremiumFeature('Quản lý khách trọ & eKYC CCCD', () => {
+  checkServerEntitlement('quản lý khách trọ và CCCD', () => {
     activeTenantRoomId = roomId;
     const room = STATE.rooms.find(r => r.id === roomId);
     if (!room) return;
@@ -4012,20 +3956,6 @@ function init() {
   if (typeof initTenantsEvents === 'function') initTenantsEvents();
   if (typeof initPrivacyEvents === 'function') initPrivacyEvents();
 
-  // Chỉ nạp gói nâng cấp khi tính năng này được mở lại.
-  if (PREMIUM_FEATURES_ENABLED && typeof AndroidApp !== 'undefined') {
-    const premiumCard = document.getElementById('premium-card');
-    if (premiumCard) {
-      premiumCard.removeAttribute('hidden');
-    }
-    if (AndroidApp.isPremiumUser) {
-      updatePremiumUI(AndroidApp.isPremiumUser());
-    }
-    if (AndroidApp.requestProductPrices) {
-      AndroidApp.requestProductPrices();
-    }
-  }
-
   if (typeof AndroidApp !== 'undefined' && AndroidApp.scheduleReminder && STATE.settings.reminderTime) {
     const enabled = !!STATE.settings.reminderEnabled;
     const day = STATE.settings.reminderDay || 30;
@@ -4164,8 +4094,12 @@ function handleAuthExpired() {
 }
 
 async function startApp() {
-  // Nạp state từ server rồi khởi động UI
-  const serverState = await API.getState();
+  // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
+  const [serverState, entitlement] = await Promise.all([
+    API.getState(),
+    API.getSubscription()
+  ]);
+  applyServerEntitlements(entitlement);
   loadState(serverState);
   loadDonateConfig();
   loadPrivacyStatus();

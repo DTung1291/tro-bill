@@ -4,6 +4,7 @@ const db = require('./db');
 const RoomRates = require('../rate-history');
 const { recordDataAudit, requestAuditContext } = require('./data-audit');
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
+const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 
 // ---------- helpers chuyển đổi kiểu ----------
 const num = (v, d = 0) => (v === null || v === undefined || v === '' ? d : Number(v));
@@ -247,6 +248,10 @@ async function putState(req, res) {
   try {
     await client.query('BEGIN');
 
+    // Server quyết định quyền ghi và giới hạn phòng từ subscription trong DB.
+    // Kiểm tra client chỉ để UX; không thể dùng client để tự mở khóa gói.
+    await enforceStateWrite(uid, rooms.length, client.query.bind(client));
+
     const existingTenantResult = await client.query(
       `SELECT id, full_name, phone, cccd, issue_date, dob, gender, address,
               data_notice_version, data_notice_acknowledged_at
@@ -473,6 +478,7 @@ async function putState(req, res) {
     res.json({ ok: true });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (sendEntitlementError(res, err)) return;
     console.error('putState lỗi:', err.message);
     res.status(500).json({ error: 'Không lưu được dữ liệu' });
   } finally {

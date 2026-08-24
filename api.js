@@ -110,6 +110,10 @@ const API = (() => {
     return request('GET', '/api/me');
   }
 
+  function getSubscription() {
+    return request('GET', '/api/subscription');
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -171,6 +175,7 @@ const API = (() => {
     getState,
     putState,
     me,
+    getSubscription,
     privacy,
     getConfig,
     admin

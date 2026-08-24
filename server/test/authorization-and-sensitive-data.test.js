@@ -42,6 +42,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const protectedRequests = [
     ['GET', '/api/me'],
+    ['GET', '/api/subscription'],
     ['GET', '/api/state'],
     ['PUT', '/api/state'],
     ['GET', '/api/config'],
