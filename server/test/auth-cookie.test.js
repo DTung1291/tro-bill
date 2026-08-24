@@ -29,13 +29,14 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   const passwordHash = await bcrypt.hash('matkhau123', 4);
 
   db.query = async (sql) => {
-    if (sql.includes('SELECT id, email, password_hash, is_admin FROM users')) {
+    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at FROM users')) {
       return {
         rows: [{
           id: 7,
           email: 'owner@example.com',
           password_hash: passwordHash,
-          is_admin: true
+          is_admin: true,
+          email_verified_at: new Date('2026-01-01T00:00:00Z')
         }]
       };
     }
@@ -113,4 +114,43 @@ test('API từ chối request ghi dữ liệu có nguồn cross-site', async (t)
 
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: 'Nguồn yêu cầu không hợp lệ' });
+});
+
+test('tài khoản chưa xác minh không được đăng nhập dù mật khẩu đúng', async (t) => {
+  const originalQuery = db.query;
+  const passwordHash = await bcrypt.hash('matkhau123', 4);
+  db.query = async (sql) => {
+    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at FROM users')) {
+      return {
+        rows: [{
+          id: 8,
+          email: 'pending@example.com',
+          password_hash: passwordHash,
+          is_admin: false,
+          email_verified_at: null
+        }]
+      };
+    }
+    throw new Error(`Truy vấn không mong đợi trong test email chưa xác minh: ${sql}`);
+  };
+
+  const server = await listen(app);
+  t.after(async () => {
+    db.query = originalQuery;
+    await close(server);
+  });
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: baseUrl },
+    body: JSON.stringify({ email: 'pending@example.com', password: 'matkhau123' })
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    error: 'Email chưa được xác minh. Vui lòng kiểm tra hộp thư hoặc gửi lại email.',
+    code: 'EMAIL_NOT_VERIFIED'
+  });
+  assert.equal(response.headers.get('set-cookie'), null);
 });

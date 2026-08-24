@@ -9,10 +9,37 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   is_admin      BOOLEAN NOT NULL DEFAULT false,
+  email_verified_at TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- Bổ sung cột cho DB đã tạo trước đó (idempotent)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+
+-- Khi nâng cấp DB cũ, các tài khoản đã tồn tại được xem là đã xác minh để
+-- không khóa người dùng đang hoạt động. DB mới đã có cột ngay từ CREATE TABLE.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name = 'email_verified_at'
+  ) THEN
+    ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMPTZ;
+    UPDATE users SET email_verified_at = COALESCE(created_at, now());
+  END IF;
+END $$;
+
+-- Chỉ lưu SHA-256 của token; liên kết email chứa token gốc và hết hạn sau 24h.
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  user_id    BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_email_verification_expires
+  ON email_verification_tokens(expires_at);
 
 -- Cài đặt: mỗi user đúng 1 dòng
 CREATE TABLE IF NOT EXISTS settings (

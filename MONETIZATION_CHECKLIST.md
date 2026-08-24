@@ -40,7 +40,7 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
 ### Bảo mật tài khoản
 
 - [x] Chuyển token đăng nhập khỏi `localStorage` sang cookie `HttpOnly`, `Secure`, `SameSite` phù hợp.
-- [ ] Thêm xác minh email khi đăng ký.
+- [x] Thêm xác minh email khi đăng ký.
 - [ ] Thêm quên mật khẩu và đặt lại mật khẩu bằng liên kết có thời hạn.
 - [ ] Thêm giới hạn số lần đăng nhập và đăng ký theo IP/tài khoản.
 - [ ] Thêm cơ chế đăng xuất khỏi tất cả thiết bị.

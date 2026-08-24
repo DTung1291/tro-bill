@@ -50,9 +50,15 @@ const API = (() => {
       if (res.status === 401) clearSession();
       const err = new Error((data && data.error) || 'Lỗi máy chủ');
       err.code = res.status;
+      err.errorCode = data && data.code;
       throw err;
     }
-    if (url !== '/api/auth/logout') sessionActive = true;
+    const doesNotCreateSession = [
+      '/api/auth/register',
+      '/api/auth/resend-verification',
+      '/api/auth/logout'
+    ];
+    if (!doesNotCreateSession.includes(url)) sessionActive = true;
     return data;
   }
 
@@ -62,6 +68,12 @@ const API = (() => {
   }
   async function login(email, password) {
     return request('POST', '/api/auth/login', { email, password });
+  }
+  async function verifyEmail(token) {
+    return request('POST', '/api/auth/verify-email', { token });
+  }
+  async function resendVerification(email) {
+    return request('POST', '/api/auth/resend-verification', { email });
   }
   async function logout() {
     await request('POST', '/api/auth/logout');
@@ -95,5 +107,18 @@ const API = (() => {
     setConfig: (cfg) => request('PUT', '/api/admin/config', cfg)
   };
 
-  return { clearSession, isLoggedIn, register, login, logout, getState, putState, me, getConfig, admin };
+  return {
+    clearSession,
+    isLoggedIn,
+    register,
+    login,
+    verifyEmail,
+    resendVerification,
+    logout,
+    getState,
+    putState,
+    me,
+    getConfig,
+    admin
+  };
 })();

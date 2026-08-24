@@ -3,7 +3,15 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const { register, login, logout, requireAuth, requireAdmin } = require('./auth');
+const {
+  register,
+  login,
+  logout,
+  verifyEmail,
+  resendVerification,
+  requireAuth,
+  requireAdmin
+} = require('./auth');
 const { getState, putState } = require('./state');
 const admin = require('./admin');
 const { getConfig, setConfig } = require('./config');
@@ -45,6 +53,8 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);
+app.post('/api/auth/verify-email', wrap(verifyEmail));
+app.post('/api/auth/resend-verification', wrap(resendVerification));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/state', requireAuth, wrap(getState));

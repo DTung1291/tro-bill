@@ -3937,6 +3937,39 @@ async function updateAdminEntry() {
   }
 }
 
+function showAuthFeedback(message, type = 'error') {
+  const feedback = document.getElementById('auth-feedback');
+  if (!feedback) return;
+  feedback.textContent = message || '';
+  feedback.classList.toggle('auth-feedback--success', type === 'success');
+  feedback.classList.toggle('auth-feedback--error', type !== 'success');
+  feedback.hidden = !message;
+}
+
+function showVerificationActions(email, verificationUrl = '') {
+  const resendBtn = document.getElementById('auth-resend');
+  const devLink = document.getElementById('auth-dev-verify');
+  if (resendBtn) {
+    resendBtn.dataset.email = email || '';
+    resendBtn.hidden = !email;
+  }
+  if (devLink) {
+    devLink.href = verificationUrl || '#';
+    devLink.hidden = !verificationUrl;
+  }
+}
+
+function clearVerificationActions() {
+  showVerificationActions('', '');
+}
+
+function clearVerificationParam() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('verify');
+  const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, document.title, cleanUrl);
+}
+
 function initAuthUI() {
   let mode = 'login'; // 'login' | 'register'
   const tabLogin = document.getElementById('auth-tab-login');
@@ -3944,8 +3977,8 @@ function initAuthUI() {
   const form = document.getElementById('auth-form');
   const emailEl = document.getElementById('auth-email');
   const passEl = document.getElementById('auth-password');
-  const errEl = document.getElementById('auth-error');
   const submitBtn = document.getElementById('auth-submit');
+  const resendBtn = document.getElementById('auth-resend');
   const logoutBtn = document.getElementById('logout-btn');
 
   function setMode(m) {
@@ -3954,30 +3987,71 @@ function initAuthUI() {
     tabReg.classList.toggle('active', m === 'register');
     submitBtn.textContent = m === 'login' ? 'Đăng nhập' : 'Đăng ký';
     passEl.setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
-    errEl.hidden = true;
+    showAuthFeedback('');
+    clearVerificationActions();
   }
   tabLogin.addEventListener('click', () => setMode('login'));
   tabReg.addEventListener('click', () => setMode('register'));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errEl.hidden = true;
+    showAuthFeedback('');
+    clearVerificationActions();
     const email = emailEl.value.trim();
     const password = passEl.value;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Đang xử lý...';
     try {
-      if (mode === 'login') await API.login(email, password);
-      else await API.register(email, password);
-      await startApp();
+      if (mode === 'login') {
+        await API.login(email, password);
+        await startApp();
+      } else {
+        const result = await API.register(email, password);
+        passEl.value = '';
+        showVerificationActions(email, result.verificationUrl || '');
+        if (result.verificationUrl) {
+          showAuthFeedback(
+            'Tài khoản đã được tạo. Môi trường local không gửi email thật; hãy mở liên kết xác minh bên dưới.',
+            'success'
+          );
+        } else if (result.emailSent) {
+          showAuthFeedback('Đã gửi email xác minh. Vui lòng kiểm tra cả hộp thư rác.', 'success');
+        } else {
+          showAuthFeedback(result.warning || 'Chưa gửi được email. Vui lòng bấm gửi lại.');
+        }
+      }
     } catch (err) {
-      errEl.textContent = err.message || 'Có lỗi xảy ra';
-      errEl.hidden = false;
+      showAuthFeedback(err.message || 'Có lỗi xảy ra');
+      if (err.errorCode === 'EMAIL_NOT_VERIFIED') showVerificationActions(email);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = mode === 'login' ? 'Đăng nhập' : 'Đăng ký';
     }
   });
+
+  if (resendBtn) {
+    resendBtn.addEventListener('click', async () => {
+      const email = resendBtn.dataset.email || emailEl.value.trim();
+      if (!email) return;
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Đang gửi...';
+      try {
+        const result = await API.resendVerification(email);
+        showVerificationActions(email, result.verificationUrl || '');
+        showAuthFeedback(
+          result.verificationUrl
+            ? 'Đã tạo liên kết xác minh local mới.'
+            : 'Nếu tài khoản tồn tại và chưa xác minh, email mới sẽ được gửi.',
+          'success'
+        );
+      } catch (err) {
+        showAuthFeedback(err.message || 'Không gửi lại được email xác minh');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Gửi lại email xác minh';
+      }
+    });
+  }
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
@@ -3995,6 +4069,25 @@ function initAuthUI() {
 
 async function boot() {
   initAuthUI();
+
+  const verificationToken = new URLSearchParams(window.location.search).get('verify');
+  if (verificationToken) {
+    showAuthScreen(true);
+    showAuthFeedback('Đang xác minh địa chỉ email...', 'success');
+    try {
+      await API.verifyEmail(verificationToken);
+      clearVerificationParam();
+      await startApp();
+      showToast('Đã xác minh email thành công ✓', 'success', 3000);
+      return;
+    } catch (err) {
+      if (err.code) clearVerificationParam();
+      showAuthFeedback(err.message || 'Không xác minh được email');
+      showAuthScreen(true);
+      return;
+    }
+  }
+
   // Cookie HttpOnly không thể được JavaScript đọc. Gọi API để server xác nhận
   // phiên thay vì dựa vào một token lưu ở trình duyệt.
   try {

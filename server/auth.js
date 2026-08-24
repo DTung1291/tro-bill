@@ -1,8 +1,10 @@
 'use strict';
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const { assertEmailConfigured, sendVerificationEmail } = require('./email');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -12,6 +14,7 @@ if (!JWT_SECRET) {
 const TOKEN_TTL = '30d';
 const TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE = 'trobill_session';
+const EMAIL_TOKEN_TTL_HOURS = 24;
 
 function signToken(user) {
   return jwt.sign(
@@ -68,6 +71,36 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+function createEmailToken() {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  return { token, tokenHash };
+}
+
+async function saveEmailToken(query, userId) {
+  const { token, tokenHash } = createEmailToken();
+  await query(
+    `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at, created_at)
+     VALUES ($1, $2, now() + ($3 * interval '1 hour'), now())
+     ON CONFLICT (user_id) DO UPDATE
+     SET token_hash=EXCLUDED.token_hash,
+         expires_at=EXCLUDED.expires_at,
+         created_at=now()`,
+    [userId, tokenHash, EMAIL_TOKEN_TTL_HOURS]
+  );
+  return token;
+}
+
+function emailConfigurationResponse(res, error) {
+  if (error && error.code === 'EMAIL_NOT_CONFIGURED') {
+    return res.status(503).json({
+      error: 'Hệ thống gửi email chưa được cấu hình. Vui lòng thử lại sau.',
+      code: error.code
+    });
+  }
+  return null;
+}
+
 // POST /api/auth/register
 async function register(req, res) {
   const email = normalizeEmail(req.body.email);
@@ -80,22 +113,66 @@ async function register(req, res) {
     return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
   }
 
+  try {
+    assertEmailConfigured();
+  } catch (error) {
+    const response = emailConfigurationResponse(res, error);
+    if (response) return response;
+    throw error;
+  }
+
   const exists = await db.query('SELECT 1 FROM users WHERE email=$1', [email]);
   if (exists.rowCount > 0) {
     return res.status(409).json({ error: 'Email đã được đăng ký' });
   }
 
   const hash = await bcrypt.hash(password, 10);
-  const { rows } = await db.query(
-    'INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id, email',
-    [email, hash]
-  );
-  const user = rows[0];
-  // Tạo dòng settings mặc định cho user mới
-  await db.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
+  const client = await db.getClient();
+  let user;
+  let emailToken;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      'INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id, email',
+      [email, hash]
+    );
+    user = rows[0];
+    await client.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
+    emailToken = await saveEmailToken(client.query.bind(client), user.id);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error && error.code === '23505') {
+      return res.status(409).json({ error: 'Email đã được đăng ký' });
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 
-  setSessionCookie(res, user);
-  return res.json({ email: user.email, isAdmin: false });
+  try {
+    const delivery = await sendVerificationEmail({
+      email: user.email,
+      token: emailToken,
+      userId: user.id,
+      req
+    });
+    const body = {
+      email: user.email,
+      verificationRequired: true,
+      emailSent: delivery.delivered
+    };
+    if (delivery.development) body.verificationUrl = delivery.verificationUrl;
+    return res.status(201).json(body);
+  } catch (error) {
+    console.error(`Không gửi được email xác minh cho ${user.email}:`, error.message);
+    return res.status(202).json({
+      email: user.email,
+      verificationRequired: true,
+      emailSent: false,
+      warning: 'Tài khoản đã được tạo nhưng chưa gửi được email. Vui lòng bấm gửi lại.'
+    });
+  }
 }
 
 // POST /api/auth/login
@@ -104,15 +181,103 @@ async function login(req, res) {
   const password = String(req.body.password || '');
 
   const { rows } = await db.query(
-    'SELECT id, email, password_hash, is_admin FROM users WHERE email=$1',
+    'SELECT id, email, password_hash, is_admin, email_verified_at FROM users WHERE email=$1',
     [email]
   );
   const user = rows[0];
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: 'Email hoặc mật khẩu sai' });
   }
+  if (!user.email_verified_at) {
+    return res.status(403).json({
+      error: 'Email chưa được xác minh. Vui lòng kiểm tra hộp thư hoặc gửi lại email.',
+      code: 'EMAIL_NOT_VERIFIED'
+    });
+  }
   setSessionCookie(res, user);
   return res.json({ email: user.email, isAdmin: !!user.is_admin });
+}
+
+// POST /api/auth/verify-email
+async function verifyEmail(req, res) {
+  const token = String(req.body.token || '').trim();
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    return res.status(400).json({ error: 'Liên kết xác minh không hợp lệ hoặc đã hết hạn' });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const client = await db.getClient();
+  let user;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE users u
+       SET email_verified_at=COALESCE(u.email_verified_at, now())
+       FROM email_verification_tokens evt
+       WHERE evt.user_id=u.id
+         AND evt.token_hash=$1
+         AND evt.expires_at > now()
+       RETURNING u.id, u.email, u.is_admin`,
+      [tokenHash]
+    );
+    user = rows[0];
+    if (!user) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Liên kết xác minh không hợp lệ hoặc đã hết hạn' });
+    }
+    await client.query('DELETE FROM email_verification_tokens WHERE user_id=$1', [user.id]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  setSessionCookie(res, user);
+  return res.json({ email: user.email, isAdmin: !!user.is_admin, verified: true });
+}
+
+// POST /api/auth/resend-verification
+async function resendVerification(req, res) {
+  const genericBody = {
+    ok: true,
+    message: 'Nếu tài khoản tồn tại và chưa xác minh, email mới sẽ được gửi.'
+  };
+  const email = normalizeEmail(req.body.email);
+  if (!email || !email.includes('@')) return res.json(genericBody);
+
+  try {
+    assertEmailConfigured();
+  } catch (error) {
+    const response = emailConfigurationResponse(res, error);
+    if (response) return response;
+    throw error;
+  }
+
+  const { rows } = await db.query(
+    `SELECT u.id, u.email, u.email_verified_at, evt.created_at AS token_created_at
+     FROM users u
+     LEFT JOIN email_verification_tokens evt ON evt.user_id=u.id
+     WHERE u.email=$1`,
+    [email]
+  );
+  const user = rows[0];
+  if (!user || user.email_verified_at) return res.json(genericBody);
+
+  if (user.token_created_at) {
+    const elapsedMs = Date.now() - new Date(user.token_created_at).getTime();
+    if (Number.isFinite(elapsedMs) && elapsedMs < 60_000) return res.json(genericBody);
+  }
+
+  const token = await saveEmailToken(db.query, user.id);
+  try {
+    const delivery = await sendVerificationEmail({ email: user.email, token, userId: user.id, req });
+    if (delivery.development) genericBody.verificationUrl = delivery.verificationUrl;
+  } catch (error) {
+    console.error(`Không gửi lại được email xác minh cho ${user.email}:`, error.message);
+  }
+  return res.json(genericBody);
 }
 
 // POST /api/auth/logout
@@ -150,4 +315,12 @@ async function requireAdmin(req, res, next) {
   }
 }
 
-module.exports = { register, login, logout, requireAuth, requireAdmin };
+module.exports = {
+  register,
+  login,
+  logout,
+  verifyEmail,
+  resendVerification,
+  requireAuth,
+  requireAdmin
+};

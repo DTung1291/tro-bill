@@ -1943,10 +1943,52 @@ body.modal-open {
   font-size: 15px;
   box-sizing: border-box;
 }
-.auth-error {
+.auth-feedback {
+  padding: 10px 12px;
+  border-radius: 9px;
   color: #ff5c5c;
   font-size: 13px;
   margin: 0 0 14px;
+  line-height: 1.45;
+  background: rgba(255, 92, 92, 0.1);
+  border: 1px solid rgba(255, 92, 92, 0.25);
+}
+.auth-feedback--success {
+  color: var(--green);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.auth-secondary,
+.auth-dev-link {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.auth-secondary:hover,
+.auth-dev-link:hover {
+  border-color: var(--primary);
+  background: rgba(108, 99, 255, 0.08);
+}
+.auth-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.auth-feedback[hidden],
+.auth-secondary[hidden],
+.auth-dev-link[hidden] {
+  display: none;
 }
 .auth-submit {
   width: 100%;

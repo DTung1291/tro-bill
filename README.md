@@ -15,6 +15,7 @@ tro-bill/
     ├── index.js       # serve frontend tĩnh + API, cùng 1 origin
     ├── db.js          # pg Pool từ DATABASE_URL
     ├── auth.js        # register/login (bcrypt) + middleware JWT
+    ├── email.js       # gửi email xác minh qua Resend
     ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách các bảng dữ liệu
     ├── schema.sql     # schema chuẩn hóa + lịch sử biểu phí theo tháng
     ├── init-db.js     # chạy schema.sql lên Neon
@@ -27,12 +28,19 @@ tro-bill/
 cd server
 cp .env.example .env      # điền DATABASE_URL của Neon; JWT_SECRET là chuỗi ngẫu nhiên dài
 npm install
-npm run init-db           # tạo 7 bảng trên Neon
+npm run init-db           # tạo/cập nhật schema trên Neon
 npm start                 # chạy tại http://localhost:3000
 ```
 
+Yêu cầu Node.js 20 trở lên.
+
 Mở http://localhost:3000 → đăng ký tài khoản → dùng bình thường. Mỗi tài khoản
 có dữ liệu riêng, tách biệt hoàn toàn.
+
+Khi chạy local mà chưa có `RESEND_API_KEY`, màn hình đăng ký hiện một liên kết
+xác minh để test trực tiếp và không gửi email thật. Trên production phải cấu
+hình đủ `RESEND_API_KEY`, `EMAIL_FROM` và `APP_URL`; địa chỉ gửi cần thuộc domain
+đã xác minh trong Resend.
 
 ## Cách hoạt động
 
@@ -76,9 +84,11 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 
 | Method | Đường dẫn            | Mô tả                          |
 |--------|----------------------|--------------------------------|
-| POST   | `/api/auth/register` | Đăng ký và tạo phiên           |
+| POST   | `/api/auth/register` | Tạo tài khoản, gửi email xác minh |
 | POST   | `/api/auth/login`    | Đăng nhập và tạo phiên         |
 | POST   | `/api/auth/logout`   | Xóa cookie phiên               |
+| POST   | `/api/auth/verify-email` | Xác minh email bằng token  |
+| POST   | `/api/auth/resend-verification` | Gửi lại email xác minh |
 | GET    | `/api/me`            | Thông tin user (cần đăng nhập) |
 | GET    | `/api/state`         | Lấy toàn bộ state              |
 | PUT    | `/api/state`         | Lưu toàn bộ state              |
@@ -86,6 +96,9 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
 website khác bị server từ chối để giảm rủi ro CSRF.
+
+Tài khoản đăng ký mới chỉ được đăng nhập sau khi xác minh email. Token xác minh
+có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không lưu token gốc.
 
 ## Tài khoản admin
 
@@ -128,3 +141,5 @@ Ràng buộc an toàn: admin không thể tự xoá hay tự gỡ quyền của 
 - Cookie tự bật cờ `Secure` trên production/Vercel. Có thể đặt
   `COOKIE_SECURE=false` khi cần chạy local bằng HTTP.
 - Môi trường production phải dùng HTTPS.
+- `RESEND_API_KEY` chỉ được đặt trong biến môi trường phía server, không đưa vào
+  frontend hoặc commit lên Git.

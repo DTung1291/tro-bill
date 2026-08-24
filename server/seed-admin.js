@@ -17,11 +17,17 @@ async function seedAdmin() {
   const password = String(process.env.ADMIN_PASSWORD || '');
   if (!email) return; // không cấu hình -> bỏ qua
 
-  const existing = await db.query('SELECT id, is_admin FROM users WHERE email=$1', [email]);
+  const existing = await db.query(
+    'SELECT id, is_admin, email_verified_at FROM users WHERE email=$1',
+    [email]
+  );
 
   if (existing.rowCount > 0) {
-    if (!existing.rows[0].is_admin) {
-      await db.query('UPDATE users SET is_admin=true WHERE id=$1', [existing.rows[0].id]);
+    if (!existing.rows[0].is_admin || !existing.rows[0].email_verified_at) {
+      await db.query(
+        'UPDATE users SET is_admin=true, email_verified_at=COALESCE(email_verified_at, now()) WHERE id=$1',
+        [existing.rows[0].id]
+      );
       console.log(`🛡️  Đã cấp quyền admin cho tài khoản sẵn có: ${email}`);
     } else {
       console.log(`🛡️  Admin mặc định đã sẵn sàng: ${email}`);
@@ -36,7 +42,8 @@ async function seedAdmin() {
 
   const hash = await bcrypt.hash(password, 10);
   const { rows } = await db.query(
-    'INSERT INTO users (email, password_hash, is_admin) VALUES ($1,$2,true) RETURNING id',
+    `INSERT INTO users (email, password_hash, is_admin, email_verified_at)
+     VALUES ($1,$2,true,now()) RETURNING id`,
     [email, hash]
   );
   await db.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [rows[0].id]);
