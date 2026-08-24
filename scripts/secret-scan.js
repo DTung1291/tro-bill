@@ -21,8 +21,9 @@ function ignoredPath(file) {
 function databaseCredential(line) {
   const match = line.match(/postgres(?:ql)?:\/\/([^\s:'"<>]+):([^\s@'"<>]+)@([^\s/'"<>]+)/i);
   if (!match) return false;
-  const [, username, password, hostname] = match;
-  if (['localhost', '127.0.0.1', 'postgres'].includes(hostname.toLowerCase())) return false;
+  const [, username, password, hostWithPort] = match;
+  const hostname = hostWithPort.replace(/:\d+$/, '').toLowerCase();
+  if (['localhost', '127.0.0.1', 'postgres'].includes(hostname)) return false;
   if (/^(?:test|user|username)$/i.test(username) && /^(?:test|password)$/i.test(password)) return false;
   return true;
 }
