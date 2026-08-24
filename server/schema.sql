@@ -100,6 +100,48 @@ CREATE TABLE IF NOT EXISTS app_config (
 );
 INSERT INTO app_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
+-- Danh mục gói dịch vụ của TrọBill. Giá dùng đơn vị VND và có thể để NULL
+-- cho gói chưa chốt giá. Chỉ server/database quyết định giới hạn sử dụng;
+-- client không được tự gán trạng thái Premium.
+CREATE TABLE IF NOT EXISTS plans (
+  id                BIGSERIAL PRIMARY KEY,
+  code              TEXT NOT NULL UNIQUE,
+  name              TEXT NOT NULL,
+  description       TEXT NOT NULL DEFAULT '',
+  monthly_price_vnd NUMERIC(12, 0),
+  yearly_price_vnd  NUMERIC(12, 0),
+  room_limit        INTEGER NOT NULL,
+  staff_limit       INTEGER NOT NULL DEFAULT 0,
+  is_active         BOOLEAN NOT NULL DEFAULT false,
+  is_public         BOOLEAN NOT NULL DEFAULT false,
+  sort_order        INTEGER NOT NULL DEFAULT 0,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT plans_code_format
+    CHECK (code ~ '^[a-z][a-z0-9_-]{1,31}$'),
+  CONSTRAINT plans_monthly_price_nonnegative
+    CHECK (monthly_price_vnd IS NULL OR monthly_price_vnd >= 0),
+  CONSTRAINT plans_yearly_price_nonnegative
+    CHECK (yearly_price_vnd IS NULL OR yearly_price_vnd >= 0),
+  CONSTRAINT plans_room_limit_positive CHECK (room_limit > 0),
+  CONSTRAINT plans_staff_limit_nonnegative CHECK (staff_limit >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_plans_visibility_sort
+  ON plans(is_active, is_public, sort_order);
+
+-- Giai đoạn pilot chỉ mở Free. Các gói trả phí được tạo sẵn theo giới hạn đang
+-- giả định trong checklist nhưng chưa mở bán và chưa có giá cho tới khi khảo sát.
+-- DO NOTHING bảo vệ giá/giới hạn đã được admin chỉnh ở những lần chạy schema sau.
+INSERT INTO plans
+  (code, name, description, monthly_price_vnd, yearly_price_vnd, room_limit,
+   staff_limit, is_active, is_public, sort_order)
+VALUES
+  ('free', 'Free', 'Dùng thử TrọBill với tối đa 10 phòng', 0, 0, 10, 0, true, true, 10),
+  ('standard', 'Standard', 'Quản lý tối đa 25 phòng', NULL, NULL, 25, 0, false, false, 20),
+  ('pro', 'Pro', 'Quản lý tối đa 50 phòng', NULL, NULL, 50, 0, false, false, 30),
+  ('business', 'Business', 'Quản lý tối đa 100 phòng và có nhân viên', NULL, NULL, 100, 1, false, false, 40)
+ON CONFLICT (code) DO NOTHING;
+
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,

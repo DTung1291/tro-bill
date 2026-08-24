@@ -106,13 +106,13 @@ Trạng thái ngày 24/08/2026:
 ### Hoàn thành giai đoạn khi
 
 - [x] Có thể khôi phục dữ liệu từ backup và không còn token đăng nhập lưu trong `localStorage`.
-- [ ] Luồng đăng ký, xác minh email, quên mật khẩu và xóa tài khoản hoạt động đầy đủ.
+- [x] Luồng đăng ký, xác minh email, quên mật khẩu và xóa tài khoản hoạt động đầy đủ.
 
 ## Giai đoạn 2 — Hệ thống gói trả phí
 
 ### Dữ liệu subscription
 
-- [ ] Tạo bảng `plans` lưu mã gói, giá và giới hạn sử dụng.
+- [x] Tạo bảng `plans` lưu mã gói, giá và giới hạn sử dụng.
 - [ ] Tạo bảng `subscriptions` lưu gói hiện tại, ngày bắt đầu, ngày hết hạn và trạng thái.
 - [ ] Tạo bảng `subscription_payments` lưu từng lần thanh toán.
 - [ ] Tạo bảng `payment_events` để lưu webhook và chống xử lý trùng.
