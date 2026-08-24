@@ -61,9 +61,9 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
 
 - [ ] Thiết lập sao lưu cơ sở dữ liệu tự động.
 - [x] Thử phục hồi thành công từ một bản sao lưu.
-- [ ] Có log lỗi server và cảnh báo khi API hoặc database gặp sự cố.
+- [x] Có log lỗi server và cảnh báo khi API hoặc database gặp sự cố.
 - [x] Thiết lập HTTPS cho môi trường production.
-- [ ] Tách rõ môi trường development, staging và production.
+- [x] Tách rõ môi trường development, staging và production.
 - [x] Không để secret hoặc thông tin database trong repository.
 - [x] Viết kiểm thử cho đăng nhập, phân quyền và các công thức tính bill quan trọng.
 
@@ -73,10 +73,14 @@ Trạng thái ngày 24/08/2026:
   vào PostgreSQL 18 trống và qua kiểm tra toàn vẹn; dữ liệu tạm đã được xóa.
 - Production `tro-bill.vercel.app` chuyển HTTP sang HTTPS và có HSTS.
 - Quét tracked files cùng toàn bộ Git history không phát hiện secret; CI tiếp tục
-  chặn secret và chạy 30 kiểm thử bảo mật/bill trên mỗi thay đổi.
-- Workflow backup hằng ngày, log JSON, health monitor và guard môi trường đã có
-  trong code. Chỉ đánh dấu ba mục còn lại sau khi GitHub/Vercel được cấu hình
-  secret, webhook cảnh báo, database staging riêng và có lần chạy production xanh.
+  chặn secret và chạy 33 kiểm thử bảo mật/bill trên mỗi thay đổi.
+- Lỗi server được ghi JSON theo `incidentId`/`requestId`; health monitor đã mở
+  GitHub Issue duy nhất, gán người phụ trách và sẽ tự đóng khi production phục hồi.
+- Vercel Preview dùng `APP_ENV=staging`, JWT riêng và Neon branch schema-only
+  riêng; readiness staging đã xác minh cả cấu hình lẫn database đều `ok`.
+- Workflow backup và restore drill hằng ngày đã có trong code. Mục backup tự động
+  chỉ được đánh dấu sau khi secret GitHub Actions được cấu hình, có lần chạy xanh
+  và khóa giải mã được lưu độc lập khỏi GitHub.
 
 ### Hoàn thành giai đoạn khi
 

@@ -25,6 +25,17 @@ npm run check:environment -- production --strict
 
 `--strict` coi cả cảnh báo thiếu nhãn database hoặc webhook là lỗi.
 
+Staging hiện dùng alias `tro-bill-staging-dtung.vercel.app`, được bảo vệ bởi
+Vercel Authentication và kết nối một Neon branch schema-only riêng. Có thể kiểm
+tra deployment được bảo vệ bằng phiên Vercel CLI đang đăng nhập:
+
+```bash
+vercel curl /api/health/ready --deployment https://tro-bill-staging-dtung.vercel.app
+```
+
+Không tắt Deployment Protection và không dùng staging để chứa dữ liệu người thuê
+thật. Preview không dùng tài khoản admin seed của production.
+
 ## 2. HTTPS
 
 Vercel cấp và gia hạn chứng chỉ TLS sau khi domain/DNS được xác minh. Server còn:
