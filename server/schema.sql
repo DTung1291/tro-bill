@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   ends_at    TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscriptions_user_id_id_unique UNIQUE (user_id, id),
   CONSTRAINT subscriptions_status_valid
     CHECK (status IN ('trialing', 'active', 'grace_period', 'expired', 'canceled')),
   CONSTRAINT subscriptions_date_order
@@ -161,6 +162,21 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status_ends
   ON subscriptions(status, ends_at);
 
+-- DB đã tạo subscriptions từ phiên bản trước chưa có khóa duy nhất kép cần
+-- cho ownership FK của payment. Bổ sung idempotent trước khi tạo bảng payment.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'subscriptions_user_id_id_unique'
+      AND conrelid = 'public.subscriptions'::regclass
+  ) THEN
+    ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_user_id_id_unique UNIQUE (user_id, id);
+  END IF;
+END $$;
+
 -- Tài khoản cũ chưa có subscription được gắn Free mà không làm thay đổi những
 -- tài khoản đã được cấp gói khác.
 INSERT INTO subscriptions (user_id, plan_id, status, starts_at)
@@ -168,6 +184,43 @@ SELECT u.id, p.id, 'active', u.created_at
 FROM users u
 JOIN plans p ON p.code = 'free'
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Mỗi lần thanh toán subscription là một dòng riêng. user_id đi cùng
+-- subscription_id trong khóa ngoại kép để chặn gắn giao dịch sang tài khoản khác.
+CREATE TABLE IF NOT EXISTS subscription_payments (
+  id                 BIGSERIAL PRIMARY KEY,
+  user_id            BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subscription_id    BIGINT NOT NULL,
+  plan_id            BIGINT NOT NULL REFERENCES plans(id) ON DELETE RESTRICT,
+  amount_vnd         NUMERIC(12, 0) NOT NULL,
+  currency           TEXT NOT NULL DEFAULT 'VND',
+  billing_cycle      TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'pending',
+  provider           TEXT NOT NULL DEFAULT 'manual',
+  provider_reference TEXT,
+  paid_at            TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscription_payments_owner_fk
+    FOREIGN KEY (user_id, subscription_id)
+    REFERENCES subscriptions(user_id, id) ON DELETE CASCADE,
+  CONSTRAINT subscription_payments_amount_positive CHECK (amount_vnd > 0),
+  CONSTRAINT subscription_payments_currency_vnd CHECK (currency = 'VND'),
+  CONSTRAINT subscription_payments_cycle_valid CHECK (billing_cycle IN ('monthly', 'yearly')),
+  CONSTRAINT subscription_payments_status_valid
+    CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'canceled')),
+  CONSTRAINT subscription_payments_provider_format
+    CHECK (provider ~ '^[a-z][a-z0-9_-]{1,31}$'),
+  CONSTRAINT subscription_payments_paid_at_required
+    CHECK (status <> 'paid' OR paid_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_payments_user_created
+  ON subscription_payments(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscription_payments_status_created
+  ON subscription_payments(status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_provider_reference
+  ON subscription_payments(provider, provider_reference)
+  WHERE provider_reference IS NOT NULL AND provider_reference <> '';
 
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
