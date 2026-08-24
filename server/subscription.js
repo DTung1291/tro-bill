@@ -85,6 +85,7 @@ function resolveEntitlements(row, now = new Date()) {
     || lifecycle.status === 'expiring_soon';
   const roomLimit = Math.max(0, Number(row.room_limit) || 0);
   const staffLimit = Math.max(0, Number(row.staff_limit) || 0);
+  const roomCount = Math.max(0, Number(row.room_count) || 0);
 
   return {
     subscription: {
@@ -108,7 +109,12 @@ function resolveEntitlements(row, now = new Date()) {
     },
     accessMode: writable ? 'full' : 'read_only',
     features: {
-      roomManagement: { enabled: writable, limit: roomLimit },
+      roomManagement: {
+        enabled: writable,
+        limit: roomLimit,
+        used: roomCount,
+        remaining: Math.max(0, roomLimit - roomCount)
+      },
       staffManagement: { enabled: writable && staffLimit > 0, limit: staffLimit },
       dataExport: { enabled: true }
     }
@@ -119,7 +125,8 @@ async function getUserEntitlements(userId, query = db.query, now = new Date()) {
   const { rows } = await query(
     `SELECT s.id AS subscription_id, s.status, s.billing_cycle, s.starts_at, s.ends_at,
             p.id AS plan_id, p.code AS plan_code, p.name AS plan_name,
-            p.room_limit, p.staff_limit
+            p.room_limit, p.staff_limit,
+            (SELECT COUNT(*)::int FROM rooms r WHERE r.user_id=s.user_id) AS room_count
      FROM subscriptions s
      JOIN plans p ON p.id = s.plan_id
      WHERE s.user_id = $1

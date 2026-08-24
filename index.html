@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=70" />
+  <link rel="stylesheet" href="style.css?v=71" />
 </head>
 
 <body>
@@ -352,6 +352,22 @@
     <section class="page" id="page-settings">
       <div class="page-header">
         <h1 class="page-title">Cài đặt</h1>
+      </div>
+
+      <div class="settings-card subscription-summary-card" id="subscription-summary-card">
+        <div class="subscription-summary-main">
+          <strong id="subscription-plan-name">💳 Gói dịch vụ</strong>
+          <div class="settings-security-note" id="subscription-status-text">Đang tải trạng thái gói…</div>
+        </div>
+        <div class="subscription-room-usage">
+          <div class="subscription-usage-top">
+            <span id="subscription-room-count">0 / 0 phòng</span>
+            <span id="subscription-room-remaining">Còn 0 phòng</span>
+          </div>
+          <div class="subscription-usage-bar" id="subscription-usage-bar" role="progressbar" aria-label="Mức sử dụng phòng" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+            <div class="subscription-usage-fill" id="subscription-usage-fill"></div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-card">
@@ -994,7 +1010,7 @@
   <script src="api.js?v=71"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=71"></script>
+  <script src="app.js?v=72"></script>
 </body>
 
 </html>

@@ -47,6 +47,48 @@ function applyServerEntitlements(value) {
   SERVER_ENTITLEMENTS = value;
 }
 
+function renderSubscriptionSummary() {
+  const card = document.getElementById('subscription-summary-card');
+  if (!card) return;
+
+  const plan = SERVER_ENTITLEMENTS.plan || {};
+  const subscription = SERVER_ENTITLEMENTS.subscription || {};
+  const roomFeature = SERVER_ENTITLEMENTS.features?.roomManagement || {};
+  const used = Math.max(0, Array.isArray(STATE.rooms)
+    ? STATE.rooms.length
+    : (Number(roomFeature.used) || 0));
+  const limit = Math.max(0, Number(roomFeature.limit) || 0);
+  const remaining = Math.max(0, limit - used);
+  const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+
+  const planName = document.getElementById('subscription-plan-name');
+  const statusText = document.getElementById('subscription-status-text');
+  const countText = document.getElementById('subscription-room-count');
+  const remainingText = document.getElementById('subscription-room-remaining');
+  const bar = document.getElementById('subscription-usage-bar');
+  const fill = document.getElementById('subscription-usage-fill');
+
+  if (planName) planName.textContent = `💳 Gói ${plan.name || plan.code || 'chưa xác định'}`;
+  const statusMessages = {
+    trialing: `Đang dùng thử · còn ${subscription.daysRemaining || 0} ngày`,
+    active: subscription.endsAt ? 'Đang hoạt động' : 'Đang hoạt động · không giới hạn thời hạn',
+    expiring_soon: `Sắp hết hạn · còn ${subscription.daysRemaining || 0} ngày`,
+    grace_period: `Đang trong thời gian ân hạn · còn ${subscription.graceDaysRemaining || 0} ngày`,
+    expired: 'Đã hết hạn · tài khoản chỉ có thể xem và xuất dữ liệu',
+    canceled: 'Gói đã hủy · tài khoản chỉ có thể xem và xuất dữ liệu'
+  };
+  if (statusText) statusText.textContent = statusMessages[subscription.status] || 'Chưa xác định trạng thái gói';
+  if (countText) countText.textContent = `${used} / ${limit} phòng`;
+  if (remainingText) remainingText.textContent = remaining > 0 ? `Còn ${remaining} phòng` : 'Đã dùng hết hạn mức';
+  if (fill) fill.style.width = `${percent}%`;
+  if (bar) {
+    bar.setAttribute('aria-valuemax', String(limit));
+    bar.setAttribute('aria-valuenow', String(Math.min(used, limit)));
+  }
+  card.classList.toggle('subscription-summary-card--warning', ['expiring_soon', 'grace_period'].includes(subscription.status));
+  card.classList.toggle('subscription-summary-card--expired', ['expired', 'canceled'].includes(subscription.status));
+}
+
 // ============================================================
 //  PERSISTENCE (backend API — Neon Postgres)
 //  saveState() giữ chữ ký đồng bộ như cũ, nhưng bên trong
@@ -977,7 +1019,7 @@ function renderPage(page) {
     case 'expenses':  renderExpenses();  break;
     case 'report':    renderReport();    break;
     case 'history':   renderHistory();   break;
-    case 'settings':  break;
+    case 'settings':  renderSubscriptionSummary(); break;
   }
 }
 
@@ -4101,6 +4143,7 @@ async function startApp() {
   ]);
   applyServerEntitlements(entitlement);
   loadState(serverState);
+  renderSubscriptionSummary();
   loadDonateConfig();
   loadPrivacyStatus();
   showAuthScreen(false);

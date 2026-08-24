@@ -282,6 +282,41 @@ body.modal-open {
 /* Premium đang tạm tắt, không chiếm chỗ trong bất kỳ layout nào. */
 #premium-card { display: none !important; }
 .settings-inline { display: flex; align-items: center; gap: 8px; }
+.subscription-summary-card {
+  width: 100%;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  border-color: rgba(108, 99, 255, .35);
+}
+.subscription-summary-card--warning { border-color: rgba(245, 158, 11, .65); }
+.subscription-summary-card--expired { border-color: rgba(239, 68, 68, .55); }
+.subscription-summary-main { flex: 1 1 230px; color: var(--text); }
+.subscription-room-usage { flex: 1 1 300px; max-width: 480px; }
+.subscription-usage-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.subscription-usage-top span:last-child { color: var(--text-muted); font-weight: 600; }
+.subscription-usage-bar {
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg3);
+}
+.subscription-usage-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), #8b83ff);
+  transition: width .25s ease;
+}
 .settings-security-card {
   margin-top: 12px;
   width: 100%;

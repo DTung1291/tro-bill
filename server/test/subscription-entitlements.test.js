@@ -28,7 +28,8 @@ const activeFreeRow = {
   plan_code: 'free',
   plan_name: 'Free',
   room_limit: 10,
-  staff_limit: 0
+  staff_limit: 0,
+  room_count: 4
 };
 
 function responseRecorder() {
@@ -51,6 +52,8 @@ test('entitlement lấy giới hạn từ plan phía server', async () => {
   assert.deepEqual(captured.params, [7]);
   assert.equal(entitlement.plan.code, 'free');
   assert.equal(entitlement.features.roomManagement.limit, 10);
+  assert.equal(entitlement.features.roomManagement.used, 4);
+  assert.equal(entitlement.features.roomManagement.remaining, 6);
   assert.equal(entitlement.features.roomManagement.enabled, true);
   assert.equal(entitlement.features.staffManagement.enabled, false);
   assert.equal(entitlement.features.dataExport.enabled, true);
@@ -148,9 +151,13 @@ test('PUT state chặn trước khi xóa dữ liệu nếu vượt room limit', 
 
 test('client không còn cờ hoặc native callback tự mở khóa Premium', () => {
   const appSource = fs.readFileSync(path.join(__dirname, '..', '..', 'app.js'), 'utf8');
+  const htmlSource = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
   assert.doesNotMatch(appSource, /PREMIUM_FEATURES_ENABLED/);
   assert.doesNotMatch(appSource, /isPremiumUser/);
   assert.doesNotMatch(appSource, /onPremiumStatusChanged/);
   assert.match(appSource, /API\.getSubscription\(\)/);
   assert.match(appSource, /SERVER_ENTITLEMENTS\.features\.roomManagement/);
+  assert.match(appSource, /function renderSubscriptionSummary\(\)/);
+  assert.match(htmlSource, /id="subscription-room-count"/);
+  assert.match(htmlSource, /id="subscription-usage-bar"[\s\S]*role="progressbar"/);
 });
