@@ -1,7 +1,7 @@
 /**
  * TrọBill — admin.js
  * Trang quản trị: liệt kê user, xem dữ liệu, xoá, reset mật khẩu, bật/tắt admin.
- * Yêu cầu token của một tài khoản có is_admin = true.
+ * Yêu cầu cookie phiên của một tài khoản có is_admin = true.
  */
 'use strict';
 
@@ -29,9 +29,13 @@
     try { return new Date(d).toLocaleString('vi-VN'); } catch (_) { return String(d); }
   };
 
-  function gotoLogin() {
-    API.setToken('');
-    location.href = 'index.html';
+  async function gotoLogin() {
+    try {
+      await API.logout();
+      location.replace('index.html');
+    } catch (e) {
+      showMsg('Không thể đăng xuất, vui lòng thử lại.', true);
+    }
   }
 
   // ---------- Bảng user ----------
@@ -240,10 +244,8 @@
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.hidden = true; });
   $('#admin-logout').addEventListener('click', gotoLogin);
 
-  if (!API.isLoggedIn()) {
-    gotoLogin();
-  } else {
-    loadUsers();
-    loadConfig();
-  }
+  // Cookie HttpOnly không thể được kiểm tra bằng JavaScript. API admin sẽ xác
+  // nhận phiên; nếu hết hạn, loadUsers() tự chuyển về trang đăng nhập.
+  loadUsers();
+  loadConfig();
 })();

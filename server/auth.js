@@ -10,6 +10,8 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 const TOKEN_TTL = '30d';
+const TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_COOKIE = 'trobill_session';
 
 function signToken(user) {
   return jwt.sign(
@@ -17,6 +19,49 @@ function signToken(user) {
     JWT_SECRET,
     { expiresIn: TOKEN_TTL }
   );
+}
+
+function useSecureCookie() {
+  if (process.env.COOKIE_SECURE === 'true') return true;
+  if (process.env.COOKIE_SECURE === 'false') return false;
+  return process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+}
+
+function baseCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: useSecureCookie(),
+    sameSite: 'lax',
+    path: '/'
+  };
+}
+
+function setSessionCookie(res, user) {
+  res.cookie(SESSION_COOKIE, signToken(user), {
+    ...baseCookieOptions(),
+    maxAge: TOKEN_MAX_AGE_MS
+  });
+  res.set('Cache-Control', 'no-store');
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie(SESSION_COOKIE, baseCookieOptions());
+  res.set('Cache-Control', 'no-store');
+}
+
+function readCookie(req, name) {
+  const raw = String(req.headers.cookie || '');
+  for (const part of raw.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator < 0 || part.slice(0, separator).trim() !== name) continue;
+    const value = part.slice(separator + 1).trim();
+    try {
+      return decodeURIComponent(value);
+    } catch (_) {
+      return value;
+    }
+  }
+  return '';
 }
 
 function normalizeEmail(email) {
@@ -49,7 +94,8 @@ async function register(req, res) {
   // Tạo dòng settings mặc định cho user mới
   await db.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
 
-  return res.json({ token: signToken(user), email: user.email });
+  setSessionCookie(res, user);
+  return res.json({ email: user.email, isAdmin: false });
 }
 
 // POST /api/auth/login
@@ -65,13 +111,19 @@ async function login(req, res) {
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: 'Email hoặc mật khẩu sai' });
   }
-  return res.json({ token: signToken(user), email: user.email, isAdmin: !!user.is_admin });
+  setSessionCookie(res, user);
+  return res.json({ email: user.email, isAdmin: !!user.is_admin });
+}
+
+// POST /api/auth/logout
+function logout(req, res) {
+  clearSessionCookie(res);
+  return res.json({ ok: true });
 }
 
 // Middleware: chặn mọi route cần đăng nhập
 function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const token = readCookie(req, SESSION_COOKIE);
   if (!token) return res.status(401).json({ error: 'Chưa đăng nhập' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
@@ -98,4 +150,4 @@ async function requireAdmin(req, res, next) {
   }
 }
 
-module.exports = { register, login, requireAuth, requireAdmin };
+module.exports = { register, login, logout, requireAuth, requireAdmin };

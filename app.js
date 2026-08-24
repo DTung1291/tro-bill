@@ -79,11 +79,8 @@ function saveState() {
 // Lưu nốt khi rời trang
 window.addEventListener('beforeunload', (e) => {
   if (_savePending && API.isLoggedIn()) {
-    // gửi đồng bộ bằng sendBeacon nếu có thể
-    try {
-      const blob = new Blob([JSON.stringify(_serializeState())], { type: 'application/json' });
-      // sendBeacon không gắn được header Authorization → fallback flush thường
-    } catch (_) {}
+    // Cookie được trình duyệt tự gửi; vẫn dùng flush thường vì endpoint lưu
+    // state là PUT trong khi sendBeacon chỉ gửi POST.
     flushState();
   }
 });
@@ -3900,7 +3897,7 @@ function showAuthScreen(show) {
 
 function handleAuthExpired() {
   _appStarted = false;
-  API.logout();
+  API.clearSession();
   if (typeof showToast === 'function') showToast('Phiên đăng nhập đã hết hạn', 'error', 3000);
   showAuthScreen(true);
 }
@@ -3985,22 +3982,27 @@ function initAuthUI() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
       await flushState();
-      API.logout();
-      handleAuthExpired();
+      try {
+        await API.logout();
+        _appStarted = false;
+        showAuthScreen(true);
+      } catch (err) {
+        showToast('Không thể đăng xuất, vui lòng thử lại', 'error', 3000);
+      }
     });
   }
 }
 
 async function boot() {
   initAuthUI();
-  if (API.isLoggedIn()) {
-    try {
-      await startApp();
-      return;
-    } catch (err) {
-      if (err.code === 401) { API.logout(); }
-      else console.warn('Không nạp được state:', err.message);
-    }
+  // Cookie HttpOnly không thể được JavaScript đọc. Gọi API để server xác nhận
+  // phiên thay vì dựa vào một token lưu ở trình duyệt.
+  try {
+    await startApp();
+    return;
+  } catch (err) {
+    if (err.code === 401) API.clearSession();
+    else console.warn('Không nạp được state:', err.message);
   }
   showAuthScreen(true);
 }

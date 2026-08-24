@@ -2,7 +2,8 @@
 
 Ứng dụng tính tiền nhà trọ hàng tháng. Bản này đã chuyển từ app tĩnh (lưu
 `localStorage`) sang **app động nhiều người dùng**: backend Node/Express +
-database Neon Postgres, đăng nhập bằng email/mật khẩu (JWT).
+database Neon Postgres, đăng nhập bằng email/mật khẩu (JWT trong cookie
+`HttpOnly`).
 
 ## Cấu trúc
 
@@ -75,13 +76,16 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 
 | Method | Đường dẫn            | Mô tả                          |
 |--------|----------------------|--------------------------------|
-| POST   | `/api/auth/register` | Đăng ký, trả JWT               |
-| POST   | `/api/auth/login`    | Đăng nhập, trả JWT             |
-| GET    | `/api/me`            | Thông tin user (cần token)     |
-| GET    | `/api/state`         | Lấy toàn bộ state (cần token)  |
-| PUT    | `/api/state`         | Lưu toàn bộ state (cần token)  |
+| POST   | `/api/auth/register` | Đăng ký và tạo phiên           |
+| POST   | `/api/auth/login`    | Đăng nhập và tạo phiên         |
+| POST   | `/api/auth/logout`   | Xóa cookie phiên               |
+| GET    | `/api/me`            | Thông tin user (cần đăng nhập) |
+| GET    | `/api/state`         | Lấy toàn bộ state              |
+| PUT    | `/api/state`         | Lưu toàn bộ state              |
 
-Mọi route `/api/state` yêu cầu header `Authorization: Bearer <token>`.
+Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
+về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
+website khác bị server từ chối để giảm rủi ro CSRF.
 
 ## Tài khoản admin
 
@@ -96,7 +100,7 @@ npm run make-admin -- you@example.com        # cấp quyền (đăng ký tài kh
 npm run make-admin -- you@example.com off     # gỡ quyền
 ```
 
-Sau khi được phong, **đăng nhập lại** để token mang cờ admin. Khi đó app hiện
+Sau khi được phong, **đăng nhập lại** để phiên mang cờ admin. Khi đó app hiện
 nút 🛡️ trên thanh nav → mở trang `admin.html`:
 
 - Liệt kê user (kèm số phòng, số lịch sử)
@@ -118,6 +122,9 @@ Ràng buộc an toàn: admin không thể tự xoá hay tự gỡ quyền của 
 
 ## Bảo mật
 
-- Mật khẩu băm bằng bcrypt. JWT ký bằng `JWT_SECRET`, hết hạn sau 30 ngày.
+- Mật khẩu băm bằng bcrypt. JWT ký bằng `JWT_SECRET`, hết hạn sau 30 ngày và chỉ
+  được lưu trong cookie `HttpOnly`, `SameSite=Lax`.
 - `.env` chứa DATABASE_URL + secret, đã có trong `.gitignore`.
-- Đây là JWT lưu ở `localStorage`; nếu deploy công khai nên đặt sau HTTPS.
+- Cookie tự bật cờ `Secure` trên production/Vercel. Có thể đặt
+  `COOKIE_SECURE=false` khi cần chạy local bằng HTTP.
+- Môi trường production phải dùng HTTPS.

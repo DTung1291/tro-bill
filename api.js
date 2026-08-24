@@ -1,34 +1,38 @@
 /**
  * TrọBill — api.js
- * Lớp giao tiếp với backend: quản lý JWT + gọi REST.
+ * Lớp giao tiếp với backend: phiên đăng nhập bằng cookie HttpOnly + gọi REST.
  * Cùng origin với server nên dùng đường dẫn tương đối.
  */
 'use strict';
 
 const API = (() => {
-  const TOKEN_KEY = 'trobill_token';
+  const LEGACY_TOKEN_KEY = 'trobill_token';
+  let sessionActive = false;
 
-  function getToken() {
-    return localStorage.getItem(TOKEN_KEY) || '';
+  // JWT của phiên bản cũ không còn được sử dụng. Xóa ngay để token không tiếp
+  // tục nằm trong vùng JavaScript có thể đọc sau khi người dùng nâng cấp.
+  try {
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  } catch (_) {}
+
+  function clearSession() {
+    sessionActive = false;
   }
-  function setToken(t) {
-    if (t) localStorage.setItem(TOKEN_KEY, t);
-    else localStorage.removeItem(TOKEN_KEY);
-  }
+
   function isLoggedIn() {
-    return !!getToken();
+    return sessionActive;
   }
 
   async function request(method, url, body) {
-    const headers = { 'Content-Type': 'application/json' };
-    const token = getToken();
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const headers = {};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
 
     let res;
     try {
       res = await fetch(url, {
         method,
         headers,
+        credentials: 'same-origin',
         body: body !== undefined ? JSON.stringify(body) : undefined
       });
     } catch (e) {
@@ -42,36 +46,26 @@ const API = (() => {
       data = null;
     }
 
-    // 401 khi ĐÃ gửi token = phiên hết hạn/không hợp lệ -> đăng xuất.
-    // 401 khi CHƯA có token (vd đăng nhập sai) -> hiện thông báo thật của server.
-    if (res.status === 401 && token) {
-      setToken('');
-      const err = new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn');
-      err.code = 401;
-      throw err;
-    }
-
     if (!res.ok) {
+      if (res.status === 401) clearSession();
       const err = new Error((data && data.error) || 'Lỗi máy chủ');
       err.code = res.status;
       throw err;
     }
+    if (url !== '/api/auth/logout') sessionActive = true;
     return data;
   }
 
   // ----- Auth -----
   async function register(email, password) {
-    const data = await request('POST', '/api/auth/register', { email, password });
-    setToken(data.token);
-    return data;
+    return request('POST', '/api/auth/register', { email, password });
   }
   async function login(email, password) {
-    const data = await request('POST', '/api/auth/login', { email, password });
-    setToken(data.token);
-    return data;
+    return request('POST', '/api/auth/login', { email, password });
   }
-  function logout() {
-    setToken('');
+  async function logout() {
+    await request('POST', '/api/auth/logout');
+    clearSession();
   }
 
   // ----- State -----
@@ -101,5 +95,5 @@ const API = (() => {
     setConfig: (cfg) => request('PUT', '/api/admin/config', cfg)
   };
 
-  return { getToken, setToken, isLoggedIn, register, login, logout, getState, putState, me, getConfig, admin };
+  return { clearSession, isLoggedIn, register, login, logout, getState, putState, me, getConfig, admin };
 })();

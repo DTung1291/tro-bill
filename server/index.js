@@ -3,7 +3,7 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const { register, login, requireAuth, requireAdmin } = require('./auth');
+const { register, login, logout, requireAuth, requireAdmin } = require('./auth');
 const { getState, putState } = require('./state');
 const admin = require('./admin');
 const { getConfig, setConfig } = require('./config');
@@ -12,7 +12,31 @@ const { seedAdmin } = require('./seed-admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '5mb' }));
+
+// Cookie tự được trình duyệt gửi kèm request, vì vậy chặn các request ghi dữ
+// liệu đến từ website khác để giảm rủi ro CSRF. Client không phải trình duyệt
+// có thể không gửi Origin/Sec-Fetch-Site và vẫn dùng được bình thường.
+app.use('/api', (req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.get('sec-fetch-site') === 'cross-site') {
+    return res.status(403).json({ error: 'Nguồn yêu cầu không hợp lệ' });
+  }
+
+  const origin = req.get('origin');
+  if (origin) {
+    try {
+      if (new URL(origin).host !== req.get('host')) {
+        return res.status(403).json({ error: 'Nguồn yêu cầu không hợp lệ' });
+      }
+    } catch (_) {
+      return res.status(403).json({ error: 'Nguồn yêu cầu không hợp lệ' });
+    }
+  }
+  return next();
+});
 
 // bọc async handler để lỗi rơi vào middleware xử lý lỗi
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -20,6 +44,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 // ---------- API ----------
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
+app.post('/api/auth/logout', logout);
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/state', requireAuth, wrap(getState));

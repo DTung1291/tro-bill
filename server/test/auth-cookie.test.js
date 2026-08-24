@@ -1,0 +1,116 @@
+'use strict';
+
+process.env.JWT_SECRET ||= 'test-secret-that-is-long-enough-for-auth-cookie-tests';
+process.env.DATABASE_URL ||= 'postgresql://test:test@localhost:5432/test';
+process.env.COOKIE_SECURE = 'false';
+process.env.NODE_ENV = 'test';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const bcrypt = require('bcryptjs');
+const db = require('../db');
+const app = require('../index');
+
+function listen(serverApp) {
+  return new Promise((resolve, reject) => {
+    const server = serverApp.listen(0, '127.0.0.1', () => resolve(server));
+    server.once('error', reject);
+  });
+}
+
+function close(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho JavaScript', async (t) => {
+  const originalQuery = db.query;
+  const passwordHash = await bcrypt.hash('matkhau123', 4);
+
+  db.query = async (sql) => {
+    if (sql.includes('SELECT id, email, password_hash, is_admin FROM users')) {
+      return {
+        rows: [{
+          id: 7,
+          email: 'owner@example.com',
+          password_hash: passwordHash,
+          is_admin: true
+        }]
+      };
+    }
+    if (sql.includes('SELECT is_admin FROM users')) {
+      return { rows: [{ is_admin: true }] };
+    }
+    throw new Error(`Truy vấn không mong đợi trong test auth: ${sql}`);
+  };
+
+  const server = await listen(app);
+  t.after(async () => {
+    db.query = originalQuery;
+    await close(server);
+  });
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: baseUrl },
+    body: JSON.stringify({ email: 'OWNER@example.com', password: 'matkhau123' })
+  });
+
+  assert.equal(loginResponse.status, 200);
+  const loginBody = await loginResponse.json();
+  assert.deepEqual(loginBody, { email: 'owner@example.com', isAdmin: true });
+  assert.equal(Object.hasOwn(loginBody, 'token'), false);
+
+  const setCookie = loginResponse.headers.get('set-cookie');
+  assert.match(setCookie, /^trobill_session=/);
+  assert.match(setCookie, /HttpOnly/i);
+  assert.match(setCookie, /SameSite=Lax/i);
+  assert.match(setCookie, /Path=\//i);
+  assert.match(setCookie, /Max-Age=2592000/i);
+
+  const cookie = setCookie.split(';')[0];
+  const meResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Cookie: cookie }
+  });
+  assert.equal(meResponse.status, 200);
+  assert.deepEqual(await meResponse.json(), { email: 'owner@example.com', isAdmin: true });
+
+  const bearerOnlyResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Authorization: `Bearer ${cookie.split('=')[1]}` }
+  });
+  assert.equal(bearerOnlyResponse.status, 401, 'Bearer token cũ không còn được chấp nhận');
+
+  const logoutResponse = await fetch(`${baseUrl}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: baseUrl }
+  });
+  assert.equal(logoutResponse.status, 200);
+  assert.deepEqual(await logoutResponse.json(), { ok: true });
+  assert.match(logoutResponse.headers.get('set-cookie'), /^trobill_session=;/);
+
+  const clearedCookieResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Cookie: 'trobill_session=' }
+  });
+  assert.equal(clearedCookieResponse.status, 401);
+});
+
+test('API từ chối request ghi dữ liệu có nguồn cross-site', async (t) => {
+  const server = await listen(app);
+  t.after(() => close(server));
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://evil.example',
+      'Sec-Fetch-Site': 'cross-site'
+    },
+    body: JSON.stringify({ email: 'owner@example.com', password: 'matkhau123' })
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { error: 'Nguồn yêu cầu không hợp lệ' });
+});
