@@ -1,0 +1,87 @@
+name: Database backup and restore drill
+
+on:
+  schedule:
+    - cron: '15 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup-and-restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      RESTORE_DATABASE_URL: postgresql://postgres:restore-drill@127.0.0.1:5432/trobill_restore
+      ALLOW_EMPTY_DATABASE_RESTORE: 'true'
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: trobill_restore
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: restore-drill
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d trobill_restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        shell: bash
+        run: |
+          test -n "$BACKUP_DATABASE_URL" || { echo "Missing BACKUP_DATABASE_URL" >&2; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "Missing BACKUP_ENCRYPTION_PASSPHRASE" >&2; exit 1; }
+
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ca-certificates curl
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          source /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-18
+          pg_dump --version
+
+      - name: Create encrypted backup
+        run: scripts/backup-database.sh backups
+
+      - name: Restore into an empty PostgreSQL database and verify
+        run: scripts/restore-database.sh "$(find backups -name '*.dump.enc' -print -quit)"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: trobill-database-backup-${{ github.run_id }}
+          path: |
+            backups/*.dump.enc
+            backups/*.dump.enc.sha256
+            backups/*.dump.enc.manifest
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Report backup failure
+        if: failure()
+        env:
+          OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+          ALERT_MESSAGE: TrọBill database backup or restore drill failed in GitHub Actions run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/send-ops-alert.js

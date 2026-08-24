@@ -11,6 +11,8 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "test": "node --test",
+    "check:environment": "node ../scripts/check-environment.js",
+    "check:secrets": "node ../scripts/secret-scan.js --history",
     "init-db": "node init-db.js",
     "make-admin": "node make-admin.js"
   },

@@ -3,6 +3,15 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+const { inspectRuntimeEnvironment } = require('./environment');
+const { live, ready } = require('./health');
+const {
+  reportOperationalError,
+  requestObservability,
+  requestRoute,
+  writeLog
+} = require('./observability');
+const { enforceHttps, securityHeaders } = require('./security');
 const {
   register,
   login,
@@ -25,7 +34,14 @@ const PORT = process.env.PORT || 3000;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+app.use(requestObservability);
+app.use(securityHeaders);
+app.use(enforceHttps);
 app.use(express.json({ limit: '5mb' }));
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // Cookie tự được trình duyệt gửi kèm request, vì vậy chặn các request ghi dữ
 // liệu đến từ website khác để giảm rủi ro CSRF. Client không phải trình duyệt
@@ -53,6 +69,8 @@ app.use('/api', (req, res, next) => {
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // ---------- API ----------
+app.get('/api/health/live', live);
+app.get('/api/health/ready', wrap(ready));
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);
@@ -93,11 +111,40 @@ app.get(/^\/(?!api\/).*/, (req, res) => {
   res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
 });
 
-// ---------- Xử lý lỗi tập trung ----------
-app.use((err, req, res, next) => {
-  console.error('Lỗi server:', err);
-  res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API không tồn tại', code: 'API_NOT_FOUND' });
 });
+
+// ---------- Xử lý lỗi tập trung ----------
+app.use(async (err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const incidentId = await reportOperationalError(err, {
+    event: err && err.isDatabaseFailure ? 'database_request_failed' : 'api_request_failed',
+    requestId: req.requestId,
+    method: req.method,
+    route: requestRoute(req),
+    statusCode: 500,
+    message: err && err.isDatabaseFailure
+      ? 'Database request thất bại'
+      : 'API request thất bại'
+  });
+  res.locals.incidentId = incidentId;
+  return res.status(500).json({
+    error: 'Lỗi máy chủ nội bộ',
+    code: 'INTERNAL_ERROR',
+    incidentId
+  });
+});
+
+const runtimeConfiguration = inspectRuntimeEnvironment();
+if (runtimeConfiguration.appEnvironment !== 'test') {
+  const level = runtimeConfiguration.valid ? 'info' : 'error';
+  writeLog(level, 'runtime_configuration_checked', {
+    valid: runtimeConfiguration.valid,
+    issues: runtimeConfiguration.issues.map(issue => issue.code),
+    warnings: runtimeConfiguration.warnings.map(warning => warning.code)
+  });
+}
 
 // Chạy HTTP server khi phát triển/local. Trên Vercel, api/index.js export app
 // thành Serverless Function nên không được gọi app.listen().

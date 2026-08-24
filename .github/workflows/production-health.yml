@@ -1,0 +1,34 @@
+name: Production health monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness-check:
+    if: vars.PRODUCTION_HEALTH_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout alert helper
+        uses: actions/checkout@v4
+
+      - name: Check API and database readiness
+        env:
+          PRODUCTION_HEALTH_URL: ${{ vars.PRODUCTION_HEALTH_URL }}
+        run: >-
+          curl --fail --silent --show-error
+          --connect-timeout 10 --max-time 20
+          --retry 1 --retry-delay 5
+          "$PRODUCTION_HEALTH_URL/api/health/ready"
+
+      - name: Report production health failure
+        if: failure()
+        env:
+          OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+          ALERT_MESSAGE: TrọBill production readiness check failed in GitHub Actions run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/send-ops-alert.js

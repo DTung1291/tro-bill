@@ -168,3 +168,6 @@ tham chiếu phòng của tài khoản khác.
 - Môi trường production phải dùng HTTPS.
 - `RESEND_API_KEY` chỉ được đặt trong biến môi trường phía server, không đưa vào
   frontend hoặc commit lên Git.
+
+Health check, log/cảnh báo, phân tách môi trường, backup mã hóa và quy trình
+restore được mô tả trong [OPERATIONS.md](OPERATIONS.md).

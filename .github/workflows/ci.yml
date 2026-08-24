@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Check operational scripts
+        run: bash -n scripts/backup-database.sh scripts/restore-database.sh
+
+      - name: Scan tracked files and Git history for secrets
+        run: node scripts/secret-scan.js --history
+
+      - name: Run authentication, authorization and billing tests
+        run: npm test --prefix server
+
+      - name: Audit production dependencies
+        run: npm audit --prefix server --omit=dev --audit-level=high
+

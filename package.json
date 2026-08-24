@@ -5,6 +5,11 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "test": "npm test --prefix server",
+    "check:environment": "node scripts/check-environment.js",
+    "check:secrets": "node scripts/secret-scan.js --history"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",

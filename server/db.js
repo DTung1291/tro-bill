@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 const { Pool } = require('pg');
+const { errorDetails, reportOperationalError, writeLog } = require('./observability');
 
 if (!process.env.DATABASE_URL) {
   console.error('❌ Thiếu DATABASE_URL trong .env — xem .env.example');
@@ -18,11 +19,38 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Lỗi pool Postgres bất ngờ:', err);
+  void reportOperationalError(err, {
+    event: 'database_pool_error',
+    message: 'PostgreSQL connection pool gặp sự cố'
+  });
 });
 
+async function query(text, params) {
+  try {
+    return await pool.query(text, params);
+  } catch (error) {
+    error.isDatabaseFailure = true;
+    writeLog('error', 'database_query_failed', {
+      ...errorDetails(error)
+    });
+    throw error;
+  }
+}
+
+async function getClient() {
+  try {
+    return await pool.connect();
+  } catch (error) {
+    error.isDatabaseFailure = true;
+    writeLog('error', 'database_connection_failed', {
+      ...errorDetails(error)
+    });
+    throw error;
+  }
+}
+
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  getClient: () => pool.connect(),
+  query,
+  getClient,
   pool
 };
