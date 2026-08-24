@@ -1,20 +1,71 @@
-# Bí mật & môi trường
+# Bí mật và cấu hình môi trường cục bộ
 .env
 .env.*
 !.env.example
-**/.env
 !**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+credentials*.json
 
 # Dependencies
 node_modules/
-**/node_modules/
 
-# Logs
+# Build, deploy và cache
+dist/
+build/
+out/
+.next/
+.vercel/
+.turbo/
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Test report và coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Log và file runtime
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.pid.lock
 
-# OS / editor
+# Dữ liệu, upload và backup cục bộ
+uploads/
+backups/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+
+# File tạm
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# OS, editor và công cụ cá nhân
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
+.agents/
+.codex/
 *.swp
+*.swo
+*~
