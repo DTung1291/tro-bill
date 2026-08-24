@@ -180,6 +180,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   status     TEXT NOT NULL DEFAULT 'active',
   starts_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   ends_at    TIMESTAMPTZ,
+  billing_cycle TEXT,
   trial_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -188,10 +189,13 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     CHECK (status IN ('trialing', 'active', 'grace_period', 'expired', 'canceled')),
   CONSTRAINT subscriptions_date_order
     CHECK (ends_at IS NULL OR ends_at > starts_at),
+  CONSTRAINT subscriptions_billing_cycle_valid
+    CHECK (billing_cycle IS NULL OR billing_cycle IN ('monthly', 'yearly')),
   CONSTRAINT subscriptions_trial_fields_required
     CHECK (status <> 'trialing' OR (ends_at IS NOT NULL AND trial_used_at IS NOT NULL))
 );
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_used_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_cycle TEXT;
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status_ends
   ON subscriptions(status, ends_at);
 
@@ -219,6 +223,18 @@ BEGIN
   ) THEN
     ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_trial_fields_required
       CHECK (status <> 'trialing' OR (ends_at IS NOT NULL AND trial_used_at IS NOT NULL));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscriptions_billing_cycle_valid'
+      AND conrelid = 'public.subscriptions'::regclass
+  ) THEN
+    ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_billing_cycle_valid
+      CHECK (billing_cycle IS NULL OR billing_cycle IN ('monthly', 'yearly'));
   END IF;
 END $$;
 

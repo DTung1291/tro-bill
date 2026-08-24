@@ -47,6 +47,7 @@ function resolveEntitlements(row, now = new Date()) {
     subscription: {
       id: Number(row.subscription_id),
       status: row.status,
+      billingCycle: row.billing_cycle || null,
       startsAt: toIso(row.starts_at),
       endsAt: toIso(row.ends_at)
     },
@@ -68,7 +69,7 @@ function resolveEntitlements(row, now = new Date()) {
 
 async function getUserEntitlements(userId, query = db.query, now = new Date()) {
   const { rows } = await query(
-    `SELECT s.id AS subscription_id, s.status, s.starts_at, s.ends_at,
+    `SELECT s.id AS subscription_id, s.status, s.billing_cycle, s.starts_at, s.ends_at,
             p.id AS plan_id, p.code AS plan_code, p.name AS plan_name,
             p.room_limit, p.staff_limit
      FROM subscriptions s
@@ -290,14 +291,213 @@ async function startTrial(req, res) {
   }
 }
 
+function subscriptionChangeRequest(req) {
+  const targetUserId = Number(req.params.id);
+  const operation = String(req.body?.operation || '').trim().toLowerCase();
+  const planCode = String(req.body?.planCode || '').trim().toLowerCase();
+  const billingCycle = String(req.body?.billingCycle || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim();
+
+  if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+    throw new SubscriptionOperationError(400, 'INVALID_USER_ID', 'ID tài khoản không hợp lệ');
+  }
+  if (!['upgrade', 'renew'].includes(operation)) {
+    throw new SubscriptionOperationError(
+      400,
+      'INVALID_SUBSCRIPTION_OPERATION',
+      'Thao tác phải là nâng gói hoặc gia hạn'
+    );
+  }
+  if (!/^[a-z][a-z0-9_-]{1,31}$/.test(planCode)) {
+    throw new SubscriptionOperationError(400, 'INVALID_PLAN_CODE', 'Mã gói không hợp lệ');
+  }
+  if (!['monthly', 'yearly'].includes(billingCycle)) {
+    throw new SubscriptionOperationError(
+      400,
+      'INVALID_BILLING_CYCLE',
+      'Chu kỳ thanh toán phải là tháng hoặc năm'
+    );
+  }
+  if (reason.length < 10 || reason.length > 500) {
+    throw new SubscriptionOperationError(
+      400,
+      'INVALID_REASON',
+      'Lý do thay đổi gói phải từ 10 đến 500 ký tự'
+    );
+  }
+  return { targetUserId, operation, planCode, billingCycle, reason };
+}
+
+// POST /api/admin/users/:id/subscription/change
+// Nâng gói có hiệu lực ngay nhưng chu kỳ mới luôn cộng sau thời gian còn lại.
+async function changeSubscription(req, res) {
+  let input;
+  try {
+    input = subscriptionChangeRequest(req);
+  } catch (error) {
+    if (sendOperationError(res, error)) return res;
+    throw error;
+  }
+
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const targetResult = await client.query(
+      'SELECT id, email FROM users WHERE id=$1 FOR UPDATE',
+      [input.targetUserId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) {
+      throw new SubscriptionOperationError(404, 'USER_NOT_FOUND', 'Không tìm thấy tài khoản');
+    }
+
+    const planResult = await client.query(
+      `SELECT id, code, name, room_limit
+       FROM plans
+       WHERE code=$1
+       FOR SHARE`,
+      [input.planCode]
+    );
+    const plan = planResult.rows[0];
+    if (!plan) {
+      throw new SubscriptionOperationError(404, 'PLAN_NOT_FOUND', 'Không tìm thấy gói dịch vụ');
+    }
+    if (plan.code === 'free') {
+      throw new SubscriptionOperationError(
+        409,
+        'PAID_PLAN_REQUIRED',
+        'Nâng gói và gia hạn chỉ áp dụng cho gói trả phí'
+      );
+    }
+
+    const currentResult = await client.query(
+      `SELECT s.id, s.status, s.starts_at, s.ends_at, s.billing_cycle,
+              p.id AS plan_id, p.code AS plan_code, p.name AS plan_name,
+              p.room_limit
+       FROM subscriptions s
+       JOIN plans p ON p.id=s.plan_id
+       WHERE s.user_id=$1
+       FOR UPDATE OF s`,
+      [input.targetUserId]
+    );
+    const current = currentResult.rows[0];
+    if (!current) {
+      throw new SubscriptionOperationError(
+        409,
+        'SUBSCRIPTION_REQUIRED',
+        'Tài khoản chưa có gói dịch vụ hiện tại'
+      );
+    }
+
+    if (input.operation === 'renew' && current.plan_code !== plan.code) {
+      throw new SubscriptionOperationError(
+        409,
+        'RENEW_PLAN_MISMATCH',
+        'Gia hạn phải dùng đúng gói hiện tại; hãy chọn nâng gói nếu muốn đổi gói'
+      );
+    }
+    if (input.operation === 'upgrade') {
+      if (current.plan_code === plan.code) {
+        throw new SubscriptionOperationError(
+          409,
+          'UPGRADE_SAME_PLAN',
+          'Tài khoản đã dùng gói này; hãy chọn gia hạn'
+        );
+      }
+      if (Number(plan.room_limit) < Number(current.room_limit)) {
+        throw new SubscriptionOperationError(
+          409,
+          'PLAN_NOT_UPGRADE',
+          'Gói mới có giới hạn phòng thấp hơn gói hiện tại'
+        );
+      }
+    }
+
+    const updatedResult = await client.query(
+      `UPDATE subscriptions
+       SET plan_id=$2,
+           status='active',
+           billing_cycle=$4,
+           starts_at=CASE
+             WHEN $3='upgrade' OR ends_at IS NULL OR ends_at <= now() THEN now()
+             ELSE starts_at
+           END,
+           ends_at=(CASE
+             WHEN ends_at IS NOT NULL AND ends_at > now() THEN ends_at
+             ELSE now()
+           END) + CASE
+             WHEN $4='monthly' THEN interval '1 month'
+             ELSE interval '1 year'
+           END,
+           updated_at=now()
+       WHERE user_id=$1
+       RETURNING id, status, billing_cycle, starts_at, ends_at`,
+      [input.targetUserId, plan.id, input.operation, input.billingCycle]
+    );
+    const subscription = updatedResult.rows[0];
+    const action = input.operation === 'upgrade'
+      ? 'subscription_upgraded'
+      : 'subscription_renewed';
+
+    await client.query(
+      `INSERT INTO subscription_change_logs
+         (actor_user_id, actor_email_snapshot, target_user_id, target_email_snapshot,
+          action, previous_plan_code, new_plan_code, previous_status, new_status,
+          reason, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active',$9,$10::jsonb)`,
+      [
+        req.userId,
+        String(req.userEmail || ''),
+        input.targetUserId,
+        target.email,
+        action,
+        current.plan_code,
+        plan.code,
+        current.status,
+        input.reason,
+        JSON.stringify({ billingCycle: input.billingCycle })
+      ]
+    );
+
+    await client.query('COMMIT');
+    return res.json({
+      ok: true,
+      audited: true,
+      operation: input.operation,
+      target: { id: Number(target.id), email: target.email },
+      subscription: {
+        id: Number(subscription.id),
+        planCode: plan.code,
+        planName: plan.name,
+        status: subscription.status,
+        billingCycle: subscription.billing_cycle,
+        startsAt: toIso(subscription.starts_at),
+        endsAt: toIso(subscription.ends_at)
+      }
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      // Giữ lỗi gốc để middleware ghi nhận đúng incident.
+    }
+    if (sendOperationError(res, error)) return res;
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   EntitlementError,
   SubscriptionOperationError,
+  changeSubscription,
   enforceStateWrite,
   getSubscription,
   getUserEntitlements,
   resolveEntitlements,
   sendEntitlementError,
+  subscriptionChangeRequest,
   startTrial,
   trialRequest
 };

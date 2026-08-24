@@ -21,11 +21,16 @@ test('subscription lưu gói hiện tại, thời hạn và trạng thái hợp 
   assert.match(definition, /plan_id\s+BIGINT NOT NULL REFERENCES plans\(id\) ON DELETE RESTRICT/);
   assert.match(definition, /starts_at\s+TIMESTAMPTZ NOT NULL DEFAULT now\(\)/);
   assert.match(definition, /ends_at\s+TIMESTAMPTZ/);
+  assert.match(definition, /billing_cycle\s+TEXT/);
   assert.match(
     definition,
     /CHECK \(status IN \('trialing', 'active', 'grace_period', 'expired', 'canceled'\)\)/
   );
   assert.match(definition, /CHECK \(ends_at IS NULL OR ends_at > starts_at\)/);
+  assert.match(
+    definition,
+    /CHECK \(billing_cycle IS NULL OR billing_cycle IN \('monthly', 'yearly'\)\)/
+  );
 });
 
 test('mỗi tài khoản chỉ có một subscription hiện tại', () => {

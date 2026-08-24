@@ -111,6 +111,11 @@ app.post(
   adminGuard,
   wrap(subscription.startTrial)
 );
+app.post(
+  '/api/admin/users/:id/subscription/change',
+  adminGuard,
+  wrap(subscription.changeSubscription)
+);
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
 app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));
