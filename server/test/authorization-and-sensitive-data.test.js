@@ -45,6 +45,8 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['GET', '/api/subscription'],
     ['GET', '/api/subscription/payments'],
     ['GET', '/api/subscription/payments/1/receipt'],
+    ['POST', '/api/subscription/payments/1/refund-requests'],
+    ['POST', '/api/subscription/refund-requests/1/cancel'],
     ['GET', '/api/plans'],
     ['POST', '/api/subscription/orders'],
     ['GET', '/api/state'],
@@ -70,7 +72,9 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['PUT', '/api/admin/config'],
     ['PUT', '/api/admin/config/subscription-payment'],
     ['GET', '/api/admin/plans'],
-    ['PUT', '/api/admin/plans/pro']
+    ['PUT', '/api/admin/plans/pro'],
+    ['GET', '/api/admin/subscription/refund-requests'],
+    ['POST', '/api/admin/subscription/refund-requests/1/transition']
   ];
 
   for (const [method, path] of protectedRequests) {

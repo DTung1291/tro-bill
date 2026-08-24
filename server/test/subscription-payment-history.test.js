@@ -50,6 +50,31 @@ test('mã biên nhận ổn định theo payment ID', () => {
   assert.equal(receiptCode(51), 'TB-RCPT-00000051');
 });
 
+test('lịch sử payment chỉ kèm yêu cầu hoàn tiền mới nhất, không lộ dữ liệu admin', async (t) => {
+  const originalQuery = db.query;
+  db.query = async () => ({ rows: [paidRow({
+    refund_request_id: 12,
+    refund_request_type: 'refund',
+    refund_requested_amount_vnd: '299000',
+    refund_reason: 'Tôi mua nhầm gói và chưa sử dụng dịch vụ',
+    refund_status: 'reviewing',
+    refund_admin_note: 'Đang kiểm tra giao dịch với ngân hàng',
+    refund_reference: null,
+    refund_created_at: '2026-08-25T02:00:00.000Z',
+    refund_updated_at: '2026-08-25T03:00:00.000Z'
+  })] });
+  t.after(() => { db.query = originalQuery; });
+  const response = responseRecorder();
+
+  await listSubscriptionPayments({ userId: 7, query: {} }, response.res);
+
+  const refund = response.record.body.payments[0].refundRequest;
+  assert.equal(refund.id, 12);
+  assert.equal(refund.status, 'reviewing');
+  assert.equal(refund.adminNote, 'Đang kiểm tra giao dịch với ngân hàng');
+  assert.equal('adminEmail' in refund, false);
+});
+
 test('lịch sử chỉ truy vấn payment thuộc user đăng nhập và giới hạn tối đa 100', async (t) => {
   const originalQuery = db.query;
   let captured;

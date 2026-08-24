@@ -489,6 +489,113 @@
     }
   }
 
+  // ---------- Hoàn tiền / đối soát chuyển nhầm ----------
+  const refundFilter = $('#subscription-refund-filter');
+  const refundTable = $('#subscription-refund-table');
+  const refundTbody = $('#subscription-refund-tbody');
+  const refundEmpty = $('#subscription-refund-empty');
+  const refundStatusLabels = {
+    pending: 'Chờ xử lý',
+    reviewing: 'Đang xem xét',
+    approved: 'Đã duyệt',
+    rejected: 'Đã từ chối',
+    refunded: 'Đã hoàn tiền',
+    canceled: 'Người dùng đã hủy'
+  };
+
+  function refundAction(request, label, status, className = 'admin-btn-ghost') {
+    return btn(label, className, async (event) => {
+      const button = event.currentTarget;
+      const note = prompt(`Nhập ghi chú xử lý cho trạng thái “${refundStatusLabels[status]}” (10–500 ký tự):`);
+      if (note == null) return;
+      const normalizedNote = note.trim();
+      if (normalizedNote.length < 10 || normalizedNote.length > 500) {
+        showMsg('Ghi chú xử lý phải từ 10 đến 500 ký tự.', true);
+        return;
+      }
+      let refundReference = '';
+      if (status === 'refunded') {
+        const referenceInput = prompt('Nhập mã giao dịch ngân hàng đã hoàn tiền:');
+        if (referenceInput == null) return;
+        refundReference = String(referenceInput).trim();
+        if (refundReference.length < 3 || refundReference.length > 100) {
+          showMsg('Mã giao dịch hoàn tiền phải từ 3 đến 100 ký tự.', true);
+          return;
+        }
+        if (!confirm(`Xác nhận đã thực sự hoàn ${fmtVND(request.requestedAmountVnd)}? TrọBill không thực hiện chuyển tiền thay bạn.`)) {
+          return;
+        }
+      }
+      button.disabled = true;
+      try {
+        await API.admin.transitionSubscriptionRefundRequest(request.id, {
+          status,
+          note: normalizedNote,
+          refundReference
+        });
+        showMsg(`Đã chuyển yêu cầu #${request.id} sang “${refundStatusLabels[status]}” và ghi audit.`, false);
+        await loadSubscriptionRefundRequests();
+      } catch (error) {
+        handleErr(error);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  function renderSubscriptionRefundRequests(requests) {
+    refundTbody.textContent = '';
+    for (const request of requests) {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${esc(fmtDate(request.createdAt))}</td>
+        <td>${esc(request.userEmail)}</td>
+        <td><code>${esc(request.payment.orderReference || `#${request.payment.id}`)}</code><br><span class="admin-cell-note">${esc(request.plan.name)} · ${esc(request.payment.status)}</span></td>
+        <td>${request.requestType === 'mistaken_transfer' ? 'Chuyển nhầm' : 'Hoàn tiền'}</td>
+        <td>${fmtVND(request.requestedAmountVnd)}</td>
+        <td><span class="admin-refund-status admin-refund-status--${esc(request.status)}">${esc(refundStatusLabels[request.status] || request.status)}</span></td>
+        <td><div class="admin-refund-detail">${esc(request.reason)}</div>${request.adminNote ? `<div class="admin-cell-note">Admin: ${esc(request.adminNote)}</div>` : ''}${request.refundReference ? `<div class="admin-cell-note">Mã hoàn: <code>${esc(request.refundReference)}</code></div>` : ''}</td>
+        <td class="admin-actions"></td>`;
+      const actions = row.querySelector('.admin-actions');
+      if (request.status === 'pending') {
+        actions.append(
+          refundAction(request, 'Đang xem xét', 'reviewing'),
+          refundAction(request, 'Duyệt', 'approved', 'admin-btn'),
+          refundAction(request, 'Từ chối', 'rejected', 'admin-btn-danger')
+        );
+      } else if (request.status === 'reviewing') {
+        actions.append(
+          refundAction(request, 'Duyệt', 'approved', 'admin-btn'),
+          refundAction(request, 'Từ chối', 'rejected', 'admin-btn-danger')
+        );
+      } else if (request.status === 'approved') {
+        actions.append(
+          refundAction(request, 'Xác nhận đã hoàn', 'refunded', 'admin-btn'),
+          refundAction(request, 'Từ chối', 'rejected', 'admin-btn-danger')
+        );
+      } else {
+        actions.textContent = '—';
+      }
+      refundTbody.appendChild(row);
+    }
+    refundTable.hidden = requests.length === 0;
+    refundEmpty.hidden = requests.length !== 0;
+  }
+
+  async function loadSubscriptionRefundRequests() {
+    try {
+      const result = await API.admin.listSubscriptionRefundRequests(refundFilter.value);
+      renderSubscriptionRefundRequests(result.refundRequests || []);
+    } catch (error) {
+      if (error.code === 401) return gotoLogin();
+      refundTable.hidden = true;
+      refundEmpty.hidden = false;
+      refundEmpty.textContent = error.message || 'Không tải được yêu cầu hoàn tiền.';
+    }
+  }
+
+  refundFilter.addEventListener('change', loadSubscriptionRefundRequests);
+
   // ---------- Khởi động ----------
   function closeUserModal() {
     modal.hidden = true;
@@ -503,5 +610,6 @@
   loadUsers();
   loadConfig();
   loadPlans();
+  loadSubscriptionRefundRequests();
   loadSensitiveAccessLogs();
 })();

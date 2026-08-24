@@ -43,6 +43,7 @@ let SERVER_PLANS = [];
 let SERVER_SUBSCRIPTION_PAYMENTS = [];
 let CURRENT_SUBSCRIPTION_ORDER = null;
 let ACTIVE_SUBSCRIPTION_RECEIPT = null;
+let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 
 function applyServerEntitlements(value) {
   if (!value || !value.plan || !value.features) {
@@ -182,6 +183,14 @@ function renderSubscriptionPaymentHistory() {
     refunded: 'Đã hoàn tiền',
     canceled: 'Đã hủy'
   };
+  const refundStatusLabels = {
+    pending: 'Chờ xử lý',
+    reviewing: 'Đang xem xét',
+    approved: 'Đã duyệt hoàn',
+    rejected: 'Đã từ chối',
+    refunded: 'Đã hoàn tiền',
+    canceled: 'Đã hủy'
+  };
 
   for (const payment of SERVER_SUBSCRIPTION_PAYMENTS) {
     const item = document.createElement('article');
@@ -206,8 +215,11 @@ function renderSubscriptionPaymentHistory() {
 
     const detail = document.createElement('div');
     detail.className = 'subscription-payment-detail';
+    const detailText = document.createElement('span');
+    const detailActions = document.createElement('div');
+    detailActions.className = 'subscription-payment-actions';
     if (payment.status === 'paid') {
-      detail.textContent = `Xác nhận lúc ${subscriptionDateTime(payment.paidAt)}`;
+      detailText.textContent = `Xác nhận lúc ${subscriptionDateTime(payment.paidAt)}`;
       const receiptButton = document.createElement('button');
       receiptButton.type = 'button';
       receiptButton.className = 'btn btn--sm btn--ghost';
@@ -224,19 +236,145 @@ function renderSubscriptionPaymentHistory() {
           receiptButton.disabled = false;
         }
       });
-      detail.appendChild(receiptButton);
+      detailActions.appendChild(receiptButton);
     } else if (payment.status === 'pending') {
-      detail.textContent = `Hết hạn ${subscriptionDateTime(payment.expiresAt)}`;
+      detailText.textContent = `Hết hạn ${subscriptionDateTime(payment.expiresAt)}`;
     } else {
-      detail.textContent = payment.transferContent
+      detailText.textContent = payment.transferContent
         ? `Mã chuyển khoản ${payment.transferContent}`
         : 'Không có thông tin bổ sung';
     }
+    const refundRequest = payment.refundRequest;
+    const canCreateRequest = payment.status !== 'refunded'
+      && (!refundRequest || ['rejected', 'canceled'].includes(refundRequest.status));
+    if (canCreateRequest) {
+      const supportButton = document.createElement('button');
+      supportButton.type = 'button';
+      supportButton.className = 'btn btn--sm btn--ghost';
+      supportButton.textContent = 'Báo chuyển nhầm / hoàn tiền';
+      supportButton.addEventListener('click', () => openSubscriptionRefundModal(payment));
+      detailActions.appendChild(supportButton);
+    }
+    detail.appendChild(detailText);
+    if (detailActions.childElementCount > 0) detail.appendChild(detailActions);
 
     item.append(main, summary, detail);
+    if (refundRequest) {
+      const refundPanel = document.createElement('div');
+      refundPanel.className = `subscription-refund-summary subscription-refund-summary--${refundRequest.status}`;
+      const refundMain = document.createElement('div');
+      const refundTitle = document.createElement('strong');
+      refundTitle.textContent = refundRequest.requestType === 'mistaken_transfer'
+        ? 'Yêu cầu đối soát chuyển nhầm'
+        : 'Yêu cầu hoàn tiền';
+      const refundMeta = document.createElement('span');
+      refundMeta.textContent = `${fmt(refundRequest.requestedAmountVnd)} · ${refundStatusLabels[refundRequest.status] || refundRequest.status}`;
+      refundMain.append(refundTitle, refundMeta);
+
+      const refundDetail = document.createElement('p');
+      refundDetail.textContent = refundRequest.refundReference
+        ? `Mã giao dịch hoàn: ${refundRequest.refundReference}`
+        : (refundRequest.adminNote || refundRequest.reason || 'Đang chờ xử lý');
+      refundPanel.append(refundMain, refundDetail);
+
+      if (refundRequest.status === 'pending') {
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn btn--sm btn--ghost';
+        cancelButton.textContent = 'Hủy yêu cầu';
+        cancelButton.addEventListener('click', () => cancelSubscriptionRefund(refundRequest));
+        refundPanel.appendChild(cancelButton);
+      }
+      item.appendChild(refundPanel);
+    }
     list.appendChild(item);
   }
 }
+
+function openSubscriptionRefundModal(payment) {
+  const modal = document.getElementById('subscription-refund-modal');
+  const typeInput = document.getElementById('subscription-refund-type');
+  const amountInput = document.getElementById('subscription-refund-amount');
+  const reasonInput = document.getElementById('subscription-refund-reason');
+  const paymentText = document.getElementById('subscription-refund-payment');
+  if (!modal || !typeInput || !amountInput || !reasonInput || !paymentText) return;
+
+  ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = payment;
+  const refundOption = typeInput.querySelector('option[value="refund"]');
+  refundOption.disabled = payment.status !== 'paid';
+  typeInput.value = payment.status === 'paid' ? 'refund' : 'mistaken_transfer';
+  amountInput.value = String(payment.amountVnd || '');
+  amountInput.max = typeInput.value === 'refund' ? String(payment.amountVnd) : '';
+  reasonInput.value = '';
+  paymentText.textContent = `${payment.planName} · ${payment.orderReference}`;
+  modal.hidden = false;
+  syncModalScrollLock();
+  reasonInput.focus();
+}
+
+function closeSubscriptionRefundModal() {
+  const modal = document.getElementById('subscription-refund-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
+  syncModalScrollLock();
+}
+
+async function submitSubscriptionRefund(event) {
+  event.preventDefault();
+  const payment = ACTIVE_SUBSCRIPTION_REFUND_PAYMENT;
+  if (!payment) return;
+  const submitButton = document.getElementById('subscription-refund-submit');
+  const requestType = document.getElementById('subscription-refund-type').value;
+  const requestedAmountVnd = Number(document.getElementById('subscription-refund-amount').value);
+  const reason = document.getElementById('subscription-refund-reason').value.trim();
+  submitButton.disabled = true;
+  try {
+    await API.createSubscriptionRefundRequest(payment.id, {
+      requestType,
+      requestedAmountVnd,
+      reason
+    });
+    closeSubscriptionRefundModal();
+    await loadSubscriptionPayments();
+    showToast('Đã gửi yêu cầu để đối soát.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không gửi được yêu cầu', 'error', 4000);
+  } finally {
+    submitButton.disabled = false;
+  }
+}
+
+function cancelSubscriptionRefund(refundRequest) {
+  showConfirm(
+    'Hủy yêu cầu hỗ trợ thanh toán này?',
+    async () => {
+      try {
+        await API.cancelSubscriptionRefundRequest(refundRequest.id);
+        await loadSubscriptionPayments();
+        showToast('Đã hủy yêu cầu.', 'success');
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không hủy được yêu cầu', 'error', 4000);
+      }
+    },
+    null,
+    'Hủy yêu cầu'
+  );
+}
+
+document.getElementById('subscription-refund-type')?.addEventListener('change', event => {
+  const payment = ACTIVE_SUBSCRIPTION_REFUND_PAYMENT;
+  const amountInput = document.getElementById('subscription-refund-amount');
+  if (!payment || !amountInput) return;
+  amountInput.max = event.target.value === 'refund' ? String(payment.amountVnd) : '';
+});
+document.getElementById('subscription-refund-form')?.addEventListener('submit', submitSubscriptionRefund);
+document.getElementById('subscription-refund-close')?.addEventListener('click', closeSubscriptionRefundModal);
+document.getElementById('subscription-refund-close-footer')?.addEventListener('click', closeSubscriptionRefundModal);
+document.getElementById('subscription-refund-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeSubscriptionRefundModal();
+});
 
 async function loadSubscriptionPayments() {
   const refresh = document.getElementById('subscription-history-refresh');

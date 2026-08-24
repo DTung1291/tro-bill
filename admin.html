@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Quản trị</title>
-  <link rel="stylesheet" href="style.css?v=73" />
+  <link rel="stylesheet" href="style.css?v=75" />
 </head>
 <body>
   <div class="admin-wrap">
@@ -54,6 +54,41 @@
         </label>
       </div>
       <button id="cfg-save" class="admin-btn">Lưu cấu hình</button>
+    </section>
+
+    <section class="admin-config" id="subscription-refund-admin-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>↩️ Hoàn tiền và chuyển khoản nhầm</h2>
+          <p class="admin-config-note">
+            Đây là quy trình đối soát thủ công. TrọBill không tự chuyển tiền; chỉ chọn “Đã hoàn” sau khi đã chuyển khoản và có mã giao dịch ngân hàng.
+          </p>
+        </div>
+        <label class="admin-filter-label">Trạng thái
+          <select id="subscription-refund-filter">
+            <option value="active">Cần xử lý</option>
+            <option value="all">Tất cả</option>
+            <option value="pending">Chờ xử lý</option>
+            <option value="reviewing">Đang xem xét</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Đã từ chối</option>
+            <option value="refunded">Đã hoàn tiền</option>
+            <option value="canceled">Người dùng đã hủy</option>
+          </select>
+        </label>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-subtable admin-refund-table" id="subscription-refund-table" hidden>
+          <thead>
+            <tr>
+              <th>Thời gian</th><th>Tài khoản</th><th>Payment</th><th>Loại</th>
+              <th>Số tiền</th><th>Trạng thái</th><th>Chi tiết</th><th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="subscription-refund-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-muted" id="subscription-refund-empty" hidden>Không có yêu cầu ở trạng thái này.</p>
     </section>
 
     <section class="admin-config">
@@ -149,7 +184,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=73"></script>
-  <script src="admin.js?v=73"></script>
+  <script src="api.js?v=75"></script>
+  <script src="admin.js?v=75"></script>
 </body>
 </html>

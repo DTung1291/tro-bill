@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=74" />
+  <link rel="stylesheet" href="style.css?v=75" />
 </head>
 
 <body>
@@ -638,6 +638,40 @@
     </div>
   </div>
 
+  <!-- MODAL: Yêu cầu hoàn tiền / đối soát chuyển nhầm -->
+  <div class="modal-overlay" id="subscription-refund-modal" hidden>
+    <div class="modal subscription-refund-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-refund-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="subscription-refund-title">Yêu cầu hỗ trợ thanh toán</h2>
+          <p class="subscription-order-reference" id="subscription-refund-payment"></p>
+        </div>
+        <button type="button" class="modal-close" id="subscription-refund-close" aria-label="Đóng">✕</button>
+      </div>
+      <form class="modal-form subscription-refund-form" id="subscription-refund-form">
+        <label class="form-label">Loại yêu cầu
+          <select class="form-input" id="subscription-refund-type" required>
+            <option value="refund">Hoàn tiền payment đã xác nhận</option>
+            <option value="mistaken_transfer">Chuyển nhầm / sai số tiền</option>
+          </select>
+        </label>
+        <label class="form-label">Số tiền cần kiểm tra (VND)
+          <input class="form-input" type="number" id="subscription-refund-amount" min="1" step="1" required />
+        </label>
+        <label class="form-label">Mô tả cụ thể
+          <textarea class="form-input subscription-refund-reason" id="subscription-refund-reason" minlength="10" maxlength="500" rows="4" placeholder="Ví dụ: Tôi chuyển hai lần cho cùng một mã đơn…" required></textarea>
+        </label>
+        <p class="subscription-refund-notice">
+          Gửi yêu cầu không tự động chuyển tiền. TrọBill sẽ đối soát; chỉ khi admin ghi nhận mã giao dịch hoàn thì trạng thái mới là “Đã hoàn tiền”.
+        </p>
+        <div class="modal-actions subscription-refund-actions">
+          <button type="button" class="btn btn--ghost" id="subscription-refund-close-footer">Đóng</button>
+          <button type="submit" class="btn btn--primary" id="subscription-refund-submit">Gửi yêu cầu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: Biên nhận thanh toán subscription -->
   <div class="modal-overlay" id="subscription-receipt-modal" hidden>
     <div class="modal subscription-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-receipt-title">
@@ -1092,10 +1126,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=74"></script>
+  <script src="api.js?v=75"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=74"></script>
+  <script src="app.js?v=75"></script>
 </body>
 
 </html>

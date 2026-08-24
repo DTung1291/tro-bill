@@ -443,6 +443,77 @@ body.modal-open {
   font-size: .75rem;
   overflow-wrap: anywhere;
 }
+.subscription-payment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.subscription-refund-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(8, 145, 178, .25);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 145, 178, .08);
+  color: var(--text);
+}
+.subscription-refund-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.subscription-refund-summary > div span {
+  color: var(--water);
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.subscription-refund-summary p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.subscription-refund-summary > .btn {
+  grid-column: 2;
+  grid-row: 1;
+}
+.subscription-refund-summary--approved,
+.subscription-refund-summary--refunded {
+  border-color: rgba(16, 185, 129, .28);
+  background: rgba(16, 185, 129, .08);
+}
+.subscription-refund-summary--approved > div span,
+.subscription-refund-summary--refunded > div span { color: var(--green); }
+.subscription-refund-summary--rejected,
+.subscription-refund-summary--canceled {
+  border-color: var(--border);
+  background: var(--bg2);
+}
+.subscription-refund-modal {
+  width: min(94vw, 560px);
+  max-height: calc(100dvh - 32px);
+}
+.subscription-refund-form { gap: 13px; }
+.subscription-refund-reason { resize: vertical; min-height: 100px; }
+.subscription-refund-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, .13);
+  color: #b45309;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.subscription-refund-actions { padding: 0; }
 .subscription-receipt-modal {
   width: min(94vw, 620px);
   max-height: calc(100dvh - 32px);
@@ -484,6 +555,11 @@ body.modal-open {
   .subscription-history-head { align-items: center; }
   .subscription-payment-item { grid-template-columns: minmax(0, 1fr); }
   .subscription-payment-summary { justify-content: space-between; }
+  .subscription-payment-detail { align-items: flex-start; flex-direction: column; }
+  .subscription-payment-actions { justify-content: flex-start; width: 100%; }
+  .subscription-refund-summary { grid-template-columns: minmax(0, 1fr); }
+  .subscription-refund-summary > div { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .subscription-refund-summary > .btn { grid-column: 1; grid-row: auto; justify-self: start; }
   .subscription-receipt-row { grid-template-columns: minmax(0, 1fr); gap: 3px; }
   .subscription-receipt-row > :last-child { text-align: left; }
 }
@@ -2478,6 +2554,57 @@ body.modal-open {
 }
 .admin-config h2 { font-size: 1rem; margin: 0 0 4px; }
 .admin-config-note { font-size: 0.82rem; color: var(--muted, #64748b); margin: 0 0 12px; }
+.admin-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.admin-section-head > div { flex: 1 1 420px; }
+.admin-filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted, #64748b);
+  font-size: .78rem;
+}
+.admin-filter-label select {
+  min-width: 160px;
+  padding: 7px 9px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--bg, #fff);
+  color: inherit;
+}
+.admin-refund-table { min-width: 1120px; }
+.admin-cell-note {
+  color: var(--muted, #64748b);
+  font-size: .74rem;
+  line-height: 1.4;
+}
+.admin-refund-detail {
+  min-width: 190px;
+  max-width: 320px;
+  font-size: .78rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.admin-refund-status {
+  display: inline-block;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, .14);
+  color: #b45309;
+  font-size: .7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.admin-refund-status--reviewing { background: rgba(8, 145, 178, .12); color: #0e7490; }
+.admin-refund-status--approved,
+.admin-refund-status--refunded { background: rgba(16, 185, 129, .13); color: #15803d; }
+.admin-refund-status--rejected,
+.admin-refund-status--canceled { background: rgba(100, 116, 139, .12); color: #64748b; }
 .admin-config-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

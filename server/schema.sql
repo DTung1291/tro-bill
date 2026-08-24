@@ -330,6 +330,77 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_settlement_reference
   ON subscription_payments(settlement_provider, settlement_reference)
   WHERE settlement_provider IS NOT NULL AND settlement_reference IS NOT NULL;
 
+-- Yêu cầu hoàn tiền/thanh toán nhầm chỉ là workflow hỗ trợ và đối soát.
+-- TrọBill không tự động chuyển tiền; admin phải xác nhận mã giao dịch hoàn tiền.
+-- DB cũ phải có khóa duy nhất kép trước khi tạo ownership FK bên dưới.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'subscription_payments_user_id_id_unique'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments
+      ADD CONSTRAINT subscription_payments_user_id_id_unique UNIQUE (user_id, id);
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS subscription_refund_requests (
+  id                    BIGSERIAL PRIMARY KEY,
+  user_id               BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  payment_id            BIGINT NOT NULL,
+  request_type          TEXT NOT NULL,
+  requested_amount_vnd  NUMERIC(12, 0) NOT NULL,
+  reason                TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'pending',
+  admin_user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  admin_email_snapshot  TEXT NOT NULL DEFAULT '',
+  admin_note            TEXT,
+  refund_reference      TEXT,
+  reviewed_at           TIMESTAMPTZ,
+  resolved_at           TIMESTAMPTZ,
+  refunded_at           TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscription_refund_payment_owner_fk
+    FOREIGN KEY (user_id, payment_id)
+    REFERENCES subscription_payments(user_id, id) ON DELETE CASCADE,
+  CONSTRAINT subscription_refund_type_valid
+    CHECK (request_type IN ('refund', 'mistaken_transfer')),
+  CONSTRAINT subscription_refund_amount_positive
+    CHECK (requested_amount_vnd > 0),
+  CONSTRAINT subscription_refund_reason_length
+    CHECK (char_length(reason) BETWEEN 10 AND 500),
+  CONSTRAINT subscription_refund_status_valid
+    CHECK (status IN ('pending', 'reviewing', 'approved', 'rejected', 'refunded', 'canceled')),
+  CONSTRAINT subscription_refund_admin_note_length
+    CHECK (admin_note IS NULL OR char_length(admin_note) BETWEEN 10 AND 500),
+  CONSTRAINT subscription_refund_reference_length
+    CHECK (refund_reference IS NULL OR char_length(refund_reference) BETWEEN 3 AND 100),
+  CONSTRAINT subscription_refund_resolution_required
+    CHECK (status NOT IN ('rejected', 'refunded', 'canceled') OR resolved_at IS NOT NULL),
+  CONSTRAINT subscription_refund_completion_required
+    CHECK (status <> 'refunded' OR (refunded_at IS NOT NULL AND refund_reference IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_refund_user_created
+  ON subscription_refund_requests(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscription_refund_status_created
+  ON subscription_refund_requests(status, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_refund_one_active_per_payment
+  ON subscription_refund_requests(user_id, payment_id)
+  WHERE status IN ('pending', 'reviewing', 'approved');
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_refund_one_completed_per_payment
+  ON subscription_refund_requests(user_id, payment_id)
+  WHERE status = 'refunded';
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_app') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON subscription_refund_requests TO tro_bill_app';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE subscription_refund_requests_id_seq TO tro_bill_app';
+  END IF;
+END $$;
+
 -- DB đã có subscription_payments cần khóa kép để payment_events không thể
 -- liên kết một payment sang user khác.
 DO $$

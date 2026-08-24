@@ -40,6 +40,7 @@ const plans = require('./plans');
 const { createSubscriptionOrder } = require('./subscription-orders');
 const { paymentWebhook } = require('./payment-webhook');
 const paymentHistory = require('./subscription-payment-history');
+const subscriptionRefunds = require('./subscription-refunds');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -109,6 +110,16 @@ app.get(
   requireAuth,
   wrap(paymentHistory.getSubscriptionReceipt)
 );
+app.post(
+  '/api/subscription/payments/:paymentId/refund-requests',
+  requireAuth,
+  wrap(subscriptionRefunds.createRefundRequest)
+);
+app.post(
+  '/api/subscription/refund-requests/:id/cancel',
+  requireAuth,
+  wrap(subscriptionRefunds.cancelRefundRequest)
+);
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/state', requireAuth, wrap(getState));
@@ -151,6 +162,16 @@ app.put('/api/admin/config', adminGuard, wrap(setConfig));
 app.put('/api/admin/config/subscription-payment', adminGuard, wrap(setSubscriptionPaymentConfig));
 app.get('/api/admin/plans', adminGuard, wrap(plans.listAdminPlans));
 app.put('/api/admin/plans/:code', adminGuard, wrap(plans.updatePlan));
+app.get(
+  '/api/admin/subscription/refund-requests',
+  adminGuard,
+  wrap(subscriptionRefunds.listAdminRefundRequests)
+);
+app.post(
+  '/api/admin/subscription/refund-requests/:id/transition',
+  adminGuard,
+  wrap(subscriptionRefunds.transitionAdminRefundRequest)
+);
 
 // ---------- Frontend tĩnh (thư mục cha) ----------
 const FRONTEND_DIR = path.join(__dirname, '..');

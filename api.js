@@ -136,6 +136,21 @@ const API = (() => {
     );
   }
 
+  function createSubscriptionRefundRequest(paymentId, input) {
+    return request(
+      'POST',
+      `/api/subscription/payments/${encodeURIComponent(paymentId)}/refund-requests`,
+      input
+    );
+  }
+
+  function cancelSubscriptionRefundRequest(requestId) {
+    return request(
+      'POST',
+      `/api/subscription/refund-requests/${encodeURIComponent(requestId)}/cancel`
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -192,6 +207,15 @@ const API = (() => {
       'PUT',
       `/api/admin/plans/${encodeURIComponent(code)}`,
       changes
+    ),
+    listSubscriptionRefundRequests: (status = 'active') => request(
+      'GET',
+      `/api/admin/subscription/refund-requests?status=${encodeURIComponent(status)}`
+    ),
+    transitionSubscriptionRefundRequest: (requestId, input) => request(
+      'POST',
+      `/api/admin/subscription/refund-requests/${encodeURIComponent(requestId)}/transition`,
+      input
     )
   };
 
@@ -214,6 +238,8 @@ const API = (() => {
     createSubscriptionOrder,
     getSubscriptionPayments,
     getSubscriptionReceipt,
+    createSubscriptionRefundRequest,
+    cancelSubscriptionRefundRequest,
     privacy,
     getConfig,
     admin

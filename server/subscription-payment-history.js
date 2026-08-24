@@ -7,6 +7,19 @@ function receiptCode(id) {
 }
 
 function paymentJson(row) {
+  const refundRequest = row.refund_request_id ? {
+    id: Number(row.refund_request_id),
+    requestType: row.refund_request_type,
+    requestedAmountVnd: Number(row.refund_requested_amount_vnd),
+    reason: row.refund_reason,
+    status: row.refund_status,
+    adminNote: row.refund_admin_note || '',
+    refundReference: row.refund_reference || '',
+    createdAt: row.refund_created_at,
+    updatedAt: row.refund_updated_at,
+    resolvedAt: row.refund_resolved_at,
+    refundedAt: row.refund_refunded_at
+  } : null;
   return {
     id: Number(row.id),
     receiptCode: row.status === 'paid' ? receiptCode(row.id) : null,
@@ -21,7 +34,8 @@ function paymentJson(row) {
     status: row.status,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
-    paidAt: row.paid_at
+    paidAt: row.paid_at,
+    refundRequest
   };
 }
 
@@ -32,9 +46,25 @@ async function listSubscriptionPayments(req, res) {
     `SELECT sp.id, sp.provider_reference, sp.transfer_content, sp.subscription_action,
             sp.billing_cycle, sp.amount_vnd, sp.currency, sp.status,
             sp.created_at, sp.expires_at, sp.paid_at,
-            p.code AS plan_code, p.name AS plan_name
+            p.code AS plan_code, p.name AS plan_name,
+            rr.id AS refund_request_id, rr.request_type AS refund_request_type,
+            rr.requested_amount_vnd AS refund_requested_amount_vnd,
+            rr.reason AS refund_reason, rr.status AS refund_status,
+            rr.admin_note AS refund_admin_note, rr.refund_reference,
+            rr.created_at AS refund_created_at, rr.updated_at AS refund_updated_at,
+            rr.resolved_at AS refund_resolved_at, rr.refunded_at AS refund_refunded_at
      FROM subscription_payments sp
      JOIN plans p ON p.id=sp.plan_id
+     LEFT JOIN LATERAL (
+       SELECT request.id, request.request_type, request.requested_amount_vnd,
+              request.reason, request.status, request.admin_note,
+              request.refund_reference, request.created_at, request.updated_at,
+              request.resolved_at, request.refunded_at
+       FROM subscription_refund_requests request
+       WHERE request.user_id=sp.user_id AND request.payment_id=sp.id
+       ORDER BY request.created_at DESC, request.id DESC
+       LIMIT 1
+     ) rr ON true
      WHERE sp.user_id=$1
      ORDER BY sp.created_at DESC, sp.id DESC
      LIMIT $2`,
