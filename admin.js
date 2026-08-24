@@ -205,12 +205,17 @@
           'Nhập lý do hỗ trợ cụ thể để xem CCCD đầy đủ (tối thiểu 10 ký tự):'
         );
         if (reason == null) return;
+        const normalizedReason = reason.trim();
+        if (normalizedReason.length < 10) {
+          alert('Lý do hỗ trợ phải có ít nhất 10 ký tự. Vui lòng mô tả cụ thể hơn.');
+          return;
+        }
         button.disabled = true;
         try {
           const revealed = await API.admin.revealTenantCccd(
             user.id,
             button.dataset.tenantId,
-            reason.trim()
+            normalizedReason
           );
           const valueCell = button.closest('tr').querySelector('.admin-cccd-value');
           valueCell.textContent = revealed.cccd || '—';
@@ -218,7 +223,8 @@
           await loadSensitiveAccessLogs();
         } catch (error) {
           button.disabled = false;
-          handleErr(error);
+          if (error.code === 401) return gotoLogin();
+          alert(error.message || 'Không thể xem CCCD. Vui lòng thử lại.');
         }
       });
     });
