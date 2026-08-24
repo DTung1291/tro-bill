@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: production-database-backup
@@ -85,3 +86,20 @@ jobs:
           OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
           ALERT_MESSAGE: TrọBill database backup or restore drill failed in GitHub Actions run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/send-ops-alert.js
+
+      - name: Open backup incident issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS_ISSUE_TITLE: OPS database backup or restore drill failed
+          OPS_ISSUE_BODY: Backup production hoặc restore drill đang thất bại. Issue này chỉ được tạo một lần và sẽ tự đóng sau lần backup thành công.
+          OPS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/manage-operations-issue.sh open
+
+      - name: Close backup incident after recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS_ISSUE_TITLE: OPS database backup or restore drill failed
+          OPS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/manage-operations-issue.sh close

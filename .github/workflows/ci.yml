@@ -33,7 +33,7 @@ jobs:
         run: npm ci --prefix server
 
       - name: Check operational scripts
-        run: bash -n scripts/backup-database.sh scripts/restore-database.sh
+        run: bash -n scripts/backup-database.sh scripts/restore-database.sh scripts/manage-operations-issue.sh
 
       - name: Scan tracked files and Git history for secrets
         run: node scripts/secret-scan.js --history

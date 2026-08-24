@@ -7,12 +7,16 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   readiness-check:
     if: vars.PRODUCTION_HEALTH_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    concurrency:
+      group: production-health-monitor
+      cancel-in-progress: true
     steps:
       - name: Checkout alert helper
         uses: actions/checkout@v7
@@ -32,3 +36,20 @@ jobs:
           OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
           ALERT_MESSAGE: TrọBill production readiness check failed in GitHub Actions run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/send-ops-alert.js
+
+      - name: Open production incident issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS_ISSUE_TITLE: OPS production health check failed
+          OPS_ISSUE_BODY: Production API hoặc database readiness đang thất bại. Issue này chỉ được tạo một lần và sẽ tự đóng khi hệ thống phục hồi.
+          OPS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/manage-operations-issue.sh open
+
+      - name: Close production incident after recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPS_ISSUE_TITLE: OPS production health check failed
+          OPS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: scripts/manage-operations-issue.sh close

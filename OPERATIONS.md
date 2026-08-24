@@ -51,10 +51,14 @@ Request đầu phải chuyển sang HTTPS; request sau phải có
   lỗi; không ghi body, cookie, query string, câu SQL hoặc thông báo lỗi gốc.
 - Response lỗi bất ngờ trả `incidentId` để tra cứu trong Vercel Runtime Logs.
 
-Đặt `OPS_ALERT_WEBHOOK_URL` bằng endpoint HTTPS nhận JSON trong Production,
-Preview và GitHub Actions. Alert cùng loại được giới hạn một lần mỗi năm phút
-trên mỗi instance để giảm spam. Nếu chưa có hệ thống cảnh báo riêng, Runtime Logs
-của Vercel vẫn là nguồn điều tra nhưng chưa được coi là đã hoàn thành alert.
+Khi health production hoặc backup thất bại, GitHub Actions tự mở một Issue duy
+nhất, gán cho `DTung1291`, rồi tự đóng Issue sau lần chạy phục hồi thành công.
+Đây là kênh cảnh báo mặc định không cần thêm secret.
+
+Có thể đặt thêm `OPS_ALERT_WEBHOOK_URL` bằng endpoint HTTPS nhận JSON trong
+Production, Preview và GitHub Actions. Alert webhook cùng loại được giới hạn một
+lần mỗi năm phút trên mỗi instance để giảm spam. Runtime Logs của Vercel vẫn là
+nguồn chính để điều tra theo `incidentId` và `requestId`.
 
 Workflow `.github/workflows/production-health.yml` giám sát readiness mỗi 5 phút
 từ bên ngoài Vercel. Tạo GitHub Actions variable `PRODUCTION_HEALTH_URL` bằng
