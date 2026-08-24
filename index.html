@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=71" />
+  <link rel="stylesheet" href="style.css?v=73" />
 </head>
 
 <body>
@@ -370,6 +370,21 @@
         </div>
       </div>
 
+      <div class="settings-card subscription-offers-card" id="subscription-offers-card">
+        <div class="subscription-offers-head">
+          <div>
+            <strong>🚀 Nâng cấp hoặc gia hạn</strong>
+            <div class="settings-security-note">
+              Mỗi đơn có số tiền, nội dung chuyển khoản và thời hạn riêng. Gói chỉ được cập nhật sau khi giao dịch được xác nhận.
+            </div>
+          </div>
+        </div>
+        <div class="subscription-plan-list" id="subscription-plan-list"></div>
+        <p class="subscription-plans-empty" id="subscription-plans-empty" hidden>
+          Hiện chưa có gói trả phí nào được mở bán.
+        </p>
+      </div>
+
       <div class="settings-card">
         <span>⚙️ Khoản khấu trừ thêm khi in báo cáo:</span>
         <div class="settings-inline">
@@ -567,6 +582,44 @@
           <div><strong>Nội dung:</strong> <span id="donate-message-display" style="color: var(--text-muted);"></span></div>
         </div>
         <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">💜 Cảm ơn bạn rất nhiều!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Thanh toán gói TrọBill -->
+  <div class="modal-overlay" id="subscription-order-modal" hidden>
+    <div class="modal subscription-order-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-order-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="subscription-order-title">Thanh toán gói TrọBill</h2>
+          <p class="subscription-order-reference" id="subscription-order-reference"></p>
+        </div>
+        <button type="button" class="modal-close" id="subscription-order-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="subscription-order-content">
+        <div class="subscription-order-qr-wrap">
+          <img id="subscription-order-qr" src="" alt="VietQR thanh toán gói TrọBill" referrerpolicy="no-referrer" />
+        </div>
+        <div class="subscription-order-details">
+          <div><span>Gói</span><strong id="subscription-order-plan"></strong></div>
+          <div><span>Số tiền</span><strong id="subscription-order-amount"></strong></div>
+          <div><span>Ngân hàng</span><strong id="subscription-order-bank"></strong></div>
+          <div>
+            <span>Số tài khoản</span>
+            <strong id="subscription-order-account"></strong>
+            <button type="button" class="btn btn--sm btn--ghost" id="subscription-copy-account">Sao chép</button>
+          </div>
+          <div class="subscription-order-transfer-row">
+            <span>Nội dung chuyển khoản</span>
+            <strong id="subscription-order-transfer"></strong>
+            <button type="button" class="btn btn--sm btn--ghost" id="subscription-copy-transfer">Sao chép</button>
+          </div>
+          <div><span>Chủ tài khoản</span><strong id="subscription-order-owner"></strong></div>
+          <div><span>Đơn hết hạn</span><strong id="subscription-order-expiry"></strong></div>
+        </div>
+        <p class="subscription-order-notice">
+          Chuyển đúng số tiền và nội dung trên mã. Đơn hiện ở trạng thái chờ xác nhận.
+        </p>
       </div>
     </div>
   </div>
@@ -1007,10 +1060,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=71"></script>
+  <script src="api.js?v=73"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=72"></script>
+  <script src="app.js?v=73"></script>
 </body>
 
 </html>

@@ -43,6 +43,8 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
   const protectedRequests = [
     ['GET', '/api/me'],
     ['GET', '/api/subscription'],
+    ['GET', '/api/plans'],
+    ['POST', '/api/subscription/orders'],
     ['GET', '/api/state'],
     ['PUT', '/api/state'],
     ['GET', '/api/config'],
@@ -62,7 +64,11 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['POST', '/api/admin/users/2/subscription/change'],
     ['POST', '/api/admin/users/2/tenants/t-1/reveal-cccd'],
     ['GET', '/api/admin/sensitive-access-logs'],
-    ['PUT', '/api/admin/config']
+    ['GET', '/api/admin/config'],
+    ['PUT', '/api/admin/config'],
+    ['PUT', '/api/admin/config/subscription-payment'],
+    ['GET', '/api/admin/plans'],
+    ['PUT', '/api/admin/plans/pro']
   ];
 
   for (const [method, path] of protectedRequests) {

@@ -96,8 +96,14 @@ CREATE TABLE IF NOT EXISTS app_config (
   donate_bank_id    TEXT NOT NULL DEFAULT '',
   donate_account    TEXT NOT NULL DEFAULT '',
   donate_owner_name TEXT NOT NULL DEFAULT '',
-  donate_message    TEXT NOT NULL DEFAULT 'Ung ho'
+  donate_message    TEXT NOT NULL DEFAULT 'Ung ho',
+  subscription_bank_id    TEXT NOT NULL DEFAULT '',
+  subscription_account    TEXT NOT NULL DEFAULT '',
+  subscription_owner_name TEXT NOT NULL DEFAULT ''
 );
+ALTER TABLE app_config ADD COLUMN IF NOT EXISTS subscription_bank_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE app_config ADD COLUMN IF NOT EXISTS subscription_account TEXT NOT NULL DEFAULT '';
+ALTER TABLE app_config ADD COLUMN IF NOT EXISTS subscription_owner_name TEXT NOT NULL DEFAULT '';
 INSERT INTO app_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 -- Danh mục gói dịch vụ của TrọBill. Giá dùng đơn vị VND và có thể để NULL
@@ -259,6 +265,12 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   status             TEXT NOT NULL DEFAULT 'pending',
   provider           TEXT NOT NULL DEFAULT 'manual',
   provider_reference TEXT,
+  subscription_action TEXT,
+  transfer_content    TEXT,
+  bank_id_snapshot    TEXT,
+  bank_account_snapshot TEXT,
+  bank_owner_snapshot TEXT,
+  expires_at          TIMESTAMPTZ,
   paid_at            TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -273,9 +285,29 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
     CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'canceled')),
   CONSTRAINT subscription_payments_provider_format
     CHECK (provider ~ '^[a-z][a-z0-9_-]{1,31}$'),
+  CONSTRAINT subscription_payments_action_valid
+    CHECK (subscription_action IS NULL OR subscription_action IN ('upgrade', 'renew')),
+  CONSTRAINT subscription_payments_transfer_format
+    CHECK (transfer_content IS NULL OR transfer_content ~ '^[A-Z0-9]{6,25}$'),
+  CONSTRAINT subscription_payments_expiry_order
+    CHECK (expires_at IS NULL OR expires_at > created_at),
+  CONSTRAINT subscription_payments_vietqr_fields_required
+    CHECK (provider <> 'vietqr' OR (
+      subscription_action IS NOT NULL AND transfer_content IS NOT NULL
+      AND NULLIF(bank_id_snapshot, '') IS NOT NULL
+      AND NULLIF(bank_account_snapshot, '') IS NOT NULL
+      AND NULLIF(bank_owner_snapshot, '') IS NOT NULL
+      AND expires_at IS NOT NULL
+    )),
   CONSTRAINT subscription_payments_paid_at_required
     CHECK (status <> 'paid' OR paid_at IS NOT NULL)
 );
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS subscription_action TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS transfer_content TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_id_snapshot TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_account_snapshot TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_owner_snapshot TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_subscription_payments_user_created
   ON subscription_payments(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_subscription_payments_status_created
@@ -283,6 +315,9 @@ CREATE INDEX IF NOT EXISTS idx_subscription_payments_status_created
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_provider_reference
   ON subscription_payments(provider, provider_reference)
   WHERE provider_reference IS NOT NULL AND provider_reference <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_transfer_content
+  ON subscription_payments(transfer_content)
+  WHERE transfer_content IS NOT NULL AND transfer_content <> '';
 
 -- DB đã có subscription_payments cần khóa kép để payment_events không thể
 -- liên kết một payment sang user khác.
@@ -296,6 +331,48 @@ BEGIN
   ) THEN
     ALTER TABLE subscription_payments
       ADD CONSTRAINT subscription_payments_user_id_id_unique UNIQUE (user_id, id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_action_valid'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_action_valid
+      CHECK (subscription_action IS NULL OR subscription_action IN ('upgrade', 'renew'));
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_transfer_format'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_transfer_format
+      CHECK (transfer_content IS NULL OR transfer_content ~ '^[A-Z0-9]{6,25}$');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_expiry_order'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_expiry_order
+      CHECK (expires_at IS NULL OR expires_at > created_at);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_vietqr_fields_required'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_vietqr_fields_required
+      CHECK (provider <> 'vietqr' OR (
+        subscription_action IS NOT NULL AND transfer_content IS NOT NULL
+        AND NULLIF(bank_id_snapshot, '') IS NOT NULL
+        AND NULLIF(bank_account_snapshot, '') IS NOT NULL
+        AND NULLIF(bank_owner_snapshot, '') IS NOT NULL
+        AND expires_at IS NOT NULL
+      ));
   END IF;
 END $$;
 

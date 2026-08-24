@@ -114,6 +114,14 @@ const API = (() => {
     return request('GET', '/api/subscription');
   }
 
+  function getPlans() {
+    return request('GET', '/api/plans');
+  }
+
+  function createSubscriptionOrder(planCode, billingCycle) {
+    return request('POST', '/api/subscription/orders', { planCode, billingCycle });
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -158,7 +166,19 @@ const API = (() => {
       'GET',
       `/api/admin/sensitive-access-logs?limit=${encodeURIComponent(limit)}`
     ),
-    setConfig: (cfg) => request('PUT', '/api/admin/config', cfg)
+    getConfig: () => request('GET', '/api/admin/config'),
+    setConfig: (cfg) => request('PUT', '/api/admin/config', cfg),
+    setSubscriptionPaymentConfig: (cfg) => request(
+      'PUT',
+      '/api/admin/config/subscription-payment',
+      cfg
+    ),
+    listPlans: () => request('GET', '/api/admin/plans'),
+    updatePlan: (code, changes) => request(
+      'PUT',
+      `/api/admin/plans/${encodeURIComponent(code)}`,
+      changes
+    )
   };
 
   return {
@@ -176,6 +196,8 @@ const API = (() => {
     putState,
     me,
     getSubscription,
+    getPlans,
+    createSubscriptionOrder,
     privacy,
     getConfig,
     admin

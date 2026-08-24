@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Quản trị</title>
-  <link rel="stylesheet" href="style.css?v=68" />
+  <link rel="stylesheet" href="style.css?v=73" />
 </head>
 <body>
   <div class="admin-wrap">
@@ -56,6 +56,61 @@
       <button id="cfg-save" class="admin-btn">Lưu cấu hình</button>
     </section>
 
+    <section class="admin-config">
+      <h2>💳 Thu tiền gói TrọBill</h2>
+      <p class="admin-config-note">
+        Tài khoản này chỉ dùng cho đơn mua hoặc gia hạn gói TrọBill. Mỗi đơn có số tiền và nội dung chuyển khoản riêng.
+      </p>
+      <div class="admin-config-grid">
+        <label>Ngân hàng
+          <select id="subscription-bank-select">
+            <option value="">-- Chọn ngân hàng --</option>
+            <option value="MB">MB Bank (MB)</option>
+            <option value="VCB">Vietcombank (VCB)</option>
+            <option value="TCB">Techcombank (TCB)</option>
+            <option value="BIDV">BIDV</option>
+            <option value="ICB">VietinBank (ICB)</option>
+            <option value="VBA">Agribank (VBA)</option>
+            <option value="ACB">ACB</option>
+            <option value="TPB">TPBank (TPB)</option>
+            <option value="VPB">VPBank (VPB)</option>
+            <option value="STB">Sacombank (STB)</option>
+            <option value="VIB">VIB</option>
+            <option value="custom">Khác (Tự nhập)...</option>
+          </select>
+        </label>
+        <label id="subscription-bank-custom-wrap" hidden>Mã ngân hàng
+          <input type="text" id="subscription-bank-custom" placeholder="e.g. OCB" />
+        </label>
+        <label>Số tài khoản
+          <input type="text" id="subscription-bank-account" placeholder="Số tài khoản" />
+        </label>
+        <label>Chủ tài khoản (KHÔNG DẤU)
+          <input type="text" id="subscription-bank-owner" placeholder="NGUYEN VAN A" />
+        </label>
+      </div>
+      <button id="subscription-bank-save" class="admin-btn">Lưu tài khoản thu gói</button>
+    </section>
+
+    <section class="admin-config">
+      <h2>🏷️ Giá và trạng thái gói</h2>
+      <p class="admin-config-note">
+        Chỉ gói đã kích hoạt, công khai và có đủ giá tháng/năm mới xuất hiện cho người dùng. Mỗi thay đổi đều phải nhập lý do và được ghi audit log.
+      </p>
+      <div class="admin-table-wrap">
+        <table class="admin-subtable" id="plans-table" hidden>
+          <thead>
+            <tr>
+              <th>Gói</th><th>Giới hạn</th><th>Giá tháng</th><th>Giá năm</th>
+              <th>Kích hoạt</th><th>Công khai</th><th>Lý do thay đổi</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="plans-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-muted" id="plans-empty" hidden>Chưa tải được danh sách gói.</p>
+    </section>
+
     <table class="admin-table" id="admin-table" hidden>
       <thead>
         <tr>
@@ -94,7 +149,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=68"></script>
-  <script src="admin.js?v=69"></script>
+  <script src="api.js?v=73"></script>
+  <script src="admin.js?v=73"></script>
 </body>
 </html>

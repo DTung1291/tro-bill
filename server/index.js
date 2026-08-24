@@ -27,10 +27,17 @@ const {
 const { getState, putState } = require('./state');
 const admin = require('./admin');
 const privacy = require('./privacy');
-const { getConfig, setConfig } = require('./config');
+const {
+  getAdminConfig,
+  getConfig,
+  setConfig,
+  setSubscriptionPaymentConfig
+} = require('./config');
 const { seedAdmin } = require('./seed-admin');
 const subscription = require('./subscription');
 const { expiryReminderCron } = require('./subscription-notifications');
+const plans = require('./plans');
+const { createSubscriptionOrder } = require('./subscription-orders');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,6 +93,8 @@ app.post('/api/auth/reset-password', wrap(resetPassword));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/subscription', requireAuth, wrap(subscription.getSubscription));
+app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
+app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));
@@ -121,7 +130,11 @@ app.post(
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
 app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));
+app.get('/api/admin/config', adminGuard, wrap(getAdminConfig));
 app.put('/api/admin/config', adminGuard, wrap(setConfig));
+app.put('/api/admin/config/subscription-payment', adminGuard, wrap(setSubscriptionPaymentConfig));
+app.get('/api/admin/plans', adminGuard, wrap(plans.listAdminPlans));
+app.put('/api/admin/plans/:code', adminGuard, wrap(plans.updatePlan));
 
 // ---------- Frontend tĩnh (thư mục cha) ----------
 const FRONTEND_DIR = path.join(__dirname, '..');

@@ -317,6 +317,47 @@ body.modal-open {
   background: linear-gradient(90deg, var(--primary), #8b83ff);
   transition: width .25s ease;
 }
+.subscription-offers-card {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.subscription-offers-head { margin-bottom: 12px; color: var(--text); }
+.subscription-plan-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.subscription-plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.subscription-plan-card--current { border-color: rgba(108, 99, 255, .6); }
+.subscription-plan-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text);
+}
+.subscription-plan-heading strong { font-size: 1rem; }
+.subscription-plan-heading span { color: var(--primary); font-size: .76rem; font-weight: 700; }
+.subscription-plan-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.subscription-cycle-select { width: 100%; }
+.subscription-plan-action { justify-content: center; width: 100%; }
+.subscription-plans-empty { margin: 0; color: var(--text-muted); font-size: .8rem; }
 .settings-security-card {
   margin-top: 12px;
   width: 100%;
@@ -855,6 +896,75 @@ body.modal-open {
 .bill-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 .bill-footer { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }
 .bill-preview-trigger { font-weight: 700; }
+
+/* Đơn thanh toán gói TrọBill */
+.modal.subscription-order-modal {
+  width: min(94vw, 720px);
+  max-height: calc(100dvh - 32px);
+}
+.subscription-order-reference {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: .76rem;
+  overflow-wrap: anywhere;
+}
+.subscription-order-content {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr);
+  gap: 18px;
+  padding: 18px;
+  overflow-x: hidden;
+}
+.subscription-order-qr-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.subscription-order-qr-wrap img {
+  display: block;
+  width: min(100%, 300px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.subscription-order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.subscription-order-details > div {
+  display: grid;
+  grid-template-columns: minmax(110px, .75fr) minmax(0, 1.25fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border);
+  font-size: .82rem;
+}
+.subscription-order-details span { color: var(--text-muted); }
+.subscription-order-details strong { min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+.subscription-order-transfer-row strong { color: var(--primary); letter-spacing: .04em; }
+.subscription-order-notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, .13);
+  color: #b45309;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+@media (max-width: 680px) {
+  .subscription-order-content { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .subscription-order-qr-wrap img { width: min(82vw, 280px); }
+  .subscription-order-details > div { grid-template-columns: minmax(105px, .8fr) minmax(0, 1.2fr); }
+  .subscription-order-details .btn { grid-column: 2; justify-self: start; }
+}
 
 /* Bill + VietQR modal */
 .modal.bill-preview-modal {
@@ -2221,6 +2331,19 @@ body.modal-open {
   color: inherit;
   font-size: 0.88rem;
 }
+.admin-plan-price,
+.admin-plan-reason {
+  width: min(180px, 100%);
+  min-width: 120px;
+  padding: 7px 9px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--bg, #fff);
+  color: inherit;
+  font-size: .82rem;
+}
+.admin-plan-reason { width: min(260px, 100%); min-width: 200px; }
+.admin-plan-checkbox { width: 18px; height: 18px; accent-color: var(--accent, #2563eb); }
 
 .admin-modal {
   position: fixed;

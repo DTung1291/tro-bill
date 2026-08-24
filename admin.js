@@ -266,19 +266,23 @@
   const cfgOwner = $('#cfg-owner');
   const cfgMessage = $('#cfg-message');
 
+  function fillBankFields(select, customWrap, customInput, bankId) {
+    if (bankId === '') {
+      select.value = '';
+      customWrap.hidden = true;
+    } else if (PREDEFINED_BANKS.includes(bankId)) {
+      select.value = bankId;
+      customWrap.hidden = true;
+    } else {
+      select.value = 'custom';
+      customInput.value = bankId;
+      customWrap.hidden = false;
+    }
+  }
+
   function fillConfig(cfg) {
     const bankId = cfg.donateBankId || '';
-    if (bankId === '') {
-      cfgSel.value = '';
-      cfgCustomWrap.hidden = true;
-    } else if (PREDEFINED_BANKS.includes(bankId)) {
-      cfgSel.value = bankId;
-      cfgCustomWrap.hidden = true;
-    } else {
-      cfgSel.value = 'custom';
-      cfgCustom.value = bankId;
-      cfgCustomWrap.hidden = false;
-    }
+    fillBankFields(cfgSel, cfgCustomWrap, cfgCustom, bankId);
     cfgAccount.value = cfg.donateAccount || '';
     cfgOwner.value = cfg.donateOwnerName || '';
     cfgMessage.value = cfg.donateMessage || 'Ung ho';
@@ -291,7 +295,9 @@
 
   async function loadConfig() {
     try {
-      fillConfig(await API.getConfig());
+      const cfg = await API.admin.getConfig();
+      fillConfig(cfg);
+      fillSubscriptionPaymentConfig(cfg);
     } catch (e) { /* dùng giá trị trống */ }
   }
 
@@ -317,6 +323,172 @@
     }
   });
 
+  // ---------- Tài khoản nhận thanh toán gói TrọBill ----------
+  const subscriptionBankSel = $('#subscription-bank-select');
+  const subscriptionBankCustomWrap = $('#subscription-bank-custom-wrap');
+  const subscriptionBankCustom = $('#subscription-bank-custom');
+  const subscriptionBankAccount = $('#subscription-bank-account');
+  const subscriptionBankOwner = $('#subscription-bank-owner');
+
+  function fillSubscriptionPaymentConfig(cfg) {
+    fillBankFields(
+      subscriptionBankSel,
+      subscriptionBankCustomWrap,
+      subscriptionBankCustom,
+      cfg.subscriptionBankId || ''
+    );
+    subscriptionBankAccount.value = cfg.subscriptionAccount || '';
+    subscriptionBankOwner.value = cfg.subscriptionOwnerName || '';
+  }
+
+  subscriptionBankSel.addEventListener('change', () => {
+    subscriptionBankCustomWrap.hidden = subscriptionBankSel.value !== 'custom';
+    if (subscriptionBankSel.value === 'custom') {
+      subscriptionBankCustom.value = '';
+      subscriptionBankCustom.focus();
+    }
+  });
+
+  $('#subscription-bank-save').addEventListener('click', async () => {
+    const selected = subscriptionBankSel.value;
+    const bankId = selected === 'custom'
+      ? subscriptionBankCustom.value.trim().toUpperCase()
+      : selected;
+    try {
+      const saved = await API.admin.setSubscriptionPaymentConfig({
+        bankId,
+        account: subscriptionBankAccount.value.trim(),
+        ownerName: subscriptionBankOwner.value.trim()
+      });
+      fillSubscriptionPaymentConfig(saved);
+      showMsg('Đã lưu tài khoản nhận thanh toán gói TrọBill.', false);
+    } catch (e) {
+      handleErr(e);
+    }
+  });
+
+  // ---------- Giá và trạng thái gói ----------
+  const plansTable = $('#plans-table');
+  const plansTbody = $('#plans-tbody');
+  const plansEmpty = $('#plans-empty');
+
+  function appendTextCell(row, value) {
+    const cell = document.createElement('td');
+    cell.textContent = value;
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function appendInputCell(row, input) {
+    const cell = document.createElement('td');
+    cell.appendChild(input);
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function planPriceInput(value, label) {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1000';
+    input.className = 'admin-plan-price';
+    input.setAttribute('aria-label', label);
+    input.value = value == null ? '' : String(value);
+    return input;
+  }
+
+  function planCheckbox(value, label) {
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'admin-plan-checkbox';
+    input.setAttribute('aria-label', label);
+    input.checked = value === true;
+    return input;
+  }
+
+  function renderPlans(plans) {
+    plansTbody.textContent = '';
+    for (const plan of plans) {
+      const row = document.createElement('tr');
+      appendTextCell(row, plan.name || plan.code);
+      appendTextCell(row, `${plan.roomLimit} phòng · ${plan.staffLimit} nhân viên`);
+
+      if (plan.code === 'free') {
+        appendTextCell(row, 'Miễn phí');
+        appendTextCell(row, 'Miễn phí');
+        appendTextCell(row, plan.isActive ? 'Có' : 'Không');
+        appendTextCell(row, plan.isPublic ? 'Có' : 'Không');
+        const locked = appendTextCell(row, 'Gói nền tảng được khóa');
+        locked.colSpan = 2;
+        plansTbody.appendChild(row);
+        continue;
+      }
+
+      const monthly = planPriceInput(plan.monthlyPriceVnd, `Giá tháng gói ${plan.name}`);
+      const yearly = planPriceInput(plan.yearlyPriceVnd, `Giá năm gói ${plan.name}`);
+      const active = planCheckbox(plan.isActive, `Kích hoạt gói ${plan.name}`);
+      const publicInput = planCheckbox(plan.isPublic, `Công khai gói ${plan.name}`);
+      const reason = document.createElement('input');
+      reason.type = 'text';
+      reason.className = 'admin-plan-reason';
+      reason.placeholder = 'Tối thiểu 10 ký tự';
+      reason.maxLength = 500;
+
+      publicInput.addEventListener('change', () => {
+        if (publicInput.checked) active.checked = true;
+      });
+      active.addEventListener('change', () => {
+        if (!active.checked) publicInput.checked = false;
+      });
+
+      appendInputCell(row, monthly);
+      appendInputCell(row, yearly);
+      appendInputCell(row, active);
+      appendInputCell(row, publicInput);
+      appendInputCell(row, reason);
+      const actionCell = document.createElement('td');
+      const saveButton = btn('Lưu', 'admin-btn', async () => {
+        if (reason.value.trim().length < 10) {
+          showMsg(`Lý do thay đổi gói ${plan.name} phải có ít nhất 10 ký tự.`, true);
+          reason.focus();
+          return;
+        }
+        saveButton.disabled = true;
+        try {
+          await API.admin.updatePlan(plan.code, {
+            monthlyPriceVnd: monthly.value,
+            yearlyPriceVnd: yearly.value,
+            isActive: active.checked,
+            isPublic: publicInput.checked,
+            reason: reason.value.trim()
+          });
+          showMsg(`Đã cập nhật gói ${plan.name} và ghi audit log.`, false);
+          await loadPlans();
+        } catch (e) {
+          handleErr(e);
+        } finally {
+          saveButton.disabled = false;
+        }
+      });
+      actionCell.appendChild(saveButton);
+      row.appendChild(actionCell);
+      plansTbody.appendChild(row);
+    }
+    plansTable.hidden = plans.length === 0;
+    plansEmpty.hidden = plans.length !== 0;
+  }
+
+  async function loadPlans() {
+    try {
+      const result = await API.admin.listPlans();
+      renderPlans(result.plans || []);
+    } catch (e) {
+      plansTable.hidden = true;
+      plansEmpty.hidden = false;
+      plansEmpty.textContent = e.message || 'Không tải được danh sách gói.';
+    }
+  }
+
   // ---------- Khởi động ----------
   function closeUserModal() {
     modal.hidden = true;
@@ -330,5 +502,6 @@
   // nhận phiên; nếu hết hạn, loadUsers() tự chuyển về trang đăng nhập.
   loadUsers();
   loadConfig();
+  loadPlans();
   loadSensitiveAccessLogs();
 })();

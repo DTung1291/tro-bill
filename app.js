@@ -39,6 +39,8 @@ let SERVER_ENTITLEMENTS = {
     dataExport: { enabled: true }
   }
 };
+let SERVER_PLANS = [];
+let CURRENT_SUBSCRIPTION_ORDER = null;
 
 function applyServerEntitlements(value) {
   if (!value || !value.plan || !value.features) {
@@ -88,6 +90,145 @@ function renderSubscriptionSummary() {
   card.classList.toggle('subscription-summary-card--warning', ['expiring_soon', 'grace_period'].includes(subscription.status));
   card.classList.toggle('subscription-summary-card--expired', ['expired', 'canceled'].includes(subscription.status));
 }
+
+function renderSubscriptionPlans() {
+  const list = document.getElementById('subscription-plan-list');
+  const empty = document.getElementById('subscription-plans-empty');
+  if (!list || !empty) return;
+
+  list.textContent = '';
+  const paidPlans = SERVER_PLANS.filter(plan => plan.code !== 'free');
+  empty.hidden = paidPlans.length !== 0;
+  const currentPlan = SERVER_ENTITLEMENTS.plan || {};
+
+  for (const plan of paidPlans) {
+    const card = document.createElement('article');
+    card.className = 'subscription-plan-card';
+    if (plan.code === currentPlan.code) card.classList.add('subscription-plan-card--current');
+
+    const heading = document.createElement('div');
+    heading.className = 'subscription-plan-heading';
+    const title = document.createElement('strong');
+    title.textContent = plan.name || plan.code;
+    const limit = document.createElement('span');
+    limit.textContent = `Tối đa ${plan.roomLimit} phòng`;
+    heading.append(title, limit);
+
+    const description = document.createElement('p');
+    description.textContent = plan.description || `${plan.roomLimit} phòng · ${plan.staffLimit} nhân viên`;
+
+    const cycle = document.createElement('select');
+    cycle.className = 'inline-input subscription-cycle-select';
+    cycle.setAttribute('aria-label', `Chu kỳ thanh toán gói ${plan.name}`);
+    const monthly = document.createElement('option');
+    monthly.value = 'monthly';
+    monthly.textContent = `${fmt(plan.monthlyPriceVnd)} / tháng`;
+    const yearly = document.createElement('option');
+    yearly.value = 'yearly';
+    yearly.textContent = `${fmt(plan.yearlyPriceVnd)} / năm`;
+    cycle.append(monthly, yearly);
+
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn btn--primary subscription-plan-action';
+    const isRenewal = plan.code === currentPlan.code;
+    const isDowngrade = !isRenewal && Number(plan.roomLimit) < Number(currentPlan.roomLimit || 0);
+    action.textContent = isRenewal ? 'Gia hạn gói này' : 'Chọn gói này';
+    action.disabled = isDowngrade;
+    if (isDowngrade) action.title = 'Không thể hạ gói trong luồng thanh toán này';
+
+    action.addEventListener('click', async () => {
+      const originalLabel = action.textContent;
+      action.disabled = true;
+      action.textContent = 'Đang tạo đơn…';
+      try {
+        const result = await API.createSubscriptionOrder(plan.code, cycle.value);
+        openSubscriptionOrderModal(result);
+        if (result.reused) showToast('Đã mở lại đơn thanh toán còn hiệu lực.', 'info');
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không tạo được đơn thanh toán', 'error', 4000);
+      } finally {
+        action.disabled = isDowngrade;
+        action.textContent = originalLabel;
+      }
+    });
+
+    card.append(heading, description, cycle, action);
+    list.appendChild(card);
+  }
+}
+
+function closeSubscriptionOrderModal() {
+  const modal = document.getElementById('subscription-order-modal');
+  const image = document.getElementById('subscription-order-qr');
+  if (modal) modal.hidden = true;
+  if (image) image.removeAttribute('src');
+  CURRENT_SUBSCRIPTION_ORDER = null;
+}
+
+function openSubscriptionOrderModal(result) {
+  const modal = document.getElementById('subscription-order-modal');
+  const image = document.getElementById('subscription-order-qr');
+  if (!modal || !image || !result?.order || !result?.vietQr) return;
+
+  const order = result.order;
+  const vietQr = result.vietQr;
+  CURRENT_SUBSCRIPTION_ORDER = result;
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+  setText('subscription-order-reference', `Mã đơn: ${order.reference}`);
+  setText(
+    'subscription-order-plan',
+    `${order.planName} · ${order.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'}`
+  );
+  setText('subscription-order-amount', fmt(order.amountVnd));
+  setText('subscription-order-bank', vietQr.bankId);
+  setText('subscription-order-account', vietQr.account);
+  setText('subscription-order-transfer', vietQr.transferContent);
+  setText('subscription-order-owner', vietQr.ownerName);
+  setText(
+    'subscription-order-expiry',
+    new Date(order.expiresAt).toLocaleString('vi-VN')
+  );
+
+  if (String(vietQr.imageUrl).startsWith('https://img.vietqr.io/image/')) {
+    image.src = vietQr.imageUrl;
+  }
+  modal.hidden = false;
+}
+
+async function copySubscriptionOrderValue(value, successMessage) {
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    showToast(successMessage, 'success');
+  } catch (_) {
+    showToast('Không sao chép được. Vui lòng sao chép thủ công.', 'error');
+  }
+}
+
+document.getElementById('subscription-order-close')?.addEventListener(
+  'click',
+  closeSubscriptionOrderModal
+);
+document.getElementById('subscription-order-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeSubscriptionOrderModal();
+});
+document.getElementById('subscription-copy-account')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(
+    CURRENT_SUBSCRIPTION_ORDER?.vietQr?.account,
+    'Đã sao chép số tài khoản.'
+  );
+});
+document.getElementById('subscription-copy-transfer')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(
+    CURRENT_SUBSCRIPTION_ORDER?.vietQr?.transferContent,
+    'Đã sao chép nội dung chuyển khoản.'
+  );
+});
 
 // ============================================================
 //  PERSISTENCE (backend API — Neon Postgres)
@@ -1019,7 +1160,10 @@ function renderPage(page) {
     case 'expenses':  renderExpenses();  break;
     case 'report':    renderReport();    break;
     case 'history':   renderHistory();   break;
-    case 'settings':  renderSubscriptionSummary(); break;
+    case 'settings':
+      renderSubscriptionSummary();
+      renderSubscriptionPlans();
+      break;
   }
 }
 
@@ -4137,13 +4281,16 @@ function handleAuthExpired() {
 
 async function startApp() {
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement] = await Promise.all([
+  const [serverState, entitlement, plansResult] = await Promise.all([
     API.getState(),
-    API.getSubscription()
+    API.getSubscription(),
+    API.getPlans().catch(() => ({ plans: [] }))
   ]);
   applyServerEntitlements(entitlement);
+  SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
   loadState(serverState);
   renderSubscriptionSummary();
+  renderSubscriptionPlans();
   loadDonateConfig();
   loadPrivacyStatus();
   showAuthScreen(false);

@@ -131,7 +131,7 @@ Trạng thái ngày 24/08/2026:
 
 ### Thanh toán gói TrọBill
 
-- [ ] Tạo payment link hoặc VietQR riêng cho từng đơn hàng subscription.
+- [x] Tạo payment link hoặc VietQR riêng cho từng đơn hàng subscription.
 - [ ] Tích hợp webhook xác nhận giao dịch và kiểm tra chữ ký.
 - [ ] Webhook phải idempotent, nhận lại nhiều lần vẫn chỉ ghi nhận một thanh toán.
 - [ ] Tự động kích hoạt hoặc gia hạn gói sau khi thanh toán thành công.
