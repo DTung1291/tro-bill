@@ -85,6 +85,12 @@ function inspectRuntimeEnvironment(env = process.env) {
         'Production phải có CRON_SECRET tối thiểu 32 ký tự để bảo vệ tác vụ định kỳ.'
       );
     }
+    if (String(env.PAYMENT_WEBHOOK_SECRET || '').length < 32) {
+      addIssue(
+        'PAYMENT_WEBHOOK_SECRET_MISSING',
+        'Production phải có PAYMENT_WEBHOOK_SECRET tối thiểu 32 ký tự.'
+      );
+    }
   }
 
   return {

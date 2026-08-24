@@ -203,3 +203,6 @@ tham chiếu phòng của tài khoản khác.
 
 Health check, log/cảnh báo, phân tách môi trường, backup mã hóa và quy trình
 restore được mô tả trong [OPERATIONS.md](OPERATIONS.md).
+
+Hợp đồng HMAC, payload tối thiểu và quy tắc idempotency của webhook thanh toán
+subscription được mô tả trong [PAYMENT_WEBHOOK.md](PAYMENT_WEBHOOK.md).

@@ -42,7 +42,8 @@ test('cấu hình production từ chối URL HTTP và database gắn nhãn sai m
     EMAIL_PROVIDER: 'brevo',
     BREVO_API_KEY: 'placeholder',
     EMAIL_FROM: 'TrọBill <no-reply@example.com>',
-    CRON_SECRET: 'c'.repeat(40)
+    CRON_SECRET: 'c'.repeat(40),
+    PAYMENT_WEBHOOK_SECRET: 'p'.repeat(40)
   });
 
   assert.equal(report.valid, false);
@@ -63,9 +64,29 @@ test('production bắt buộc secret đủ dài cho cron', () => {
     EMAIL_PROVIDER: 'brevo',
     BREVO_API_KEY: 'placeholder',
     EMAIL_FROM: 'TrọBill <no-reply@example.com>',
-    CRON_SECRET: 'ngắn'
+    CRON_SECRET: 'ngắn',
+    PAYMENT_WEBHOOK_SECRET: 'p'.repeat(40)
   });
   assert.equal(report.issues.some(issue => issue.code === 'CRON_SECRET_MISSING'), true);
+});
+
+test('production bắt buộc secret đủ dài để xác minh webhook thanh toán', () => {
+  const report = inspectRuntimeEnvironment({
+    APP_ENV: 'production',
+    DATABASE_ENVIRONMENT: 'production',
+    DATABASE_URL: 'postgresql://placeholder',
+    JWT_SECRET: 'a'.repeat(40),
+    APP_URL: 'https://app.example.com',
+    EMAIL_PROVIDER: 'brevo',
+    BREVO_API_KEY: 'placeholder',
+    EMAIL_FROM: 'TrọBill <no-reply@example.com>',
+    CRON_SECRET: 'c'.repeat(40),
+    PAYMENT_WEBHOOK_SECRET: 'ngắn'
+  });
+  assert.equal(
+    report.issues.some(issue => issue.code === 'PAYMENT_WEBHOOK_SECRET_MISSING'),
+    true
+  );
 });
 
 test('middleware production chuyển HTTP sang HTTPS bằng APP_URL tin cậy', () => {

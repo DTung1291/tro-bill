@@ -38,6 +38,7 @@ const subscription = require('./subscription');
 const { expiryReminderCron } = require('./subscription-notifications');
 const plans = require('./plans');
 const { createSubscriptionOrder } = require('./subscription-orders');
+const { paymentWebhook } = require('./payment-webhook');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,7 +48,14 @@ app.set('trust proxy', 1);
 app.use(requestObservability);
 app.use(securityHeaders);
 app.use(enforceHttps);
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({
+  limit: '5mb',
+  verify(req, res, buffer) {
+    if (req.originalUrl?.startsWith('/api/webhooks/subscription-payments/')) {
+      req.rawBody = Buffer.from(buffer);
+    }
+  }
+}));
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -82,6 +90,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 app.get('/api/health/live', live);
 app.get('/api/health/ready', wrap(ready));
 app.get('/api/cron/subscription-expiry', wrap(expiryReminderCron));
+app.post('/api/webhooks/subscription-payments/bank-transfer', wrap(paymentWebhook));
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);

@@ -53,3 +53,16 @@ test('mã giao dịch nhà cung cấp không thể được ghi nhận hai lần
     /CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_provider_reference[\s\S]*ON subscription_payments\(provider, provider_reference\)[\s\S]*WHERE provider_reference IS NOT NULL AND provider_reference <> '';/
   );
 });
+
+test('mỗi giao dịch đối soát chỉ được dùng cho một payment', () => {
+  assert.match(paymentsTable[1], /settlement_provider\s+TEXT/);
+  assert.match(paymentsTable[1], /settlement_reference\s+TEXT/);
+  assert.match(
+    paymentsTable[1],
+    /CHECK \(\(settlement_provider IS NULL\) = \(settlement_reference IS NULL\)\)/
+  );
+  assert.match(
+    schema,
+    /CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_settlement_reference[\s\S]*ON subscription_payments\(settlement_provider, settlement_reference\)/
+  );
+});

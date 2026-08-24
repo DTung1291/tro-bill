@@ -270,6 +270,8 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   bank_id_snapshot    TEXT,
   bank_account_snapshot TEXT,
   bank_owner_snapshot TEXT,
+  settlement_provider TEXT,
+  settlement_reference TEXT,
   expires_at          TIMESTAMPTZ,
   paid_at            TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -291,6 +293,10 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
     CHECK (transfer_content IS NULL OR transfer_content ~ '^[A-Z0-9]{6,25}$'),
   CONSTRAINT subscription_payments_expiry_order
     CHECK (expires_at IS NULL OR expires_at > created_at),
+  CONSTRAINT subscription_payments_settlement_link_complete
+    CHECK ((settlement_provider IS NULL) = (settlement_reference IS NULL)),
+  CONSTRAINT subscription_payments_settlement_provider_format
+    CHECK (settlement_provider IS NULL OR settlement_provider ~ '^[a-z][a-z0-9_-]{1,31}$'),
   CONSTRAINT subscription_payments_vietqr_fields_required
     CHECK (provider <> 'vietqr' OR (
       subscription_action IS NOT NULL AND transfer_content IS NOT NULL
@@ -307,6 +313,8 @@ ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS transfer_content TEXT
 ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_id_snapshot TEXT;
 ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_account_snapshot TEXT;
 ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS bank_owner_snapshot TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS settlement_provider TEXT;
+ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS settlement_reference TEXT;
 ALTER TABLE subscription_payments ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_subscription_payments_user_created
   ON subscription_payments(user_id, created_at DESC);
@@ -318,6 +326,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_provider_reference
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_transfer_content
   ON subscription_payments(transfer_content)
   WHERE transfer_content IS NOT NULL AND transfer_content <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_settlement_reference
+  ON subscription_payments(settlement_provider, settlement_reference)
+  WHERE settlement_provider IS NOT NULL AND settlement_reference IS NOT NULL;
 
 -- DB đã có subscription_payments cần khóa kép để payment_events không thể
 -- liên kết một payment sang user khác.
@@ -359,6 +370,22 @@ BEGIN
   ) THEN
     ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_expiry_order
       CHECK (expires_at IS NULL OR expires_at > created_at);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_settlement_link_complete'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_settlement_link_complete
+      CHECK ((settlement_provider IS NULL) = (settlement_reference IS NULL));
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscription_payments_settlement_provider_format'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments ADD CONSTRAINT subscription_payments_settlement_provider_format
+      CHECK (settlement_provider IS NULL OR settlement_provider ~ '^[a-z][a-z0-9_-]{1,31}$');
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
