@@ -75,7 +75,7 @@ Trạng thái ngày 24/08/2026:
 
 ### An toàn dữ liệu và vận hành
 
-- [ ] Thiết lập sao lưu cơ sở dữ liệu tự động.
+- [x] Thiết lập sao lưu cơ sở dữ liệu tự động.
 - [x] Thử phục hồi thành công từ một bản sao lưu.
 - [x] Có log lỗi server và cảnh báo khi API hoặc database gặp sự cố.
 - [x] Thiết lập HTTPS cho môi trường production.
@@ -94,9 +94,13 @@ Trạng thái ngày 24/08/2026:
   GitHub Issue duy nhất, gán người phụ trách và sẽ tự đóng khi production phục hồi.
 - Vercel Preview dùng `APP_ENV=staging`, JWT riêng và Neon branch schema-only
   riêng; readiness staging đã xác minh cả cấu hình lẫn database đều `ok`.
-- Workflow backup và restore drill hằng ngày đã có trong code. Mục backup tự động
-  chỉ được đánh dấu sau khi secret GitHub Actions được cấu hình, có lần chạy xanh
-  và khóa giải mã được lưu độc lập khỏi GitHub.
+- Workflow backup và restore drill hằng ngày chạy trong repo private
+  `DTung1291/tro-bill-operations`. Role `tro_bill_backup` đã kiểm tra chỉ đọc;
+  hai GitHub Secrets đã cấu hình; run `32742953010` đã xanh và artifact mã hóa có
+  checksum hợp lệ. Khóa giải mã dự phòng nằm độc lập trong macOS Keychain.
+- Điều khoản Resend Marketplace đã được chấp nhận, nhưng integration hiện yêu cầu
+  domain mua qua Vercel. Dự án chưa có custom domain nên production chưa thể cấu
+  hình `RESEND_API_KEY`/`EMAIL_FROM`; không dùng `resend.dev` giả làm email thật.
 
 ### Hoàn thành giai đoạn khi
 
@@ -272,7 +276,7 @@ Trạng thái ngày 24/08/2026:
 ## Tiêu chí sẵn sàng mở bán đại trà
 
 - [ ] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
-- [ ] Backup và phục hồi đã được kiểm chứng.
+- [x] Backup và phục hồi đã được kiểm chứng.
 - [ ] Subscription và giới hạn gói được kiểm tra ở server.
 - [ ] Thanh toán gói TrọBill được ghi nhận tự động và không bị trùng.
 - [ ] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.

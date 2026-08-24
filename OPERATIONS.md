@@ -62,9 +62,10 @@ Request đầu phải chuyển sang HTTPS; request sau phải có
   lỗi; không ghi body, cookie, query string, câu SQL hoặc thông báo lỗi gốc.
 - Response lỗi bất ngờ trả `incidentId` để tra cứu trong Vercel Runtime Logs.
 
-Khi health production hoặc backup thất bại, GitHub Actions tự mở một Issue duy
-nhất, gán cho `DTung1291`, rồi tự đóng Issue sau lần chạy phục hồi thành công.
-Đây là kênh cảnh báo mặc định không cần thêm secret.
+Khi health production thất bại, GitHub Actions trong repo ứng dụng tự mở một
+Issue duy nhất. Khi backup thất bại, workflow trong repo private operations mở
+Issue ở chính repo private đó. Cả hai đều gán cho `DTung1291` và tự đóng sau lần
+chạy phục hồi thành công. Đây là kênh cảnh báo mặc định không cần thêm secret.
 
 Có thể đặt thêm `OPS_ALERT_WEBHOOK_URL` bằng endpoint HTTPS nhận JSON trong
 Production, Preview và GitHub Actions. Alert webhook cùng loại được giới hạn một
@@ -78,8 +79,11 @@ báo động giả.
 
 ## 4. Backup tự động và restore drill
 
-Workflow `.github/workflows/database-backup.yml` chạy hằng ngày lúc **01:15 giờ
-Việt Nam** (`18:15 UTC`), hoặc chạy tay bằng `workflow_dispatch`:
+Workflow `database-backup.yml` nằm trong repo private
+[`DTung1291/tro-bill-operations`](https://github.com/DTung1291/tro-bill-operations),
+chạy hằng ngày lúc **01:15 giờ Việt Nam** (`18:15 UTC`), hoặc chạy tay bằng
+`workflow_dispatch`. Repo ứng dụng public không chứa workflow có quyền đọc
+database production.
 
 1. `pg_dump` từ endpoint Neon **không qua pooler** ở định dạng custom.
 2. Kiểm tra manifest có các bảng lõi.
@@ -91,19 +95,23 @@ Việt Nam** (`18:15 UTC`), hoặc chạy tay bằng `workflow_dispatch`:
 RPO mục tiêu là 24 giờ. Restore drill chạy cùng mọi backup nên một workflow xanh
 là bằng chứng cả tạo backup lẫn phục hồi đã thành công.
 
-Tạo các GitHub Actions secret sau:
+Hai GitHub Actions secrets sau chỉ được đặt trong repo private operations:
 
 - `BACKUP_DATABASE_URL`: endpoint trực tiếp (hostname không có `-pooler`) của
-  database production, tài khoản chỉ có quyền cần thiết để đọc backup;
+  database production, dùng role `tro_bill_backup` không có membership quản trị,
+  đọc được nhưng không thể `INSERT` hoặc `CREATE TABLE`;
 - `BACKUP_ENCRYPTION_PASSPHRASE`: chuỗi ngẫu nhiên dài, lưu thêm một bản trong
-  password manager tách khỏi GitHub;
-- `OPS_ALERT_WEBHOOK_URL`: webhook cảnh báo, có thể dùng cùng endpoint production.
+  macOS Keychain với service `com.trobill.backup`, account
+  `production-database-encryption`.
 
 Ngoài các secret trên, tạo Actions variable `PRODUCTION_HEALTH_URL` để bật giám
 sát API/database từ bên ngoài Vercel.
 
 Không đổi passphrase trước khi backup cũ hết hạn hoặc đã được mã hóa lại. GitHub
 không cho đọc lại secret sau khi lưu.
+
+Lần chạy thủ công `32742953010` ngày 24/08/2026 đã tạo backup mã hóa, restore
+thành công vào PostgreSQL 18 trống, qua kiểm tra toàn vẹn và lưu artifact 30 ngày.
 
 ### Khôi phục khi có sự cố
 
