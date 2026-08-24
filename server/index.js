@@ -7,6 +7,7 @@ const {
   register,
   login,
   logout,
+  logoutAll,
   verifyEmail,
   resendVerification,
   forgotPassword,
@@ -55,6 +56,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);
+app.post('/api/auth/logout-all', requireAuth, wrap(logoutAll));
 app.post('/api/auth/verify-email', wrap(verifyEmail));
 app.post('/api/auth/resend-verification', wrap(resendVerification));
 app.post('/api/auth/forgot-password', wrap(forgotPassword));
@@ -71,6 +73,12 @@ app.get('/api/config', requireAuth, wrap(getConfig));
 const adminGuard = [requireAuth, wrap(requireAdmin)];
 app.get('/api/admin/users', adminGuard, wrap(admin.listUsers));
 app.get('/api/admin/users/:id/state', adminGuard, wrap(admin.getUserState));
+app.post(
+  '/api/admin/users/:id/tenants/:tenantId/reveal-cccd',
+  adminGuard,
+  wrap(admin.revealTenantCccd)
+);
+app.get('/api/admin/sensitive-access-logs', adminGuard, wrap(admin.listSensitiveAccessLogs));
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
 app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));

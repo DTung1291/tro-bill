@@ -54,6 +54,19 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 CREATE INDEX IF NOT EXISTS idx_password_reset_expires
   ON password_reset_tokens(expires_at);
 
+-- Bộ đếm chống brute-force/spam đăng ký. key_hash là HMAC của IP/email nên
+-- không lưu trực tiếp định danh người dùng trong bảng này.
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+  key_hash          TEXT PRIMARY KEY,
+  action            TEXT NOT NULL,
+  scope             TEXT NOT NULL,
+  attempts          INTEGER NOT NULL DEFAULT 0,
+  window_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_updated
+  ON auth_rate_limits(updated_at);
+
 -- Cài đặt: mỗi user đúng 1 dòng
 CREATE TABLE IF NOT EXISTS settings (
   user_id               BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -232,3 +245,43 @@ UPDATE history_bills
 SET rent_base_price = rent_price
 WHERE rent_base_price = 0 AND rent_price <> 0;
 CREATE INDEX IF NOT EXISTS idx_history_bills_snapshot ON history_bills(snapshot_id);
+
+-- Ràng buộc ownership ở tầng database: các dòng con chỉ được tham chiếu tới
+-- phòng có cùng user_id, kể cả khi client cố gửi ID phòng của tài khoản khác.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rooms_user_id_id_key') THEN
+    ALTER TABLE rooms ADD CONSTRAINT rooms_user_id_id_key UNIQUE (user_id, id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenants_room_owner_fk') THEN
+    ALTER TABLE tenants ADD CONSTRAINT tenants_room_owner_fk
+      FOREIGN KEY (user_id, room_id) REFERENCES rooms(user_id, id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='room_rates_room_owner_fk') THEN
+    ALTER TABLE room_rate_history ADD CONSTRAINT room_rates_room_owner_fk
+      FOREIGN KEY (user_id, room_id) REFERENCES rooms(user_id, id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='billing_room_owner_fk') THEN
+    ALTER TABLE billing_entries ADD CONSTRAINT billing_room_owner_fk
+      FOREIGN KEY (user_id, room_id) REFERENCES rooms(user_id, id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Mỗi lần admin xem CCCD đầy đủ đều phải có lý do và được lưu để rà soát.
+-- Không lưu CCCD trong log.
+CREATE TABLE IF NOT EXISTS admin_sensitive_access_logs (
+  id                    BIGSERIAL PRIMARY KEY,
+  admin_user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  admin_email_snapshot  TEXT NOT NULL,
+  target_user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  target_email_snapshot TEXT NOT NULL,
+  tenant_id             TEXT NOT NULL,
+  tenant_name_snapshot  TEXT NOT NULL DEFAULT '',
+  action                TEXT NOT NULL DEFAULT 'reveal_cccd',
+  reason                TEXT NOT NULL,
+  request_ip_hash       TEXT NOT NULL DEFAULT '',
+  user_agent            TEXT NOT NULL DEFAULT '',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sensitive_access_created
+  ON admin_sensitive_access_logs(created_at DESC);

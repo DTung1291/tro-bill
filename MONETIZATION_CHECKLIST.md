@@ -42,10 +42,10 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
 - [x] Chuyển token đăng nhập khỏi `localStorage` sang cookie `HttpOnly`, `Secure`, `SameSite` phù hợp.
 - [x] Thêm xác minh email khi đăng ký.
 - [x] Thêm quên mật khẩu và đặt lại mật khẩu bằng liên kết có thời hạn.
-- [ ] Thêm giới hạn số lần đăng nhập và đăng ký theo IP/tài khoản.
-- [ ] Thêm cơ chế đăng xuất khỏi tất cả thiết bị.
-- [ ] Kiểm tra tất cả API đều xác thực quyền sở hữu dữ liệu.
-- [ ] Không cho admin xem toàn bộ CCCD nếu không có lý do hỗ trợ hợp lệ.
+- [x] Thêm giới hạn số lần đăng nhập và đăng ký theo IP/tài khoản.
+- [x] Thêm cơ chế đăng xuất khỏi tất cả thiết bị.
+- [x] Kiểm tra tất cả API đều xác thực quyền sở hữu dữ liệu.
+- [x] Không cho admin xem toàn bộ CCCD nếu không có lý do hỗ trợ hợp lệ.
 
 ### Bảo vệ dữ liệu khách thuê
 

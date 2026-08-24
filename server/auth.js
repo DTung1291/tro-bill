@@ -9,6 +9,11 @@ const {
   sendVerificationEmail,
   sendPasswordResetEmail
 } = require('./email');
+const {
+  checkAuthRateLimit,
+  recordAuthAttempt,
+  clearAccountRateLimit
+} = require('./rate-limit');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -136,6 +141,8 @@ async function register(req, res) {
   if (password.length < 6) {
     return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
   }
+  if (!(await checkAuthRateLimit(req, res, 'register', email))) return;
+  if (!(await recordAuthAttempt(req, res, 'register', email))) return;
 
   try {
     assertEmailConfigured();
@@ -203,6 +210,7 @@ async function register(req, res) {
 async function login(req, res) {
   const email = normalizeEmail(req.body.email);
   const password = String(req.body.password || '');
+  if (!(await checkAuthRateLimit(req, res, 'login', email))) return;
 
   const { rows } = await db.query(
     `SELECT id, email, password_hash, is_admin, email_verified_at, token_version
@@ -211,6 +219,7 @@ async function login(req, res) {
   );
   const user = rows[0];
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    if (!(await recordAuthAttempt(req, res, 'login', email))) return;
     return res.status(401).json({ error: 'Email hoặc mật khẩu sai' });
   }
   if (!user.email_verified_at) {
@@ -219,6 +228,7 @@ async function login(req, res) {
       code: 'EMAIL_NOT_VERIFIED'
     });
   }
+  await clearAccountRateLimit('login', email);
   setSessionCookie(res, user);
   return res.json({ email: user.email, isAdmin: !!user.is_admin });
 }
@@ -406,6 +416,20 @@ function logout(req, res) {
   return res.json({ ok: true });
 }
 
+// POST /api/auth/logout-all — tăng phiên bản để mọi JWT cũ mất hiệu lực.
+async function logoutAll(req, res) {
+  const result = await db.query(
+    'UPDATE users SET token_version=token_version + 1 WHERE id=$1 RETURNING id',
+    [req.userId]
+  );
+  if (result.rowCount === 0) {
+    clearSessionCookie(res);
+    return res.status(401).json({ error: 'Phiên đăng nhập hết hạn' });
+  }
+  clearSessionCookie(res);
+  return res.json({ ok: true });
+}
+
 // Middleware: chặn mọi route cần đăng nhập
 async function requireAuth(req, res, next) {
   const token = readCookie(req, SESSION_COOKIE);
@@ -454,6 +478,7 @@ module.exports = {
   register,
   login,
   logout,
+  logoutAll,
   verifyEmail,
   resendVerification,
   forgotPassword,

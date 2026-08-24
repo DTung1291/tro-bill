@@ -2942,6 +2942,26 @@ if (saveReminderBtn) {
   });
 }
 
+const logoutAllDevicesBtn = document.getElementById('btn-logout-all');
+if (logoutAllDevicesBtn) {
+  logoutAllDevicesBtn.addEventListener('click', async () => {
+    if (!confirm('Đăng xuất tài khoản khỏi tất cả điện thoại, máy tính và trình duyệt?')) return;
+    logoutAllDevicesBtn.disabled = true;
+    logoutAllDevicesBtn.textContent = 'Đang đăng xuất...';
+    try {
+      await flushState();
+      await API.logoutAll();
+      _appStarted = false;
+      showAuthScreen(true);
+      showAuthFeedback('Đã đăng xuất khỏi tất cả thiết bị.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Không thể đăng xuất tất cả thiết bị', 'error', 3000);
+      logoutAllDevicesBtn.disabled = false;
+      logoutAllDevicesBtn.textContent = 'Đăng xuất tất cả thiết bị';
+    }
+  });
+}
+
 // ============================================================
 //  PREMIUM & ADS (Android Only)
 // ============================================================

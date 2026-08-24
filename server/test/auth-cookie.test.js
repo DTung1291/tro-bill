@@ -30,6 +30,8 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   let tokenVersion = 0;
 
   db.query = async (sql) => {
+    if (sql.includes('FROM auth_rate_limits')) return { rows: [] };
+    if (sql.startsWith('DELETE FROM auth_rate_limits')) return { rows: [] };
     if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at, token_version')) {
       return {
         rows: [{
@@ -47,6 +49,10 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
     }
     if (sql.includes('SELECT is_admin FROM users')) {
       return { rows: [{ is_admin: true }] };
+    }
+    if (sql.includes('UPDATE users SET token_version=token_version + 1')) {
+      tokenVersion += 1;
+      return { rowCount: 1, rows: [{ id: 7 }] };
     }
     throw new Error(`Truy vấn không mong đợi trong test auth: ${sql}`);
   };
@@ -83,7 +89,14 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   assert.equal(meResponse.status, 200);
   assert.deepEqual(await meResponse.json(), { email: 'owner@example.com', isAdmin: true });
 
-  tokenVersion = 1;
+  const logoutAllResponse = await fetch(`${baseUrl}/api/auth/logout-all`, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: baseUrl }
+  });
+  assert.equal(logoutAllResponse.status, 200);
+  assert.deepEqual(await logoutAllResponse.json(), { ok: true });
+  assert.match(logoutAllResponse.headers.get('set-cookie'), /^trobill_session=;/);
+
   const revokedResponse = await fetch(`${baseUrl}/api/me`, {
     headers: { Cookie: cookie }
   });
@@ -132,6 +145,7 @@ test('tài khoản chưa xác minh không được đăng nhập dù mật khẩ
   const originalQuery = db.query;
   const passwordHash = await bcrypt.hash('matkhau123', 4);
   db.query = async (sql) => {
+    if (sql.includes('FROM auth_rate_limits')) return { rows: [] };
     if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at, token_version')) {
       return {
         rows: [{

@@ -55,6 +55,10 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   let storedTokenHash = '';
 
   db.query = async (sql) => {
+    if (sql.includes('FROM auth_rate_limits')) return { rows: [] };
+    if (sql.includes('INSERT INTO auth_rate_limits')) {
+      return { rows: [{ attempts: 1, retry_after: 3600 }] };
+    }
     if (sql.includes('SELECT 1 FROM users')) return { rowCount: 0, rows: [] };
     throw new Error(`Truy vấn db.query không mong đợi: ${sql}`);
   };

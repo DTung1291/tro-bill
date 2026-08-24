@@ -11,10 +11,17 @@ const orEmpty = (v) => (v === null || v === undefined ? '' : Number(v));
 const orNull = (v) => (v === '' || v === undefined || v === null ? null : Number(v));
 const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : String(v));
 
+function maskCccd(value) {
+  const cccd = String(value || '').trim();
+  if (!cccd) return '';
+  const visible = cccd.slice(-4);
+  return `${'•'.repeat(Math.max(0, cccd.length - visible.length))}${visible}`;
+}
+
 // ============================================================
 //  GET /api/state — lắp ráp toàn bộ state từ các bảng dữ liệu
 // ============================================================
-async function buildState(uid) {
+async function buildState(uid, options = {}) {
   const [settingsR, roomsR, ratesR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
     db.query('SELECT * FROM settings WHERE user_id=$1', [uid]),
     db.query('SELECT * FROM rooms WHERE user_id=$1 ORDER BY sort_order, name', [uid]),
@@ -51,7 +58,7 @@ async function buildState(uid) {
       id: t.id,
       fullName: t.full_name,
       phone: t.phone,
-      cccd: t.cccd,
+      cccd: options.maskCccd ? maskCccd(t.cccd) : t.cccd,
       issueDate: t.issue_date,
       dob: t.dob,
       gender: t.gender,
@@ -182,6 +189,22 @@ async function putState(req, res) {
   const settings = body.settings && typeof body.settings === 'object' ? body.settings : {};
   const history = Array.isArray(body.history) ? body.history : [];
   const theme = body.theme || 'system';
+
+  const roomIds = new Set();
+  for (const room of rooms) {
+    const roomId = String(room && room.id || '').trim();
+    if (!roomId || roomId.length > 200 || roomIds.has(roomId)) {
+      return res.status(400).json({ error: 'Danh sách phòng chứa ID không hợp lệ hoặc bị trùng' });
+    }
+    roomIds.add(roomId);
+  }
+  for (const period of Object.keys(billingData)) {
+    for (const roomId of Object.keys(billingData[period] || {})) {
+      if (!roomIds.has(roomId)) {
+        return res.status(400).json({ error: 'Dữ liệu hóa đơn chứa phòng không thuộc tài khoản' });
+      }
+    }
+  }
 
   const client = await db.getClient();
   try {
@@ -340,4 +363,4 @@ async function putState(req, res) {
   }
 }
 
-module.exports = { getState, putState, buildState, orNull, strOrNull, num };
+module.exports = { getState, putState, buildState, maskCccd, orNull, strOrNull, num };

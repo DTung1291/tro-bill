@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=67" />
+  <link rel="stylesheet" href="style.css?v=68" />
 </head>
 
 <body>
@@ -445,6 +445,16 @@
           <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập file JSON</button>
           <input type="file" id="import-file-input" accept=".json" style="display:none" />
         </div>
+      </div>
+
+      <div class="settings-card settings-security-card">
+        <div>
+          <strong>🔐 Bảo mật phiên đăng nhập</strong>
+          <div class="settings-security-note">
+            Thu hồi mọi phiên trên điện thoại, máy tính và trình duyệt khác. Bạn sẽ cần đăng nhập lại.
+          </div>
+        </div>
+        <button class="btn btn--sm btn--ghost" id="btn-logout-all">Đăng xuất tất cả thiết bị</button>
       </div>
 
       <!-- ☕ Ủng hộ nhà phát triển (Donate) -->
@@ -918,10 +928,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=67"></script>
+  <script src="api.js?v=68"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
 </body>
 
 </html>

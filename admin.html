@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Quản trị</title>
-  <link rel="stylesheet" href="style.css?v=67" />
+  <link rel="stylesheet" href="style.css?v=68" />
 </head>
 <body>
   <div class="admin-wrap">
@@ -65,6 +65,22 @@
       </thead>
       <tbody id="admin-tbody"></tbody>
     </table>
+
+    <section class="admin-config" id="sensitive-audit-section">
+      <h2>🪪 Nhật ký xem CCCD đầy đủ</h2>
+      <p class="admin-config-note">
+        CCCD được che mặc định. Mỗi lần xem đầy đủ phải nhập lý do hỗ trợ và được lưu tại đây để người phụ trách dữ liệu rà soát.
+      </p>
+      <div class="admin-table-wrap">
+        <table class="admin-subtable" id="sensitive-audit-table" hidden>
+          <thead>
+            <tr><th>Thời gian</th><th>Admin</th><th>Tài khoản</th><th>Khách thuê</th><th>Lý do</th><th>Dấu vân tay IP</th></tr>
+          </thead>
+          <tbody id="sensitive-audit-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-muted" id="sensitive-audit-empty" hidden>Chưa có lần xem CCCD đầy đủ nào.</p>
+    </section>
   </div>
 
   <!-- Modal xem dữ liệu của 1 user -->
@@ -78,7 +94,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=67"></script>
-  <script src="admin.js?v=66"></script>
+  <script src="api.js?v=68"></script>
+  <script src="admin.js?v=68"></script>
 </body>
 </html>

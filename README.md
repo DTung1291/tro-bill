@@ -15,6 +15,7 @@ tro-bill/
     ├── index.js       # serve frontend tĩnh + API, cùng 1 origin
     ├── db.js          # pg Pool từ DATABASE_URL
     ├── auth.js        # register/login (bcrypt) + middleware JWT
+    ├── rate-limit.js  # chống brute-force bằng bộ đếm Postgres
     ├── email.js       # gửi email xác minh/đặt lại mật khẩu qua Resend
     ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách các bảng dữ liệu
     ├── schema.sql     # schema chuẩn hóa + lịch sử biểu phí theo tháng
@@ -87,6 +88,7 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | POST   | `/api/auth/register` | Tạo tài khoản, gửi email xác minh |
 | POST   | `/api/auth/login`    | Đăng nhập và tạo phiên         |
 | POST   | `/api/auth/logout`   | Xóa cookie phiên               |
+| POST   | `/api/auth/logout-all` | Thu hồi mọi phiên của tài khoản |
 | POST   | `/api/auth/verify-email` | Xác minh email bằng token  |
 | POST   | `/api/auth/resend-verification` | Gửi lại email xác minh |
 | POST   | `/api/auth/forgot-password` | Gửi liên kết đặt lại mật khẩu |
@@ -105,6 +107,15 @@ có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không l�
 Liên kết đặt lại mật khẩu có hiệu lực 30 phút, chỉ dùng được một lần và API quên
 mật khẩu luôn trả thông báo chung để không tiết lộ email đã đăng ký. Sau khi đặt
 lại thành công, mọi phiên đăng nhập cũ của tài khoản đều mất hiệu lực.
+
+Đăng nhập sai được giới hạn đồng thời theo IP (20 lần/15 phút) và tài khoản
+(8 lần/15 phút). Đăng ký được giới hạn theo IP (10 lần/giờ) và email
+(5 lần/giờ). Bộ đếm lưu trong Postgres để dùng được trên nhiều serverless
+instance; IP/email chỉ được lưu dưới dạng HMAC. Có thể cấu hình khóa HMAC riêng
+bằng `RATE_LIMIT_SECRET`, nếu bỏ trống sẽ dùng `JWT_SECRET`.
+
+Trong Cài đặt, nút **Đăng xuất tất cả thiết bị** tăng `token_version` của tài
+khoản nên mọi JWT đã cấp trước đó mất hiệu lực ngay, bao gồm phiên hiện tại.
 
 ## Tài khoản admin
 
@@ -125,6 +136,9 @@ nút 🛡️ trên thanh nav → mở trang `admin.html`:
 - Liệt kê user (kèm số phòng, số lịch sử)
 - Xem dữ liệu trọ của từng user
 - Đổi mật khẩu, cấp/gỡ quyền admin, xoá user (cascade toàn bộ dữ liệu)
+- CCCD bị che mặc định; chỉ xem từng CCCD đầy đủ sau khi nhập lý do hỗ trợ
+- Rà nhật ký xem CCCD gồm admin, tài khoản đích, khách thuê, lý do, thời gian và
+  dấu vân tay IP; log không chứa số CCCD
 
 Admin API (đều qua `requireAuth` + `requireAdmin`):
 
@@ -132,12 +146,17 @@ Admin API (đều qua `requireAuth` + `requireAdmin`):
 |--------|----------------------------------|--------------------------|
 | GET    | `/api/admin/users`               | Danh sách user           |
 | GET    | `/api/admin/users/:id/state`     | Xem dữ liệu 1 user       |
+| POST   | `/api/admin/users/:id/tenants/:tenantId/reveal-cccd` | Xem CCCD có lý do + audit |
+| GET    | `/api/admin/sensitive-access-logs` | Rà nhật ký xem CCCD    |
 | DELETE | `/api/admin/users/:id`           | Xoá user                 |
 | POST   | `/api/admin/users/:id/password`  | Đặt lại mật khẩu         |
 | POST   | `/api/admin/users/:id/admin`     | Bật/tắt quyền admin      |
 
 Ràng buộc an toàn: admin không thể tự xoá hay tự gỡ quyền của chính mình;
 `requireAdmin` kiểm tra lại DB mỗi request nên việc gỡ quyền có hiệu lực ngay.
+Các API dữ liệu thường chỉ dùng `req.userId` từ phiên đã xác thực. Postgres còn
+có khóa ngoại ghép `(user_id, room_id)` để tenant, biểu phí và hóa đơn không thể
+tham chiếu phòng của tài khoản khác.
 
 ## Bảo mật
 

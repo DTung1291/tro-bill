@@ -6,6 +6,7 @@
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { buildState } = require('./state');
+const { keyHash, requestIp } = require('./rate-limit');
 
 // GET /api/admin/users — danh sách user + vài số liệu tóm tắt
 async function listUsers(req, res) {
@@ -28,7 +29,7 @@ async function listUsers(req, res) {
   });
 }
 
-// GET /api/admin/users/:id/state — xem toàn bộ dữ liệu trọ của 1 user
+// GET /api/admin/users/:id/state — CCCD luôn bị che trong màn hình hỗ trợ.
 async function getUserState(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
@@ -36,8 +37,91 @@ async function getUserState(req, res) {
   const found = await db.query('SELECT id, email FROM users WHERE id=$1', [id]);
   if (found.rowCount === 0) return res.status(404).json({ error: 'Không tìm thấy user' });
 
-  const state = await buildState(id);
+  const state = await buildState(id, { maskCccd: true });
+  res.set('Cache-Control', 'no-store');
   res.json({ user: { id, email: found.rows[0].email }, state });
+}
+
+// POST /api/admin/users/:id/tenants/:tenantId/reveal-cccd
+async function revealTenantCccd(req, res) {
+  const targetUserId = Number(req.params.id);
+  const tenantId = String(req.params.tenantId || '').trim();
+  const reason = String(req.body.reason || '').trim();
+  if (!Number.isInteger(targetUserId) || !tenantId) {
+    return res.status(400).json({ error: 'Đối tượng hỗ trợ không hợp lệ' });
+  }
+  if (reason.length < 10 || reason.length > 500) {
+    return res.status(400).json({ error: 'Lý do hỗ trợ phải từ 10 đến 500 ký tự' });
+  }
+
+  const { rows } = await db.query(
+    `SELECT t.id, t.full_name, t.cccd, u.email AS target_email
+     FROM tenants t
+     JOIN users u ON u.id=t.user_id
+     WHERE t.user_id=$1 AND t.id=$2`,
+    [targetUserId, tenantId]
+  );
+  const tenant = rows[0];
+  if (!tenant) return res.status(404).json({ error: 'Không tìm thấy khách thuê của tài khoản này' });
+
+  const userAgent = String(req.get('user-agent') || '').slice(0, 500);
+  const ipHash = keyHash('sensitive-access', 'ip', requestIp(req));
+  await db.query(
+    `INSERT INTO admin_sensitive_access_logs
+       (admin_user_id, admin_email_snapshot, target_user_id, target_email_snapshot,
+        tenant_id, tenant_name_snapshot, action, reason, request_ip_hash, user_agent)
+     VALUES ($1,$2,$3,$4,$5,$6,'reveal_cccd',$7,$8,$9)`,
+    [
+      req.userId,
+      req.userEmail,
+      targetUserId,
+      tenant.target_email,
+      tenant.id,
+      tenant.full_name || '',
+      reason,
+      ipHash,
+      userAgent
+    ]
+  );
+
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    tenantId: tenant.id,
+    fullName: tenant.full_name || '',
+    cccd: tenant.cccd || '',
+    audited: true
+  });
+}
+
+// GET /api/admin/sensitive-access-logs — danh sách để chủ sản phẩm rà soát.
+async function listSensitiveAccessLogs(req, res) {
+  const requestedLimit = Number(req.query.limit || 100);
+  const limit = Number.isInteger(requestedLimit) ? Math.min(200, Math.max(1, requestedLimit)) : 100;
+  const { rows } = await db.query(
+    `SELECT id, admin_user_id, admin_email_snapshot, target_user_id,
+            target_email_snapshot, tenant_id, tenant_name_snapshot, action,
+            reason, request_ip_hash, created_at
+     FROM admin_sensitive_access_logs
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    logs: rows.map((row) => ({
+      id: Number(row.id),
+      adminUserId: row.admin_user_id === null ? null : Number(row.admin_user_id),
+      adminEmail: row.admin_email_snapshot,
+      targetUserId: row.target_user_id === null ? null : Number(row.target_user_id),
+      targetEmail: row.target_email_snapshot,
+      tenantId: row.tenant_id,
+      tenantName: row.tenant_name_snapshot,
+      action: row.action,
+      reason: row.reason,
+      ipFingerprint: String(row.request_ip_hash || '').slice(0, 12),
+      createdAt: row.created_at
+    }))
+  });
 }
 
 // DELETE /api/admin/users/:id — xoá user (cascade dọn toàn bộ dữ liệu con)
@@ -80,4 +164,12 @@ async function setAdmin(req, res) {
   res.json({ ok: true, isAdmin: makeAdmin });
 }
 
-module.exports = { listUsers, getUserState, deleteUser, resetPassword, setAdmin };
+module.exports = {
+  listUsers,
+  getUserState,
+  revealTenantCccd,
+  listSensitiveAccessLogs,
+  deleteUser,
+  resetPassword,
+  setAdmin
+};

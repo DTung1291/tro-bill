@@ -58,6 +58,7 @@ const API = (() => {
       '/api/auth/resend-verification',
       '/api/auth/forgot-password',
       '/api/auth/reset-password',
+      '/api/auth/logout-all',
       '/api/auth/logout'
     ];
     if (!doesNotCreateSession.includes(url)) sessionActive = true;
@@ -87,6 +88,10 @@ const API = (() => {
     await request('POST', '/api/auth/logout');
     clearSession();
   }
+  async function logoutAll() {
+    await request('POST', '/api/auth/logout-all');
+    clearSession();
+  }
 
   // ----- State -----
   function getState() {
@@ -112,6 +117,15 @@ const API = (() => {
     deleteUser: (id) => request('DELETE', `/api/admin/users/${id}`),
     resetPassword: (id, password) => request('POST', `/api/admin/users/${id}/password`, { password }),
     setAdmin: (id, isAdmin) => request('POST', `/api/admin/users/${id}/admin`, { isAdmin }),
+    revealTenantCccd: (userId, tenantId, reason) => request(
+      'POST',
+      `/api/admin/users/${userId}/tenants/${encodeURIComponent(tenantId)}/reveal-cccd`,
+      { reason }
+    ),
+    listSensitiveAccessLogs: (limit = 100) => request(
+      'GET',
+      `/api/admin/sensitive-access-logs?limit=${encodeURIComponent(limit)}`
+    ),
     setConfig: (cfg) => request('PUT', '/api/admin/config', cfg)
   };
 
@@ -125,6 +139,7 @@ const API = (() => {
     forgotPassword,
     resetPassword,
     logout,
+    logoutAll,
     getState,
     putState,
     me,

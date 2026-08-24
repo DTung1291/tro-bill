@@ -143,10 +143,10 @@
       modalBody.innerHTML = `<p class="admin-msg admin-msg-error">${esc(e.message || 'Lỗi tải')}</p>`;
       return;
     }
-    renderState(data.state || {});
+    renderState(data.state || {}, u);
   }
 
-  function renderState(state) {
+  function renderState(state, user) {
     const rooms = state.rooms || [];
     const history = state.history || [];
     let html = '';
@@ -164,6 +164,27 @@
       html += '</tbody></table>';
     }
 
+    const tenants = rooms.flatMap((room) => (room.tenants || []).map((tenant) => ({
+      ...tenant,
+      roomName: room.name
+    })));
+    html += `<h3>Khách thuê (${tenants.length})</h3>`;
+    if (tenants.length === 0) {
+      html += '<p class="admin-muted">Chưa có khách thuê.</p>';
+    } else {
+      html += '<table class="admin-subtable"><thead><tr>' +
+        '<th>Phòng</th><th>Họ tên</th><th>CCCD</th><th>Hỗ trợ</th></tr></thead><tbody>';
+      for (const tenant of tenants) {
+        html += `<tr>` +
+          `<td>${esc(tenant.roomName)}</td>` +
+          `<td>${esc(tenant.fullName || '—')}</td>` +
+          `<td class="admin-cccd-value">${esc(tenant.cccd || '—')}</td>` +
+          `<td><button type="button" class="admin-btn-ghost admin-reveal-cccd" data-tenant-id="${esc(tenant.id)}">Xem đầy đủ</button></td>` +
+          `</tr>`;
+      }
+      html += '</tbody></table>';
+    }
+
     html += `<h3>Lịch sử đã lưu (${history.length})</h3>`;
     if (history.length === 0) {
       html += '<p class="admin-muted">Chưa có lịch sử.</p>';
@@ -177,6 +198,55 @@
       html += '</tbody></table>';
     }
     modalBody.innerHTML = html;
+
+    modalBody.querySelectorAll('.admin-reveal-cccd').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const reason = prompt(
+          'Nhập lý do hỗ trợ cụ thể để xem CCCD đầy đủ (tối thiểu 10 ký tự):'
+        );
+        if (reason == null) return;
+        button.disabled = true;
+        try {
+          const revealed = await API.admin.revealTenantCccd(
+            user.id,
+            button.dataset.tenantId,
+            reason.trim()
+          );
+          const valueCell = button.closest('tr').querySelector('.admin-cccd-value');
+          valueCell.textContent = revealed.cccd || '—';
+          button.textContent = 'Đã ghi nhật ký';
+          await loadSensitiveAccessLogs();
+        } catch (error) {
+          button.disabled = false;
+          handleErr(error);
+        }
+      });
+    });
+  }
+
+  async function loadSensitiveAccessLogs() {
+    const tableEl = $('#sensitive-audit-table');
+    const bodyEl = $('#sensitive-audit-tbody');
+    const emptyEl = $('#sensitive-audit-empty');
+    try {
+      const result = await API.admin.listSensitiveAccessLogs(100);
+      const logs = result.logs || [];
+      bodyEl.innerHTML = logs.map((log) => `
+        <tr>
+          <td>${esc(fmtDate(log.createdAt))}</td>
+          <td>${esc(log.adminEmail)}</td>
+          <td>${esc(log.targetEmail)}</td>
+          <td>${esc(log.tenantName || log.tenantId)}</td>
+          <td>${esc(log.reason)}</td>
+          <td><code>${esc(log.ipFingerprint || '—')}</code></td>
+        </tr>`).join('');
+      tableEl.hidden = logs.length === 0;
+      emptyEl.hidden = logs.length !== 0;
+    } catch (error) {
+      tableEl.hidden = true;
+      emptyEl.hidden = false;
+      emptyEl.textContent = error.message || 'Không tải được nhật ký truy cập';
+    }
   }
 
   // ---------- Cấu hình ủng hộ (toàn cục) ----------
@@ -240,12 +310,17 @@
   });
 
   // ---------- Khởi động ----------
-  $('#admin-modal-close').addEventListener('click', () => { modal.hidden = true; });
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.hidden = true; });
+  function closeUserModal() {
+    modal.hidden = true;
+    modalBody.textContent = '';
+  }
+  $('#admin-modal-close').addEventListener('click', closeUserModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeUserModal(); });
   $('#admin-logout').addEventListener('click', gotoLogin);
 
   // Cookie HttpOnly không thể được kiểm tra bằng JavaScript. API admin sẽ xác
   // nhận phiên; nếu hết hạn, loadUsers() tự chuyển về trang đăng nhập.
   loadUsers();
   loadConfig();
+  loadSensitiveAccessLogs();
 })();
