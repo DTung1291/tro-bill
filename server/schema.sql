@@ -10,10 +10,12 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   is_admin      BOOLEAN NOT NULL DEFAULT false,
   email_verified_at TIMESTAMPTZ,
+  token_version INTEGER NOT NULL DEFAULT 0,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- Bổ sung cột cho DB đã tạo trước đó (idempotent)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
 -- Khi nâng cấp DB cũ, các tài khoản đã tồn tại được xem là đã xác minh để
 -- không khóa người dùng đang hoạt động. DB mới đã có cột ngay từ CREATE TABLE.
@@ -40,6 +42,17 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_email_verification_expires
   ON email_verification_tokens(expires_at);
+
+-- Token đặt lại mật khẩu có hiệu lực 30 phút. Chỉ lưu SHA-256 của token
+-- để liên kết gốc không thể bị khôi phục nếu database bị lộ.
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  user_id    BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_expires
+  ON password_reset_tokens(expires_at);
 
 -- Cài đặt: mỗi user đúng 1 dòng
 CREATE TABLE IF NOT EXISTS settings (

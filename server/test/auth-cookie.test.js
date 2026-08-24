@@ -27,18 +27,23 @@ function close(server) {
 test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho JavaScript', async (t) => {
   const originalQuery = db.query;
   const passwordHash = await bcrypt.hash('matkhau123', 4);
+  let tokenVersion = 0;
 
   db.query = async (sql) => {
-    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at FROM users')) {
+    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at, token_version')) {
       return {
         rows: [{
           id: 7,
           email: 'owner@example.com',
           password_hash: passwordHash,
           is_admin: true,
-          email_verified_at: new Date('2026-01-01T00:00:00Z')
+          email_verified_at: new Date('2026-01-01T00:00:00Z'),
+          token_version: tokenVersion
         }]
       };
+    }
+    if (sql.includes('SELECT email, is_admin, token_version FROM users')) {
+      return { rows: [{ email: 'owner@example.com', is_admin: true, token_version: tokenVersion }] };
     }
     if (sql.includes('SELECT is_admin FROM users')) {
       return { rows: [{ is_admin: true }] };
@@ -77,6 +82,13 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   });
   assert.equal(meResponse.status, 200);
   assert.deepEqual(await meResponse.json(), { email: 'owner@example.com', isAdmin: true });
+
+  tokenVersion = 1;
+  const revokedResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Cookie: cookie }
+  });
+  assert.equal(revokedResponse.status, 401, 'phiên cũ mất hiệu lực khi token_version thay đổi');
+  assert.match(revokedResponse.headers.get('set-cookie'), /^trobill_session=;/);
 
   const bearerOnlyResponse = await fetch(`${baseUrl}/api/me`, {
     headers: { Authorization: `Bearer ${cookie.split('=')[1]}` }
@@ -120,14 +132,15 @@ test('tài khoản chưa xác minh không được đăng nhập dù mật khẩ
   const originalQuery = db.query;
   const passwordHash = await bcrypt.hash('matkhau123', 4);
   db.query = async (sql) => {
-    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at FROM users')) {
+    if (sql.includes('SELECT id, email, password_hash, is_admin, email_verified_at, token_version')) {
       return {
         rows: [{
           id: 8,
           email: 'pending@example.com',
           password_hash: passwordHash,
           is_admin: false,
-          email_verified_at: null
+          email_verified_at: null,
+          token_version: 0
         }]
       };
     }

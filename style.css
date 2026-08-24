@@ -1909,6 +1909,11 @@ body.modal-open {
   gap: 8px;
   margin-bottom: 18px;
 }
+.auth-tabs[hidden],
+.auth-label[hidden],
+.auth-mode-action[hidden] {
+  display: none;
+}
 .auth-tab {
   flex: 1;
   padding: 10px;
@@ -1942,6 +1947,21 @@ body.modal-open {
   color: var(--text);
   font-size: 15px;
   box-sizing: border-box;
+}
+.auth-mode-action {
+  display: block;
+  margin: -4px 0 14px auto;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-mode-action:hover {
+  text-decoration: underline;
 }
 .auth-feedback {
   padding: 10px 12px;

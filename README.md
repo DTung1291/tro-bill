@@ -15,7 +15,7 @@ tro-bill/
     ├── index.js       # serve frontend tĩnh + API, cùng 1 origin
     ├── db.js          # pg Pool từ DATABASE_URL
     ├── auth.js        # register/login (bcrypt) + middleware JWT
-    ├── email.js       # gửi email xác minh qua Resend
+    ├── email.js       # gửi email xác minh/đặt lại mật khẩu qua Resend
     ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách các bảng dữ liệu
     ├── schema.sql     # schema chuẩn hóa + lịch sử biểu phí theo tháng
     ├── init-db.js     # chạy schema.sql lên Neon
@@ -37,8 +37,8 @@ Yêu cầu Node.js 20 trở lên.
 Mở http://localhost:3000 → đăng ký tài khoản → dùng bình thường. Mỗi tài khoản
 có dữ liệu riêng, tách biệt hoàn toàn.
 
-Khi chạy local mà chưa có `RESEND_API_KEY`, màn hình đăng ký hiện một liên kết
-xác minh để test trực tiếp và không gửi email thật. Trên production phải cấu
+Khi chạy local mà chưa có `RESEND_API_KEY`, màn hình đăng ký và quên mật khẩu
+hiện liên kết để test trực tiếp, không gửi email thật. Trên production phải cấu
 hình đủ `RESEND_API_KEY`, `EMAIL_FROM` và `APP_URL`; địa chỉ gửi cần thuộc domain
 đã xác minh trong Resend.
 
@@ -89,6 +89,8 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | POST   | `/api/auth/logout`   | Xóa cookie phiên               |
 | POST   | `/api/auth/verify-email` | Xác minh email bằng token  |
 | POST   | `/api/auth/resend-verification` | Gửi lại email xác minh |
+| POST   | `/api/auth/forgot-password` | Gửi liên kết đặt lại mật khẩu |
+| POST   | `/api/auth/reset-password` | Đặt mật khẩu mới bằng token |
 | GET    | `/api/me`            | Thông tin user (cần đăng nhập) |
 | GET    | `/api/state`         | Lấy toàn bộ state              |
 | PUT    | `/api/state`         | Lưu toàn bộ state              |
@@ -99,6 +101,10 @@ website khác bị server từ chối để giảm rủi ro CSRF.
 
 Tài khoản đăng ký mới chỉ được đăng nhập sau khi xác minh email. Token xác minh
 có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không lưu token gốc.
+
+Liên kết đặt lại mật khẩu có hiệu lực 30 phút, chỉ dùng được một lần và API quên
+mật khẩu luôn trả thông báo chung để không tiết lộ email đã đăng ký. Sau khi đặt
+lại thành công, mọi phiên đăng nhập cũ của tài khoản đều mất hiệu lực.
 
 ## Tài khoản admin
 

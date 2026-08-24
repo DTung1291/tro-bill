@@ -9,6 +9,8 @@ const {
   logout,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
   requireAuth,
   requireAdmin
 } = require('./auth');
@@ -55,6 +57,8 @@ app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);
 app.post('/api/auth/verify-email', wrap(verifyEmail));
 app.post('/api/auth/resend-verification', wrap(resendVerification));
+app.post('/api/auth/forgot-password', wrap(forgotPassword));
+app.post('/api/auth/reset-password', wrap(resetPassword));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/state', requireAuth, wrap(getState));

@@ -59,7 +59,10 @@ async function resetPassword(req, res) {
   if (password.length < 6) return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
 
   const hash = await bcrypt.hash(password, 10);
-  const r = await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, id]);
+  const r = await db.query(
+    'UPDATE users SET password_hash=$1, token_version=token_version + 1 WHERE id=$2',
+    [hash, id]
+  );
   if (r.rowCount === 0) return res.status(404).json({ error: 'Không tìm thấy user' });
   res.json({ ok: true });
 }

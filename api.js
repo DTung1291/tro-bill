@@ -56,6 +56,8 @@ const API = (() => {
     const doesNotCreateSession = [
       '/api/auth/register',
       '/api/auth/resend-verification',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
       '/api/auth/logout'
     ];
     if (!doesNotCreateSession.includes(url)) sessionActive = true;
@@ -74,6 +76,12 @@ const API = (() => {
   }
   async function resendVerification(email) {
     return request('POST', '/api/auth/resend-verification', { email });
+  }
+  async function forgotPassword(email) {
+    return request('POST', '/api/auth/forgot-password', { email });
+  }
+  async function resetPassword(token, password) {
+    return request('POST', '/api/auth/reset-password', { token, password });
   }
   async function logout() {
     await request('POST', '/api/auth/logout');
@@ -114,6 +122,8 @@ const API = (() => {
     login,
     verifyEmail,
     resendVerification,
+    forgotPassword,
+    resetPassword,
     logout,
     getState,
     putState,

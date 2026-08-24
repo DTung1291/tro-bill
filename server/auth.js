@@ -4,7 +4,11 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
-const { assertEmailConfigured, sendVerificationEmail } = require('./email');
+const {
+  assertEmailConfigured,
+  sendVerificationEmail,
+  sendPasswordResetEmail
+} = require('./email');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -15,10 +19,16 @@ const TOKEN_TTL = '30d';
 const TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_COOKIE = 'trobill_session';
 const EMAIL_TOKEN_TTL_HOURS = 24;
+const PASSWORD_RESET_TTL_MINUTES = 30;
 
 function signToken(user) {
   return jwt.sign(
-    { uid: user.id, email: user.email, admin: !!user.is_admin },
+    {
+      uid: user.id,
+      email: user.email,
+      admin: !!user.is_admin,
+      ver: Number(user.token_version || 0)
+    },
     JWT_SECRET,
     { expiresIn: TOKEN_TTL }
   );
@@ -87,6 +97,20 @@ async function saveEmailToken(query, userId) {
          expires_at=EXCLUDED.expires_at,
          created_at=now()`,
     [userId, tokenHash, EMAIL_TOKEN_TTL_HOURS]
+  );
+  return token;
+}
+
+async function savePasswordResetToken(query, userId) {
+  const { token, tokenHash } = createEmailToken();
+  await query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+     VALUES ($1, $2, now() + ($3 * interval '1 minute'), now())
+     ON CONFLICT (user_id) DO UPDATE
+     SET token_hash=EXCLUDED.token_hash,
+         expires_at=EXCLUDED.expires_at,
+         created_at=now()`,
+    [userId, tokenHash, PASSWORD_RESET_TTL_MINUTES]
   );
   return token;
 }
@@ -181,7 +205,8 @@ async function login(req, res) {
   const password = String(req.body.password || '');
 
   const { rows } = await db.query(
-    'SELECT id, email, password_hash, is_admin, email_verified_at FROM users WHERE email=$1',
+    `SELECT id, email, password_hash, is_admin, email_verified_at, token_version
+     FROM users WHERE email=$1`,
     [email]
   );
   const user = rows[0];
@@ -217,7 +242,7 @@ async function verifyEmail(req, res) {
        WHERE evt.user_id=u.id
          AND evt.token_hash=$1
          AND evt.expires_at > now()
-       RETURNING u.id, u.email, u.is_admin`,
+       RETURNING u.id, u.email, u.is_admin, u.token_version`,
       [tokenHash]
     );
     user = rows[0];
@@ -280,6 +305,101 @@ async function resendVerification(req, res) {
   return res.json(genericBody);
 }
 
+// POST /api/auth/forgot-password
+// Luôn trả cùng một thông báo để không tiết lộ email có tài khoản hay không.
+async function forgotPassword(req, res) {
+  const genericBody = {
+    ok: true,
+    message: 'Nếu email đã đăng ký, liên kết đặt lại mật khẩu sẽ được gửi.'
+  };
+  const email = normalizeEmail(req.body.email);
+  if (!email || !email.includes('@')) return res.json(genericBody);
+
+  try {
+    assertEmailConfigured();
+  } catch (error) {
+    const response = emailConfigurationResponse(res, error);
+    if (response) return response;
+    throw error;
+  }
+
+  const { rows } = await db.query(
+    `SELECT u.id, u.email, prt.created_at AS token_created_at
+     FROM users u
+     LEFT JOIN password_reset_tokens prt ON prt.user_id=u.id
+     WHERE u.email=$1`,
+    [email]
+  );
+  const user = rows[0];
+  if (!user) return res.json(genericBody);
+
+  if (user.token_created_at) {
+    const elapsedMs = Date.now() - new Date(user.token_created_at).getTime();
+    if (Number.isFinite(elapsedMs) && elapsedMs < 60_000) return res.json(genericBody);
+  }
+
+  const token = await savePasswordResetToken(db.query, user.id);
+  try {
+    const delivery = await sendPasswordResetEmail({
+      email: user.email,
+      token,
+      userId: user.id,
+      req
+    });
+    if (delivery.development) genericBody.resetUrl = delivery.passwordResetUrl;
+  } catch (error) {
+    console.error(`Không gửi được email đặt lại mật khẩu cho ${user.email}:`, error.message);
+  }
+  return res.json(genericBody);
+}
+
+// POST /api/auth/reset-password
+async function resetPassword(req, res) {
+  const token = String(req.body.token || '').trim();
+  const password = String(req.body.password || '');
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    return res.status(400).json({ error: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const passwordHash = await bcrypt.hash(password, 10);
+  const client = await db.getClient();
+  let user;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE users u
+       SET password_hash=$2,
+           token_version=u.token_version + 1,
+           email_verified_at=COALESCE(u.email_verified_at, now())
+       FROM password_reset_tokens prt
+       WHERE prt.user_id=u.id
+         AND prt.token_hash=$1
+         AND prt.expires_at > now()
+       RETURNING u.id`,
+      [tokenHash, passwordHash]
+    );
+    user = rows[0];
+    if (!user) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn' });
+    }
+    await client.query('DELETE FROM password_reset_tokens WHERE user_id=$1', [user.id]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  clearSessionCookie(res);
+  return res.json({ ok: true });
+}
+
 // POST /api/auth/logout
 function logout(req, res) {
   clearSessionCookie(res);
@@ -287,17 +407,32 @@ function logout(req, res) {
 }
 
 // Middleware: chặn mọi route cần đăng nhập
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const token = readCookie(req, SESSION_COOKIE);
   if (!token) return res.status(401).json({ error: 'Chưa đăng nhập' });
+  let payload;
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.userId = payload.uid;
-    req.userEmail = payload.email;
-    req.isAdmin = !!payload.admin;
-    next();
+    payload = jwt.verify(token, JWT_SECRET);
   } catch (e) {
     return res.status(401).json({ error: 'Phiên đăng nhập hết hạn' });
+  }
+
+  try {
+    const { rows } = await db.query(
+      'SELECT email, is_admin, token_version FROM users WHERE id=$1',
+      [payload.uid]
+    );
+    const user = rows[0];
+    if (!user || Number(payload.ver || 0) !== Number(user.token_version || 0)) {
+      clearSessionCookie(res);
+      return res.status(401).json({ error: 'Phiên đăng nhập hết hạn' });
+    }
+    req.userId = payload.uid;
+    req.userEmail = user.email;
+    req.isAdmin = !!user.is_admin;
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -321,6 +456,8 @@ module.exports = {
   logout,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPassword,
   requireAuth,
   requireAdmin
 };

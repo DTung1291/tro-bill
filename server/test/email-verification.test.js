@@ -107,7 +107,7 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rows: [] };
       if (sql.includes('UPDATE users u')) {
         assert.equal(params[0], storedTokenHash);
-        return { rows: [{ id: 9, email: 'new@example.com', is_admin: false }] };
+        return { rows: [{ id: 9, email: 'new@example.com', is_admin: false, token_version: 0 }] };
       }
       if (sql.includes('DELETE FROM email_verification_tokens')) return { rows: [] };
       throw new Error(`Truy vấn xác minh không mong đợi: ${sql}`);

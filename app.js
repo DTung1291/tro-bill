@@ -3946,52 +3946,98 @@ function showAuthFeedback(message, type = 'error') {
   feedback.hidden = !message;
 }
 
+function showDevelopmentAuthLink(url = '', label = 'Mở liên kết local') {
+  const devLink = document.getElementById('auth-dev-verify');
+  if (!devLink) return;
+  devLink.href = url || '#';
+  devLink.textContent = label;
+  devLink.hidden = !url;
+}
+
 function showVerificationActions(email, verificationUrl = '') {
   const resendBtn = document.getElementById('auth-resend');
-  const devLink = document.getElementById('auth-dev-verify');
   if (resendBtn) {
     resendBtn.dataset.email = email || '';
     resendBtn.hidden = !email;
   }
-  if (devLink) {
-    devLink.href = verificationUrl || '#';
-    devLink.hidden = !verificationUrl;
-  }
+  showDevelopmentAuthLink(verificationUrl, 'Mở liên kết xác minh local');
 }
 
 function clearVerificationActions() {
   showVerificationActions('', '');
 }
 
-function clearVerificationParam() {
+function clearAuthQueryParam(name) {
   const url = new URL(window.location.href);
-  url.searchParams.delete('verify');
+  url.searchParams.delete(name);
   const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
   window.history.replaceState({}, document.title, cleanUrl);
 }
 
 function initAuthUI() {
-  let mode = 'login'; // 'login' | 'register'
+  let mode = 'login'; // 'login' | 'register' | 'forgot' | 'reset'
+  let resetToken = new URLSearchParams(window.location.search).get('reset') || '';
+  const tabs = document.getElementById('auth-tabs');
+  const sub = document.getElementById('auth-sub');
   const tabLogin = document.getElementById('auth-tab-login');
   const tabReg = document.getElementById('auth-tab-register');
   const form = document.getElementById('auth-form');
+  const emailLabel = document.getElementById('auth-email-label');
+  const passwordLabel = document.getElementById('auth-password-label');
+  const confirmLabel = document.getElementById('auth-confirm-label');
   const emailEl = document.getElementById('auth-email');
   const passEl = document.getElementById('auth-password');
+  const confirmEl = document.getElementById('auth-confirm-password');
   const submitBtn = document.getElementById('auth-submit');
   const resendBtn = document.getElementById('auth-resend');
+  const forgotBtn = document.getElementById('auth-forgot');
   const logoutBtn = document.getElementById('logout-btn');
+
+  function submitLabel(currentMode) {
+    if (currentMode === 'register') return 'Đăng ký';
+    if (currentMode === 'forgot') return 'Gửi liên kết đặt lại';
+    if (currentMode === 'reset') return 'Đặt lại mật khẩu';
+    return 'Đăng nhập';
+  }
 
   function setMode(m) {
     mode = m;
     tabLogin.classList.toggle('active', m === 'login');
     tabReg.classList.toggle('active', m === 'register');
-    submitBtn.textContent = m === 'login' ? 'Đăng nhập' : 'Đăng ký';
+    tabs.hidden = m === 'forgot' || m === 'reset';
+    emailLabel.hidden = m === 'reset';
+    passwordLabel.hidden = m === 'forgot';
+    confirmLabel.hidden = m !== 'reset';
+    emailEl.required = m !== 'reset';
+    passEl.required = m !== 'forgot';
+    confirmEl.required = m === 'reset';
+    submitBtn.textContent = submitLabel(m);
     passEl.setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
+    forgotBtn.hidden = m === 'register';
+    forgotBtn.textContent = m === 'login'
+      ? 'Quên mật khẩu?'
+      : m === 'reset'
+        ? 'Yêu cầu liên kết mới'
+        : 'Quay lại đăng nhập';
+    sub.textContent = m === 'forgot'
+      ? 'Nhận liên kết đặt lại mật khẩu qua email'
+      : m === 'reset'
+        ? 'Tạo mật khẩu mới cho tài khoản'
+        : 'Tính tiền nhà trọ hàng tháng';
     showAuthFeedback('');
     clearVerificationActions();
   }
   tabLogin.addEventListener('click', () => setMode('login'));
   tabReg.addEventListener('click', () => setMode('register'));
+  forgotBtn.addEventListener('click', () => {
+    if (mode === 'login') return setMode('forgot');
+    if (mode === 'reset') {
+      resetToken = '';
+      clearAuthQueryParam('reset');
+      return setMode('forgot');
+    }
+    return setMode('login');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4005,7 +4051,7 @@ function initAuthUI() {
       if (mode === 'login') {
         await API.login(email, password);
         await startApp();
-      } else {
+      } else if (mode === 'register') {
         const result = await API.register(email, password);
         passEl.value = '';
         showVerificationActions(email, result.verificationUrl || '');
@@ -4019,13 +4065,33 @@ function initAuthUI() {
         } else {
           showAuthFeedback(result.warning || 'Chưa gửi được email. Vui lòng bấm gửi lại.');
         }
+      } else if (mode === 'forgot') {
+        const result = await API.forgotPassword(email);
+        showDevelopmentAuthLink(result.resetUrl || '', 'Mở liên kết đặt lại mật khẩu local');
+        showAuthFeedback(
+          result.resetUrl
+            ? 'Đã tạo liên kết đặt lại mật khẩu local. Hãy mở liên kết bên dưới.'
+            : result.message,
+          'success'
+        );
+      } else {
+        if (password !== confirmEl.value) {
+          throw new Error('Mật khẩu nhập lại chưa khớp');
+        }
+        await API.resetPassword(resetToken, password);
+        resetToken = '';
+        passEl.value = '';
+        confirmEl.value = '';
+        clearAuthQueryParam('reset');
+        setMode('login');
+        showAuthFeedback('Đã đặt lại mật khẩu. Bạn có thể đăng nhập bằng mật khẩu mới.', 'success');
       }
     } catch (err) {
       showAuthFeedback(err.message || 'Có lỗi xảy ra');
       if (err.errorCode === 'EMAIL_NOT_VERIFIED') showVerificationActions(email);
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = mode === 'login' ? 'Đăng nhập' : 'Đăng ký';
+      submitBtn.textContent = submitLabel(mode);
     }
   });
 
@@ -4065,6 +4131,8 @@ function initAuthUI() {
       }
     });
   }
+
+  setMode(resetToken ? 'reset' : 'login');
 }
 
 async function boot() {
@@ -4076,16 +4144,22 @@ async function boot() {
     showAuthFeedback('Đang xác minh địa chỉ email...', 'success');
     try {
       await API.verifyEmail(verificationToken);
-      clearVerificationParam();
+      clearAuthQueryParam('verify');
       await startApp();
       showToast('Đã xác minh email thành công ✓', 'success', 3000);
       return;
     } catch (err) {
-      if (err.code) clearVerificationParam();
+      if (err.code) clearAuthQueryParam('verify');
       showAuthFeedback(err.message || 'Không xác minh được email');
       showAuthScreen(true);
       return;
     }
+  }
+
+
+  if (new URLSearchParams(window.location.search).get('reset')) {
+    showAuthScreen(true);
+    return;
   }
 
   // Cookie HttpOnly không thể được JavaScript đọc. Gọi API để server xác nhận
