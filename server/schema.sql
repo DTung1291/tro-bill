@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS plans (
   yearly_price_vnd  NUMERIC(12, 0),
   room_limit        INTEGER NOT NULL,
   staff_limit       INTEGER NOT NULL DEFAULT 0,
+  trial_days        INTEGER NOT NULL DEFAULT 0,
   is_active         BOOLEAN NOT NULL DEFAULT false,
   is_public         BOOLEAN NOT NULL DEFAULT false,
   sort_order        INTEGER NOT NULL DEFAULT 0,
@@ -124,22 +125,50 @@ CREATE TABLE IF NOT EXISTS plans (
   CONSTRAINT plans_yearly_price_nonnegative
     CHECK (yearly_price_vnd IS NULL OR yearly_price_vnd >= 0),
   CONSTRAINT plans_room_limit_positive CHECK (room_limit > 0),
-  CONSTRAINT plans_staff_limit_nonnegative CHECK (staff_limit >= 0)
+  CONSTRAINT plans_staff_limit_nonnegative CHECK (staff_limit >= 0),
+  CONSTRAINT plans_trial_days_valid
+    CHECK (trial_days = 0 OR trial_days BETWEEN 14 AND 30)
 );
 CREATE INDEX IF NOT EXISTS idx_plans_visibility_sort
   ON plans(is_active, is_public, sort_order);
+
+-- DB cũ được thêm cấu hình trial đúng một lần. Những lần chạy schema sau không
+-- ghi đè nếu admin chủ động đổi trial_days về 0 hoặc giá trị khác.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'plans'
+      AND column_name = 'trial_days'
+  ) THEN
+    ALTER TABLE plans ADD COLUMN trial_days INTEGER NOT NULL DEFAULT 0;
+    UPDATE plans
+    SET trial_days = 14
+    WHERE code IN ('standard', 'pro', 'business');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'plans_trial_days_valid'
+      AND conrelid = 'public.plans'::regclass
+  ) THEN
+    ALTER TABLE plans ADD CONSTRAINT plans_trial_days_valid
+      CHECK (trial_days = 0 OR trial_days BETWEEN 14 AND 30);
+  END IF;
+END $$;
 
 -- Giai đoạn pilot chỉ mở Free. Các gói trả phí được tạo sẵn theo giới hạn đang
 -- giả định trong checklist nhưng chưa mở bán và chưa có giá cho tới khi khảo sát.
 -- DO NOTHING bảo vệ giá/giới hạn đã được admin chỉnh ở những lần chạy schema sau.
 INSERT INTO plans
   (code, name, description, monthly_price_vnd, yearly_price_vnd, room_limit,
-   staff_limit, is_active, is_public, sort_order)
+   staff_limit, trial_days, is_active, is_public, sort_order)
 VALUES
-  ('free', 'Free', 'Dùng thử TrọBill với tối đa 10 phòng', 0, 0, 10, 0, true, true, 10),
-  ('standard', 'Standard', 'Quản lý tối đa 25 phòng', NULL, NULL, 25, 0, false, false, 20),
-  ('pro', 'Pro', 'Quản lý tối đa 50 phòng', NULL, NULL, 50, 0, false, false, 30),
-  ('business', 'Business', 'Quản lý tối đa 100 phòng và có nhân viên', NULL, NULL, 100, 1, false, false, 40)
+  ('free', 'Free', 'Dùng thử TrọBill với tối đa 10 phòng', 0, 0, 10, 0, 0, true, true, 10),
+  ('standard', 'Standard', 'Quản lý tối đa 25 phòng', NULL, NULL, 25, 0, 14, false, false, 20),
+  ('pro', 'Pro', 'Quản lý tối đa 50 phòng', NULL, NULL, 50, 0, 14, false, false, 30),
+  ('business', 'Business', 'Quản lý tối đa 100 phòng và có nhân viên', NULL, NULL, 100, 1, 14, false, false, 40)
 ON CONFLICT (code) DO NOTHING;
 
 -- Mỗi tài khoản có đúng một subscription hiện tại. Lịch sử thanh toán và
@@ -151,14 +180,18 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   status     TEXT NOT NULL DEFAULT 'active',
   starts_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   ends_at    TIMESTAMPTZ,
+  trial_used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT subscriptions_user_id_id_unique UNIQUE (user_id, id),
   CONSTRAINT subscriptions_status_valid
     CHECK (status IN ('trialing', 'active', 'grace_period', 'expired', 'canceled')),
   CONSTRAINT subscriptions_date_order
-    CHECK (ends_at IS NULL OR ends_at > starts_at)
+    CHECK (ends_at IS NULL OR ends_at > starts_at),
+  CONSTRAINT subscriptions_trial_fields_required
+    CHECK (status <> 'trialing' OR (ends_at IS NOT NULL AND trial_used_at IS NOT NULL))
 );
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS trial_used_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status_ends
   ON subscriptions(status, ends_at);
 
@@ -174,6 +207,18 @@ BEGIN
   ) THEN
     ALTER TABLE subscriptions
       ADD CONSTRAINT subscriptions_user_id_id_unique UNIQUE (user_id, id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscriptions_trial_fields_required'
+      AND conrelid = 'public.subscriptions'::regclass
+  ) THEN
+    ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_trial_fields_required
+      CHECK (status <> 'trialing' OR (ends_at IS NOT NULL AND trial_used_at IS NOT NULL));
   END IF;
 END $$;
 
@@ -283,6 +328,31 @@ CREATE INDEX IF NOT EXISTS idx_payment_events_status_received
 CREATE INDEX IF NOT EXISTS idx_payment_events_user_received
   ON payment_events(user_id, received_at DESC)
   WHERE user_id IS NOT NULL;
+
+-- Mọi thay đổi vòng đời subscription do admin hoặc webhook đều có audit riêng.
+CREATE TABLE IF NOT EXISTS subscription_change_logs (
+  id                      BIGSERIAL PRIMARY KEY,
+  actor_user_id           BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  actor_email_snapshot    TEXT NOT NULL DEFAULT '',
+  target_user_id          BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  target_email_snapshot   TEXT NOT NULL DEFAULT '',
+  action                  TEXT NOT NULL,
+  previous_plan_code      TEXT,
+  new_plan_code           TEXT,
+  previous_status         TEXT,
+  new_status              TEXT,
+  reason                  TEXT NOT NULL,
+  metadata                JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscription_change_action_format
+    CHECK (action ~ '^[a-z][a-z0-9_]{2,63}$'),
+  CONSTRAINT subscription_change_reason_length
+    CHECK (char_length(reason) BETWEEN 10 AND 500)
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_change_target_created
+  ON subscription_change_logs(target_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscription_change_action_created
+  ON subscription_change_logs(action, created_at DESC);
 
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (

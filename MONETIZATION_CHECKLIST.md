@@ -121,7 +121,7 @@ Trạng thái ngày 24/08/2026:
 
 ### Vòng đời gói dịch vụ
 
-- [ ] Hỗ trợ dùng thử 14–30 ngày.
+- [x] Hỗ trợ dùng thử 14–30 ngày.
 - [ ] Hỗ trợ nâng gói và gia hạn.
 - [ ] Hỗ trợ trạng thái đang hoạt động, sắp hết hạn, ân hạn và hết hạn.
 - [ ] Khi hết hạn, chuyển tài khoản sang chỉ xem thay vì xóa dữ liệu.

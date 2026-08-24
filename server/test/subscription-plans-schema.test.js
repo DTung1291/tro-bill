@@ -18,6 +18,7 @@ test('schema plans lưu mã gói, giá VND và giới hạn sử dụng ở serv
   assert.match(definition, /yearly_price_vnd\s+NUMERIC\(12, 0\)/);
   assert.match(definition, /room_limit\s+INTEGER NOT NULL/);
   assert.match(definition, /staff_limit\s+INTEGER NOT NULL DEFAULT 0/);
+  assert.match(definition, /trial_days\s+INTEGER NOT NULL DEFAULT 0/);
   assert.match(definition, /CHECK \(monthly_price_vnd IS NULL OR monthly_price_vnd >= 0\)/);
   assert.match(definition, /CHECK \(yearly_price_vnd IS NULL OR yearly_price_vnd >= 0\)/);
   assert.match(definition, /CHECK \(room_limit > 0\)/);
@@ -38,10 +39,10 @@ test('chỉ Free được mở; schema không ghi đè giá do admin đã cấu 
   assert.ok(plansSeed, 'Thiếu dữ liệu plans mặc định');
 
   const seed = plansSeed[1];
-  assert.match(seed, /'free'[\s\S]*?0, 0, 10, 0, true, true/);
-  assert.match(seed, /'standard'[\s\S]*?NULL, NULL, 25, 0, false, false/);
-  assert.match(seed, /'pro'[\s\S]*?NULL, NULL, 50, 0, false, false/);
-  assert.match(seed, /'business'[\s\S]*?NULL, NULL, 100, 1, false, false/);
+  assert.match(seed, /'free'[\s\S]*?0, 0, 10, 0, 0, true, true/);
+  assert.match(seed, /'standard'[\s\S]*?NULL, NULL, 25, 0, 14, false, false/);
+  assert.match(seed, /'pro'[\s\S]*?NULL, NULL, 50, 0, 14, false, false/);
+  assert.match(seed, /'business'[\s\S]*?NULL, NULL, 100, 1, 14, false, false/);
   assert.match(schema, /ON CONFLICT \(code\) DO NOTHING;/);
   assert.doesNotMatch(schema, /ON CONFLICT \(code\) DO UPDATE/);
 });

@@ -14,6 +14,15 @@ class EntitlementError extends Error {
   }
 }
 
+class SubscriptionOperationError extends Error {
+  constructor(statusCode, code, message) {
+    super(message);
+    this.name = 'SubscriptionOperationError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
 function toIso(value) {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -111,11 +120,184 @@ async function getSubscription(req, res) {
   }
 }
 
+function trialRequest(req) {
+  const targetUserId = Number(req.params.id);
+  const planCode = String(req.body?.planCode || '').trim().toLowerCase();
+  const reason = String(req.body?.reason || '').trim();
+  const rawDays = req.body?.days;
+  const days = rawDays === undefined || rawDays === null || rawDays === ''
+    ? null
+    : Number(rawDays);
+
+  if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+    throw new SubscriptionOperationError(400, 'INVALID_USER_ID', 'ID tài khoản không hợp lệ');
+  }
+  if (!/^[a-z][a-z0-9_-]{1,31}$/.test(planCode)) {
+    throw new SubscriptionOperationError(400, 'INVALID_PLAN_CODE', 'Mã gói không hợp lệ');
+  }
+  if (reason.length < 10 || reason.length > 500) {
+    throw new SubscriptionOperationError(
+      400,
+      'INVALID_REASON',
+      'Lý do cấp dùng thử phải từ 10 đến 500 ký tự'
+    );
+  }
+  if (days !== null && (!Number.isInteger(days) || days < 14 || days > 30)) {
+    throw new SubscriptionOperationError(
+      400,
+      'INVALID_TRIAL_DAYS',
+      'Thời gian dùng thử phải từ 14 đến 30 ngày'
+    );
+  }
+  return { targetUserId, planCode, reason, days };
+}
+
+function sendOperationError(res, error) {
+  if (!(error instanceof SubscriptionOperationError)) return false;
+  res.status(error.statusCode).json({ error: error.message, code: error.code });
+  return true;
+}
+
+// POST /api/admin/users/:id/subscription/trial
+// Cấp trial và audit trong cùng transaction để không thể đổi gói mà mất dấu.
+async function startTrial(req, res) {
+  let input;
+  try {
+    input = trialRequest(req);
+  } catch (error) {
+    if (sendOperationError(res, error)) return res;
+    throw error;
+  }
+
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    const targetResult = await client.query(
+      'SELECT id, email FROM users WHERE id=$1 FOR UPDATE',
+      [input.targetUserId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) {
+      throw new SubscriptionOperationError(404, 'USER_NOT_FOUND', 'Không tìm thấy tài khoản');
+    }
+
+    const planResult = await client.query(
+      `SELECT id, code, name, trial_days
+       FROM plans
+       WHERE code=$1
+       FOR SHARE`,
+      [input.planCode]
+    );
+    const plan = planResult.rows[0];
+    if (!plan) {
+      throw new SubscriptionOperationError(404, 'PLAN_NOT_FOUND', 'Không tìm thấy gói dịch vụ');
+    }
+    const configuredDays = Number(plan.trial_days) || 0;
+    if (plan.code === 'free' || configuredDays === 0) {
+      throw new SubscriptionOperationError(
+        409,
+        'TRIAL_NOT_AVAILABLE',
+        'Gói này không hỗ trợ dùng thử'
+      );
+    }
+    const trialDays = input.days ?? configuredDays;
+    if (!Number.isInteger(trialDays) || trialDays < 14 || trialDays > 30) {
+      throw new SubscriptionOperationError(
+        409,
+        'TRIAL_CONFIGURATION_INVALID',
+        'Cấu hình thời gian dùng thử của gói không hợp lệ'
+      );
+    }
+
+    const currentResult = await client.query(
+      `SELECT s.status, s.trial_used_at, p.code AS plan_code
+       FROM subscriptions s
+       JOIN plans p ON p.id=s.plan_id
+       WHERE s.user_id=$1
+       FOR UPDATE OF s`,
+      [input.targetUserId]
+    );
+    const current = currentResult.rows[0] || null;
+    if (current?.trial_used_at || current?.status === 'trialing') {
+      throw new SubscriptionOperationError(
+        409,
+        'TRIAL_ALREADY_USED',
+        'Tài khoản này đã sử dụng quyền dùng thử'
+      );
+    }
+
+    const subscriptionResult = await client.query(
+      `INSERT INTO subscriptions
+         (user_id, plan_id, status, starts_at, ends_at, trial_used_at)
+       VALUES ($1,$2,'trialing',now(),now() + ($3::integer * interval '1 day'),now())
+       ON CONFLICT (user_id) DO UPDATE SET
+         plan_id=EXCLUDED.plan_id,
+         status='trialing',
+         starts_at=EXCLUDED.starts_at,
+         ends_at=EXCLUDED.ends_at,
+         trial_used_at=EXCLUDED.trial_used_at,
+         updated_at=now()
+       RETURNING id, status, starts_at, ends_at`,
+      [input.targetUserId, plan.id, trialDays]
+    );
+    const subscription = subscriptionResult.rows[0];
+
+    await client.query(
+      `INSERT INTO subscription_change_logs
+         (actor_user_id, actor_email_snapshot, target_user_id, target_email_snapshot,
+          action, previous_plan_code, new_plan_code, previous_status, new_status,
+          reason, metadata)
+       VALUES ($1,$2,$3,$4,'trial_started',$5,$6,$7,'trialing',$8,$9::jsonb)`,
+      [
+        req.userId,
+        String(req.userEmail || ''),
+        input.targetUserId,
+        target.email,
+        current?.plan_code || null,
+        plan.code,
+        current?.status || null,
+        input.reason,
+        JSON.stringify({ trialDays })
+      ]
+    );
+
+    await client.query('COMMIT');
+    return res.json({
+      ok: true,
+      audited: true,
+      target: { id: Number(target.id), email: target.email },
+      subscription: {
+        id: Number(subscription.id),
+        planCode: plan.code,
+        planName: plan.name,
+        status: subscription.status,
+        startsAt: toIso(subscription.starts_at),
+        endsAt: toIso(subscription.ends_at),
+        trialDays
+      }
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      // Lỗi gốc vẫn quan trọng hơn lỗi rollback; middleware sẽ ghi incident.
+    }
+    if (sendOperationError(res, error)) return res;
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   EntitlementError,
+  SubscriptionOperationError,
   enforceStateWrite,
   getSubscription,
   getUserEntitlements,
   resolveEntitlements,
-  sendEntitlementError
+  sendEntitlementError,
+  startTrial,
+  trialRequest
 };

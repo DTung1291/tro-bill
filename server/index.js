@@ -29,7 +29,7 @@ const admin = require('./admin');
 const privacy = require('./privacy');
 const { getConfig, setConfig } = require('./config');
 const { seedAdmin } = require('./seed-admin');
-const { getSubscription } = require('./subscription');
+const subscription = require('./subscription');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,7 +83,7 @@ app.post('/api/auth/forgot-password', wrap(forgotPassword));
 app.post('/api/auth/reset-password', wrap(resetPassword));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
-app.get('/api/subscription', requireAuth, wrap(getSubscription));
+app.get('/api/subscription', requireAuth, wrap(subscription.getSubscription));
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));
@@ -106,6 +106,11 @@ app.post(
   wrap(admin.revealTenantCccd)
 );
 app.get('/api/admin/sensitive-access-logs', adminGuard, wrap(admin.listSensitiveAccessLogs));
+app.post(
+  '/api/admin/users/:id/subscription/trial',
+  adminGuard,
+  wrap(subscription.startTrial)
+);
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
 app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));
