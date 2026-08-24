@@ -370,6 +370,41 @@ CREATE INDEX IF NOT EXISTS idx_subscription_change_target_created
 CREATE INDEX IF NOT EXISTS idx_subscription_change_action_created
   ON subscription_change_logs(action, created_at DESC);
 
+-- Hàng đợi email nhắc hết hạn. Khóa duy nhất theo subscription, mốc nhắc và
+-- ngày hết hạn giúp cron chạy lặp vẫn không gửi trùng; ngày hết hạn mới sẽ tạo
+-- một chuỗi nhắc mới sau khi gia hạn.
+CREATE TABLE IF NOT EXISTS subscription_notifications (
+  id                       BIGSERIAL PRIMARY KEY,
+  user_id                  BIGINT NOT NULL,
+  subscription_id          BIGINT NOT NULL,
+  notification_type        TEXT NOT NULL,
+  scheduled_for            DATE NOT NULL,
+  recipient_email_snapshot TEXT NOT NULL,
+  status                   TEXT NOT NULL DEFAULT 'sending',
+  attempt_count            INTEGER NOT NULL DEFAULT 1,
+  provider_message_id      TEXT,
+  last_error_code          TEXT,
+  sent_at                  TIMESTAMPTZ,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscription_notifications_owner_fk
+    FOREIGN KEY (user_id, subscription_id)
+    REFERENCES subscriptions(user_id, id) ON DELETE CASCADE,
+  CONSTRAINT subscription_notifications_unique
+    UNIQUE (subscription_id, notification_type, scheduled_for),
+  CONSTRAINT subscription_notifications_type_valid
+    CHECK (notification_type IN ('expiry_7d', 'expiry_3d', 'expiry_1d')),
+  CONSTRAINT subscription_notifications_status_valid
+    CHECK (status IN ('sending', 'sent', 'failed')),
+  CONSTRAINT subscription_notifications_attempt_positive CHECK (attempt_count > 0),
+  CONSTRAINT subscription_notifications_sent_at_required
+    CHECK (status <> 'sent' OR sent_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status_updated
+  ON subscription_notifications(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_subscription_notifications_user_created
+  ON subscription_notifications(user_id, created_at DESC);
+
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,

@@ -127,7 +127,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Khi hết hạn, chuyển tài khoản sang chỉ xem thay vì xóa dữ liệu.
 - [x] Cho phép người dùng xuất dữ liệu dù gói đã hết hạn.
 - [x] Hiển thị số phòng đang dùng và giới hạn của gói.
-- [ ] Gửi thông báo trước ngày hết hạn.
+- [x] Gửi thông báo trước ngày hết hạn.
 
 ### Thanh toán gói TrọBill
 

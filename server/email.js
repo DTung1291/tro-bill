@@ -83,6 +83,23 @@ function passwordResetEmailHtml(url) {
     </div>`;
 }
 
+function subscriptionExpiryEmailHtml({ planName, daysRemaining, endsOn, appUrl }) {
+  const safePlan = escapeHtml(planName);
+  const safeEndsOn = escapeHtml(endsOn);
+  const safeAppUrl = escapeHtml(appUrl);
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033;max-width:560px;margin:0 auto">
+      <h1 style="font-size:24px;margin-bottom:12px">Gói TrọBill sắp hết hạn</h1>
+      <p>Gói <strong>${safePlan}</strong> của bạn còn ${daysRemaining} ngày và sẽ hết hạn vào <strong>${safeEndsOn}</strong>.</p>
+      <p>Hãy gia hạn trước ngày này để tiếp tục cập nhật dữ liệu. Sau thời gian ân hạn, tài khoản vẫn xem và xuất được dữ liệu nhưng không thể chỉnh sửa.</p>
+      <p style="margin:28px 0">
+        <a href="${safeAppUrl}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#6c63ff;color:#fff;text-decoration:none;font-weight:700">
+          Mở TrọBill
+        </a>
+      </p>
+    </div>`;
+}
+
 function parseSender(value) {
   const sender = String(value || '').trim();
   const match = sender.match(/^(.*?)\s*<([^<>]+)>$/);
@@ -213,8 +230,36 @@ async function sendPasswordResetEmail({ email, token, userId, req }) {
   return { delivered: true, emailId: delivery && delivery.id, passwordResetUrl: url };
 }
 
+async function sendSubscriptionExpiryEmail({
+  email,
+  planName,
+  daysRemaining,
+  endsOn,
+  notificationId
+}) {
+  const appUrl = String(process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  const configuration = assertEmailConfigured();
+  const apiKey = emailProviderApiKey(configuration.provider);
+  if (!apiKey) {
+    return { delivered: false, development: true };
+  }
+
+  const from = String(process.env.EMAIL_FROM || 'TrọBill <onboarding@resend.dev>').trim();
+  const delivery = await sendTransactionalEmail({
+    from,
+    to: email,
+    subject: `Gói TrọBill còn ${daysRemaining} ngày`,
+    html: subscriptionExpiryEmailHtml({ planName, daysRemaining, endsOn, appUrl }),
+    text: `Gói ${planName} của bạn còn ${daysRemaining} ngày và sẽ hết hạn vào ${endsOn}. Mở TrọBill: ${appUrl}`,
+    idempotencyKey: `subscription-expiry-${notificationId}`
+  });
+  return { delivered: true, emailId: delivery && delivery.id };
+}
+
 module.exports = {
   assertEmailConfigured,
+  sendSubscriptionExpiryEmail,
   sendVerificationEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  subscriptionExpiryEmailHtml
 };

@@ -30,6 +30,7 @@ const privacy = require('./privacy');
 const { getConfig, setConfig } = require('./config');
 const { seedAdmin } = require('./seed-admin');
 const subscription = require('./subscription');
+const { expiryReminderCron } = require('./subscription-notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -73,6 +74,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 // ---------- API ----------
 app.get('/api/health/live', live);
 app.get('/api/health/ready', wrap(ready));
+app.get('/api/cron/subscription-expiry', wrap(expiryReminderCron));
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
 app.post('/api/auth/logout', logout);

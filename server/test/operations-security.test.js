@@ -41,7 +41,8 @@ test('cấu hình production từ chối URL HTTP và database gắn nhãn sai m
     APP_URL: 'http://app.example.com',
     EMAIL_PROVIDER: 'brevo',
     BREVO_API_KEY: 'placeholder',
-    EMAIL_FROM: 'TrọBill <no-reply@example.com>'
+    EMAIL_FROM: 'TrọBill <no-reply@example.com>',
+    CRON_SECRET: 'c'.repeat(40)
   });
 
   assert.equal(report.valid, false);
@@ -50,6 +51,21 @@ test('cấu hình production từ chối URL HTTP và database gắn nhãn sai m
     'DATABASE_ENVIRONMENT_MISMATCH'
   ]);
   assert.equal(report.warnings.some(warning => warning.code === 'OPS_ALERT_WEBHOOK_MISSING'), true);
+});
+
+test('production bắt buộc secret đủ dài cho cron', () => {
+  const report = inspectRuntimeEnvironment({
+    APP_ENV: 'production',
+    DATABASE_ENVIRONMENT: 'production',
+    DATABASE_URL: 'postgresql://placeholder',
+    JWT_SECRET: 'a'.repeat(40),
+    APP_URL: 'https://app.example.com',
+    EMAIL_PROVIDER: 'brevo',
+    BREVO_API_KEY: 'placeholder',
+    EMAIL_FROM: 'TrọBill <no-reply@example.com>',
+    CRON_SECRET: 'ngắn'
+  });
+  assert.equal(report.issues.some(issue => issue.code === 'CRON_SECRET_MISSING'), true);
 });
 
 test('middleware production chuyển HTTP sang HTTPS bằng APP_URL tin cậy', () => {

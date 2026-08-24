@@ -79,6 +79,12 @@ function inspectRuntimeEnvironment(env = process.env) {
         'Chưa có OPS_ALERT_WEBHOOK_URL HTTPS nên sự cố chỉ được ghi log, chưa gửi cảnh báo.'
       );
     }
+    if (String(env.CRON_SECRET || '').length < 32) {
+      addIssue(
+        'CRON_SECRET_MISSING',
+        'Production phải có CRON_SECRET tối thiểu 32 ký tự để bảo vệ tác vụ định kỳ.'
+      );
+    }
   }
 
   return {
