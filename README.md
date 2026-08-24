@@ -16,7 +16,7 @@ tro-bill/
     ├── db.js          # pg Pool từ DATABASE_URL
     ├── auth.js        # register/login (bcrypt) + middleware JWT
     ├── rate-limit.js  # chống brute-force bằng bộ đếm Postgres
-    ├── email.js       # gửi email xác minh/đặt lại mật khẩu qua Resend
+    ├── email.js       # gửi email xác minh/đặt lại mật khẩu qua Brevo hoặc Resend
     ├── state.js       # GET/PUT /api/state — lắp ráp ↔ tách các bảng dữ liệu
     ├── schema.sql     # schema chuẩn hóa + lịch sử biểu phí theo tháng
     ├── init-db.js     # chạy schema.sql lên Neon
