@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify required secrets
         shell: bash
@@ -69,7 +69,7 @@ jobs:
         run: scripts/restore-database.sh "$(find backups -name '*.dump.enc' -print -quit)"
 
       - name: Upload encrypted backup
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trobill-database-backup-${{ github.run_id }}
           path: |

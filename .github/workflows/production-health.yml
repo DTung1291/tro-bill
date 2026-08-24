@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Checkout alert helper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check API and database readiness
         env:
