@@ -26,6 +26,7 @@ const {
 } = require('./auth');
 const { getState, putState } = require('./state');
 const admin = require('./admin');
+const privacy = require('./privacy');
 const { getConfig, setConfig } = require('./config');
 const { seedAdmin } = require('./seed-admin');
 
@@ -83,6 +84,12 @@ app.post('/api/auth/reset-password', wrap(resetPassword));
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
+app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));
+app.post('/api/privacy/accept', requireAuth, wrap(privacy.acceptPolicies));
+app.post('/api/privacy/tenants/:tenantId/reveal-cccd', requireAuth, wrap(privacy.revealTenantCccd));
+app.get('/api/privacy/audit-logs', requireAuth, wrap(privacy.listAuditLogs));
+app.post('/api/privacy/export', requireAuth, wrap(privacy.exportAccountData));
+app.delete('/api/account', requireAuth, wrap(privacy.deleteAccount));
 
 // Cấu hình toàn cục (thông tin ủng hộ): đọc công khai, ghi chỉ admin
 app.get('/api/config', requireAuth, wrap(getConfig));

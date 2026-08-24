@@ -292,6 +292,38 @@ body.modal-open {
   font-size: .78rem;
   color: var(--text-muted);
 }
+.privacy-settings-card,
+.account-delete-card {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: space-between;
+}
+.privacy-settings-main { flex: 1 1 320px; }
+.privacy-settings-actions,
+.privacy-policy-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.privacy-policy-links { margin-top: 7px; }
+.privacy-policy-links a { color: var(--primary); font-weight: 600; }
+.privacy-audit-list {
+  flex: 1 0 100%;
+  max-height: 260px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.privacy-audit-item {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .78rem;
+}
+.privacy-audit-item:last-child { border-bottom: 0; }
+.account-delete-card { border-color: rgba(239, 68, 68, .4); }
 .inline-input {
   width: 130px; padding: 6px 10px;
   background: var(--bg3); border: 1px solid var(--border);
@@ -1670,6 +1702,21 @@ body.modal-open {
   gap: 12px;
   margin-top: 10px;
 }
+.sensitive-input-row { display: flex; gap: 8px; align-items: center; }
+.sensitive-input-row .form-input { min-width: 0; flex: 1; }
+.tenant-data-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.tenant-data-notice input { margin-top: 3px; }
 
 #cccd-qr-reader {
   position: relative;
@@ -1958,6 +2005,21 @@ body.modal-open {
   font-size: 15px;
   box-sizing: border-box;
 }
+.auth-policy-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.auth-policy-consent[hidden] { display: none; }
+.auth-policy-consent input { margin-top: 3px; }
+.auth-policy-consent a { color: var(--primary); font-weight: 600; }
+.privacy-action-form { padding: 18px 20px 20px; }
+.privacy-action-form > p { margin: 0 0 14px; color: var(--text-muted); line-height: 1.5; }
+.privacy-action-error { color: var(--red) !important; font-size: .8rem; }
 .auth-mode-action {
   display: block;
   margin: -4px 0 14px auto;

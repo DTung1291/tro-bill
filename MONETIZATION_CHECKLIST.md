@@ -49,13 +49,29 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
 
 ### Bảo vệ dữ liệu khách thuê
 
-- [ ] Che bớt số CCCD trên giao diện mặc định.
-- [ ] Ghi nhật ký khi xem, sửa, xuất hoặc xóa dữ liệu nhạy cảm.
-- [ ] Có chính sách bảo mật và điều khoản sử dụng.
-- [ ] Có thông báo mục đích thu thập dữ liệu khách thuê.
-- [ ] Có chức năng xuất dữ liệu của tài khoản.
-- [ ] Có chức năng yêu cầu xóa tài khoản và dữ liệu liên quan.
-- [ ] Xác định thời gian lưu dữ liệu sau khi tài khoản ngừng sử dụng.
+- [x] Che bớt số CCCD trên giao diện mặc định.
+- [x] Ghi nhật ký khi xem, sửa, xuất hoặc xóa dữ liệu nhạy cảm.
+- [x] Có chính sách bảo mật và điều khoản sử dụng.
+- [x] Có thông báo mục đích thu thập dữ liệu khách thuê.
+- [x] Có chức năng xuất dữ liệu của tài khoản.
+- [x] Có chức năng yêu cầu xóa tài khoản và dữ liệu liên quan.
+- [x] Xác định thời gian lưu dữ liệu sau khi tài khoản ngừng sử dụng.
+
+Trạng thái ngày 24/08/2026:
+
+- CCCD được che ở state và giao diện; chỉ API theo quyền sở hữu mới trả bản đầy
+  đủ, không cache và luôn ghi audit. Chủ tài khoản thấy cả lịch sử admin xem
+  CCCD cùng lý do hỗ trợ; audit không chứa giá trị CCCD cũ/mới.
+- Đăng ký mới ghi phiên bản đồng ý chính sách/điều khoản. Hồ sơ khách thuê mới
+  hoặc thay đổi dữ liệu nhạy cảm bắt buộc xác nhận đã gửi thông báo mục đích.
+- Cài đặt hỗ trợ xuất JSON đầy đủ sau khi nhập lại mật khẩu và tự xóa tài khoản
+  bằng mật khẩu + cụm xác nhận. Dữ liệu nhạy cảm cũng được xóa khỏi bộ nhớ trình
+  duyệt sau khi tài khoản bị xóa.
+- Dữ liệu chính bị xóa ngay khi xóa tài khoản; backup mã hóa tối đa 30 ngày và
+  audit tối giản tối đa 365 ngày. Chính sách/điều khoản hiện là bản pilot, phải
+  được rà soát pháp lý và bổ sung thông tin pháp nhân trước khi mở bán đại trà.
+- Migration đã chạy trên Neon Production và staging. Cả hai môi trường dùng
+  runtime role `tro_bill_app` chỉ có quyền CRUD, không có quyền tạo schema.
 
 ### An toàn dữ liệu và vận hành
 
@@ -73,7 +89,7 @@ Trạng thái ngày 24/08/2026:
   vào PostgreSQL 18 trống và qua kiểm tra toàn vẹn; dữ liệu tạm đã được xóa.
 - Production `tro-bill.vercel.app` chuyển HTTP sang HTTPS và có HSTS.
 - Quét tracked files cùng toàn bộ Git history không phát hiện secret; CI tiếp tục
-  chặn secret và chạy 33 kiểm thử bảo mật/bill trên mỗi thay đổi.
+  chặn secret và chạy 41 kiểm thử bảo mật/bill trên mỗi thay đổi.
 - Lỗi server được ghi JSON theo `incidentId`/`requestId`; health monitor đã mở
   GitHub Issue duy nhất, gán người phụ trách và sẽ tự đóng khi production phục hồi.
 - Vercel Preview dùng `APP_ENV=staging`, JWT riêng và Neon branch schema-only
@@ -84,7 +100,7 @@ Trạng thái ngày 24/08/2026:
 
 ### Hoàn thành giai đoạn khi
 
-- [ ] Có thể khôi phục dữ liệu từ backup và không còn token đăng nhập lưu trong `localStorage`.
+- [x] Có thể khôi phục dữ liệu từ backup và không còn token đăng nhập lưu trong `localStorage`.
 - [ ] Luồng đăng ký, xác minh email, quên mật khẩu và xóa tài khoản hoạt động đầy đủ.
 
 ## Giai đoạn 2 — Hệ thống gói trả phí

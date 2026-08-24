@@ -16,6 +16,10 @@ const RULES = {
   register: [
     { scope: 'ip', maxAttempts: 10, windowSeconds: 60 * 60 },
     { scope: 'account', maxAttempts: 5, windowSeconds: 60 * 60 }
+  ],
+  sensitive: [
+    { scope: 'ip', maxAttempts: 10, windowSeconds: 15 * 60 },
+    { scope: 'account', maxAttempts: 5, windowSeconds: 15 * 60 }
   ]
 };
 let lastCleanupAt = 0;

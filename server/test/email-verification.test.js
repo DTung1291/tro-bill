@@ -48,6 +48,13 @@ function responseRecorder() {
   return { res, record };
 }
 
+test('đăng ký bắt buộc đồng ý chính sách bảo mật và điều khoản', async () => {
+  const response = responseRecorder();
+  await register(request({ email: 'new@example.com', password: 'matkhau123' }), response.res);
+  assert.equal(response.record.statusCode, 400);
+  assert.equal(response.record.body.code, 'POLICY_ACCEPTANCE_REQUIRED');
+});
+
 test('đăng ký lưu hash token, không đăng nhập trước khi xác minh và link local dùng được', async (t) => {
   const originalQuery = db.query;
   const originalGetClient = db.getClient;
@@ -88,7 +95,12 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   });
 
   const registration = responseRecorder();
-  await register(request({ email: 'NEW@example.com', password: 'matkhau123' }), registration.res);
+  await register(request({
+    email: 'NEW@example.com',
+    password: 'matkhau123',
+    acceptPrivacy: true,
+    acceptTerms: true
+  }), registration.res);
 
   assert.equal(registration.record.statusCode, 201);
   assert.equal(registration.record.body.email, 'new@example.com');

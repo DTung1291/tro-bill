@@ -2,6 +2,8 @@
 
 const db = require('./db');
 const RoomRates = require('../rate-history');
+const { recordDataAudit, requestAuditContext } = require('./data-audit');
+const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 
 // ---------- helpers chuyển đổi kiểu ----------
 const num = (v, d = 0) => (v === null || v === undefined || v === '' ? d : Number(v));
@@ -16,6 +18,30 @@ function maskCccd(value) {
   if (!cccd) return '';
   const visible = cccd.slice(-4);
   return `${'•'.repeat(Math.max(0, cccd.length - visible.length))}${visible}`;
+}
+
+function isMaskedCccd(value) {
+  return /[•*]/.test(String(value || ''));
+}
+
+const TENANT_SENSITIVE_FIELDS = [
+  ['fullName', 'full_name'],
+  ['phone', 'phone'],
+  ['cccd', 'cccd'],
+  ['issueDate', 'issue_date'],
+  ['dob', 'dob'],
+  ['gender', 'gender'],
+  ['address', 'address']
+];
+
+function changedTenantFields(existing, tenant, resolvedCccd) {
+  if (!existing) return TENANT_SENSITIVE_FIELDS.map(([clientField]) => clientField);
+  return TENANT_SENSITIVE_FIELDS
+    .filter(([clientField, databaseField]) => {
+      const nextValue = clientField === 'cccd' ? resolvedCccd : tenant[clientField];
+      return String(existing[databaseField] || '') !== String(nextValue || '');
+    })
+    .map(([clientField]) => clientField);
 }
 
 // ============================================================
@@ -58,11 +84,14 @@ async function buildState(uid, options = {}) {
       id: t.id,
       fullName: t.full_name,
       phone: t.phone,
-      cccd: options.maskCccd ? maskCccd(t.cccd) : t.cccd,
+      cccd: options.maskCccd === false ? t.cccd : maskCccd(t.cccd),
       issueDate: t.issue_date,
       dob: t.dob,
       gender: t.gender,
-      address: t.address
+      address: t.address,
+      dataNoticeAcknowledged: !!t.data_notice_acknowledged_at &&
+        t.data_notice_version === TENANT_DATA_NOTICE_VERSION,
+      dataNoticeVersion: t.data_notice_version || ''
     });
   }
 
@@ -172,7 +201,7 @@ async function buildState(uid, options = {}) {
 }
 
 async function getState(req, res) {
-  res.json(await buildState(req.userId));
+  res.json(await buildState(req.userId, { maskCccd: true }));
 }
 
 // ============================================================
@@ -191,12 +220,20 @@ async function putState(req, res) {
   const theme = body.theme || 'system';
 
   const roomIds = new Set();
+  const tenantIds = new Set();
   for (const room of rooms) {
     const roomId = String(room && room.id || '').trim();
     if (!roomId || roomId.length > 200 || roomIds.has(roomId)) {
       return res.status(400).json({ error: 'Danh sách phòng chứa ID không hợp lệ hoặc bị trùng' });
     }
     roomIds.add(roomId);
+    for (const tenant of Array.isArray(room.tenants) ? room.tenants : []) {
+      const tenantId = String(tenant && tenant.id || '').trim();
+      if (!tenantId || tenantId.length > 200 || tenantIds.has(tenantId)) {
+        return res.status(400).json({ error: 'Danh sách khách thuê chứa ID không hợp lệ hoặc bị trùng' });
+      }
+      tenantIds.add(tenantId);
+    }
   }
   for (const period of Object.keys(billingData)) {
     for (const roomId of Object.keys(billingData[period] || {})) {
@@ -209,6 +246,69 @@ async function putState(req, res) {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
+
+    const existingTenantResult = await client.query(
+      `SELECT id, full_name, phone, cccd, issue_date, dob, gender, address,
+              data_notice_version, data_notice_acknowledged_at
+       FROM tenants WHERE user_id=$1`,
+      [uid]
+    );
+    const existingTenants = new Map(existingTenantResult.rows.map(tenant => [tenant.id, tenant]));
+    const resolvedTenants = new Map();
+    const tenantAudits = [];
+
+    for (const room of rooms) {
+      for (const tenant of Array.isArray(room.tenants) ? room.tenants : []) {
+        const existing = existingTenants.get(tenant.id);
+        const submittedCccd = String(tenant.cccd || '').trim();
+        if (isMaskedCccd(submittedCccd) && !existing) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'CCCD đã che không thể dùng để tạo khách thuê mới' });
+        }
+        const resolvedCccd = isMaskedCccd(submittedCccd)
+          ? String(existing.cccd || '')
+          : submittedCccd;
+        if (!resolvedCccd) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Số CCCD của khách thuê không được để trống' });
+        }
+
+        const fields = changedTenantFields(existing, tenant, resolvedCccd);
+        const noticePreviouslyAcknowledged = !!(
+          existing &&
+          existing.data_notice_acknowledged_at &&
+          existing.data_notice_version === TENANT_DATA_NOTICE_VERSION
+        );
+        const noticeAcknowledged = noticePreviouslyAcknowledged || tenant.dataNoticeAcknowledged === true;
+        if ((!existing || fields.length > 0) && !noticeAcknowledged) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'Cần xác nhận đã thông báo mục đích thu thập dữ liệu cho khách thuê',
+            code: 'TENANT_DATA_NOTICE_REQUIRED'
+          });
+        }
+
+        resolvedTenants.set(tenant.id, {
+          cccd: resolvedCccd,
+          dataNoticeAcknowledgedAt: noticePreviouslyAcknowledged
+            ? existing.data_notice_acknowledged_at
+            : (noticeAcknowledged ? new Date().toISOString() : null),
+          dataNoticeVersion: noticeAcknowledged
+            ? TENANT_DATA_NOTICE_VERSION
+            : ''
+        });
+        if (!existing) {
+          tenantAudits.push({ action: 'tenant_sensitive_create', tenantId: tenant.id, fields });
+        } else if (fields.length > 0) {
+          tenantAudits.push({ action: 'tenant_sensitive_update', tenantId: tenant.id, fields });
+        }
+      }
+    }
+    for (const tenantId of existingTenants.keys()) {
+      if (!tenantIds.has(tenantId)) {
+        tenantAudits.push({ action: 'tenant_sensitive_delete', tenantId, fields: [] });
+      }
+    }
 
     // settings (upsert)
     await client.query(
@@ -272,13 +372,16 @@ async function putState(req, res) {
       }
       let tIdx = 0;
       for (const t of Array.isArray(r.tenants) ? r.tenants : []) {
+        const resolved = resolvedTenants.get(t.id);
         await client.query(
           `INSERT INTO tenants
-             (id, room_id, user_id, full_name, phone, cccd, issue_date, dob, gender, address, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+             (id, room_id, user_id, full_name, phone, cccd, issue_date, dob, gender,
+              address, data_notice_version, data_notice_acknowledged_at, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
           [
-            t.id, r.id, uid, t.fullName || '', t.phone || '', t.cccd || '',
-            t.issueDate || '', t.dob || '', t.gender || 'Nam', t.address || '', tIdx++
+            t.id, r.id, uid, t.fullName || '', t.phone || '', resolved.cccd,
+            t.issueDate || '', t.dob || '', t.gender || 'Nam', t.address || '',
+            resolved.dataNoticeVersion, resolved.dataNoticeAcknowledgedAt, tIdx++
           ]
         );
       }
@@ -352,6 +455,20 @@ async function putState(req, res) {
       }
     }
 
+    const auditContext = requestAuditContext(req);
+    for (const audit of tenantAudits) {
+      await recordDataAudit(client.query.bind(client), {
+        actorUserId: uid,
+        actorEmail: req.userEmail || '',
+        subjectUserId: uid,
+        action: audit.action,
+        resourceType: 'tenant',
+        resourceId: audit.tenantId,
+        changedFields: audit.fields,
+        ...auditContext
+      });
+    }
+
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (err) {
@@ -363,4 +480,14 @@ async function putState(req, res) {
   }
 }
 
-module.exports = { getState, putState, buildState, maskCccd, orNull, strOrNull, num };
+module.exports = {
+  buildState,
+  changedTenantFields,
+  getState,
+  isMaskedCccd,
+  maskCccd,
+  num,
+  orNull,
+  putState,
+  strOrNull
+};

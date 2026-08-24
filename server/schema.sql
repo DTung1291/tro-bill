@@ -11,11 +11,19 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin      BOOLEAN NOT NULL DEFAULT false,
   email_verified_at TIMESTAMPTZ,
   token_version INTEGER NOT NULL DEFAULT 0,
+  privacy_policy_version TEXT NOT NULL DEFAULT '',
+  privacy_accepted_at TIMESTAMPTZ,
+  terms_version TEXT NOT NULL DEFAULT '',
+  terms_accepted_at TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 -- Bổ sung cột cho DB đã tạo trước đó (idempotent)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_accepted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 
 -- Khi nâng cấp DB cũ, các tài khoản đã tồn tại được xem là đã xác minh để
 -- không khóa người dùng đang hoạt động. DB mới đã có cột ngay từ CREATE TABLE.
@@ -156,8 +164,12 @@ CREATE TABLE IF NOT EXISTS tenants (
   dob        TEXT NOT NULL DEFAULT '',
   gender     TEXT NOT NULL DEFAULT 'Nam',
   address    TEXT NOT NULL DEFAULT '',
+  data_notice_version TEXT NOT NULL DEFAULT '',
+  data_notice_acknowledged_at TIMESTAMPTZ,
   sort_order INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_version TEXT NOT NULL DEFAULT '';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_acknowledged_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_tenants_room ON tenants(room_id);
 CREATE INDEX IF NOT EXISTS idx_tenants_user ON tenants(user_id);
 
@@ -285,3 +297,24 @@ CREATE TABLE IF NOT EXISTS admin_sensitive_access_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_sensitive_access_created
   ON admin_sensitive_access_logs(created_at DESC);
+
+-- Nhật ký hoạt động dữ liệu của chính chủ tài khoản. Không lưu giá trị CCCD,
+-- số điện thoại, địa chỉ hay dữ liệu trước/sau thay đổi trong bảng này.
+CREATE TABLE IF NOT EXISTS data_audit_logs (
+  id                   BIGSERIAL PRIMARY KEY,
+  actor_user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  actor_email_snapshot TEXT NOT NULL,
+  subject_user_id      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  action               TEXT NOT NULL,
+  resource_type        TEXT NOT NULL,
+  resource_id          TEXT NOT NULL DEFAULT '',
+  changed_fields       TEXT[] NOT NULL DEFAULT '{}',
+  purpose              TEXT NOT NULL DEFAULT '',
+  request_ip_hash      TEXT NOT NULL DEFAULT '',
+  user_agent           TEXT NOT NULL DEFAULT '',
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_data_audit_subject_created
+  ON data_audit_logs(subject_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_data_audit_created
+  ON data_audit_logs(created_at DESC);

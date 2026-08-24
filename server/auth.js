@@ -14,6 +14,7 @@ const {
   recordAuthAttempt,
   clearAccountRateLimit
 } = require('./rate-limit');
+const { PRIVACY_POLICY_VERSION, TERMS_VERSION } = require('./privacy-constants');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -141,6 +142,12 @@ async function register(req, res) {
   if (password.length < 6) {
     return res.status(400).json({ error: 'Mật khẩu tối thiểu 6 ký tự' });
   }
+  if (req.body.acceptPrivacy !== true || req.body.acceptTerms !== true) {
+    return res.status(400).json({
+      error: 'Bạn phải đồng ý Chính sách bảo mật và Điều khoản sử dụng',
+      code: 'POLICY_ACCEPTANCE_REQUIRED'
+    });
+  }
   if (!(await checkAuthRateLimit(req, res, 'register', email))) return;
   if (!(await recordAuthAttempt(req, res, 'register', email))) return;
 
@@ -164,8 +171,12 @@ async function register(req, res) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      'INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id, email',
-      [email, hash]
+      `INSERT INTO users
+         (email, password_hash, privacy_policy_version, privacy_accepted_at,
+          terms_version, terms_accepted_at)
+       VALUES ($1,$2,$3,now(),$4,now())
+       RETURNING id, email`,
+      [email, hash, PRIVACY_POLICY_VERSION, TERMS_VERSION]
     );
     user = rows[0];
     await client.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
@@ -483,6 +494,7 @@ module.exports = {
   resendVerification,
   forgotPassword,
   resetPassword,
+  clearSessionCookie,
   requireAuth,
   requireAdmin
 };

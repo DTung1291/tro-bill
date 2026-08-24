@@ -16,8 +16,8 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=68" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=70" />
 </head>
 
 <body>
@@ -41,6 +41,10 @@
         </label>
         <label class="auth-label" id="auth-confirm-label" hidden>Nhập lại mật khẩu mới
           <input type="password" id="auth-confirm-password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" minlength="6" />
+        </label>
+        <label class="auth-policy-consent" id="auth-policy-consent" hidden>
+          <input type="checkbox" id="auth-policy-checkbox" />
+          <span>Tôi đã đọc và đồng ý với <a href="privacy.html" target="_blank" rel="noopener">Chính sách bảo mật</a> và <a href="terms.html" target="_blank" rel="noopener">Điều khoản sử dụng</a>.</span>
         </label>
         <button type="button" class="auth-mode-action" id="auth-forgot">Quên mật khẩu?</button>
         <p class="auth-feedback auth-feedback--error" id="auth-feedback" role="status" aria-live="polite" hidden></p>
@@ -439,12 +443,38 @@
       </div>
 
       <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
-        <span>💾 Đồng bộ dữ liệu (sang trình duyệt/máy khác):</span>
+        <span>💾 Dữ liệu tài khoản:</span>
         <div style="display:flex; gap:8px">
-          <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất file JSON</button>
+          <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất dữ liệu có audit</button>
           <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập file JSON</button>
           <input type="file" id="import-file-input" accept=".json" style="display:none" />
         </div>
+      </div>
+
+      <div class="settings-card privacy-settings-card">
+        <div class="privacy-settings-main">
+          <strong>🛡️ Quyền riêng tư và dữ liệu khách thuê</strong>
+          <div class="settings-security-note" id="privacy-status">Đang kiểm tra trạng thái chính sách…</div>
+          <div class="privacy-policy-links">
+            <a href="privacy.html" target="_blank" rel="noopener">Chính sách bảo mật</a>
+            <a href="terms.html" target="_blank" rel="noopener">Điều khoản sử dụng</a>
+          </div>
+        </div>
+        <div class="privacy-settings-actions">
+          <button class="btn btn--sm btn--ghost" id="btn-accept-policies" hidden>Đồng ý bản hiện tại</button>
+          <button class="btn btn--sm btn--ghost" id="btn-load-privacy-audit">Xem nhật ký dữ liệu</button>
+        </div>
+        <div class="privacy-audit-list" id="privacy-audit-list" hidden></div>
+      </div>
+
+      <div class="settings-card account-delete-card">
+        <div>
+          <strong>🗑️ Xóa tài khoản và dữ liệu</strong>
+          <div class="settings-security-note">
+            Dữ liệu trong database chính sẽ bị xóa ngay. Bản backup mã hóa có thể còn tối đa 30 ngày và nhật ký không chứa nội dung CCCD được giữ 365 ngày.
+          </div>
+        </div>
+        <button class="btn btn--sm btn--danger" id="btn-delete-account">Yêu cầu xóa tài khoản</button>
       </div>
 
       <div class="settings-card settings-security-card">
@@ -815,7 +845,10 @@
           <div class="form-row form-row--2col">
             <div>
               <label class="form-label">Số CCCD *</label>
-              <input class="form-input" type="text" id="tenant-cccd" placeholder="038095012345" required />
+              <div class="sensitive-input-row">
+                <input class="form-input" type="text" id="tenant-cccd" placeholder="038095012345" required />
+                <button type="button" class="btn btn--ghost btn--sm" id="tenant-cccd-reveal-btn" hidden>Hiện để sửa</button>
+              </div>
             </div>
             <div>
               <label class="form-label">Ngày cấp CCCD *</label>
@@ -842,6 +875,11 @@
             <label class="form-label">Địa chỉ thường trú *</label>
             <input class="form-input" type="text" id="tenant-address" placeholder="Thôn A, Xã B, Huyện C, Tỉnh D" required />
           </div>
+
+          <label class="tenant-data-notice">
+            <input type="checkbox" id="tenant-data-notice-ack" required />
+            <span>Tôi xác nhận đã gửi hoặc cho khách thuê xem <a href="tenant-data-notice.html" target="_blank" rel="noopener">thông báo xử lý dữ liệu</a>: họ tên, liên hệ, ngày sinh, địa chỉ và CCCD được lưu để quản lý hồ sơ thuê, lập hóa đơn và hỗ trợ nghĩa vụ liên quan đến hợp đồng; không dùng cho quảng cáo hoặc bán cho bên thứ ba.</span>
+          </label>
           
           <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
             <button type="button" class="btn btn--ghost btn--sm" id="tenant-form-cancel">Hủy</button>
@@ -866,6 +904,30 @@
         </div>
         <button type="button" class="btn btn--ghost" id="tenant-scan-cancel-btn" style="width: 100%;">Dừng quét</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Export/Delete account requires current password -->
+  <div class="modal-overlay" id="privacy-action-modal" hidden>
+    <div class="modal" style="max-width: 460px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="privacy-action-title">Xác nhận</h2>
+        <button class="modal-close" id="privacy-action-close">✕</button>
+      </div>
+      <form id="privacy-action-form" class="privacy-action-form">
+        <p id="privacy-action-description"></p>
+        <label class="form-label">Mật khẩu hiện tại
+          <input class="form-input" type="password" id="privacy-action-password" autocomplete="current-password" required />
+        </label>
+        <label class="form-label" id="privacy-delete-confirm-label" hidden>Nhập <strong>XOA TAI KHOAN</strong> để xác nhận
+          <input class="form-input" type="text" id="privacy-delete-confirmation" autocomplete="off" />
+        </label>
+        <p class="privacy-action-error" id="privacy-action-error" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="privacy-action-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="privacy-action-submit">Tiếp tục</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -928,10 +990,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=68"></script>
+  <script src="api.js?v=70"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=68"></script>
+  <script src="app.js?v=70"></script>
 </body>
 
 </html>

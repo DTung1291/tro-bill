@@ -49,9 +49,11 @@ hình đủ `RESEND_API_KEY`, `EMAIL_FROM` và `APP_URL`; địa chỉ gửi c�
   nơi nhưng bên trong **debounce ~600ms** rồi `PUT /api/state` gửi toàn bộ state.
 - Server nhận state và **tách vào các bảng trong 1 transaction** (settings, rooms,
   room_rate_history, tenants, billing_entries, expense_entries,
-  history_snapshots, history_bills + users).
+  history_snapshots, history_bills, data_audit_logs + users).
 - `GET /api/state` lắp ráp ngược từ các bảng thành đúng shape frontend cần. Giá
   trị "chưa nhập" (`''` phía client) lưu `NULL` trong DB và đổi lại `''` khi đọc.
+- CCCD trong state luôn được che. Backend giữ nguyên CCCD gốc nếu client gửi lại
+  chuỗi đã che; chỉ API reveal/export có mật khẩu hoặc audit mới trả bản đầy đủ.
 - Đã bỏ chế độ offline/PWA: service worker cũ được tự gỡ khi tải trang.
 
 ## Biểu phí theo tháng
@@ -96,6 +98,12 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | GET    | `/api/me`            | Thông tin user (cần đăng nhập) |
 | GET    | `/api/state`         | Lấy toàn bộ state              |
 | PUT    | `/api/state`         | Lưu toàn bộ state              |
+| GET    | `/api/privacy/status` | Phiên bản chính sách và thời hạn lưu |
+| POST   | `/api/privacy/accept` | Ghi nhận đồng ý chính sách hiện tại |
+| POST   | `/api/privacy/tenants/:tenantId/reveal-cccd` | Xem CCCD của khách thuộc tài khoản + audit |
+| GET    | `/api/privacy/audit-logs` | Nhật ký xem/sửa/xuất/xóa dữ liệu |
+| POST   | `/api/privacy/export` | Xuất toàn bộ dữ liệu, yêu cầu mật khẩu |
+| DELETE | `/api/account`       | Tự xóa tài khoản, yêu cầu mật khẩu + cụm xác nhận |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -116,6 +124,24 @@ bằng `RATE_LIMIT_SECRET`, nếu bỏ trống sẽ dùng `JWT_SECRET`.
 
 Trong Cài đặt, nút **Đăng xuất tất cả thiết bị** tăng `token_version` của tài
 khoản nên mọi JWT đã cấp trước đó mất hiệu lực ngay, bao gồm phiên hiện tại.
+
+## Bảo vệ dữ liệu khách thuê
+
+- Đăng ký mới bắt buộc đồng ý [Chính sách bảo mật](privacy.html) và
+  [Điều khoản sử dụng](terms.html); tài khoản cũ có thể xác nhận bản hiện tại
+  trong Cài đặt.
+- Khi tạo hoặc sửa hồ sơ khách thuê, chủ tài khoản phải xác nhận đã thông báo
+  mục đích thu thập bằng [thông báo mẫu](tenant-data-notice.html). Phiên bản
+  thông báo và thời điểm xác nhận được lưu ở tenant.
+- CCCD được che mặc định với mọi tài khoản. Mỗi lần chủ tài khoản xem đầy đủ
+  đều gọi API theo đúng tenant ownership và ghi audit; admin vẫn phải nhập lý do.
+- Thay đổi hoặc xóa hồ sơ khách thuê được phát hiện trong transaction lưu state;
+  audit chỉ lưu tên trường thay đổi, không lưu giá trị cũ/mới hoặc CCCD.
+- Xuất dữ liệu và tự xóa tài khoản yêu cầu nhập lại mật khẩu, có rate limit và
+  audit. File xuất gồm dữ liệu nghiệp vụ, CCCD đầy đủ và nhật ký truy cập của
+  chủ tài khoản/admin. Xóa tài khoản cascade dữ liệu khỏi database chính ngay lập tức.
+- Backup mã hóa có thời hạn tối đa 30 ngày; audit tối giản giữ 365 ngày và được
+  dọn tự động khi có hoạt động audit mới.
 
 ## Tài khoản admin
 

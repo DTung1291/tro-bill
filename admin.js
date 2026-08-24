@@ -91,8 +91,10 @@
   // ---------- Thao tác ----------
   async function removeUser(u) {
     if (!confirm(`Xoá vĩnh viễn user "${u.email}" và TOÀN BỘ dữ liệu? Không thể hoàn tác.`)) return;
+    const reason = prompt('Nhập lý do xóa tài khoản (tối thiểu 10 ký tự):');
+    if (reason == null) return;
     try {
-      await API.admin.deleteUser(u.id);
+      await API.admin.deleteUser(u.id, reason);
       showMsg(`Đã xoá ${u.email}.`, false);
       loadUsers();
     } catch (e) {

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chính sách bảo mật – TrọBill</title>
+  <meta name="description" content="Chính sách thu thập, sử dụng, bảo vệ và xóa dữ liệu trên TrọBill." />
+  <link rel="stylesheet" href="legal.css?v=1" />
+</head>
+<body>
+  <main class="legal-shell">
+    <header class="legal-header">
+      <a class="legal-brand" href="/">🏠 TrọBill</a>
+      <a class="legal-back" href="/">Quay lại ứng dụng</a>
+    </header>
+    <article class="legal-card">
+      <h1>Chính sách bảo mật</h1>
+      <p class="legal-meta">Phiên bản 24/08/2026 · Áp dụng từ 24/08/2026</p>
+      <p class="legal-note">Đây là chính sách sản phẩm cho giai đoạn thử nghiệm. Đơn vị vận hành cần rà soát với tư vấn pháp lý và bổ sung thông tin pháp nhân/kênh liên hệ trước khi mở bán đại trà.</p>
+
+      <h2>1. Vai trò và phạm vi</h2>
+      <p>TrọBill cung cấp công cụ để chủ nhà trọ quản lý phòng, khách thuê, hóa đơn và chi phí. Chủ tài khoản quyết định dữ liệu khách thuê nào được nhập và chịu trách nhiệm thông báo, có căn cứ xử lý phù hợp cũng như giải quyết yêu cầu của khách thuê. TrọBill xử lý dữ liệu theo chức năng mà chủ tài khoản sử dụng.</p>
+
+      <h2>2. Dữ liệu được xử lý</h2>
+      <ul>
+        <li>Tài khoản: email, mật khẩu đã băm, trạng thái xác minh và lịch sử chấp nhận chính sách.</li>
+        <li>Vận hành nhà trọ: phòng, biểu phí, chỉ số điện nước, hóa đơn, giao dịch và chi phí.</li>
+        <li>Khách thuê: họ tên, số điện thoại, số CCCD, ngày cấp, ngày sinh, giới tính và địa chỉ do chủ tài khoản nhập.</li>
+        <li>An toàn hệ thống: thời gian, mã hành động, mã tài nguyên, user-agent và dấu vân tay một chiều của địa chỉ IP. Nhật ký không lưu số CCCD đầy đủ hoặc giá trị trước/sau khi sửa.</li>
+      </ul>
+
+      <h2>3. Mục đích</h2>
+      <p>Dữ liệu được dùng để quản lý hồ sơ thuê, tính và lưu hóa đơn, tạo nội dung thanh toán, hỗ trợ người dùng, bảo vệ tài khoản, phát hiện sự cố và đáp ứng yêu cầu xuất/xóa dữ liệu. TrọBill không bán dữ liệu khách thuê và không dùng CCCD cho quảng cáo.</p>
+
+      <h2>4. Hiển thị và chia sẻ</h2>
+      <p>CCCD được che mặc định. Mỗi lần xem đầy đủ được ghi nhật ký; quản trị viên hỗ trợ phải nhập lý do. Hạ tầng có thể sử dụng nhà cung cấp lưu trữ cơ sở dữ liệu, hosting và email (hiện gồm Neon, Vercel và Resend). Các nhà cung cấp chỉ nhận dữ liệu cần thiết cho dịch vụ tương ứng và có thể xử lý dữ liệu ngoài Việt Nam tùy vùng hạ tầng được cấu hình.</p>
+
+      <h2>5. Thời gian lưu</h2>
+      <ul>
+        <li>Dữ liệu hoạt động được lưu khi tài khoản còn tồn tại.</li>
+        <li>Khi chủ tài khoản xác nhận xóa, tài khoản và dữ liệu liên quan bị xóa ngay khỏi database chính.</li>
+        <li>Bản backup mã hóa có thể còn tối đa 30 ngày rồi hết hạn theo chính sách lưu artifact.</li>
+        <li>Nhật ký audit tối giản được giữ 365 ngày để điều tra truy cập và sự cố; sau đó hệ thống tự dọn khi có hoạt động audit mới.</li>
+      </ul>
+
+      <h2>6. Quyền và lựa chọn</h2>
+      <p>Chủ tài khoản có thể xem/sửa dữ liệu trong ứng dụng, xuất toàn bộ dữ liệu bằng mật khẩu hiện tại, xem nhật ký truy cập dữ liệu và xóa tài khoản trong Cài đặt. Yêu cầu của khách thuê được gửi tới chủ nhà trọ đang quản lý hồ sơ để xác minh và xử lý.</p>
+
+      <h2>7. Biện pháp bảo vệ</h2>
+      <p>TrọBill sử dụng HTTPS, cookie đăng nhập HttpOnly/Secure, kiểm tra quyền sở hữu dữ liệu, che CCCD mặc định, audit truy cập, rate limit, kiểm thử bảo mật, quét secret và backup mã hóa. Không hệ thống nào loại bỏ được mọi rủi ro; sự cố được điều tra theo mã incident trong log vận hành.</p>
+
+      <h2>8. Thay đổi chính sách</h2>
+      <p>Khi thay đổi nội dung quan trọng, TrọBill phát hành phiên bản mới và yêu cầu người dùng xác nhận lại. Việc tiếp tục sử dụng không tự thay thế cho nút đồng ý khi ứng dụng yêu cầu xác nhận rõ ràng.</p>
+
+      <h2>9. Liên hệ và khiếu nại</h2>
+      <p>Trong giai đoạn pilot, người dùng liên hệ người phụ trách được nêu trong thỏa thuận thử nghiệm. Các thao tác xuất hoặc xóa dữ liệu được thực hiện trực tiếp trong Cài đặt. Không đưa CCCD hoặc dữ liệu khách thuê vào GitHub Issue công khai.</p>
+    </article>
+  </main>
+</body>
+</html>

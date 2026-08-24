@@ -1,0 +1,17 @@
+'use strict';
+
+const PRIVACY_POLICY_VERSION = '2026-08-24';
+const TERMS_VERSION = '2026-08-24';
+const TENANT_DATA_NOTICE_VERSION = '2026-08-24';
+const PRIMARY_DATA_RETENTION = 'Xóa ngay khỏi database chính khi chủ tài khoản xác nhận xóa tài khoản.';
+const BACKUP_RETENTION_DAYS = 30;
+const AUDIT_RETENTION_DAYS = 365;
+
+module.exports = {
+  AUDIT_RETENTION_DAYS,
+  BACKUP_RETENTION_DAYS,
+  PRIMARY_DATA_RETENTION,
+  PRIVACY_POLICY_VERSION,
+  TENANT_DATA_NOTICE_VERSION,
+  TERMS_VERSION
+};

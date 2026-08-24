@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const db = require('./db');
 const { buildState } = require('./state');
 const { keyHash, requestIp } = require('./rate-limit');
+const { recordDataAudit, requestAuditContext } = require('./data-audit');
 
 // GET /api/admin/users — danh sách user + vài số liệu tóm tắt
 async function listUsers(req, res) {
@@ -83,6 +84,10 @@ async function revealTenantCccd(req, res) {
       userAgent
     ]
   );
+  await db.query(
+    `DELETE FROM admin_sensitive_access_logs
+     WHERE created_at < now() - interval '365 days'`
+  );
 
   res.set('Cache-Control', 'no-store');
   return res.json({
@@ -127,11 +132,39 @@ async function listSensitiveAccessLogs(req, res) {
 // DELETE /api/admin/users/:id — xoá user (cascade dọn toàn bộ dữ liệu con)
 async function deleteUser(req, res) {
   const id = Number(req.params.id);
+  const reason = String(req.body.reason || '').trim();
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
   if (id === Number(req.userId)) return res.status(400).json({ error: 'Không thể tự xoá chính mình' });
+  if (reason.length < 10 || reason.length > 500) {
+    return res.status(400).json({ error: 'Lý do xóa tài khoản phải từ 10 đến 500 ký tự' });
+  }
 
-  const r = await db.query('DELETE FROM users WHERE id=$1', [id]);
-  if (r.rowCount === 0) return res.status(404).json({ error: 'Không tìm thấy user' });
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const target = await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [id]);
+    if (target.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Không tìm thấy user' });
+    }
+    await recordDataAudit(client.query.bind(client), {
+      actorUserId: req.userId,
+      actorEmail: req.userEmail,
+      subjectUserId: id,
+      action: 'admin_account_delete',
+      resourceType: 'account',
+      resourceId: String(id),
+      purpose: reason,
+      ...requestAuditContext(req)
+    });
+    await client.query('DELETE FROM users WHERE id=$1', [id]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
   res.json({ ok: true });
 }
 

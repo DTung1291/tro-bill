@@ -66,8 +66,13 @@ const API = (() => {
   }
 
   // ----- Auth -----
-  async function register(email, password) {
-    return request('POST', '/api/auth/register', { email, password });
+  async function register(email, password, acceptance = {}) {
+    return request('POST', '/api/auth/register', {
+      email,
+      password,
+      acceptPrivacy: acceptance.acceptPrivacy === true,
+      acceptTerms: acceptance.acceptTerms === true
+    });
   }
   async function login(email, password) {
     return request('POST', '/api/auth/login', { email, password });
@@ -105,6 +110,29 @@ const API = (() => {
     return request('GET', '/api/me');
   }
 
+  const privacy = {
+    getStatus: () => request('GET', '/api/privacy/status'),
+    acceptPolicies: () => request('POST', '/api/privacy/accept', {
+      acceptPrivacy: true,
+      acceptTerms: true
+    }),
+    revealTenantCccd: (tenantId, purpose = 'view') => request(
+      'POST',
+      `/api/privacy/tenants/${encodeURIComponent(tenantId)}/reveal-cccd`,
+      { purpose }
+    ),
+    listAuditLogs: (limit = 50) => request(
+      'GET',
+      `/api/privacy/audit-logs?limit=${encodeURIComponent(limit)}`
+    ),
+    exportData: (password) => request('POST', '/api/privacy/export', { password }),
+    deleteAccount: async (password, confirmation) => {
+      const result = await request('DELETE', '/api/account', { password, confirmation });
+      clearSession();
+      return result;
+    }
+  };
+
   // ----- Cấu hình toàn cục (ủng hộ) -----
   function getConfig() {
     return request('GET', '/api/config');
@@ -114,7 +142,7 @@ const API = (() => {
   const admin = {
     listUsers: () => request('GET', '/api/admin/users'),
     getUserState: (id) => request('GET', `/api/admin/users/${id}/state`),
-    deleteUser: (id) => request('DELETE', `/api/admin/users/${id}`),
+    deleteUser: (id, reason) => request('DELETE', `/api/admin/users/${id}`, { reason }),
     resetPassword: (id, password) => request('POST', `/api/admin/users/${id}/password`, { password }),
     setAdmin: (id, isAdmin) => request('POST', `/api/admin/users/${id}/admin`, { isAdmin }),
     revealTenantCccd: (userId, tenantId, reason) => request(
@@ -143,6 +171,7 @@ const API = (() => {
     getState,
     putState,
     me,
+    privacy,
     getConfig,
     admin
   };

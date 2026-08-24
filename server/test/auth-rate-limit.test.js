@@ -94,13 +94,17 @@ test('giới hạn đăng nhập theo IP/tài khoản và đăng ký theo tài k
   for (let index = 0; index < 5; index += 1) {
     const response = await post('/api/auth/register', {
       email: 'existing@example.com',
-      password: 'matkhau123'
+      password: 'matkhau123',
+      acceptPrivacy: true,
+      acceptTerms: true
     });
     assert.equal(response.status, 409);
   }
   const registrationBlocked = await post('/api/auth/register', {
     email: 'existing@example.com',
-    password: 'matkhau123'
+    password: 'matkhau123',
+    acceptPrivacy: true,
+    acceptTerms: true
   });
   assert.equal(registrationBlocked.status, 429);
 });

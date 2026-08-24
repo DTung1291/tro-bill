@@ -51,7 +51,7 @@ function _serializeState() {
 }
 
 // Đẩy lên server ngay (dùng khi cần chắc chắn đã lưu, ví dụ trước khi thoát)
-async function flushState() {
+async function flushState(options = {}) {
   if (_saveTimer) {
     clearTimeout(_saveTimer);
     _saveTimer = null;
@@ -64,7 +64,26 @@ async function flushState() {
     if (e.code === 401) return handleAuthExpired();
     console.warn('Lưu lên server thất bại:', e.message);
     if (typeof showToast === 'function') showToast('⚠️ Chưa lưu được, sẽ thử lại', 'error', 2500);
+    if (options.throwOnError) throw e;
   }
+}
+
+function clearSensitiveStateFromMemory() {
+  STATE.rooms = [];
+  STATE.billingData = {};
+  STATE.expenses = {};
+  STATE.settings = {
+    deduction: 450000,
+    bankId: '',
+    bankAccount: '',
+    bankOwnerName: '',
+    bankTransferPattern: '',
+    reminderEnabled: false,
+    reminderDay: 30,
+    reminderTime: '20:00'
+  };
+  STATE.currentPeriod = null;
+  STATE.history = [];
 }
 
 function saveState() {
@@ -122,7 +141,9 @@ function loadState(savedObj) {
           issueDate: t.issueDate || '',
           dob: t.dob || '',
           gender: t.gender || 'Nam',
-          address: t.address || ''
+          address: t.address || '',
+          dataNoticeAcknowledged: !!t.dataNoticeAcknowledged,
+          dataNoticeVersion: t.dataNoticeVersion || ''
         })) : [],
         rateHistory: Array.isArray(r.rateHistory) ? r.rateHistory : []
       };
@@ -373,6 +394,14 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function maskCccdForDisplay(value) {
+  const cccd = String(value || '').trim();
+  if (!cccd) return '—';
+  if (/[•*]/.test(cccd)) return cccd;
+  const visible = cccd.slice(-4);
+  return `${'•'.repeat(Math.max(0, cccd.length - visible.length))}${visible}`;
 }
 
 function billCode(room, period) {
@@ -2962,6 +2991,134 @@ if (logoutAllDevicesBtn) {
   });
 }
 
+const AUDIT_ACTION_LABELS = {
+  policy_accept: 'Đồng ý chính sách',
+  tenant_sensitive_create: 'Tạo hồ sơ khách thuê',
+  tenant_sensitive_view: 'Xem CCCD đầy đủ',
+  admin_tenant_sensitive_view: 'Admin xem CCCD để hỗ trợ',
+  tenant_sensitive_update: 'Sửa dữ liệu khách thuê',
+  tenant_sensitive_delete: 'Xóa dữ liệu khách thuê',
+  account_data_export: 'Xuất dữ liệu tài khoản',
+  account_delete: 'Xóa tài khoản'
+};
+let privacyActionMode = '';
+
+async function loadPrivacyStatus() {
+  const statusEl = document.getElementById('privacy-status');
+  const acceptButton = document.getElementById('btn-accept-policies');
+  if (!statusEl || !API.isLoggedIn()) return;
+  try {
+    const status = await API.privacy.getStatus();
+    statusEl.textContent = status.accepted
+      ? `Đã đồng ý chính sách phiên bản ${status.policyVersion}. Backup tối đa ${status.retention.backupDays} ngày; audit ${status.retention.auditDays} ngày.`
+      : `Tài khoản cũ chưa xác nhận chính sách phiên bản ${status.policyVersion}.`;
+    acceptButton.hidden = status.accepted;
+  } catch (error) {
+    statusEl.textContent = error.message || 'Không tải được trạng thái quyền riêng tư.';
+  }
+}
+
+async function loadPrivacyAudit() {
+  const container = document.getElementById('privacy-audit-list');
+  const button = document.getElementById('btn-load-privacy-audit');
+  button.disabled = true;
+  try {
+    const result = await API.privacy.listAuditLogs(50);
+    const logs = result.logs || [];
+    container.innerHTML = logs.length
+      ? logs.map(log => `
+          <div class="privacy-audit-item">
+            <span>${escapeHtml(new Date(log.createdAt).toLocaleString('vi-VN'))}</span>
+            <span><strong>${escapeHtml(AUDIT_ACTION_LABELS[log.action] || log.action)}</strong>${log.changedFields.length ? ` · ${escapeHtml(log.changedFields.join(', '))}` : ''}${log.purpose ? ` · ${escapeHtml(log.purpose)}` : ''}</span>
+          </div>`).join('')
+      : '<div class="settings-security-note">Chưa có hoạt động dữ liệu nào được ghi nhận.</div>';
+    container.hidden = false;
+  } catch (error) {
+    showToast(error.message || 'Không tải được nhật ký dữ liệu', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function closePrivacyActionModal() {
+  document.getElementById('privacy-action-modal').hidden = true;
+  document.getElementById('privacy-action-form').reset();
+  document.getElementById('privacy-action-error').hidden = true;
+  privacyActionMode = '';
+}
+
+function openPrivacyActionModal(mode) {
+  privacyActionMode = mode;
+  const deleting = mode === 'delete';
+  document.getElementById('privacy-action-title').textContent = deleting
+    ? 'Xóa tài khoản và toàn bộ dữ liệu'
+    : 'Xuất toàn bộ dữ liệu tài khoản';
+  document.getElementById('privacy-action-description').textContent = deleting
+    ? 'Thao tác này xóa ngay dữ liệu khỏi database chính và không thể hoàn tác.'
+    : 'File JSON chứa cả CCCD đầy đủ. Hãy lưu file ở nơi an toàn và không chia sẻ công khai.';
+  const confirmLabel = document.getElementById('privacy-delete-confirm-label');
+  const confirmation = document.getElementById('privacy-delete-confirmation');
+  confirmLabel.hidden = !deleting;
+  confirmation.required = deleting;
+  const submit = document.getElementById('privacy-action-submit');
+  submit.textContent = deleting ? 'Xóa vĩnh viễn' : 'Xuất dữ liệu';
+  submit.className = deleting ? 'btn btn--danger' : 'btn btn--primary';
+  document.getElementById('privacy-action-modal').hidden = false;
+  setTimeout(() => document.getElementById('privacy-action-password').focus(), 0);
+}
+
+function initPrivacyEvents() {
+  document.getElementById('btn-export-data').addEventListener('click', () => openPrivacyActionModal('export'));
+  document.getElementById('btn-delete-account').addEventListener('click', () => openPrivacyActionModal('delete'));
+  document.getElementById('privacy-action-close').addEventListener('click', closePrivacyActionModal);
+  document.getElementById('privacy-action-cancel').addEventListener('click', closePrivacyActionModal);
+  document.getElementById('btn-load-privacy-audit').addEventListener('click', loadPrivacyAudit);
+  document.getElementById('btn-accept-policies').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await API.privacy.acceptPolicies();
+      await loadPrivacyStatus();
+      await loadPrivacyAudit();
+      showToast('Đã ghi nhận đồng ý chính sách hiện tại ✓', 'success');
+    } catch (error) {
+      showToast(error.message || 'Không lưu được xác nhận chính sách', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById('privacy-action-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const password = document.getElementById('privacy-action-password').value;
+    const confirmation = document.getElementById('privacy-delete-confirmation').value;
+    const errorEl = document.getElementById('privacy-action-error');
+    const submit = document.getElementById('privacy-action-submit');
+    errorEl.hidden = true;
+    submit.disabled = true;
+    try {
+      if (privacyActionMode === 'export') {
+        await flushState({ throwOnError: true });
+        exportStateFile(await API.privacy.exportData(password));
+        closePrivacyActionModal();
+        await loadPrivacyAudit();
+      } else if (privacyActionMode === 'delete') {
+        await API.privacy.deleteAccount(password, confirmation);
+        clearSensitiveStateFromMemory();
+        closePrivacyActionModal();
+        _appStarted = false;
+        showAuthScreen(true);
+        showAuthFeedback('Tài khoản và dữ liệu trong database chính đã được xóa.', 'success');
+      }
+    } catch (error) {
+      errorEl.textContent = error.message || 'Không thực hiện được yêu cầu';
+      errorEl.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+}
+
 // ============================================================
 //  PREMIUM & ADS (Android Only)
 // ============================================================
@@ -3175,12 +3332,8 @@ function checkPremiumFeature(featureName, onApproved) {
 // ============================================================
 //  BACKUP & SYNC SYSTEM
 // ============================================================
-function exportState() {
-  const stateStr = JSON.stringify(_serializeState());
-  if (!STATE.rooms.length && !STATE.history.length) {
-    showToast('Không có dữ liệu để xuất', 'error');
-    return;
-  }
+function exportStateFile(exportedState) {
+  const stateStr = JSON.stringify(exportedState, null, 2);
   const filename = `trobill_backup_${new Date().toISOString().slice(0, 10)}.json`;
 
   // Platform 1: Android native (WebView wrapper with JavascriptInterface)
@@ -3248,8 +3401,6 @@ function exportStateBlobFallback(stateStr, filename) {
   showToast('Đã xuất file sao lưu ✓', 'success');
 }
 
-document.getElementById('btn-export-data').addEventListener('click', exportState);
-
 document.getElementById('btn-import-trigger').addEventListener('click', () => {
   document.getElementById('import-file-input').click();
 });
@@ -3262,6 +3413,19 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
     try {
       const importedState = JSON.parse(event.target.result);
       if (importedState && importedState.rooms && Array.isArray(importedState.rooms)) {
+        const tenantCount = importedState.rooms.reduce(
+          (count, room) => count + (Array.isArray(room.tenants) ? room.tenants.length : 0),
+          0
+        );
+        if (tenantCount > 0 && !confirm(
+          `File có ${tenantCount} khách thuê. Xác nhận bạn đã thông báo mục đích thu thập dữ liệu cho những khách này trước khi nhập?`
+        )) {
+          e.target.value = '';
+          return;
+        }
+        importedState.rooms.forEach(room => {
+          (room.tenants || []).forEach(tenant => { tenant.dataNoticeAcknowledged = true; });
+        });
         loadState(importedState);   // nạp trực tiếp từ object đã import
         saveState();                // đẩy lên Neon
         initTheme();
@@ -3458,23 +3622,44 @@ function renderTenantsList(roomId) {
     item.innerHTML = `
       <div class="tenant-info">
         <div class="tenant-name-row" style="display:flex; align-items:center; gap:8px;">
-          <span style="font-weight:600; font-size:0.92rem; color:var(--text);">${t.fullName}</span>
+          <span style="font-weight:600; font-size:0.92rem; color:var(--text);">${escapeHtml(t.fullName)}</span>
           <span style="font-size:0.7rem; padding:1px 6px; border-radius:4px; background:var(--bg2); color:var(--text-muted); border:1px solid var(--border); font-weight:500;">
-            ${t.gender || 'Nam'}
+            ${escapeHtml(t.gender || 'Nam')}
           </span>
         </div>
         <div class="tenant-meta" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; display:flex; flex-direction:column; gap:2px;">
-          <div>📞 SĐT: ${t.phone || '—'}</div>
-          <div>🪪 CCCD: ${t.cccd} (${formatDate(t.issueDate)})</div>
+          <div>📞 SĐT: ${escapeHtml(t.phone || '—')}</div>
+          <div>🪪 CCCD: <span data-tenant-cccd-value="${escapeHtml(t.id)}">${escapeHtml(maskCccdForDisplay(t.cccd))}</span> (${escapeHtml(formatDate(t.issueDate))}) <button type="button" class="link-btn" data-reveal-tenant="${escapeHtml(t.id)}">Xem</button></div>
           <div>🎂 Sinh nhật: ${formatDate(t.dob)}</div>
-          <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${t.address || '—'}</div>
+          <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${escapeHtml(t.address || '—')}</div>
         </div>
       </div>
       <div class="tenant-actions" style="display:flex; gap:8px; align-self:flex-start;">
-        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-edit-tenant="${t.id}">✏️</button>
-        <button type="button" class="btn btn--danger btn--sm" style="padding: 4px 8px; font-size: 0.8rem; background: var(--red); border-color: var(--red);" data-delete-tenant="${t.id}">🗑️</button>
+        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-edit-tenant="${escapeHtml(t.id)}">✏️</button>
+        <button type="button" class="btn btn--danger btn--sm" style="padding: 4px 8px; font-size: 0.8rem; background: var(--red); border-color: var(--red);" data-delete-tenant="${escapeHtml(t.id)}">🗑️</button>
       </div>
     `;
+
+    item.querySelector('[data-reveal-tenant]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const revealed = await API.privacy.revealTenantCccd(t.id, 'view');
+        const value = item.querySelector('[data-tenant-cccd-value]');
+        value.textContent = revealed.cccd || '—';
+        button.textContent = 'Đã ghi nhật ký';
+        setTimeout(() => {
+          if (value.isConnected) value.textContent = maskCccdForDisplay(revealed.cccd);
+          if (button.isConnected) {
+            button.textContent = 'Xem';
+            button.disabled = false;
+          }
+        }, 30000);
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || 'Không xem được CCCD', 'error');
+      }
+    });
     
     item.querySelector('[data-edit-tenant]').addEventListener('click', () => {
       openTenantForm(roomId, t.id);
@@ -3494,7 +3679,11 @@ function openTenantForm(roomId, tenantId = null) {
   
   const formEl = document.getElementById('tenant-form');
   const addBtn = document.getElementById('tenant-add-btn');
+  const cccdInput = document.getElementById('tenant-cccd');
+  const revealButton = document.getElementById('tenant-cccd-reveal-btn');
+  const noticeCheckbox = document.getElementById('tenant-data-notice-ack');
   formEl.reset();
+  revealButton.disabled = false;
   stopCccdScanner();
   
   if (tenantId) {
@@ -3505,14 +3694,22 @@ function openTenantForm(roomId, tenantId = null) {
     document.getElementById('tenant-id').value = t.id;
     document.getElementById('tenant-fullname').value = t.fullName;
     document.getElementById('tenant-phone').value = t.phone || '';
-    document.getElementById('tenant-cccd').value = t.cccd;
+    cccdInput.value = maskCccdForDisplay(t.cccd);
+    cccdInput.readOnly = true;
+    revealButton.hidden = false;
+    revealButton.dataset.tenantId = t.id;
     document.getElementById('tenant-issue-date').value = t.issueDate || '';
     document.getElementById('tenant-dob').value = t.dob || '';
     document.getElementById('tenant-gender').value = t.gender || 'Nam';
     document.getElementById('tenant-address').value = t.address || '';
+    noticeCheckbox.checked = !!t.dataNoticeAcknowledged;
   } else {
     document.getElementById('tenant-form-title').textContent = '➕ Thêm khách trọ mới';
     document.getElementById('tenant-id').value = '';
+    cccdInput.readOnly = false;
+    revealButton.hidden = true;
+    delete revealButton.dataset.tenantId;
+    noticeCheckbox.checked = false;
   }
   
   addBtn.style.display = 'none';
@@ -3528,13 +3725,22 @@ function deleteTenant(roomId, tenantId) {
   
   showConfirm(
     `Xóa khách trọ “${tenant.fullName}” khỏi phòng?`,
-    () => {
+    async () => {
+      const previousTenants = room.tenants;
+      const previousPeopleCount = room.peopleCount;
       room.tenants = room.tenants.filter(t => t.id !== tenantId);
       
       // Auto sync peopleCount
       room.peopleCount = room.tenants.length;
-      
-      saveState();
+
+      try {
+        saveState();
+        await flushState({ throwOnError: true });
+      } catch (_) {
+        room.tenants = previousTenants;
+        room.peopleCount = previousPeopleCount;
+        return;
+      }
       renderTenantsList(roomId);
       renderRooms();
       showToast(`Đã xóa khách trọ ${tenant.fullName}`, 'info');
@@ -3668,6 +3874,24 @@ function initTenantsEvents() {
   document.getElementById('tenant-scan-btn').addEventListener('click', () => {
     startCccdScanner();
   });
+
+  document.getElementById('tenant-cccd-reveal-btn').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const tenantId = button.dataset.tenantId;
+    if (!tenantId) return;
+    button.disabled = true;
+    try {
+      const revealed = await API.privacy.revealTenantCccd(tenantId, 'edit');
+      const input = document.getElementById('tenant-cccd');
+      input.value = revealed.cccd || '';
+      input.readOnly = false;
+      button.hidden = true;
+      input.focus();
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message || 'Không xem được CCCD', 'error');
+    }
+  });
   
   const tenantUploadBtn = document.getElementById('tenant-upload-btn');
   const tenantQrFile = document.getElementById('tenant-qr-file');
@@ -3700,7 +3924,7 @@ function initTenantsEvents() {
     });
   }
   
-  document.getElementById('tenant-form').addEventListener('submit', (e) => {
+  document.getElementById('tenant-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!activeTenantRoomId) return;
     
@@ -3712,14 +3936,22 @@ function initTenantsEvents() {
     const dob = document.getElementById('tenant-dob').value;
     const gender = document.getElementById('tenant-gender').value;
     const address = document.getElementById('tenant-address').value.trim();
+    const dataNoticeAcknowledged = document.getElementById('tenant-data-notice-ack').checked;
     
     if (!fullName || !cccd || !dob || !gender || !address || !issueDate) {
       showToast('Vui lòng điền đủ thông tin bắt buộc (*)', 'error');
       return;
     }
+    if (!dataNoticeAcknowledged) {
+      showToast('Cần xác nhận đã thông báo mục đích thu thập dữ liệu cho khách thuê', 'error');
+      return;
+    }
     
     const room = STATE.rooms.find(r => r.id === activeTenantRoomId);
     if (!room) return;
+    if (!room.tenants) room.tenants = [];
+    const previousTenants = room.tenants.map(tenant => ({ ...tenant }));
+    const previousPeopleCount = room.peopleCount;
     
     const tenantData = {
       id: id || uuid(),
@@ -3729,26 +3961,34 @@ function initTenantsEvents() {
       issueDate,
       dob,
       gender,
-      address
+      address,
+      dataNoticeAcknowledged: true
     };
     
-    if (!room.tenants) room.tenants = [];
-    
+    const successMessage = id
+      ? 'Cập nhật thông tin khách trọ thành công ✓'
+      : 'Thêm khách trọ thành công ✓';
     if (id) {
       const idx = room.tenants.findIndex(t => t.id === id);
       if (idx > -1) room.tenants[idx] = tenantData;
-      showToast('Cập nhật thông tin khách trọ thành công ✓', 'success');
     } else {
       room.tenants.push(tenantData);
-      showToast('Thêm khách trọ thành công ✓', 'success');
     }
     
     // Auto sync people count
     room.peopleCount = room.tenants.length;
     
-    saveState();
+    try {
+      saveState();
+      await flushState({ throwOnError: true });
+    } catch (_) {
+      room.tenants = previousTenants;
+      room.peopleCount = previousPeopleCount;
+      return;
+    }
     renderTenantsList(activeTenantRoomId);
     renderRooms(); // Refresh the room-detail count
+    showToast(successMessage, 'success');
     
     // Hide form
     document.getElementById('tenant-form').style.display = 'none';
@@ -3770,6 +4010,7 @@ function init() {
   navigate('dashboard');
   if (typeof initOcrModalEvents === 'function') initOcrModalEvents();
   if (typeof initTenantsEvents === 'function') initTenantsEvents();
+  if (typeof initPrivacyEvents === 'function') initPrivacyEvents();
 
   // Chỉ nạp gói nâng cấp khi tính năng này được mở lại.
   if (PREMIUM_FEATURES_ENABLED && typeof AndroidApp !== 'undefined') {
@@ -3927,6 +4168,7 @@ async function startApp() {
   const serverState = await API.getState();
   loadState(serverState);
   loadDonateConfig();
+  loadPrivacyStatus();
   showAuthScreen(false);
   updateAdminEntry();
   if (!_appStarted) {
@@ -4008,6 +4250,8 @@ function initAuthUI() {
   const emailEl = document.getElementById('auth-email');
   const passEl = document.getElementById('auth-password');
   const confirmEl = document.getElementById('auth-confirm-password');
+  const policyConsent = document.getElementById('auth-policy-consent');
+  const policyCheckbox = document.getElementById('auth-policy-checkbox');
   const submitBtn = document.getElementById('auth-submit');
   const resendBtn = document.getElementById('auth-resend');
   const forgotBtn = document.getElementById('auth-forgot');
@@ -4028,9 +4272,11 @@ function initAuthUI() {
     emailLabel.hidden = m === 'reset';
     passwordLabel.hidden = m === 'forgot';
     confirmLabel.hidden = m !== 'reset';
+    policyConsent.hidden = m !== 'register';
     emailEl.required = m !== 'reset';
     passEl.required = m !== 'forgot';
     confirmEl.required = m === 'reset';
+    policyCheckbox.required = m === 'register';
     submitBtn.textContent = submitLabel(m);
     passEl.setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
     forgotBtn.hidden = m === 'register';
@@ -4072,7 +4318,10 @@ function initAuthUI() {
         await API.login(email, password);
         await startApp();
       } else if (mode === 'register') {
-        const result = await API.register(email, password);
+        const result = await API.register(email, password, {
+          acceptPrivacy: policyCheckbox.checked,
+          acceptTerms: policyCheckbox.checked
+        });
         passEl.value = '';
         showVerificationActions(email, result.verificationUrl || '');
         if (result.verificationUrl) {

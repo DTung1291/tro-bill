@@ -46,6 +46,12 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['PUT', '/api/state'],
     ['GET', '/api/config'],
     ['POST', '/api/auth/logout-all'],
+    ['GET', '/api/privacy/status'],
+    ['POST', '/api/privacy/accept'],
+    ['POST', '/api/privacy/tenants/t-1/reveal-cccd'],
+    ['GET', '/api/privacy/audit-logs'],
+    ['POST', '/api/privacy/export'],
+    ['DELETE', '/api/account'],
     ['GET', '/api/admin/users'],
     ['GET', '/api/admin/users/2/state'],
     ['DELETE', '/api/admin/users/2'],
@@ -114,8 +120,10 @@ test('admin chỉ nhận CCCD đã che khi xem state', async (t) => {
 
   const ownerState = await buildState(7);
   const adminState = await buildState(7, { maskCccd: true });
-  assert.equal(ownerState.rooms[0].tenants[0].cccd, '079099001234');
+  const exportState = await buildState(7, { maskCccd: false });
+  assert.equal(ownerState.rooms[0].tenants[0].cccd, '••••••••1234');
   assert.equal(adminState.rooms[0].tenants[0].cccd, '••••••••1234');
+  assert.equal(exportState.rooms[0].tenants[0].cccd, '079099001234');
 });
 
 test('xem CCCD đầy đủ bắt buộc lý do và ghi log không chứa CCCD', async (t) => {
@@ -137,6 +145,7 @@ test('xem CCCD đầy đủ bắt buộc lý do và ghi log không chứa CCCD',
       auditParams = params;
       return { rows: [] };
     }
+    if (sql.includes('DELETE FROM admin_sensitive_access_logs')) return { rows: [] };
     throw new Error(`Truy vấn CCCD không mong đợi: ${sql}`);
   };
 
