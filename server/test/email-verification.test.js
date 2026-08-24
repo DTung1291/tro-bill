@@ -62,6 +62,7 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   const originalGetClient = db.getClient;
   const originalInfo = console.info;
   let storedTokenHash = '';
+  let freeSubscriptionUserId = null;
 
   db.query = async (sql) => {
     if (sql.includes('FROM auth_rate_limits')) return { rows: [] };
@@ -79,6 +80,11 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
         return { rows: [{ id: 9, email: 'new@example.com' }] };
       }
       if (sql.includes('INSERT INTO settings')) return { rows: [] };
+      if (sql.includes('INSERT INTO subscriptions')) {
+        freeSubscriptionUserId = params[0];
+        assert.match(sql, /SELECT id FROM plans WHERE code = 'free'/);
+        return { rows: [] };
+      }
       if (sql.includes('INSERT INTO email_verification_tokens')) {
         storedTokenHash = params[1];
         return { rows: [] };
@@ -110,6 +116,7 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   assert.equal(registration.record.body.emailSent, false);
   assert.equal(registration.record.cookie, null, 'đăng ký chưa tạo cookie phiên');
   assert.match(registration.record.body.verificationUrl, /^http:\/\/localhost:3000\/\?verify=/);
+  assert.equal(freeSubscriptionUserId, 9, 'đăng ký mới được gắn gói Free phía server');
 
   const token = new URL(registration.record.body.verificationUrl).searchParams.get('verify');
   assert.match(token, /^[a-f0-9]{64}$/);

@@ -142,6 +142,33 @@ VALUES
   ('business', 'Business', 'Quản lý tối đa 100 phòng và có nhân viên', NULL, NULL, 100, 1, false, false, 40)
 ON CONFLICT (code) DO NOTHING;
 
+-- Mỗi tài khoản có đúng một subscription hiện tại. Lịch sử thanh toán và
+-- webhook sẽ được lưu ở các bảng riêng, không dùng client để quyết định gói.
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  plan_id    BIGINT NOT NULL REFERENCES plans(id) ON DELETE RESTRICT,
+  status     TEXT NOT NULL DEFAULT 'active',
+  starts_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ends_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscriptions_status_valid
+    CHECK (status IN ('trialing', 'active', 'grace_period', 'expired', 'canceled')),
+  CONSTRAINT subscriptions_date_order
+    CHECK (ends_at IS NULL OR ends_at > starts_at)
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status_ends
+  ON subscriptions(status, ends_at);
+
+-- Tài khoản cũ chưa có subscription được gắn Free mà không làm thay đổi những
+-- tài khoản đã được cấp gói khác.
+INSERT INTO subscriptions (user_id, plan_id, status, starts_at)
+SELECT u.id, p.id, 'active', u.created_at
+FROM users u
+JOIN plans p ON p.code = 'free'
+ON CONFLICT (user_id) DO NOTHING;
+
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,
