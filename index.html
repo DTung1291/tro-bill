@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=73" />
+  <link rel="stylesheet" href="style.css?v=74" />
 </head>
 
 <body>
@@ -385,6 +385,20 @@
         </p>
       </div>
 
+      <div class="settings-card subscription-history-card">
+        <div class="subscription-history-head">
+          <div>
+            <strong>🧾 Lịch sử thanh toán gói</strong>
+            <div class="settings-security-note">Biên nhận chỉ xuất hiện sau khi giao dịch được xác nhận.</div>
+          </div>
+          <button type="button" class="btn btn--sm btn--ghost" id="subscription-history-refresh">Làm mới</button>
+        </div>
+        <div class="subscription-payment-list" id="subscription-payment-list"></div>
+        <p class="subscription-plans-empty" id="subscription-payment-empty" hidden>
+          Chưa có đơn thanh toán subscription nào.
+        </p>
+      </div>
+
       <div class="settings-card">
         <span>⚙️ Khoản khấu trừ thêm khi in báo cáo:</span>
         <div class="settings-inline">
@@ -620,6 +634,24 @@
         <p class="subscription-order-notice">
           Chuyển đúng số tiền và nội dung trên mã. Đơn hiện ở trạng thái chờ xác nhận.
         </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Biên nhận thanh toán subscription -->
+  <div class="modal-overlay" id="subscription-receipt-modal" hidden>
+    <div class="modal subscription-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-receipt-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="subscription-receipt-title">Biên nhận thanh toán</h2>
+          <p class="subscription-order-reference" id="subscription-receipt-code"></p>
+        </div>
+        <button type="button" class="modal-close" id="subscription-receipt-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="subscription-receipt-content" id="subscription-receipt-content"></div>
+      <div class="modal-actions subscription-receipt-actions">
+        <button type="button" class="btn btn--ghost" id="subscription-receipt-close-footer">Đóng</button>
+        <button type="button" class="btn btn--primary" id="subscription-receipt-print">In biên nhận</button>
       </div>
     </div>
   </div>
@@ -1060,10 +1092,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=73"></script>
+  <script src="api.js?v=74"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=73"></script>
+  <script src="app.js?v=74"></script>
 </body>
 
 </html>

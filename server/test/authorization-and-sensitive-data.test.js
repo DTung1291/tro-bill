@@ -43,6 +43,8 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
   const protectedRequests = [
     ['GET', '/api/me'],
     ['GET', '/api/subscription'],
+    ['GET', '/api/subscription/payments'],
+    ['GET', '/api/subscription/payments/1/receipt'],
     ['GET', '/api/plans'],
     ['POST', '/api/subscription/orders'],
     ['GET', '/api/state'],

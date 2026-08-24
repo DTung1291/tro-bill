@@ -358,6 +358,135 @@ body.modal-open {
 .subscription-cycle-select { width: 100%; }
 .subscription-plan-action { justify-content: center; width: 100%; }
 .subscription-plans-empty { margin: 0; color: var(--text-muted); font-size: .8rem; }
+.subscription-history-card {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.subscription-history-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.subscription-payment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.subscription-payment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.subscription-payment-main,
+.subscription-payment-summary {
+  display: flex;
+  min-width: 0;
+}
+.subscription-payment-main {
+  flex-direction: column;
+  gap: 3px;
+  color: var(--text);
+}
+.subscription-payment-main span {
+  color: var(--text-muted);
+  font-size: .74rem;
+  overflow-wrap: anywhere;
+}
+.subscription-payment-summary {
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  white-space: nowrap;
+  color: var(--text);
+}
+.subscription-payment-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.subscription-payment-status--pending {
+  background: rgba(245, 158, 11, .14);
+  color: #b45309;
+}
+.subscription-payment-status--paid {
+  background: rgba(16, 185, 129, .14);
+  color: var(--green);
+}
+.subscription-payment-status--failed,
+.subscription-payment-status--canceled {
+  background: rgba(239, 68, 68, .12);
+  color: var(--red);
+}
+.subscription-payment-status--refunded {
+  background: rgba(8, 145, 178, .13);
+  color: var(--water);
+}
+.subscription-payment-detail {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .75rem;
+  overflow-wrap: anywhere;
+}
+.subscription-receipt-modal {
+  width: min(94vw, 620px);
+  max-height: calc(100dvh - 32px);
+}
+.subscription-receipt-content { padding: 18px; }
+.subscription-receipt-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.subscription-receipt-brand strong { color: var(--primary); font-size: 1.35rem; }
+.subscription-receipt-brand span { color: var(--text-muted); font-size: .8rem; }
+.subscription-receipt-rows {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.subscription-receipt-row {
+  display: grid;
+  grid-template-columns: minmax(125px, .8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: .82rem;
+}
+.subscription-receipt-row:last-child { border-bottom: 0; }
+.subscription-receipt-row > span:first-child { color: var(--text-muted); }
+.subscription-receipt-row > :last-child {
+  min-width: 0;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.subscription-receipt-actions { padding-top: 0; }
+@media (max-width: 560px) {
+  .subscription-history-head { align-items: center; }
+  .subscription-payment-item { grid-template-columns: minmax(0, 1fr); }
+  .subscription-payment-summary { justify-content: space-between; }
+  .subscription-receipt-row { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .subscription-receipt-row > :last-child { text-align: left; }
+}
 .settings-security-card {
   margin-top: 12px;
   width: 100%;
@@ -1502,6 +1631,45 @@ body.modal-open {
     color: #111;
     background: #fff;
     padding: 0;
+  }
+
+  .subscription-receipt-print {
+    width: 100%;
+    max-width: 170mm;
+    margin: 0 auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .subscription-receipt-print header {
+    padding: 18px 20px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+  }
+  .subscription-receipt-print header h1 { margin: 0 0 3px; font-size: 20pt; }
+  .subscription-receipt-print header p { margin: 0; color: #555; font-size: 9pt; }
+  .subscription-receipt-print > h2 {
+    padding: 14px 20px 8px;
+    color: #333;
+    font-size: 12pt;
+  }
+  .subscription-receipt-print-row {
+    display: grid;
+    grid-template-columns: 42mm minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px 20px;
+    border-bottom: 1px solid #eee;
+    font-size: 9pt;
+  }
+  .subscription-receipt-print-row span { color: #555; }
+  .subscription-receipt-print-row strong { text-align: right; overflow-wrap: anywhere; }
+  .subscription-receipt-print footer {
+    padding: 14px 20px;
+    color: #777;
+    font-size: 8pt;
+    text-align: center;
   }
 
   .single-bill-print > h1 {

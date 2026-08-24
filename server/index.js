@@ -39,6 +39,7 @@ const { expiryReminderCron } = require('./subscription-notifications');
 const plans = require('./plans');
 const { createSubscriptionOrder } = require('./subscription-orders');
 const { paymentWebhook } = require('./payment-webhook');
+const paymentHistory = require('./subscription-payment-history');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -102,6 +103,12 @@ app.post('/api/auth/reset-password', wrap(resetPassword));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
 app.get('/api/subscription', requireAuth, wrap(subscription.getSubscription));
+app.get('/api/subscription/payments', requireAuth, wrap(paymentHistory.listSubscriptionPayments));
+app.get(
+  '/api/subscription/payments/:id/receipt',
+  requireAuth,
+  wrap(paymentHistory.getSubscriptionReceipt)
+);
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/state', requireAuth, wrap(getState));

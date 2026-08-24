@@ -40,7 +40,9 @@ let SERVER_ENTITLEMENTS = {
   }
 };
 let SERVER_PLANS = [];
+let SERVER_SUBSCRIPTION_PAYMENTS = [];
 let CURRENT_SUBSCRIPTION_ORDER = null;
+let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 
 function applyServerEntitlements(value) {
   if (!value || !value.plan || !value.features) {
@@ -144,6 +146,7 @@ function renderSubscriptionPlans() {
       try {
         const result = await API.createSubscriptionOrder(plan.code, cycle.value);
         openSubscriptionOrderModal(result);
+        void loadSubscriptionPayments();
         if (result.reused) showToast('Đã mở lại đơn thanh toán còn hiệu lực.', 'info');
       } catch (error) {
         if (error.code === 401) return handleAuthExpired();
@@ -158,6 +161,202 @@ function renderSubscriptionPlans() {
     list.appendChild(card);
   }
 }
+
+function subscriptionDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
+}
+
+function renderSubscriptionPaymentHistory() {
+  const list = document.getElementById('subscription-payment-list');
+  const empty = document.getElementById('subscription-payment-empty');
+  if (!list || !empty) return;
+  list.textContent = '';
+  empty.hidden = SERVER_SUBSCRIPTION_PAYMENTS.length !== 0;
+
+  const statusLabels = {
+    pending: 'Chờ thanh toán',
+    paid: 'Đã thanh toán',
+    failed: 'Cần kiểm tra',
+    refunded: 'Đã hoàn tiền',
+    canceled: 'Đã hủy'
+  };
+
+  for (const payment of SERVER_SUBSCRIPTION_PAYMENTS) {
+    const item = document.createElement('article');
+    item.className = 'subscription-payment-item';
+
+    const main = document.createElement('div');
+    main.className = 'subscription-payment-main';
+    const title = document.createElement('strong');
+    title.textContent = `${payment.planName} · ${payment.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'}`;
+    const meta = document.createElement('span');
+    meta.textContent = `Tạo lúc ${subscriptionDateTime(payment.createdAt)} · ${payment.orderReference}`;
+    main.append(title, meta);
+
+    const summary = document.createElement('div');
+    summary.className = 'subscription-payment-summary';
+    const amount = document.createElement('strong');
+    amount.textContent = fmt(payment.amountVnd);
+    const status = document.createElement('span');
+    status.className = `subscription-payment-status subscription-payment-status--${payment.status}`;
+    status.textContent = statusLabels[payment.status] || payment.status;
+    summary.append(amount, status);
+
+    const detail = document.createElement('div');
+    detail.className = 'subscription-payment-detail';
+    if (payment.status === 'paid') {
+      detail.textContent = `Xác nhận lúc ${subscriptionDateTime(payment.paidAt)}`;
+      const receiptButton = document.createElement('button');
+      receiptButton.type = 'button';
+      receiptButton.className = 'btn btn--sm btn--ghost';
+      receiptButton.textContent = 'Xem biên nhận';
+      receiptButton.addEventListener('click', async () => {
+        receiptButton.disabled = true;
+        try {
+          const result = await API.getSubscriptionReceipt(payment.id);
+          openSubscriptionReceipt(result.receipt);
+        } catch (error) {
+          if (error.code === 401) return handleAuthExpired();
+          showToast(error.message || 'Không tải được biên nhận', 'error');
+        } finally {
+          receiptButton.disabled = false;
+        }
+      });
+      detail.appendChild(receiptButton);
+    } else if (payment.status === 'pending') {
+      detail.textContent = `Hết hạn ${subscriptionDateTime(payment.expiresAt)}`;
+    } else {
+      detail.textContent = payment.transferContent
+        ? `Mã chuyển khoản ${payment.transferContent}`
+        : 'Không có thông tin bổ sung';
+    }
+
+    item.append(main, summary, detail);
+    list.appendChild(item);
+  }
+}
+
+async function loadSubscriptionPayments() {
+  const refresh = document.getElementById('subscription-history-refresh');
+  if (refresh) refresh.disabled = true;
+  try {
+    const result = await API.getSubscriptionPayments(30);
+    SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(result.payments) ? result.payments : [];
+    renderSubscriptionPaymentHistory();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tải được lịch sử thanh toán', 'error');
+  } finally {
+    if (refresh) refresh.disabled = false;
+  }
+}
+
+function receiptRow(label, value, emphasized = false) {
+  const row = document.createElement('div');
+  row.className = 'subscription-receipt-row';
+  const labelElement = document.createElement('span');
+  labelElement.textContent = label;
+  const valueElement = document.createElement(emphasized ? 'strong' : 'span');
+  valueElement.textContent = value || '—';
+  row.append(labelElement, valueElement);
+  return row;
+}
+
+function openSubscriptionReceipt(receipt) {
+  const modal = document.getElementById('subscription-receipt-modal');
+  const content = document.getElementById('subscription-receipt-content');
+  if (!modal || !content || !receipt) return;
+  ACTIVE_SUBSCRIPTION_RECEIPT = receipt;
+  document.getElementById('subscription-receipt-code').textContent = receipt.code;
+  content.textContent = '';
+
+  const brand = document.createElement('div');
+  brand.className = 'subscription-receipt-brand';
+  const heading = document.createElement('strong');
+  heading.textContent = '🏠 TrọBill';
+  const note = document.createElement('span');
+  note.textContent = 'Biên nhận thanh toán gói dịch vụ';
+  brand.append(heading, note);
+
+  const rows = document.createElement('div');
+  rows.className = 'subscription-receipt-rows';
+  rows.append(
+    receiptRow('Mã biên nhận', receipt.code),
+    receiptRow('Tài khoản', receipt.customerEmail),
+    receiptRow('Gói dịch vụ', receipt.plan?.name),
+    receiptRow('Chu kỳ', receipt.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'),
+    receiptRow('Số tiền', fmt(receipt.amountVnd), true),
+    receiptRow('Thanh toán lúc', subscriptionDateTime(receipt.paidAt)),
+    receiptRow('Mã đơn', receipt.orderReference),
+    receiptRow('Mã giao dịch', receipt.settlement?.reference),
+    receiptRow('Tài khoản nhận', `${receipt.receiver?.bankId || ''} · ${receipt.receiver?.account || ''}`),
+    receiptRow('Chủ tài khoản', receipt.receiver?.ownerName)
+  );
+  content.append(brand, rows);
+  modal.hidden = false;
+  syncModalScrollLock();
+}
+
+function closeSubscriptionReceipt() {
+  const modal = document.getElementById('subscription-receipt-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_SUBSCRIPTION_RECEIPT = null;
+  syncModalScrollLock();
+}
+
+function subscriptionReceiptPrintHtml(receipt) {
+  const row = (label, value) => `
+    <div class="subscription-receipt-print-row">
+      <span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '—')}</strong>
+    </div>`;
+  return `
+    <article class="subscription-receipt-print">
+      <header><h1>TrọBill</h1><p>Biên nhận thanh toán gói dịch vụ</p></header>
+      <h2>${escapeHtml(receipt.code)}</h2>
+      ${row('Tài khoản', receipt.customerEmail)}
+      ${row('Gói dịch vụ', receipt.plan?.name)}
+      ${row('Chu kỳ', receipt.billingCycle === 'yearly' ? '12 tháng' : '1 tháng')}
+      ${row('Số tiền', fmt(receipt.amountVnd))}
+      ${row('Thanh toán lúc', subscriptionDateTime(receipt.paidAt))}
+      ${row('Mã đơn', receipt.orderReference)}
+      ${row('Mã giao dịch', receipt.settlement?.reference)}
+      ${row('Tài khoản nhận', `${receipt.receiver?.bankId || ''} · ${receipt.receiver?.account || ''}`)}
+      ${row('Chủ tài khoản', receipt.receiver?.ownerName)}
+      <footer>Biên nhận được tạo tự động từ giao dịch đã xác nhận trên TrọBill.</footer>
+    </article>`;
+}
+
+function printSubscriptionReceipt() {
+  if (!ACTIVE_SUBSCRIPTION_RECEIPT) return;
+  const receipt = ACTIVE_SUBSCRIPTION_RECEIPT;
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = subscriptionReceiptPrintHtml(receipt);
+  closeSubscriptionReceipt();
+  syncModalScrollLock();
+  triggerPrint(`bien-nhan-${receipt.code.toLowerCase()}.pdf`);
+}
+
+document.getElementById('subscription-history-refresh')?.addEventListener(
+  'click',
+  loadSubscriptionPayments
+);
+document.getElementById('subscription-receipt-close')?.addEventListener(
+  'click',
+  closeSubscriptionReceipt
+);
+document.getElementById('subscription-receipt-close-footer')?.addEventListener(
+  'click',
+  closeSubscriptionReceipt
+);
+document.getElementById('subscription-receipt-print')?.addEventListener(
+  'click',
+  printSubscriptionReceipt
+);
+document.getElementById('subscription-receipt-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeSubscriptionReceipt();
+});
 
 function closeSubscriptionOrderModal() {
   const modal = document.getElementById('subscription-order-modal');
@@ -1163,6 +1362,7 @@ function renderPage(page) {
     case 'settings':
       renderSubscriptionSummary();
       renderSubscriptionPlans();
+      renderSubscriptionPaymentHistory();
       break;
   }
 }
@@ -4281,16 +4481,21 @@ function handleAuthExpired() {
 
 async function startApp() {
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
-    API.getPlans().catch(() => ({ plans: [] }))
+    API.getPlans().catch(() => ({ plans: [] })),
+    API.getSubscriptionPayments(30).catch(() => ({ payments: [] }))
   ]);
   applyServerEntitlements(entitlement);
   SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
+  SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(paymentsResult.payments)
+    ? paymentsResult.payments
+    : [];
   loadState(serverState);
   renderSubscriptionSummary();
   renderSubscriptionPlans();
+  renderSubscriptionPaymentHistory();
   loadDonateConfig();
   loadPrivacyStatus();
   showAuthScreen(false);

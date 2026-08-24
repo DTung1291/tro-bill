@@ -122,6 +122,20 @@ const API = (() => {
     return request('POST', '/api/subscription/orders', { planCode, billingCycle });
   }
 
+  function getSubscriptionPayments(limit = 30) {
+    return request(
+      'GET',
+      `/api/subscription/payments?limit=${encodeURIComponent(limit)}`
+    );
+  }
+
+  function getSubscriptionReceipt(paymentId) {
+    return request(
+      'GET',
+      `/api/subscription/payments/${encodeURIComponent(paymentId)}/receipt`
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -198,6 +212,8 @@ const API = (() => {
     getSubscription,
     getPlans,
     createSubscriptionOrder,
+    getSubscriptionPayments,
+    getSubscriptionReceipt,
     privacy,
     getConfig,
     admin
