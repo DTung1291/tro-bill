@@ -1,5 +1,10 @@
 'use strict';
 
+process.env.JWT_SECRET ||= 'test-secret-that-is-long-enough-for-state-rate-history-tests';
+process.env.DATABASE_URL ||= 'postgresql://test:test@localhost:5432/test';
+process.env.COOKIE_SECURE = 'false';
+process.env.NODE_ENV = 'test';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const db = require('../db');
