@@ -98,9 +98,9 @@ Trạng thái ngày 24/08/2026:
   `DTung1291/tro-bill-operations`. Role `tro_bill_backup` đã kiểm tra chỉ đọc;
   hai GitHub Secrets đã cấu hình; run `32742953010` đã xanh và artifact mã hóa có
   checksum hợp lệ. Khóa giải mã dự phòng nằm độc lập trong macOS Keychain.
-- Điều khoản Resend Marketplace đã được chấp nhận, nhưng integration hiện yêu cầu
-  domain mua qua Vercel. Dự án chưa có custom domain nên production chưa thể cấu
-  hình `RESEND_API_KEY`/`EMAIL_FROM`; không dùng `resend.dev` giả làm email thật.
+- Vercel Marketplace không có plan Resend Free và Resend chỉ gửi tới chính email
+  tài khoản nếu chưa có custom domain. Code đã hỗ trợ Brevo Free làm provider tạm
+  thời; còn cần tạo tài khoản, xác minh sender và đặt `BREVO_API_KEY` trên Vercel.
 
 ### Hoàn thành giai đoạn khi
 

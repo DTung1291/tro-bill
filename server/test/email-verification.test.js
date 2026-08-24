@@ -6,6 +6,8 @@ process.env.COOKIE_SECURE = 'false';
 process.env.NODE_ENV = 'test';
 delete process.env.VERCEL;
 delete process.env.RESEND_API_KEY;
+delete process.env.BREVO_API_KEY;
+delete process.env.EMAIL_PROVIDER;
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

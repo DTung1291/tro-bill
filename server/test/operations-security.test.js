@@ -39,7 +39,8 @@ test('cấu hình production từ chối URL HTTP và database gắn nhãn sai m
     DATABASE_URL: 'postgresql://placeholder',
     JWT_SECRET: 'a'.repeat(40),
     APP_URL: 'http://app.example.com',
-    RESEND_API_KEY: 'placeholder',
+    EMAIL_PROVIDER: 'brevo',
+    BREVO_API_KEY: 'placeholder',
     EMAIL_FROM: 'TrọBill <no-reply@example.com>'
   });
 

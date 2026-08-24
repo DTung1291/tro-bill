@@ -1,5 +1,7 @@
 'use strict';
 
+const { inspectEmailConfiguration } = require('./email-config');
+
 const VALID_ENVIRONMENTS = new Set(['development', 'staging', 'production', 'test']);
 
 function resolveAppEnvironment(env = process.env) {
@@ -64,8 +66,12 @@ function inspectRuntimeEnvironment(env = process.env) {
   }
 
   if (appEnvironment === 'production') {
-    if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
-      addIssue('EMAIL_CONFIGURATION_MISSING', 'Production phải cấu hình RESEND_API_KEY và EMAIL_FROM.');
+    const emailConfiguration = inspectEmailConfiguration(env);
+    if (!emailConfiguration.valid) {
+      addIssue(
+        'EMAIL_CONFIGURATION_MISSING',
+        `Production phải cấu hình EMAIL_PROVIDER=${emailConfiguration.provider}, ${emailConfiguration.keyName}, EMAIL_FROM và APP_URL.`
+      );
     }
     if (!isHttpsUrl(env.OPS_ALERT_WEBHOOK_URL)) {
       addWarning(
@@ -89,4 +95,3 @@ module.exports = {
   isHttpsUrl,
   resolveAppEnvironment
 };
-

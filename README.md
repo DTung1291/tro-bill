@@ -38,10 +38,16 @@ Yêu cầu Node.js 20 trở lên.
 Mở http://localhost:3000 → đăng ký tài khoản → dùng bình thường. Mỗi tài khoản
 có dữ liệu riêng, tách biệt hoàn toàn.
 
-Khi chạy local mà chưa có `RESEND_API_KEY`, màn hình đăng ký và quên mật khẩu
-hiện liên kết để test trực tiếp, không gửi email thật. Trên production phải cấu
-hình đủ `RESEND_API_KEY`, `EMAIL_FROM` và `APP_URL`; địa chỉ gửi cần thuộc domain
-đã xác minh trong Resend.
+Khi chạy local mà chưa có API key email, màn hình đăng ký và quên mật khẩu hiện
+liên kết để test trực tiếp, không gửi email thật. Trên production có thể dùng:
+
+- Brevo Free tạm thời: `EMAIL_PROVIDER=brevo`, `BREVO_API_KEY`, `EMAIL_FROM` đã
+  xác minh và `APP_URL`;
+- Resend khi có custom domain: `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`,
+  `EMAIL_FROM` thuộc domain đã xác minh và `APP_URL`.
+
+Luồng xác minh/quên mật khẩu dùng chung một adapter nên đổi provider không cần
+thay đổi API hoặc dữ liệu người dùng.
 
 ## Cách hoạt động
 
@@ -192,8 +198,8 @@ tham chiếu phòng của tài khoản khác.
 - Cookie tự bật cờ `Secure` trên production/Vercel. Có thể đặt
   `COOKIE_SECURE=false` khi cần chạy local bằng HTTP.
 - Môi trường production phải dùng HTTPS.
-- `RESEND_API_KEY` chỉ được đặt trong biến môi trường phía server, không đưa vào
-  frontend hoặc commit lên Git.
+- `BREVO_API_KEY`/`RESEND_API_KEY` chỉ được đặt trong biến môi trường phía server,
+  không đưa vào frontend hoặc commit lên Git.
 
 Health check, log/cảnh báo, phân tách môi trường, backup mã hóa và quy trình
 restore được mô tả trong [OPERATIONS.md](OPERATIONS.md).
