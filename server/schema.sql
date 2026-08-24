@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   paid_at            TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT subscription_payments_user_id_id_unique UNIQUE (user_id, id),
   CONSTRAINT subscription_payments_owner_fk
     FOREIGN KEY (user_id, subscription_id)
     REFERENCES subscriptions(user_id, id) ON DELETE CASCADE,
@@ -221,6 +222,67 @@ CREATE INDEX IF NOT EXISTS idx_subscription_payments_status_created
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_payments_provider_reference
   ON subscription_payments(provider, provider_reference)
   WHERE provider_reference IS NOT NULL AND provider_reference <> '';
+
+-- DB đã có subscription_payments cần khóa kép để payment_events không thể
+-- liên kết một payment sang user khác.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'subscription_payments_user_id_id_unique'
+      AND conrelid = 'public.subscription_payments'::regclass
+  ) THEN
+    ALTER TABLE subscription_payments
+      ADD CONSTRAINT subscription_payments_user_id_id_unique UNIQUE (user_id, id);
+  END IF;
+END $$;
+
+-- Nhật ký webhook thanh toán. Cặp provider/event_id chống xử lý trùng; payload
+-- hash giúp đối chiếu dữ liệu nhận được mà không dựa vào trạng thái phía client.
+CREATE TABLE IF NOT EXISTS payment_events (
+  id                    BIGSERIAL PRIMARY KEY,
+  provider              TEXT NOT NULL,
+  event_id              TEXT NOT NULL,
+  event_type            TEXT NOT NULL,
+  user_id               BIGINT,
+  payment_id            BIGINT,
+  payload               JSONB NOT NULL DEFAULT '{}'::jsonb,
+  payload_sha256        TEXT NOT NULL,
+  signature_valid       BOOLEAN NOT NULL DEFAULT false,
+  status                TEXT NOT NULL DEFAULT 'received',
+  attempt_count         INTEGER NOT NULL DEFAULT 0,
+  error_code            TEXT,
+  received_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processing_started_at TIMESTAMPTZ,
+  processed_at          TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT payment_events_provider_event_unique UNIQUE (provider, event_id),
+  CONSTRAINT payment_events_payment_owner_fk
+    FOREIGN KEY (user_id, payment_id)
+    REFERENCES subscription_payments(user_id, id) ON DELETE SET NULL,
+  CONSTRAINT payment_events_payment_link_complete
+    CHECK ((user_id IS NULL) = (payment_id IS NULL)),
+  CONSTRAINT payment_events_provider_format
+    CHECK (provider ~ '^[a-z][a-z0-9_-]{1,31}$'),
+  CONSTRAINT payment_events_event_id_length
+    CHECK (char_length(event_id) BETWEEN 1 AND 255),
+  CONSTRAINT payment_events_event_type_length
+    CHECK (char_length(event_type) BETWEEN 1 AND 100),
+  CONSTRAINT payment_events_payload_hash_format
+    CHECK (payload_sha256 ~ '^[a-f0-9]{64}$'),
+  CONSTRAINT payment_events_status_valid
+    CHECK (status IN ('received', 'processing', 'processed', 'failed', 'ignored')),
+  CONSTRAINT payment_events_attempt_nonnegative CHECK (attempt_count >= 0),
+  CONSTRAINT payment_events_processed_at_required
+    CHECK (status <> 'processed' OR processed_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_events_status_received
+  ON payment_events(status, received_at);
+CREATE INDEX IF NOT EXISTS idx_payment_events_user_received
+  ON payment_events(user_id, received_at DESC)
+  WHERE user_id IS NOT NULL;
 
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
