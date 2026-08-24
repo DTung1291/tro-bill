@@ -15,7 +15,8 @@ const {
   EntitlementError,
   enforceStateWrite,
   getUserEntitlements,
-  resolveEntitlements
+  resolveEntitlements,
+  resolveLifecycle
 } = require('../subscription');
 
 const activeFreeRow = {
@@ -60,11 +61,47 @@ test('gói hết hạn chỉ đọc nhưng vẫn được xuất dữ liệu', (
     ...activeFreeRow,
     status: 'active',
     ends_at: '2026-08-10T00:00:00.000Z'
-  }, new Date('2026-08-11T00:00:00.000Z'));
+  }, new Date('2026-08-14T00:00:00.000Z'));
 
   assert.equal(entitlement.accessMode, 'read_only');
+  assert.equal(entitlement.subscription.status, 'expired');
   assert.equal(entitlement.features.roomManagement.enabled, false);
   assert.equal(entitlement.features.dataExport.enabled, true);
+});
+
+test('gói đang hoạt động được báo sắp hết hạn trước 7 ngày', () => {
+  const entitlement = resolveEntitlements({
+    ...activeFreeRow,
+    ends_at: '2026-08-20T00:00:00.000Z'
+  }, new Date('2026-08-14T00:00:00.000Z'));
+
+  assert.equal(entitlement.subscription.recordedStatus, 'active');
+  assert.equal(entitlement.subscription.status, 'expiring_soon');
+  assert.equal(entitlement.subscription.expiringSoon, true);
+  assert.equal(entitlement.subscription.daysRemaining, 6);
+  assert.equal(entitlement.accessMode, 'full');
+});
+
+test('gói trả phí có 3 ngày ân hạn rồi mới chuyển chỉ xem', () => {
+  const row = { ...activeFreeRow, ends_at: '2026-08-10T00:00:00.000Z' };
+  const grace = resolveEntitlements(row, new Date('2026-08-11T00:00:00.000Z'));
+  const expired = resolveEntitlements(row, new Date('2026-08-13T00:00:00.001Z'));
+
+  assert.equal(grace.subscription.status, 'grace_period');
+  assert.equal(grace.subscription.graceDaysRemaining, 2);
+  assert.equal(grace.accessMode, 'full');
+  assert.equal(expired.subscription.status, 'expired');
+  assert.equal(expired.accessMode, 'read_only');
+});
+
+test('trial hết hạn không đi qua ân hạn', () => {
+  const lifecycle = resolveLifecycle({
+    ...activeFreeRow,
+    status: 'trialing',
+    ends_at: '2026-08-10T00:00:00.000Z'
+  }, new Date('2026-08-10T00:00:00.001Z'));
+  assert.equal(lifecycle.status, 'expired');
+  assert.equal(lifecycle.graceEndsAt, null);
 });
 
 test('server từ chối số phòng vượt giới hạn gói', async () => {

@@ -123,9 +123,9 @@ Trạng thái ngày 24/08/2026:
 
 - [x] Hỗ trợ dùng thử 14–30 ngày.
 - [x] Hỗ trợ nâng gói và gia hạn.
-- [ ] Hỗ trợ trạng thái đang hoạt động, sắp hết hạn, ân hạn và hết hạn.
-- [ ] Khi hết hạn, chuyển tài khoản sang chỉ xem thay vì xóa dữ liệu.
-- [ ] Cho phép người dùng xuất dữ liệu dù gói đã hết hạn.
+- [x] Hỗ trợ trạng thái đang hoạt động, sắp hết hạn, ân hạn và hết hạn.
+- [x] Khi hết hạn, chuyển tài khoản sang chỉ xem thay vì xóa dữ liệu.
+- [x] Cho phép người dùng xuất dữ liệu dù gói đã hết hạn.
 - [ ] Hiển thị số phòng đang dùng và giới hạn của gói.
 - [ ] Gửi thông báo trước ngày hết hạn.
 

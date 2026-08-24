@@ -3,6 +3,9 @@
 const db = require('./db');
 
 const WRITABLE_STATUSES = new Set(['trialing', 'active', 'grace_period']);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EXPIRING_SOON_DAYS = 7;
+const GRACE_PERIOD_DAYS = 3;
 
 class EntitlementError extends Error {
   constructor(code, message, details = {}) {
@@ -29,6 +32,46 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function daysBetween(later, earlier) {
+  return Math.max(0, Math.ceil((later.getTime() - earlier.getTime()) / DAY_MS));
+}
+
+function resolveLifecycle(row, now = new Date()) {
+  const sourceStatus = row.status;
+  const parsedEnd = row.ends_at ? new Date(row.ends_at) : null;
+  const endsAt = parsedEnd && !Number.isNaN(parsedEnd.getTime()) ? parsedEnd : null;
+  const graceEndsAt = endsAt
+    ? new Date(endsAt.getTime() + GRACE_PERIOD_DAYS * DAY_MS)
+    : null;
+
+  let status = sourceStatus;
+  if (sourceStatus === 'expired' || sourceStatus === 'canceled') {
+    status = sourceStatus;
+  } else if (sourceStatus === 'trialing') {
+    if (endsAt && endsAt <= now) status = 'expired';
+    else if (endsAt && daysBetween(endsAt, now) <= EXPIRING_SOON_DAYS) status = 'expiring_soon';
+  } else if (sourceStatus === 'active') {
+    if (endsAt && endsAt <= now) {
+      status = graceEndsAt && graceEndsAt > now ? 'grace_period' : 'expired';
+    } else if (endsAt && daysBetween(endsAt, now) <= EXPIRING_SOON_DAYS) {
+      status = 'expiring_soon';
+    }
+  } else if (sourceStatus === 'grace_period') {
+    status = graceEndsAt && graceEndsAt > now ? 'grace_period' : 'expired';
+  }
+
+  return {
+    status,
+    sourceStatus,
+    expiringSoon: status === 'expiring_soon',
+    daysRemaining: endsAt && endsAt > now ? daysBetween(endsAt, now) : 0,
+    graceDaysRemaining: status === 'grace_period' && graceEndsAt
+      ? daysBetween(graceEndsAt, now)
+      : 0,
+    graceEndsAt: status === 'grace_period' ? toIso(graceEndsAt) : null
+  };
+}
+
 function resolveEntitlements(row, now = new Date()) {
   if (!row) {
     throw new EntitlementError(
@@ -37,19 +80,24 @@ function resolveEntitlements(row, now = new Date()) {
     );
   }
 
-  const endsAt = row.ends_at ? new Date(row.ends_at) : null;
-  const endedByDate = !!endsAt && !Number.isNaN(endsAt.getTime()) && endsAt <= now;
-  const writable = WRITABLE_STATUSES.has(row.status) && !endedByDate;
+  const lifecycle = resolveLifecycle(row, now);
+  const writable = WRITABLE_STATUSES.has(lifecycle.status)
+    || lifecycle.status === 'expiring_soon';
   const roomLimit = Math.max(0, Number(row.room_limit) || 0);
   const staffLimit = Math.max(0, Number(row.staff_limit) || 0);
 
   return {
     subscription: {
       id: Number(row.subscription_id),
-      status: row.status,
+      status: lifecycle.status,
+      recordedStatus: lifecycle.sourceStatus,
       billingCycle: row.billing_cycle || null,
       startsAt: toIso(row.starts_at),
-      endsAt: toIso(row.ends_at)
+      endsAt: toIso(row.ends_at),
+      expiringSoon: lifecycle.expiringSoon,
+      daysRemaining: lifecycle.daysRemaining,
+      graceDaysRemaining: lifecycle.graceDaysRemaining,
+      graceEndsAt: lifecycle.graceEndsAt
     },
     plan: {
       id: Number(row.plan_id),
@@ -496,6 +544,7 @@ module.exports = {
   getSubscription,
   getUserEntitlements,
   resolveEntitlements,
+  resolveLifecycle,
   sendEntitlementError,
   subscriptionChangeRequest,
   startTrial,
