@@ -167,7 +167,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Hỗ trợ tiền cọc, khấu trừ cọc và hoàn cọc.
 - [x] Hỗ trợ sửa/hủy giao dịch bằng bút toán điều chỉnh, không xóa dấu vết.
 - [x] Tạo phiếu thu có mã riêng cho từng lần thanh toán.
-- [ ] Hiển thị tuổi nợ: chưa đến hạn, quá hạn 1–7 ngày, 8–30 ngày và trên 30 ngày.
+- [x] Hiển thị tuổi nợ: chưa đến hạn, quá hạn 1–7 ngày, 8–30 ngày và trên 30 ngày.
 
 ### VietQR và đối soát
 
