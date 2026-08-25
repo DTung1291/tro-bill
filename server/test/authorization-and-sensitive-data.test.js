@@ -211,3 +211,22 @@ test('putState từ chối roomId không thuộc danh sách phòng của tài kh
     error: 'Dữ liệu hóa đơn chứa phòng không thuộc tài khoản'
   });
 });
+
+test('putState từ chối điều chỉnh hóa đơn âm hoặc không phải số VND nguyên', async () => {
+  for (const invalidEntry of [
+    { discountAmount: -1 },
+    { surchargeAmount: 1.5 },
+    { lateFeeAmount: 'không hợp lệ' }
+  ]) {
+    const response = responseRecorder();
+    await putState({
+      userId: 7,
+      body: {
+        rooms: [{ id: 'room-owned' }],
+        billingData: { '2026-08': { 'room-owned': invalidEntry } }
+      }
+    }, response.res);
+    assert.equal(response.record.statusCode, 400);
+    assert.equal(response.record.body.code, 'INVALID_INVOICE_ADJUSTMENT');
+  }
+});

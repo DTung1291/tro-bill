@@ -754,11 +754,14 @@ body.modal-open {
 .billing-wifi,
 .billing-manage {
   grid-column: span 2;
-  border-bottom: 0 !important;
+}
+.billing-adjustments {
+  grid-column: span 6;
+  border-right: 0 !important;
 }
 .billing-note,
 .billing-total {
-  grid-column: span 3;
+  grid-column: span 6;
   border-bottom: 0 !important;
 }
 .billing-electric-old {
@@ -767,6 +770,40 @@ body.modal-open {
 .billing-total {
   border-right: 0 !important;
   background: rgba(22, 163, 74, .045) !important;
+}
+.billing-adjustment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.billing-adjustment-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.billing-adjustment-grid label > span {
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.billing-adjustment-grid input {
+  width: 100%;
+  min-width: 0;
+}
+.billing-adjustment-grid input:disabled {
+  cursor: not-allowed;
+  opacity: .65;
+}
+.billing-input-invalid {
+  border-color: var(--red) !important;
+  outline: 2px solid rgba(239, 68, 68, .2) !important;
+}
+.billing-adjustment-lock {
+  margin: 7px 0 0;
+  color: #b45309;
+  font-size: .7rem;
+  line-height: 1.4;
 }
 .billing-row--complete {
   border-color: rgba(22, 163, 74, .38) !important;
@@ -959,10 +996,12 @@ body.modal-open {
   .billing-wifi,
   .billing-manage {
     grid-column: span 4;
-    border-bottom: 1px solid var(--border) !important;
   }
   .billing-manage {
     border-right: 0 !important;
+  }
+  .billing-adjustments {
+    grid-column: 1 / -1;
   }
   .billing-note,
   .billing-total {
@@ -1025,6 +1064,9 @@ body.modal-open {
   .billing-manage {
     grid-column: span 4;
   }
+  .billing-adjustments {
+    grid-column: 1 / -1;
+  }
   .billing-note,
   .billing-total {
     grid-column: 1 / -1;
@@ -1032,6 +1074,9 @@ body.modal-open {
   .billing-note {
     border-right: 0 !important;
     border-bottom: 1px solid var(--border) !important;
+  }
+  .billing-adjustment-grid {
+    grid-template-columns: 1fr;
   }
   .billing-room-cell {
     align-items: flex-start;

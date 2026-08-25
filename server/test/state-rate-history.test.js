@@ -44,6 +44,16 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
     }
     if (sql.includes('FROM rooms')) return { rows: [roomRow] };
     if (sql.includes('FROM settings')) return { rows: [] };
+    if (sql.includes('FROM billing_entries')) {
+      return { rows: [{
+        user_id: 7,
+        period: '2026-08',
+        room_id: 'room-1',
+        discount_amount: '100000',
+        surcharge_amount: '50000',
+        late_fee_amount: '20000'
+      }] };
+    }
     if (sql.includes('FROM history_snapshots')) {
       return { rows: [{ id: 99, period: '2026-08', deduction: '0', created_at: '1' }] };
     }
@@ -59,6 +69,9 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
           rent_days_in_month: 31,
           rent_prorated: true,
           rent_starts_after_period: false,
+          discount_amount: '100000',
+          surcharge_amount: '50000',
+          late_fee_amount: '20000',
           total: '2200000'
         }]
       };
@@ -75,10 +88,16 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   assert.equal(state.rooms[0].rateHistory[1].effectiveFrom, '2026-04');
   assert.equal(state.rooms[0].rateHistory[1].rentPrice, 2500000);
   assert.equal(state.rooms[0].rentStartDate, '2026-08-10');
+  assert.equal(state.billingData['2026-08']['room-1'].discountAmount, 100000);
+  assert.equal(state.billingData['2026-08']['room-1'].surchargeAmount, 50000);
+  assert.equal(state.billingData['2026-08']['room-1'].lateFeeAmount, 20000);
   assert.equal(state.history[0].bills[0].rentBasePrice, 3100000);
   assert.equal(state.history[0].bills[0].rentDays, 22);
   assert.equal(state.history[0].bills[0].rentDaysInMonth, 31);
   assert.equal(state.history[0].bills[0].rentProrated, true);
+  assert.equal(state.history[0].bills[0].discountAmount, 100000);
+  assert.equal(state.history[0].bills[0].surchargeAmount, 50000);
+  assert.equal(state.history[0].bills[0].lateFeeAmount, 20000);
 });
 
 test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) => {
@@ -136,20 +155,41 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
       rentDaysInMonth: 31,
       rentProrated: true,
       rentStartsAfterPeriod: false,
+      discountAmount: 100000,
+      surchargeAmount: 50000,
+      lateFeeAmount: 20000,
       total: 2200000
     }]
   }];
 
-  await putState({ userId: 7, body: { rooms: [room], history } }, res);
+  await putState({
+    userId: 7,
+    body: {
+      rooms: [room],
+      history,
+      billingData: {
+        '2026-08': {
+          'room-1': {
+            discountAmount: 100000,
+            surchargeAmount: 50000,
+            lateFeeAmount: 20000
+          }
+        }
+      }
+    }
+  }, res);
 
   const rateInserts = calls.filter(call => call.sql.includes('INSERT INTO room_rate_history'));
   const roomInsert = calls.find(call => call.sql.includes('INSERT INTO rooms'));
   assert.equal(rateInserts.length, 2);
   assert.deepEqual(rateInserts.map(call => call.params[2]), ['2026-01', '2026-04']);
   const historyBillInsert = calls.find(call => call.sql.includes('INSERT INTO history_bills'));
+  const billingInsert = calls.find(call => call.sql.includes('INSERT INTO billing_entries'));
   assert.equal(roomInsert.params[3], '2026-08-10');
   assert.equal(roomInsert.params[4], 2500000, 'rooms.rent_price giữ giá mới nhất để tương thích bản cũ');
   assert.deepEqual(historyBillInsert.params.slice(3, 9), [2200000, 3100000, 22, 31, true, false]);
+  assert.deepEqual(historyBillInsert.params.slice(24, 27), [100000, 50000, 20000]);
+  assert.deepEqual(billingInsert.params.slice(10, 13), [100000, 50000, 20000]);
   assert.deepEqual(responseBody, { ok: true });
   assert.equal(calls[0].sql, 'BEGIN');
   assert.equal(calls.at(-1).sql, 'COMMIT');

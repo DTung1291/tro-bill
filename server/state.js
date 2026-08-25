@@ -13,6 +13,16 @@ const orEmpty = (v) => (v === null || v === undefined ? '' : Number(v));
 // client '' / undefined -> NULL cho DB
 const orNull = (v) => (v === '' || v === undefined || v === null ? null : Number(v));
 const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : String(v));
+const INVOICE_ADJUSTMENT_FIELDS = ['discountAmount', 'surchargeAmount', 'lateFeeAmount'];
+
+function hasInvalidInvoiceAdjustment(source = {}) {
+  return INVOICE_ADJUSTMENT_FIELDS.some((field) => {
+    const value = source[field];
+    if (value === '' || value === undefined || value === null) return false;
+    const parsed = Number(value);
+    return !Number.isSafeInteger(parsed) || parsed < 0 || parsed > 999999999999;
+  });
+}
 
 function maskCccd(value) {
   const cccd = String(value || '').trim();
@@ -140,6 +150,9 @@ async function buildState(uid, options = {}) {
       waterUnits: orEmpty(b.water_units),
       waterNew: orEmpty(b.water_new),
       utilityOnly: !!b.utility_only,
+      discountAmount: num(b.discount_amount),
+      surchargeAmount: num(b.surcharge_amount),
+      lateFeeAmount: num(b.late_fee_amount),
       paid: !!b.paid
     };
     if (b.electric_old_override !== null) entry.electricOldOverride = Number(b.electric_old_override);
@@ -187,6 +200,9 @@ async function buildState(uid, options = {}) {
       wifiFee: num(hb.wifi_fee),
       manageFee: num(hb.manage_fee),
       utilityOnly: !!hb.utility_only,
+      discountAmount: num(hb.discount_amount),
+      surchargeAmount: num(hb.surcharge_amount),
+      lateFeeAmount: num(hb.late_fee_amount),
       total: num(hb.total),
       paid: !!hb.paid
     });
@@ -241,6 +257,20 @@ async function putState(req, res) {
       if (!roomIds.has(roomId)) {
         return res.status(400).json({ error: 'Dữ liệu hóa đơn chứa phòng không thuộc tài khoản' });
       }
+      if (hasInvalidInvoiceAdjustment(billingData[period][roomId])) {
+        return res.status(400).json({
+          error: 'Giảm giá, phụ thu hoặc phí chậm thanh toán không hợp lệ',
+          code: 'INVALID_INVOICE_ADJUSTMENT'
+        });
+      }
+    }
+  }
+  for (const snapshot of history) {
+    if ((Array.isArray(snapshot?.bills) ? snapshot.bills : []).some(hasInvalidInvoiceAdjustment)) {
+      return res.status(400).json({
+        error: 'Điều chỉnh trong lịch sử hóa đơn không hợp lệ',
+        code: 'INVALID_INVOICE_ADJUSTMENT'
+      });
     }
   }
 
@@ -400,12 +430,14 @@ async function putState(req, res) {
         await client.query(
           `INSERT INTO billing_entries
              (user_id, period, room_id, electric_new, water_units, water_new,
-              electric_old_override, water_old_override, note, utility_only, paid)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+              electric_old_override, water_old_override, note, utility_only,
+              discount_amount, surcharge_amount, late_fee_amount, paid)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
           [
             uid, period, roomId, orNull(e.electricNew), orNull(e.waterUnits),
             orNull(e.waterNew), orNull(e.electricOldOverride), orNull(e.waterOldOverride),
-            strOrNull(e.note), !!e.utilityOnly, !!e.paid
+            strOrNull(e.note), !!e.utilityOnly, num(e.discountAmount),
+            num(e.surchargeAmount), num(e.lateFeeAmount), !!e.paid
           ]
         );
       }
@@ -443,8 +475,9 @@ async function putState(req, res) {
              (snapshot_id, room_id, room_name, rent_price, rent_base_price, rent_days,
               rent_days_in_month, rent_prorated, rent_starts_after_period, electric_old, electric_new,
               electric_rate, kwh, electric_amt, water_type, water_rate, water_units,
-              water_amt, water_prev, water_new, trash_fee, wifi_fee, manage_fee, utility_only, total, paid, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+              water_amt, water_prev, water_new, trash_fee, wifi_fee, manage_fee, utility_only,
+              discount_amount, surcharge_amount, late_fee_amount, total, paid, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
           [
             snapId, b.roomId, b.roomName, num(b.rentPrice), num(b.rentBasePrice, num(b.rentPrice)),
             orNull(b.rentDays), orNull(b.rentDaysInMonth), !!b.rentProrated, !!b.rentStartsAfterPeriod,
@@ -454,7 +487,9 @@ async function putState(req, res) {
             num(b.waterRate), num(b.waterUnits), num(b.waterAmt),
             b.waterPrev === null || b.waterPrev === undefined ? null : Number(b.waterPrev),
             b.waterNew === null || b.waterNew === undefined ? null : Number(b.waterNew),
-            num(b.trashFee), num(b.wifiFee), num(b.manageFee), !!b.utilityOnly, num(b.total), !!b.paid, bIdx++
+            num(b.trashFee), num(b.wifiFee), num(b.manageFee), !!b.utilityOnly,
+            num(b.discountAmount), num(b.surchargeAmount), num(b.lateFeeAmount),
+            num(b.total), !!b.paid, bIdx++
           ]
         );
       }

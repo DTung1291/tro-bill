@@ -666,10 +666,26 @@ CREATE TABLE IF NOT EXISTS billing_entries (
   water_old_override    NUMERIC,
   note                  TEXT,
   utility_only          BOOLEAN NOT NULL DEFAULT false,
+  discount_amount       NUMERIC(12, 0) NOT NULL DEFAULT 0,
+  surcharge_amount      NUMERIC(12, 0) NOT NULL DEFAULT 0,
+  late_fee_amount       NUMERIC(12, 0) NOT NULL DEFAULT 0,
   paid                  BOOLEAN NOT NULL DEFAULT false,
   PRIMARY KEY (user_id, period, room_id)
 );
 ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS utility_only BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS surcharge_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+ALTER TABLE billing_entries ADD COLUMN IF NOT EXISTS late_fee_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='billing_entries_adjustments_nonnegative'
+  ) THEN
+    ALTER TABLE billing_entries
+      ADD CONSTRAINT billing_entries_adjustments_nonnegative
+      CHECK (discount_amount >= 0 AND surcharge_amount >= 0 AND late_fee_amount >= 0);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_billing_user_period ON billing_entries(user_id, period);
 
 -- Chi phí chủ trọ đã thanh toán thực tế theo tháng (tách khỏi hóa đơn khách)
@@ -723,6 +739,9 @@ CREATE TABLE IF NOT EXISTS history_bills (
   wifi_fee     NUMERIC DEFAULT 0,
   manage_fee   NUMERIC DEFAULT 0,
   utility_only BOOLEAN NOT NULL DEFAULT false,
+  discount_amount  NUMERIC(12, 0) NOT NULL DEFAULT 0,
+  surcharge_amount NUMERIC(12, 0) NOT NULL DEFAULT 0,
+  late_fee_amount  NUMERIC(12, 0) NOT NULL DEFAULT 0,
   total        NUMERIC DEFAULT 0,
   paid         BOOLEAN NOT NULL DEFAULT false,
   sort_order   INTEGER NOT NULL DEFAULT 0
@@ -733,6 +752,19 @@ ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_days INTEGER;
 ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_days_in_month INTEGER;
 ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_prorated BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS rent_starts_after_period BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS surcharge_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+ALTER TABLE history_bills ADD COLUMN IF NOT EXISTS late_fee_amount NUMERIC(12, 0) NOT NULL DEFAULT 0;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='history_bills_adjustments_nonnegative'
+  ) THEN
+    ALTER TABLE history_bills
+      ADD CONSTRAINT history_bills_adjustments_nonnegative
+      CHECK (discount_amount >= 0 AND surcharge_amount >= 0 AND late_fee_amount >= 0);
+  END IF;
+END $$;
 UPDATE history_bills
 SET rent_base_price = rent_price
 WHERE rent_base_price = 0 AND rent_price <> 0;

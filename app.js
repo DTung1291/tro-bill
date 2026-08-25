@@ -76,8 +76,12 @@ function priorDebtFromLoadedInvoices(roomId, period) {
 }
 
 function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = false) {
-  const total = Math.max(0, Number(invoiceTotalVnd) || 0);
+  const calculatedTotal = Math.max(0, Number(invoiceTotalVnd) || 0);
   const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period)) || null;
+  const hasTransactions = Number(invoice?.transactionCount) > 0;
+  const total = hasTransactions
+    ? Math.max(0, Number(invoice.invoiceTotalVnd) || 0)
+    : calculatedTotal;
   const paidAmount = invoice
     ? Math.max(0, Number(invoice.paidAmountVnd) || 0)
     : (legacyPaid ? total : 0);
@@ -90,6 +94,9 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
   return {
     invoice,
     invoiceId: invoice ? Number(invoice.invoiceId) : null,
+    invoiceTotalVnd: total,
+    calculatedTotalVnd: calculatedTotal,
+    totalLocked: hasTransactions,
     paidAmountVnd: paidAmount,
     remainingVnd: remaining,
     priorDebtVnd,
@@ -803,6 +810,9 @@ function loadState(savedObj) {
         trashFee: b.trashFee !== undefined ? Number(b.trashFee) : 0,
         wifiFee: b.wifiFee !== undefined ? Number(b.wifiFee) : 0,
         manageFee: b.manageFee !== undefined ? Number(b.manageFee) : 0,
+        discountAmount: b.discountAmount !== undefined ? Number(b.discountAmount) : 0,
+        surchargeAmount: b.surchargeAmount !== undefined ? Number(b.surchargeAmount) : 0,
+        lateFeeAmount: b.lateFeeAmount !== undefined ? Number(b.lateFeeAmount) : 0,
         total: b.total !== undefined ? Number(b.total) : 0,
         utilityOnly: !!b.utilityOnly,
         paid: !!b.paid
@@ -1832,7 +1842,8 @@ function calcBill(room, record, period = null) {
   const manageAmt = utilityOnly ? 0 : rates.manageFee;
   const rent = RoomRates.calculateRent(rates.rentPrice, period || STATE.currentPeriod, room.rentStartDate);
   const rentAmt = utilityOnly ? 0 : rent.amount;
-  const total = electricAmt + waterAmt + trashAmt + wifiAmt + manageAmt + rentAmt;
+  const baseSubtotal = electricAmt + waterAmt + trashAmt + wifiAmt + manageAmt + rentAmt;
+  const adjustments = InvoiceAdjustments.calculate(baseSubtotal, record);
 
   return {
     kwh: safeKwh,
@@ -1850,9 +1861,29 @@ function calcBill(room, record, period = null) {
     rentDaysInMonth: rent.daysInMonth,
     rentProrated: !utilityOnly && rent.prorated,
     rentStartsAfterPeriod: !utilityOnly && rent.startsAfterPeriod,
-    total,
+    subtotal: adjustments.subtotalVnd,
+    discountAmt: adjustments.discountAmount,
+    surchargeAmt: adjustments.surchargeAmount,
+    lateFeeAmt: adjustments.lateFeeAmount,
+    adjustmentNet: adjustments.adjustmentNetVnd,
+    total: adjustments.totalVnd,
     rateEffectiveFrom: rates.effectiveFrom
   };
+}
+
+function billingBreakdownText(bill) {
+  const parts = [];
+  if (bill.electricAmt > 0) parts.push(fmtShorthand(bill.electricAmt));
+  if (bill.waterAmt > 0) parts.push(fmtShorthand(bill.waterAmt));
+  if (bill.trashAmt > 0) parts.push(fmtShorthand(bill.trashAmt));
+  if (bill.wifiAmt > 0) parts.push(fmtShorthand(bill.wifiAmt));
+  if (bill.manageAmt > 0) parts.push(fmtShorthand(bill.manageAmt));
+  if (bill.rentAmt > 0) parts.push(fmtShorthand(bill.rentAmt));
+  let text = parts.join(' + ');
+  if (bill.surchargeAmt > 0) text += `${text ? ' + ' : ''}${fmtShorthand(bill.surchargeAmt)}`;
+  if (bill.lateFeeAmt > 0) text += `${text ? ' + ' : ''}${fmtShorthand(bill.lateFeeAmt)}`;
+  if (bill.discountAmt > 0) text += `${text ? ' − ' : '−'}${fmtShorthand(bill.discountAmt)}`;
+  return text;
 }
 
 function getPeriodRecord(roomId, period) {
@@ -2487,7 +2518,7 @@ function renderBilling() {
   refreshBillingProgress();
 
   if (STATE.rooms.length === 0) {
-    tbody.innerHTML = `<tr class="billing-empty-row"><td colspan="10" class="empty-cell">Chưa có phòng. Vào tab Phòng để thêm.</td></tr>`;
+    tbody.innerHTML = `<tr class="billing-empty-row"><td colspan="11" class="empty-cell">Chưa có phòng. Vào tab Phòng để thêm.</td></tr>`;
     refreshBillingProgress();
     return;
   }
@@ -2523,8 +2554,15 @@ function renderBilling() {
     const hasValidWater = room.waterType === 'khối' ? waterNew !== '' : waterUnits !== '';
     
     const bill = hasValidElec && hasValidWater
-      ? calcBill(room, { electricNew: +electricNew, waterNew: waterNew !== '' ? +waterNew : undefined, waterUnits: waterUnits !== '' ? +waterUnits : undefined }, period)
+      ? calcBill(room, {
+          ...rec,
+          electricNew: +electricNew,
+          waterNew: waterNew !== '' ? +waterNew : undefined,
+          waterUnits: waterUnits !== '' ? +waterUnits : undefined
+        }, period)
       : null;
+    const paymentSummary = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+    const adjustmentsLocked = Number(paymentSummary?.transactionCount) > 0;
 
     let kwhHtml = '—';
     if (electricNew !== '') {
@@ -2533,14 +2571,7 @@ function renderBilling() {
 
     let totalHtml = '—';
     if (bill) {
-      const parts = [];
-      if (bill.electricAmt > 0) parts.push(fmtShorthand(bill.electricAmt));
-      if (bill.waterAmt > 0) parts.push(fmtShorthand(bill.waterAmt));
-      if (bill.trashAmt > 0) parts.push(fmtShorthand(bill.trashAmt));
-      if (bill.wifiAmt > 0) parts.push(fmtShorthand(bill.wifiAmt));
-      if (bill.manageAmt > 0) parts.push(fmtShorthand(bill.manageAmt));
-      if (bill.rentAmt > 0) parts.push(fmtShorthand(bill.rentAmt));
-      const breakdown = parts.join(' + ');
+      const breakdown = billingBreakdownText(bill);
       totalHtml = `<strong>${fmt(bill.total)}</strong><div class="billing-breakdown">${breakdown}</div>`;
     }
 
@@ -2643,6 +2674,29 @@ function renderBilling() {
       <td class="billing-field billing-fee billing-trash" data-label="Rác">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(rates.trashFee)}</span>`}</td>
       <td class="billing-field billing-fee billing-wifi" data-label="Wifi">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="${wifiBadgeClass}">${wifiText}</span>`}</td>
       <td class="billing-field billing-fee billing-manage" data-label="Phí QL & DV">${utilityOnly ? '<span class="billing-fee-muted">Đã thu trước</span>' : `<span class="billing-fee-value">${fmt(rates.manageFee)}</span>`}</td>
+      <td class="billing-field billing-adjustments" data-label="Điều chỉnh hóa đơn">
+        <div class="billing-adjustment-grid">
+          <label>
+            <span>Giảm giá</span>
+            <input type="number" class="bill-adjustment-input" data-adjustment-field="discountAmount"
+              value="${Number(rec.discountAmount) || 0}" min="0" max="${InvoiceAdjustments.MAX_VND}" step="1"
+              aria-label="Giảm giá ${escapeHtml(room.name)}" ${adjustmentsLocked ? 'disabled' : ''} />
+          </label>
+          <label>
+            <span>Phụ thu</span>
+            <input type="number" class="bill-adjustment-input" data-adjustment-field="surchargeAmount"
+              value="${Number(rec.surchargeAmount) || 0}" min="0" max="${InvoiceAdjustments.MAX_VND}" step="1"
+              aria-label="Phụ thu ${escapeHtml(room.name)}" ${adjustmentsLocked ? 'disabled' : ''} />
+          </label>
+          <label>
+            <span>Phí chậm</span>
+            <input type="number" class="bill-adjustment-input" data-adjustment-field="lateFeeAmount"
+              value="${Number(rec.lateFeeAmount) || 0}" min="0" max="${InvoiceAdjustments.MAX_VND}" step="1"
+              aria-label="Phí chậm thanh toán ${escapeHtml(room.name)}" ${adjustmentsLocked ? 'disabled' : ''} />
+          </label>
+        </div>
+        ${adjustmentsLocked ? '<p class="billing-adjustment-lock">Đã phát sinh giao dịch nên các khoản điều chỉnh được khóa.</p>' : ''}
+      </td>
       <td class="billing-field billing-note" data-label="Ghi chú">
         <input type="text" class="bill-note-input" data-room="${room.id}"
           value="${rec.note || ''}" placeholder="Ghi chú tháng..." aria-label="Ghi chú tháng" />
@@ -2733,15 +2787,14 @@ function renderBilling() {
       const isNowComplete = kwhVal !== null && isValidWater;
 
       if (isNowComplete) {
-        const b = calcBill(room, { electricNew: eNew, waterNew: wNew, waterUnits: wUnits }, period);
-        const parts = [];
-        if (b.electricAmt > 0) parts.push(fmtShorthand(b.electricAmt));
-        if (b.waterAmt > 0) parts.push(fmtShorthand(b.waterAmt));
-        if (b.trashAmt > 0) parts.push(fmtShorthand(b.trashAmt));
-        if (b.wifiAmt > 0) parts.push(fmtShorthand(b.wifiAmt));
-        if (b.manageAmt > 0) parts.push(fmtShorthand(b.manageAmt));
-        if (b.rentAmt > 0) parts.push(fmtShorthand(b.rentAmt));
-        const breakdown = parts.join(' + ');
+        const storedRecord = STATE.billingData[period]?.[room.id] || rec;
+        const b = calcBill(room, {
+          ...storedRecord,
+          electricNew: eNew,
+          waterNew: wNew,
+          waterUnits: wUnits
+        }, period);
+        const breakdown = billingBreakdownText(b);
         document.getElementById(`total-${room.id}`).innerHTML = `<strong>${fmt(b.total)}</strong><div class="billing-breakdown">${breakdown}</div>`;
       } else {
         document.getElementById(`total-${room.id}`).innerHTML = '—';
@@ -2781,6 +2834,24 @@ function renderBilling() {
     } else {
       if (waterInput) waterInput.addEventListener('input', recalc);
     }
+
+    tr.querySelectorAll('.bill-adjustment-input').forEach(input => {
+      input.addEventListener('input', () => {
+        const raw = input.value === '' ? 0 : Number(input.value);
+        const valid = Number.isSafeInteger(raw)
+          && raw >= 0
+          && raw <= InvoiceAdjustments.MAX_VND;
+        input.classList.toggle('billing-input-invalid', !valid);
+        if (!valid) {
+          document.getElementById(`total-${room.id}`).innerHTML = '—';
+          return;
+        }
+        if (!STATE.billingData[period]) STATE.billingData[period] = {};
+        if (!STATE.billingData[period][room.id]) STATE.billingData[period][room.id] = {};
+        STATE.billingData[period][room.id][input.dataset.adjustmentField] = raw;
+        recalc();
+      });
+    });
 
     // OCR camera button for electric meter
     const ocrBtn = tr.querySelector('.btn-ocr[data-target="elec"]');
@@ -2937,6 +3008,9 @@ function billPreviewDetailRows(room, rec, bill, period) {
   if (bill.trashAmt > 0) rows.push({ label: 'Phí rác', formula: 'Cố định hàng tháng', amount: bill.trashAmt });
   if (bill.wifiAmt > 0) rows.push({ label: 'Mạng Wifi', formula: 'Cố định hàng tháng', amount: bill.wifiAmt });
   if (bill.manageAmt > 0) rows.push({ label: 'Phí quản lý & DV khác', formula: 'Cố định hàng tháng', amount: bill.manageAmt });
+  if (bill.surchargeAmt > 0) rows.push({ label: 'Phụ thu', formula: 'Điều chỉnh kỳ này', amount: bill.surchargeAmt });
+  if (bill.lateFeeAmt > 0) rows.push({ label: 'Phí chậm thanh toán', formula: 'Điều chỉnh kỳ này', amount: bill.lateFeeAmt });
+  if (bill.discountAmt > 0) rows.push({ label: 'Giảm giá', formula: 'Điều chỉnh kỳ này', amount: -bill.discountAmt });
 
   return rows.map(row => `
     <div class="bill-preview-detail-row">
@@ -3255,6 +3329,23 @@ function renderReport() {
             </div>
             <div class="bill-row-val">${fmt(bill.rentAmt)}</div>
           </div>` : ''}
+          ${InvoiceAdjustments.hasAdjustments(rec) ? `
+          <div class="bill-row">
+            <div class="bill-row-label">Tạm tính trước điều chỉnh</div>
+            <div class="bill-row-val">${fmt(bill.subtotal)}</div>
+          </div>` : ''}
+          ${bill.surchargeAmt > 0 ? `<div class="bill-row">
+            <div class="bill-row-label">➕ Phụ thu</div>
+            <div class="bill-row-val">${fmt(bill.surchargeAmt)}</div>
+          </div>` : ''}
+          ${bill.lateFeeAmt > 0 ? `<div class="bill-row">
+            <div class="bill-row-label">⏱️ Phí chậm thanh toán</div>
+            <div class="bill-row-val">${fmt(bill.lateFeeAmt)}</div>
+          </div>` : ''}
+          ${bill.discountAmt > 0 ? `<div class="bill-row">
+            <div class="bill-row-label">🏷️ Giảm giá</div>
+            <div class="bill-row-val" style="color:var(--green)">−${fmt(bill.discountAmt)}</div>
+          </div>` : ''}
         </div>
         ${utilityOnly ? `<div class="report-bill-note report-bill-note--warning">🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</div>` : ''}
         ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${rec.note}</div>` : ''}
@@ -3306,6 +3397,9 @@ function renderReport() {
       const wifiLine = bill.wifiAmt > 0 ? `📶 Mạng Wifi: ${fmt(bill.wifiAmt)}` : '';
       const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
       const rentLine = rentMessageLine(bill);
+      const surchargeLine = bill.surchargeAmt > 0 ? `➕ Phụ thu: ${fmt(bill.surchargeAmt)}` : '';
+      const lateFeeLine = bill.lateFeeAmt > 0 ? `⏱️ Phí chậm thanh toán: ${fmt(bill.lateFeeAmt)}` : '';
+      const discountLine = bill.discountAmt > 0 ? `🏷️ Giảm giá: −${fmt(bill.discountAmt)}` : '';
       const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
       const qrUrl = genVietQrUrl(room, bill, period, payment.totalDueVnd);
       const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
@@ -3331,6 +3425,9 @@ function renderReport() {
         wifiLine,
         manageLine,
         rentLine,
+        surchargeLine,
+        lateFeeLine,
+        discountLine,
         noteLine,
         `${'─'.repeat(32)}`,
         `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
@@ -3359,6 +3456,9 @@ function copyBillText(room, rec, bill, period) {
   const wifiLine = bill.wifiAmt > 0 ? `📶 Mạng Wifi: ${fmt(bill.wifiAmt)}` : '';
   const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
   const rentLine = rentMessageLine(bill);
+  const surchargeLine = bill.surchargeAmt > 0 ? `➕ Phụ thu: ${fmt(bill.surchargeAmt)}` : '';
+  const lateFeeLine = bill.lateFeeAmt > 0 ? `⏱️ Phí chậm thanh toán: ${fmt(bill.lateFeeAmt)}` : '';
+  const discountLine = bill.discountAmt > 0 ? `🏷️ Giảm giá: −${fmt(bill.discountAmt)}` : '';
   const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
   const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
   const paymentLine = payment.paidAmountVnd > 0
@@ -3388,6 +3488,9 @@ function copyBillText(room, rec, bill, period) {
     wifiLine,
     manageLine,
     rentLine,
+    surchargeLine,
+    lateFeeLine,
+    discountLine,
     noteLine,
     `${'─'.repeat(32)}`,
     `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
@@ -3419,8 +3522,9 @@ document.getElementById('btn-copy-all').addEventListener('click', () => {
     const bill = calcBill(room, rec, period);
     if (!bill) continue;
     const utilityOnlyLine = isUtilityOnlyRecord(rec) ? ' | Chỉ thu điện nước' : '';
+    const adjustmentText = `${bill.surchargeAmt > 0 ? ` | Phụ thu: ${fmt(bill.surchargeAmt)}` : ''}${bill.lateFeeAmt > 0 ? ` | Phí chậm: ${fmt(bill.lateFeeAmt)}` : ''}${bill.discountAmt > 0 ? ` | Giảm: -${fmt(bill.discountAmt)}` : ''}`;
     allTexts.push(
-      `=== ${room.name} ===\nTiền điện: ${fmt(bill.electricAmt)} | Nước: ${fmt(bill.waterAmt)}${bill.trashAmt > 0 ? ` | Rác: ${fmt(bill.trashAmt)}` : ''}${bill.wifiAmt > 0 ? ` | Wifi: ${fmt(bill.wifiAmt)}` : ''}${bill.manageAmt > 0 ? ` | QL & DV: ${fmt(bill.manageAmt)}` : ''}${bill.rentAmt > 0 ? ` | Thuê: ${fmt(bill.rentAmt)}` : ''}${utilityOnlyLine}\nTỔNG: ${fmt(bill.total)}`
+      `=== ${room.name} ===\nTiền điện: ${fmt(bill.electricAmt)} | Nước: ${fmt(bill.waterAmt)}${bill.trashAmt > 0 ? ` | Rác: ${fmt(bill.trashAmt)}` : ''}${bill.wifiAmt > 0 ? ` | Wifi: ${fmt(bill.wifiAmt)}` : ''}${bill.manageAmt > 0 ? ` | QL & DV: ${fmt(bill.manageAmt)}` : ''}${bill.rentAmt > 0 ? ` | Thuê: ${fmt(bill.rentAmt)}` : ''}${adjustmentText}${utilityOnlyLine}\nTỔNG: ${fmt(bill.total)}`
     );
   }
   if (allTexts.length === 0) { showToast('Chưa có dữ liệu', 'error'); return; }
@@ -3469,6 +3573,9 @@ function saveMonth() {
         trashFee: bill.trashAmt || 0,
         wifiFee: bill.wifiAmt || 0,
         manageFee: bill.manageAmt || 0,
+        discountAmount: bill.discountAmt || 0,
+        surchargeAmount: bill.surchargeAmt || 0,
+        lateFeeAmount: bill.lateFeeAmt || 0,
         total: bill.total,
         utilityOnly: isUtilityOnlyRecord(rec),
         paid: rentInvoicePaymentState(room.id, period, bill.total, rec.paid).settled
@@ -3570,12 +3677,13 @@ function renderHistory() {
               : b.rentPrice > 0
                 ? ` | 🏠 ${fmt(b.rentPrice)}${b.rentProrated ? ` (${b.rentDays}/${b.rentDaysInMonth} ngày)` : ''}`
                 : '';
+            const adjustmentDesc = `${b.surchargeAmount > 0 ? ` | ➕ ${fmt(b.surchargeAmount)}` : ''}${b.lateFeeAmount > 0 ? ` | ⏱️ ${fmt(b.lateFeeAmount)}` : ''}${b.discountAmount > 0 ? ` | 🏷️ -${fmt(b.discountAmount)}` : ''}`;
             return `
             <div class="history-room-row">
               <div>
                 <span class="history-room-name">${b.roomName}</span>
                 <div style="font-size:0.75rem;color:var(--text-muted)">
-                  ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${rentDesc}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
+                  ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${rentDesc}${adjustmentDesc}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:10px">
@@ -3776,6 +3884,21 @@ function generatePrintHTML(period, deduction, bills) {
                 <td style="text-align:right">${fmt(b.manageFee)}</td>
               </tr>
               ` : ''}
+              ${b.surchargeAmount > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Phụ thu</td>
+                <td style="text-align:right">${fmt(b.surchargeAmount)}</td>
+              </tr>` : ''}
+              ${b.lateFeeAmount > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Phí chậm thanh toán</td>
+                <td style="text-align:right">${fmt(b.lateFeeAmount)}</td>
+              </tr>` : ''}
+              ${b.discountAmount > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Giảm giá</td>
+                <td style="text-align:right">−${fmt(b.discountAmount)}</td>
+              </tr>` : ''}
             </table>
             ${qrImgHtml}
           </div>
@@ -3823,6 +3946,9 @@ function printActiveReport() {
       trashFee: bill.trashAmt || 0,
       wifiFee: bill.wifiAmt || 0,
       manageFee: bill.manageAmt || 0,
+      discountAmount: bill.discountAmt || 0,
+      surchargeAmount: bill.surchargeAmt || 0,
+      lateFeeAmount: bill.lateFeeAmt || 0,
       total: bill.total,
       utilityOnly: isUtilityOnlyRecord(rec)
     };
