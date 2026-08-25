@@ -9,11 +9,17 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-// Neon yêu cầu SSL. connectionString đã kèm ?sslmode=require,
-// nhưng bật ssl ở đây cho chắc với mọi biến thể chuỗi kết nối.
+// Giữ nguyên hành vi xác minh chứng thư đầy đủ khi pg đổi semantics của
+// sslmode=require ở major version kế tiếp. Không log chuỗi kết nối vì có secret.
+function normalizeDatabaseUrl(connectionString) {
+  return String(connectionString).replace(
+    /([?&])sslmode=(prefer|require|verify-ca)(?=(&|#|$))/gi,
+    '$1sslmode=verify-full'
+  );
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL),
   max: 10,
   idleTimeoutMillis: 30000
 });
@@ -52,5 +58,6 @@ async function getClient() {
 module.exports = {
   query,
   getClient,
+  normalizeDatabaseUrl,
   pool
 };
