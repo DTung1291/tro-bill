@@ -45,6 +45,7 @@ const adminRevenue = require('./admin-revenue');
 const rentPayments = require('./rent-payments');
 const deposits = require('./deposits');
 const rentPaymentChannels = require('./rent-payment-channels');
+const rentBankReconciliation = require('./rent-bank-reconciliation');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -168,6 +169,21 @@ app.patch(
 app.post(
   '/api/rent-payment-channels/sepay/:publicId/webhook',
   wrap(rentPaymentChannels.sepayWebhook)
+);
+app.get(
+  '/api/rent-bank-transactions',
+  requireAuth,
+  wrap(rentBankReconciliation.listBankTransactions)
+);
+app.post(
+  '/api/rent-bank-transactions/:id/match',
+  requireAuth,
+  wrap(rentBankReconciliation.manuallyMatchTransaction)
+);
+app.post(
+  '/api/rent-bank-transactions/:id/ignore',
+  requireAuth,
+  wrap(rentBankReconciliation.ignoreBankTransaction)
 );
 app.get(
   '/api/deposits/tenants/:tenantId',

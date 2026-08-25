@@ -215,6 +215,29 @@ const API = (() => {
     );
   }
 
+  function getRentBankTransactions(status = 'pending', limit = 50) {
+    return request(
+      'GET',
+      `/api/rent-bank-transactions?status=${encodeURIComponent(status)}&limit=${encodeURIComponent(limit)}`
+    );
+  }
+
+  function matchRentBankTransaction(transactionId, invoiceId, note = '') {
+    return request(
+      'POST',
+      `/api/rent-bank-transactions/${encodeURIComponent(transactionId)}/match`,
+      { invoiceId, note }
+    );
+  }
+
+  function ignoreRentBankTransaction(transactionId, reason) {
+    return request(
+      'POST',
+      `/api/rent-bank-transactions/${encodeURIComponent(transactionId)}/ignore`,
+      { reason }
+    );
+  }
+
   function getTenantDeposit(tenantId) {
     return request(
       'GET',
@@ -349,6 +372,9 @@ const API = (() => {
     rotateRentPaymentChannelSecret,
     setRentPaymentChannelStatus,
     updateRentPaymentChannelAccount,
+    getRentBankTransactions,
+    matchRentBankTransaction,
+    ignoreRentBankTransaction,
     getTenantDeposit,
     createDepositTransaction,
     reverseDepositTransaction,

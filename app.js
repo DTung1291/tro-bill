@@ -52,6 +52,7 @@ let ACTIVE_DEPOSIT_RESULT = null;
 let RENT_INVOICE_SYNC_PROMISE = null;
 let RENT_PAYMENT_CHANNELS = [];
 let ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
+let RENT_BANK_TRANSACTIONS = [];
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -299,6 +300,7 @@ function renderRentPaymentChannel() {
   const status = document.getElementById('sepay-channel-status');
   const secretPanel = document.getElementById('sepay-channel-secret');
   const secretInput = document.getElementById('sepay-secret-value');
+  const reconciliation = document.getElementById('bank-reconciliation');
   if (!empty || !detail || !status || !secretPanel || !secretInput) return;
 
   const channel = activeSepayChannel();
@@ -310,6 +312,7 @@ function renderRentPaymentChannel() {
     status.textContent = 'Chưa kết nối';
     secretPanel.hidden = true;
     secretInput.value = '';
+    if (reconciliation) reconciliation.hidden = true;
     const createButton = document.getElementById('sepay-channel-create');
     const hasAccount = /^[0-9]{4,30}$/.test(currentBankAccountDigits());
     if (createButton) {
@@ -318,6 +321,8 @@ function renderRentPaymentChannel() {
     }
     return;
   }
+
+  if (reconciliation) reconciliation.hidden = false;
 
   const isActive = channel.status === 'active';
   status.textContent = isActive ? 'Đang hoạt động' : 'Đã tắt';
@@ -356,7 +361,150 @@ function renderRentPaymentChannel() {
     && Number(activeSecret.channelId) === Number(channel.id);
   secretPanel.hidden = !shouldShowSecret;
   secretInput.value = shouldShowSecret ? activeSecret.value : '';
+  renderRentBankReconciliation();
 }
+
+function reconciliationReasonLabel(reason) {
+  const labels = {
+    transfer_reference_missing: 'Không tìm thấy mã hóa đơn',
+    multiple_transfer_references: 'Có nhiều mã hóa đơn',
+    invoice_not_found: 'Mã không thuộc hóa đơn hiện có',
+    invoice_already_settled: 'Hóa đơn đã được thu đủ',
+    amount_mismatch: 'Số tiền không khớp công nợ'
+  };
+  return labels[reason] || 'Cần chủ trọ kiểm tra';
+}
+
+function reconciliationInvoiceCandidates() {
+  return [...RENT_INVOICE_SUMMARIES.values()]
+    .filter(invoice => Number(invoice.totalDueVnd) > 0)
+    .sort((a, b) => String(b.period).localeCompare(String(a.period))
+      || String(a.roomName).localeCompare(String(b.roomName)));
+}
+
+function renderRentBankReconciliation() {
+  const list = document.getElementById('bank-reconciliation-list');
+  const empty = document.getElementById('bank-reconciliation-empty');
+  if (!list || !empty) return;
+  list.textContent = '';
+  empty.hidden = RENT_BANK_TRANSACTIONS.length !== 0;
+  const candidates = reconciliationInvoiceCandidates();
+
+  for (const transaction of RENT_BANK_TRANSACTIONS) {
+    const item = document.createElement('article');
+    item.className = 'bank-reconciliation-item';
+    const content = transaction.content || transaction.transactionCode || '(Không có nội dung)';
+    const detectedInvoiceId = candidates.find(invoice => {
+      const reference = String(invoice.transferContent || '').trim().toUpperCase();
+      return reference && String(content).toUpperCase().includes(reference);
+    })?.invoiceId;
+    const candidateOptions = candidates.map(invoice => {
+      const selected = Number(invoice.invoiceId) === Number(detectedInvoiceId);
+      return `<option value="${invoice.invoiceId}" ${selected ? 'selected' : ''}>${escapeHtml(invoice.roomName || invoice.roomId)} · ${escapeHtml(periodLabel(invoice.period))} · còn ${escapeHtml(fmt(invoice.totalDueVnd))} · ${escapeHtml(invoice.transferContent || '')}</option>`;
+    }).join('');
+    item.innerHTML = `
+      <div class="bank-reconciliation-summary">
+        <div>
+          <strong>${escapeHtml(transaction.gateway || 'Ngân hàng')}</strong>
+          <span> · ${escapeHtml(subscriptionDateTime(transaction.occurredAt))}</span>
+        </div>
+        <span class="bank-reconciliation-amount">${escapeHtml(fmt(transaction.amountVnd))}</span>
+      </div>
+      <p class="bank-reconciliation-content">${escapeHtml(content)}</p>
+      <span class="bank-reconciliation-reason">${escapeHtml(reconciliationReasonLabel(transaction.matchReason))}</span>
+      <div class="bank-reconciliation-controls">
+        <select class="inline-input bank-reconciliation-invoice" aria-label="Chọn hóa đơn để ghép">
+          <option value="">-- Chọn hóa đơn còn nợ --</option>
+          ${candidateOptions}
+        </select>
+        <input class="inline-input bank-reconciliation-note" type="text" maxlength="500" placeholder="Ghi chú xử lý" />
+        <button type="button" class="btn btn--sm btn--primary bank-reconciliation-match" ${candidates.length ? '' : 'disabled'}>Ghép hóa đơn</button>
+        <button type="button" class="btn btn--sm btn--ghost bank-reconciliation-ignore">Bỏ qua</button>
+      </div>`;
+
+    const invoiceSelect = item.querySelector('.bank-reconciliation-invoice');
+    const noteInput = item.querySelector('.bank-reconciliation-note');
+    item.querySelector('.bank-reconciliation-match')?.addEventListener('click', event => {
+      const invoiceId = Number(invoiceSelect.value);
+      if (!Number.isSafeInteger(invoiceId) || invoiceId < 1) {
+        showToast('Hãy chọn hóa đơn cần ghép.', 'error');
+        return;
+      }
+      const selected = candidates.find(invoice => Number(invoice.invoiceId) === invoiceId);
+      showConfirm(
+        `Ghi nhận ${fmt(transaction.amountVnd)} vào công nợ ${selected?.roomName || ''} ${selected ? periodLabel(selected.period) : ''}?`,
+        async () => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            await API.matchRentBankTransaction(transaction.id, invoiceId, noteInput.value.trim());
+            const [bankResult, invoiceResult] = await Promise.all([
+              API.getRentBankTransactions('pending', 50),
+              API.getRentPaymentSummaries()
+            ]);
+            RENT_BANK_TRANSACTIONS = bankResult.transactions || [];
+            setRentInvoiceSummaries(invoiceResult.invoices || []);
+            renderRentBankReconciliation();
+            showToast('Đã ghép giao dịch và tạo phiếu thu.', 'success');
+          } catch (error) {
+            if (error.code === 401) return handleAuthExpired();
+            showToast(error.message || 'Không ghép được giao dịch', 'error', 4000);
+            button.disabled = false;
+          }
+        },
+        null,
+        'Ghép hóa đơn'
+      );
+    });
+    item.querySelector('.bank-reconciliation-ignore')?.addEventListener('click', event => {
+      const reason = noteInput.value.trim();
+      if (reason.length < 10) {
+        showToast('Nhập lý do bỏ qua ít nhất 10 ký tự.', 'error');
+        noteInput.focus();
+        return;
+      }
+      showConfirm(
+        'Bỏ qua giao dịch này? Giao dịch gốc vẫn được giữ trong lịch sử đối soát.',
+        async () => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try {
+            await API.ignoreRentBankTransaction(transaction.id, reason);
+            RENT_BANK_TRANSACTIONS = RENT_BANK_TRANSACTIONS.filter(
+              item => Number(item.id) !== Number(transaction.id)
+            );
+            renderRentBankReconciliation();
+            showToast('Đã chuyển giao dịch sang danh sách bỏ qua.', 'success');
+          } catch (error) {
+            if (error.code === 401) return handleAuthExpired();
+            showToast(error.message || 'Không bỏ qua được giao dịch', 'error');
+            button.disabled = false;
+          }
+        },
+        null,
+        'Bỏ qua'
+      );
+    });
+    list.appendChild(item);
+  }
+}
+
+async function loadRentBankReconciliation() {
+  try {
+    const result = await API.getRentBankTransactions('pending', 50);
+    RENT_BANK_TRANSACTIONS = Array.isArray(result.transactions) ? result.transactions : [];
+    renderRentBankReconciliation();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    console.warn('Không tải được giao dịch cần đối soát:', error.message);
+    showToast('Không tải được danh sách cần đối soát.', 'error');
+  }
+}
+
+document.getElementById('bank-reconciliation-refresh')?.addEventListener(
+  'click',
+  loadRentBankReconciliation
+);
 
 async function loadRentPaymentChannels() {
   try {
@@ -5748,7 +5896,7 @@ function handleAuthExpired() {
 
 async function startApp() {
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
     API.getPlans().catch(() => ({ plans: [] })),
@@ -5760,6 +5908,10 @@ async function startApp() {
     API.getRentPaymentChannels().catch((error) => {
       console.warn('Không tải được kênh thanh toán:', error.message);
       return { channels: [] };
+    }),
+    API.getRentBankTransactions('pending', 50).catch((error) => {
+      console.warn('Không tải được giao dịch cần đối soát:', error.message);
+      return { transactions: [] };
     })
   ]);
   applyServerEntitlements(entitlement);
@@ -5770,6 +5922,9 @@ async function startApp() {
   loadState(serverState);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
+  RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
+    ? bankTransactionsResult.transactions
+    : [];
   try {
     await syncRentInvoicesWithLedger();
   } catch (error) {

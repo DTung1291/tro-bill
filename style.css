@@ -429,11 +429,92 @@ body.modal-open {
   font-size: .76rem;
   line-height: 1.45;
 }
+.bank-reconciliation {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bank-reconciliation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+}
+.bank-reconciliation-head p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  line-height: 1.45;
+}
+.bank-reconciliation-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.bank-reconciliation-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+}
+.bank-reconciliation-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bank-reconciliation-summary strong { color: var(--text); }
+.bank-reconciliation-summary span {
+  color: var(--text-muted);
+  font-size: .74rem;
+}
+.bank-reconciliation-amount {
+  flex: 0 0 auto;
+  color: var(--primary) !important;
+  font-size: .9rem !important;
+  font-weight: 800;
+}
+.bank-reconciliation-content {
+  margin: 7px 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.bank-reconciliation-reason {
+  display: inline-flex;
+  padding: 3px 7px;
+  border: 1px solid rgba(245, 158, 11, .3);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, .1);
+  color: #b45309;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.bank-reconciliation-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+.bank-reconciliation-controls .inline-input { width: 100%; min-width: 0; }
+.bank-reconciliation-empty {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+@media (max-width: 800px) {
+  .bank-reconciliation-controls { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 640px) {
   .payment-channel-head,
   .payment-channel-value-row { align-items: stretch; flex-direction: column; }
   .payment-channel-value-row .inline-input { flex-basis: auto; width: 100%; }
   .payment-channel-value-row .btn { width: 100%; }
+  .bank-reconciliation-head,
+  .bank-reconciliation-summary { flex-direction: column; }
+  .bank-reconciliation-controls { grid-template-columns: 1fr; }
+  .bank-reconciliation-controls .btn { width: 100%; }
 }
 .settings-card[hidden] { display: none !important; }
 /* Premium đang tạm tắt, không chiếm chỗ trong bất kỳ layout nào. */

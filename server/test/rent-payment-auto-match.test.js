@@ -86,15 +86,16 @@ test('khớp chính xác tạo phiếu thu, bút toán và liên kết giao dị
   assert.deepEqual(receipt.params.slice(0, 6), [
     51, 7, 'room-1', '2026-08', 'PT-202608-00001F', 3000000
   ]);
-  assert.match(receipt.sql, /'bank_transfer'[\s\S]*'sepay_auto'/);
-  assert.equal(receipt.params[7], 'sepay:3:92704');
+  assert.match(receipt.sql, /'bank_transfer'/);
+  assert.equal(receipt.params[7], 'sepay_auto');
+  assert.equal(receipt.params[8], 'sepay:3:92704');
 
   const ledger = client.calls.find((call) => call.sql.includes('INSERT INTO rent_payment_transactions'));
   assert.deepEqual(ledger.params.slice(0, 5), [7, 41, 51, 3000000, 'sepay:92704']);
   assert.equal(ledger.params[6], 'sepay_auto');
 
   const matched = client.calls.find((call) => call.sql.includes("match_status='matched'"));
-  assert.deepEqual(matched.params, [99, 41, 51]);
+  assert.deepEqual(matched.params, [99, 41, 51, 'matched_exact', '', null]);
   assert.match(matched.sql, /matched_receipt_id=\$3/);
 });
 
@@ -163,7 +164,7 @@ test('migration liên kết bank transaction với phiếu thu và chỉ cấp q
     assert.match(source, /rent_bank_transactions_receipt_owner_fk/);
     assert.match(source, /REFERENCES rent_payment_receipts\(user_id, id\) ON DELETE RESTRICT/);
     assert.match(source, /match_reason/);
-    assert.match(source, /GRANT UPDATE \(match_status, match_reason, matched_invoice_id, matched_receipt_id, matched_at, updated_at\)/);
+    assert.match(source, /GRANT UPDATE \(match_status, match_reason, matched_invoice_id, matched_receipt_id, matched_at,[^)]*updated_at\)/);
   }
   assert.match(migration, /^BEGIN;/);
   assert.match(migration, /COMMIT;[\s\S]*runtime_match_update_ready/);

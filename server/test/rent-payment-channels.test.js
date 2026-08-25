@@ -258,7 +258,7 @@ test('schema và migration giữ queue append-only, secret hash và khóa chốn
     assert.match(source, /secret_hash ~ '\^\[a-f0-9\]\{64\}\$'/);
     assert.match(source, /UNIQUE \(channel_id, provider_transaction_id\)/);
     assert.match(source, /REVOKE UPDATE, DELETE, TRUNCATE[\s\S]*ON rent_bank_transactions/);
-    assert.match(source, /GRANT UPDATE \(match_status,[^)]*matched_invoice_id,[^)]*matched_at, updated_at\)/);
+    assert.match(source, /GRANT UPDATE \(match_status,[^)]*matched_invoice_id,[^)]*matched_at,[^)]*updated_at\)/);
     assert.doesNotMatch(transactionTable, /raw_payload|payload\s+JSONB/i);
   }
 });
@@ -279,6 +279,6 @@ test('frontend khai báo API quản lý kênh nhưng không có API đọc secre
   assert.match(appSource, /ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null/);
   assert.match(htmlSource, /id="sepay-channel-card"/);
   assert.match(htmlSource, /API key mới — chỉ hiển thị lần này/);
-  assert.match(htmlSource, /api\.js\?v=85[\s\S]*app\.js\?v=85/);
+  assert.match(htmlSource, /api\.js\?v=86[\s\S]*app\.js\?v=86/);
   assert.match(styleSource, /\.payment-channel-value-row[\s\S]*min-width: 0/);
 });

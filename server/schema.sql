@@ -987,6 +987,9 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
   matched_invoice_id      BIGINT,
   matched_receipt_id      BIGINT,
   matched_at              TIMESTAMPTZ,
+  review_note             TEXT NOT NULL DEFAULT '',
+  reviewed_by_user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at             TIMESTAMPTZ,
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT rent_bank_transactions_channel_owner_fk
     FOREIGN KEY (user_id, channel_id)
@@ -1017,6 +1020,8 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
   ),
   CONSTRAINT rent_bank_transactions_match_reason_valid
     CHECK (match_reason ~ '^[a-z0-9_]{0,100}$'),
+  CONSTRAINT rent_bank_transactions_review_note_length
+    CHECK (char_length(review_note) <= 500),
   CONSTRAINT rent_bank_transactions_lengths_valid CHECK (
     char_length(provider_transaction_id) BETWEEN 1 AND 128
     AND char_length(gateway) <= 100
@@ -1027,6 +1032,9 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_rent_bank_transactions_pending
   ON rent_bank_transactions(user_id, match_status, occurred_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rent_bank_transactions_reviewed_by
+  ON rent_bank_transactions(reviewed_by_user_id, reviewed_at DESC)
+  WHERE reviewed_by_user_id IS NOT NULL;
 
 DO $$
 BEGIN
@@ -1036,7 +1044,7 @@ BEGIN
     EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_channels_id_seq TO tro_bill_runtime';
     EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_bank_transactions FROM tro_bill_runtime';
     EXECUTE 'GRANT SELECT, INSERT ON rent_bank_transactions TO tro_bill_runtime';
-    EXECUTE 'GRANT UPDATE (match_status, match_reason, matched_invoice_id, matched_receipt_id, matched_at, updated_at) ON rent_bank_transactions TO tro_bill_runtime';
+    EXECUTE 'GRANT UPDATE (match_status, match_reason, matched_invoice_id, matched_receipt_id, matched_at, review_note, reviewed_by_user_id, reviewed_at, updated_at) ON rent_bank_transactions TO tro_bill_runtime';
     EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_bank_transactions_id_seq TO tro_bill_runtime';
   END IF;
 END $$;

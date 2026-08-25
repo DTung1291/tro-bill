@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=85" />
+  <link rel="stylesheet" href="style.css?v=86" />
 </head>
 
 <body>
@@ -486,6 +486,18 @@
             <button type="button" class="btn btn--sm btn--ghost" id="sepay-hide-secret">Đã lưu</button>
           </div>
         </div>
+
+        <section class="bank-reconciliation" id="bank-reconciliation" hidden>
+          <div class="bank-reconciliation-head">
+            <div>
+              <strong>🧩 Giao dịch cần đối soát</strong>
+              <p>Sai số tiền, thiếu mã hoặc không tìm thấy hóa đơn sẽ nằm ở đây và không tự ghi vào sổ thu.</p>
+            </div>
+            <button type="button" class="btn btn--sm btn--ghost" id="bank-reconciliation-refresh">Làm mới</button>
+          </div>
+          <div class="bank-reconciliation-list" id="bank-reconciliation-list"></div>
+          <p class="bank-reconciliation-empty" id="bank-reconciliation-empty">Không có giao dịch nào cần xử lý.</p>
+        </section>
       </div>
 
       <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
@@ -1276,13 +1288,13 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=85"></script>
+  <script src="api.js?v=86"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
-  <script src="app.js?v=85"></script>
+  <script src="app.js?v=86"></script>
 </body>
 
 </html>
