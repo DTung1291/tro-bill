@@ -175,7 +175,7 @@ Trạng thái ngày 24/08/2026:
 - [x] QR luôn chứa đúng số tiền còn phải trả, không chỉ tổng hóa đơn ban đầu.
 - [x] Cho phép chủ trọ xác nhận thủ công khi chưa kết nối ngân hàng.
 - [x] Cho phép kết nối kênh thanh toán của từng chủ trọ để nhận webhook.
-- [ ] Tự động ghép giao dịch với hóa đơn theo mã, số tiền và tài khoản nhận.
+- [x] Tự động ghép giao dịch với hóa đơn theo mã, số tiền và tài khoản nhận.
 - [ ] Có danh sách giao dịch chưa ghép hoặc nghi ngờ để xử lý thủ công.
 - [ ] Tiền thuê đi thẳng vào tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê.
 
