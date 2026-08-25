@@ -6,6 +6,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const schema = fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8');
+const migration = fs.readFileSync(
+  path.join(__dirname, '..', 'migrations', '20260825_rent_payment_ledger.sql'),
+  'utf8'
+);
 const invoices = schema.match(/CREATE TABLE IF NOT EXISTS rent_invoices \(([\s\S]*?)\n\);/);
 const transactions = schema.match(/CREATE TABLE IF NOT EXISTS rent_payment_transactions \(([\s\S]*?)\n\);/);
 
@@ -43,4 +47,13 @@ test('runtime ledger là append-only và migration paid cũ idempotent', () => {
     schema,
     /ON CONFLICT \(user_id, idempotency_key\) WHERE idempotency_key IS NOT NULL DO NOTHING/
   );
+});
+
+test('migration triển khai chạy trong transaction và tự kiểm tra quyền append-only', () => {
+  assert.match(migration, /^BEGIN;/);
+  assert.match(migration, /COMMIT;[\s\S]*invoices_ready/);
+  assert.match(migration, /ledger_append_only/);
+  assert.match(migration, /GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_app/);
+  assert.doesNotMatch(migration, /DROP\s+(TABLE|SCHEMA|DATABASE)/i);
+  assert.doesNotMatch(migration, /TRUNCATE\s+/i);
 });
