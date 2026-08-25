@@ -1728,8 +1728,8 @@ function getVietQrDescription(room, period) {
 }
 
 function genVietQrUrl(room, bill, period, amountOverride = null) {
-  const bankId = STATE.settings.bankId || '';
-  const account = STATE.settings.bankAccount || '';
+  const bankId = String(STATE.settings.bankId || '').trim().toUpperCase();
+  const account = currentBankAccountDigits();
   const owner = STATE.settings.bankOwnerName || '';
 
   if (!bankId || !account) return null;
@@ -1744,7 +1744,15 @@ function genVietQrUrl(room, bill, period, amountOverride = null) {
   const encodedDesc = encodeURIComponent(desc);
   const encodedOwner = encodeURIComponent(owner);
 
-  return `https://img.vietqr.io/image/${bankId}-${account}-compact.png?amount=${amount}&addInfo=${encodedDesc}&accountName=${encodedOwner}`;
+  return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(account)}-compact.png?amount=${amount}&addInfo=${encodedDesc}&accountName=${encodedOwner}`;
+}
+
+function rentBankRecipientText() {
+  const bankId = String(STATE.settings.bankId || '').trim().toUpperCase();
+  const account = currentBankAccountDigits();
+  const owner = String(STATE.settings.bankOwnerName || '').trim().toUpperCase();
+  if (!bankId || !account) return '';
+  return [owner, bankId, account].filter(Boolean).join(' · ');
 }
 
 function escapeHtml(value) {
@@ -3471,11 +3479,16 @@ function buildBillPreviewContent(room, rec, bill, period) {
         <p>Vào Cài đặt để thêm ngân hàng và số tài khoản nhận tiền.</p>
       </div>`;
   } else {
+    const recipient = rentBankRecipientText();
     qrContent = `
       <div class="bill-preview-qr-frame">
         <img src="${escapeHtml(qrUrl)}" alt="VietQR thanh toán ${escapeHtml(room.name)}" />
       </div>
-      <p class="bill-preview-qr-amount">Số tiền trên mã: <strong>${fmt(remaining)}</strong></p>`;
+      <p class="bill-preview-qr-amount">Số tiền trên mã: <strong>${fmt(remaining)}</strong></p>
+      <div class="bill-preview-direct-settlement">
+        <strong>Người nhận: ${escapeHtml(recipient)}</strong>
+        <span>Tiền vào thẳng tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê.</span>
+      </div>`;
   }
 
   return `
@@ -3872,6 +3885,9 @@ function renderReport() {
       const totalDueLine = `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`;
       const debtAgeLine = debtAgeMessageLine(payment);
       const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
+      const recipientLine = rentBankRecipientText()
+        ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText()}`
+        : '';
 
       const waterLine = room.waterType === 'khối'
         ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
@@ -3898,6 +3914,7 @@ function renderReport() {
         totalDueLine,
         debtAgeLine,
         transferLine,
+        recipientLine,
         qrPart
       ].filter(Boolean).join('\n');
 
@@ -3941,6 +3958,9 @@ async function copyBillText(room, rec, bill, period) {
     : '';
   const debtAgeLine = debtAgeMessageLine(payment);
   const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
+  const recipientLine = rentBankRecipientText()
+    ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText()}`
+    : '';
 
   const electricOld = getElectricOld(room, period);
   const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
@@ -3973,6 +3993,7 @@ async function copyBillText(room, rec, bill, period) {
     `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`,
     debtAgeLine,
     transferLine,
+    recipientLine,
     qrPart
   ].filter(Boolean).join('\n');
 
@@ -4553,7 +4574,7 @@ if (bankSelect) {
 
 const saveBankBtn = document.getElementById('save-bank-settings');
 if (saveBankBtn) {
-  saveBankBtn.addEventListener('click', () => {
+  saveBankBtn.addEventListener('click', async event => {
     const bankSelectVal = document.getElementById('bank-select').value;
     const bankCustomVal = document.getElementById('bank-custom-input').value.trim();
     const accountVal = document.getElementById('bank-account-input').value.trim();
@@ -4569,10 +4590,43 @@ if (saveBankBtn) {
       return;
     }
 
-    STATE.settings.bankId = finalBankId;
-    STATE.settings.bankAccount = accountVal;
-    STATE.settings.bankOwnerName = removeVietnameseTones(ownerVal).toUpperCase();
-    saveState();
+    const normalizedBankId = finalBankId.trim().toUpperCase();
+    const normalizedAccount = accountVal.replace(/[\s-]/g, '');
+    const normalizedOwner = removeVietnameseTones(ownerVal).trim().replace(/\s+/g, ' ').toUpperCase();
+    const hasAnyBankValue = Boolean(normalizedBankId || normalizedAccount || normalizedOwner);
+    if (hasAnyBankValue && !/^[A-Z0-9]{2,20}$/.test(normalizedBankId)) {
+      showToast('Mã ngân hàng phải có từ 2 đến 20 chữ hoặc số.', 'error');
+      return;
+    }
+    if (hasAnyBankValue && !/^[0-9]{4,30}$/.test(normalizedAccount)) {
+      showToast('Số tài khoản phải có từ 4 đến 30 chữ số.', 'error');
+      return;
+    }
+    if (hasAnyBankValue && (normalizedOwner.length < 2 || normalizedOwner.length > 100)) {
+      showToast('Nhập đầy đủ tên chủ tài khoản nhận tiền.', 'error');
+      return;
+    }
+
+    const previous = {
+      bankId: STATE.settings.bankId,
+      bankAccount: STATE.settings.bankAccount,
+      bankOwnerName: STATE.settings.bankOwnerName
+    };
+    STATE.settings.bankId = normalizedBankId;
+    STATE.settings.bankAccount = normalizedAccount;
+    STATE.settings.bankOwnerName = normalizedOwner;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      saveState();
+      await flushState({ throwOnError: true });
+    } catch (_) {
+      Object.assign(STATE.settings, previous);
+      renderDashboard();
+      return;
+    } finally {
+      button.disabled = false;
+    }
     showToast('Đã lưu cấu hình tài khoản nhận tiền ✓', 'success');
     renderDashboard();
     renderRentPaymentChannel();

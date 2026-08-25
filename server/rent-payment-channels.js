@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const db = require('./db');
 const { autoMatchBankTransaction } = require('./rent-payment-auto-match');
+const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
 
 const PROVIDER = 'sepay';
 const MAX_WEBHOOK_BODY_BYTES = 64 * 1024;
@@ -83,12 +84,53 @@ function channelJson(row, req) {
     provider: row.provider,
     status: row.status,
     expectedAccountNumber: row.expected_account_number,
+    settlementMode: 'direct_to_landlord',
     secretLast4: row.secret_last4,
     webhookUrl: webhookUrl(req, row.public_id),
     lastReceivedAt: row.last_received_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+async function configuredRentAccount(userId, suppliedAccountNumber) {
+  const { rows } = await db.query(
+    `SELECT bank_id, bank_account, bank_owner_name
+     FROM settings
+     WHERE user_id=$1`,
+    [userId]
+  );
+  let settings;
+  try {
+    settings = normalizeRentBankSettings(rows[0] || {}, { allowEmpty: false });
+  } catch (error) {
+    if (error instanceof RentBankSettingsError) {
+      throw new RentPaymentChannelError(
+        409,
+        'RENT_BANK_SETTINGS_REQUIRED',
+        'Hãy lưu đủ ngân hàng, số tài khoản và tên chủ tài khoản VietQR trước'
+      );
+    }
+    throw error;
+  }
+  let supplied;
+  try {
+    supplied = normalizeAccountNumber(suppliedAccountNumber);
+  } catch (_) {
+    throw new RentPaymentChannelError(
+      409,
+      'RENT_BANK_ACCOUNT_OUT_OF_SYNC',
+      'Số tài khoản yêu cầu không khớp cấu hình VietQR đã lưu'
+    );
+  }
+  if (supplied !== settings.accountNumber) {
+    throw new RentPaymentChannelError(
+      409,
+      'RENT_BANK_ACCOUNT_OUT_OF_SYNC',
+      'Số tài khoản yêu cầu không khớp cấu hình VietQR đã lưu'
+    );
+  }
+  return settings.accountNumber;
 }
 
 function authorizationSecret(req) {
@@ -203,7 +245,10 @@ async function listChannels(req, res) {
 async function createSepayChannel(req, res) {
   let expectedAccountNumber;
   try {
-    expectedAccountNumber = normalizeAccountNumber(req.body?.expectedAccountNumber);
+    expectedAccountNumber = await configuredRentAccount(
+      req.userId,
+      req.body?.expectedAccountNumber
+    );
   } catch (error) {
     if (sendChannelError(res, error)) return res;
     throw error;
@@ -295,7 +340,10 @@ async function updateChannelAccount(req, res) {
   let expectedAccountNumber;
   try {
     channelId = positiveId(req.params.id);
-    expectedAccountNumber = normalizeAccountNumber(req.body?.expectedAccountNumber);
+    expectedAccountNumber = await configuredRentAccount(
+      req.userId,
+      req.body?.expectedAccountNumber
+    );
   } catch (error) {
     if (sendChannelError(res, error)) return res;
     throw error;
@@ -408,6 +456,7 @@ module.exports = {
   RentPaymentChannelError,
   authorizationSecret,
   channelJson,
+  configuredRentAccount,
   createSepayChannel,
   generateSecret,
   listChannels,

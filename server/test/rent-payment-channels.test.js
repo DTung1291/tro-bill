@@ -111,6 +111,13 @@ test('tạo kênh chỉ ghi hash và trả API key rõ đúng trong response t�
   const originalQuery = db.query;
   let insertParams;
   db.query = async (sql, params) => {
+    if (sql.includes('FROM settings')) {
+      return { rows: [{
+        bank_id: 'VCB',
+        bank_account: '0123456789',
+        bank_owner_name: 'NGUYEN VAN A'
+      }] };
+    }
     assert.match(sql, /INSERT INTO rent_payment_channels/);
     insertParams = params;
     return { rows: [{
@@ -139,6 +146,30 @@ test('tạo kênh chỉ ghi hash và trả API key rõ đúng trong response t�
   assert.equal(insertParams[3], secretHash(record.body.secret));
   assert.equal(insertParams[4], record.body.secret.slice(-4));
   assert.equal(JSON.stringify(record.body.channel).includes(insertParams[3]), false, 'API không trả secret hash');
+  assert.equal(record.body.channel.settlementMode, 'direct_to_landlord');
+});
+
+test('tạo kênh từ chối tài khoản khác với VietQR đã lưu của chủ trọ', async (t) => {
+  const originalQuery = db.query;
+  let inserted = false;
+  db.query = async (sql) => {
+    if (sql.includes('FROM settings')) {
+      return { rows: [{
+        bank_id: 'VCB',
+        bank_account: '0123456789',
+        bank_owner_name: 'NGUYEN VAN A'
+      }] };
+    }
+    inserted = true;
+    return { rows: [] };
+  };
+  t.after(() => { db.query = originalQuery; });
+
+  const { record, res } = responseRecorder();
+  await createSepayChannel(request({ expectedAccountNumber: '99998888' }), res);
+  assert.equal(record.statusCode, 409);
+  assert.equal(record.body.code, 'RENT_BANK_ACCOUNT_OUT_OF_SYNC');
+  assert.equal(inserted, false);
 });
 
 test('webhook yêu cầu Apikey hợp lệ trước khi xử lý payload', async (t) => {
@@ -279,6 +310,6 @@ test('frontend khai báo API quản lý kênh nhưng không có API đọc secre
   assert.match(appSource, /ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null/);
   assert.match(htmlSource, /id="sepay-channel-card"/);
   assert.match(htmlSource, /API key mới — chỉ hiển thị lần này/);
-  assert.match(htmlSource, /api\.js\?v=86[\s\S]*app\.js\?v=86/);
+  assert.match(htmlSource, /api\.js\?v=87[\s\S]*app\.js\?v=87/);
   assert.match(styleSource, /\.payment-channel-value-row[\s\S]*min-width: 0/);
 });

@@ -5,6 +5,7 @@ const RoomRates = require('../rate-history');
 const { recordDataAudit, requestAuditContext } = require('./data-audit');
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
+const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
 
 // ---------- helpers chuyển đổi kiểu ----------
 const num = (v, d = 0) => (v === null || v === undefined || v === '' ? d : Number(v));
@@ -235,6 +236,15 @@ async function putState(req, res) {
   const settings = body.settings && typeof body.settings === 'object' ? body.settings : {};
   const history = Array.isArray(body.history) ? body.history : [];
   const theme = body.theme || 'system';
+  let rentBankSettings;
+  try {
+    rentBankSettings = normalizeRentBankSettings(settings);
+  } catch (error) {
+    if (error instanceof RentBankSettingsError) {
+      return res.status(400).json({ error: error.message, code: error.code });
+    }
+    throw error;
+  }
 
   const roomIds = new Set();
   const tenantIds = new Set();
@@ -385,9 +395,9 @@ async function putState(req, res) {
       [
         uid,
         num(settings.deduction, 450000),
-        settings.bankId || '',
-        settings.bankAccount || '',
-        settings.bankOwnerName || '',
+        rentBankSettings.bankId,
+        rentBankSettings.accountNumber,
+        rentBankSettings.ownerName,
         settings.bankTransferPattern || '',
         !!settings.reminderEnabled,
         num(settings.reminderDay, 30),
