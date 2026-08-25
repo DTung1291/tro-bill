@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=2" />
+  <link rel="stylesheet" href="invoice-public.css?v=3" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -60,9 +60,27 @@
         </div>
         <div class="public-invoice-detail-list" id="invoice-detail-list"></div>
       </section>
+      <section class="public-invoice-meter-photos" id="invoice-meter-photos" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Đối chiếu chỉ số</p>
+            <h2>Ảnh đồng hồ trong kỳ</h2>
+          </div>
+        </div>
+        <div class="public-invoice-meter-photo-grid">
+          <figure id="invoice-electricity-photo" hidden>
+            <img id="invoice-electricity-photo-img" alt="Ảnh khung chỉ số đồng hồ điện" loading="lazy" />
+            <figcaption>Đồng hồ điện</figcaption>
+          </figure>
+          <figure id="invoice-water-photo" hidden>
+            <img id="invoice-water-photo-img" alt="Ảnh khung chỉ số đồng hồ nước" loading="lazy" />
+            <figcaption>Đồng hồ nước</figcaption>
+          </figure>
+        </div>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=2"></script>
+  <script src="invoice-public.js?v=3"></script>
 </body>
 </html>

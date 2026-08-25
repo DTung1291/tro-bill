@@ -3399,13 +3399,30 @@ function renderBilling() {
       });
     });
 
+    const saveMeterPhoto = (meterType, capture) => {
+      const dataUrl = String(capture?.photoDataUrl || '');
+      if (!dataUrl) return;
+      API.upsertRentMeterPhoto({
+        roomId: room.id,
+        period,
+        meterType,
+        dataUrl
+      }).then(() => {
+        showToast(`Đã lưu ảnh chỉ số ${meterType === 'electricity' ? 'điện' : 'nước'} ✓`, 'success');
+      }).catch((error) => {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(`Đã lưu chỉ số nhưng chưa lưu được ảnh: ${error.message}`, 'error', 4000);
+      });
+    };
+
     // OCR camera button for electric meter
     const ocrBtn = tr.querySelector('.btn-ocr[data-target="elec"]');
     if (ocrBtn) {
       ocrBtn.addEventListener('click', () => {
-        openOcrModal(room.id, 'elec', (val) => {
+        openOcrModal(room.id, 'elec', (val, capture) => {
           elecInput.value = val;
           elecInput.dispatchEvent(new Event('input'));
+          saveMeterPhoto('electricity', capture);
         });
       });
     }
@@ -3414,10 +3431,11 @@ function renderBilling() {
     const ocrWaterBtn = tr.querySelector('.btn-ocr[data-target="water"]');
     if (ocrWaterBtn) {
       ocrWaterBtn.addEventListener('click', () => {
-        openOcrModal(room.id, 'water', (val) => {
+        openOcrModal(room.id, 'water', (val, capture) => {
           if (waterNewInput) {
             waterNewInput.value = val;
             waterNewInput.dispatchEvent(new Event('input'));
+            saveMeterPhoto('water', capture);
           }
         });
       });

@@ -95,6 +95,30 @@
     section.hidden = false;
   }
 
+  function renderMeterPhotos(meterPhotos) {
+    const section = document.getElementById('invoice-meter-photos');
+    const entries = [
+      ['electricity', 'invoice-electricity-photo', 'invoice-electricity-photo-img'],
+      ['water', 'invoice-water-photo', 'invoice-water-photo-img']
+    ];
+    let visibleCount = 0;
+    for (const [type, figureId, imageId] of entries) {
+      const figure = document.getElementById(figureId);
+      const image = document.getElementById(imageId);
+      const dataUrl = String(meterPhotos?.[type] || '');
+      const valid = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(dataUrl);
+      if (valid) {
+        image.src = dataUrl;
+        figure.hidden = false;
+        visibleCount += 1;
+      } else {
+        image.removeAttribute('src');
+        figure.hidden = true;
+      }
+    }
+    section.hidden = visibleCount === 0;
+  }
+
   function showError(message) {
     loading.hidden = true;
     content.hidden = true;
@@ -117,6 +141,7 @@
     status.textContent = labels[invoice.status] || 'Chưa thanh toán';
     status.dataset.status = invoice.status || 'unpaid';
     renderDetails(data.details || {});
+    renderMeterPhotos(data.meterPhotos || {});
     loading.hidden = true;
     errorPanel.hidden = true;
     content.hidden = false;

@@ -170,6 +170,17 @@ function publicInvoiceJson(row) {
   } catch (_) {
     // Hóa đơn legacy chưa có snapshot hợp lệ vẫn hiển thị được phần tổng quan.
   }
+  const meterPhotos = {};
+  for (const photo of Array.isArray(row.meter_photos) ? row.meter_photos : []) {
+    const meterType = String(photo.meter_type || '');
+    const mimeType = String(photo.mime_type || '');
+    const imageBase64 = String(photo.image_base64 || '');
+    if (['electricity', 'water'].includes(meterType)
+        && mimeType === 'image/jpeg'
+        && /^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64)) {
+      meterPhotos[meterType] = `data:${mimeType};base64,${imageBase64}`;
+    }
+  }
   return {
     invoice: {
       transferContent: InvoiceReference.fromInvoiceId(row.invoice_id),
@@ -182,6 +193,7 @@ function publicInvoiceJson(row) {
       status: remaining === 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
     },
     details,
+    meterPhotos,
     link: {
       expiresAt: row.expires_at
     }
@@ -214,7 +226,7 @@ async function resolvePublicInvoiceLink(req, res) {
       throw new RentInvoiceLinkError(410, 'INVOICE_LINK_EXPIRED', 'Liên kết hóa đơn đã hết hạn');
     }
     const invoiceResult = await client.query(
-      `SELECT invoice.id AS invoice_id, invoice.room_name_snapshot,
+      `SELECT invoice.id AS invoice_id, invoice.room_id, invoice.room_name_snapshot,
               invoice.period, invoice.issued_total_vnd, invoice.detail_snapshot,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices invoice
@@ -224,7 +236,22 @@ async function resolvePublicInvoiceLink(req, res) {
        GROUP BY invoice.id`,
       [link.user_id, link.invoice_id]
     );
-    const row = { ...invoiceResult.rows[0], expires_at: link.expires_at };
+    const invoice = invoiceResult.rows[0];
+    if (!invoice) {
+      throw new RentInvoiceLinkError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn');
+    }
+    const meterPhotoResult = await client.query(
+      `SELECT meter_type, mime_type, encode(image_data, 'base64') AS image_base64
+       FROM rent_meter_photos
+       WHERE user_id=$1 AND room_id=$2 AND period=$3
+       ORDER BY meter_type`,
+      [link.user_id, invoice.room_id, invoice.period]
+    );
+    const row = {
+      ...invoice,
+      expires_at: link.expires_at,
+      meter_photos: meterPhotoResult.rows
+    };
     await client.query(
       `UPDATE rent_invoice_share_links
        SET view_count=view_count + 1, last_viewed_at=now()

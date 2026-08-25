@@ -70,12 +70,18 @@ test('API công khai trả breakdown đã chuẩn hóa nhưng không thêm dữ 
     issued_total_vnd: '2610000',
     paid_amount_vnd: '0',
     expires_at: '2099-01-01T00:00:00.000Z',
-    detail_snapshot: validDetail()
+    detail_snapshot: validDetail(),
+    meter_photos: [{
+      meter_type: 'electricity',
+      mime_type: 'image/jpeg',
+      image_base64: '/9j/2Q=='
+    }]
   });
   assert.equal(result.details.rent.amountVnd, 2200000);
   assert.equal(result.details.electricity.amountVnd, 175000);
   assert.equal(result.details.water.amountVnd, 100000);
-  assert.deepEqual(Object.keys(result).sort(), ['details', 'invoice', 'link']);
+  assert.equal(result.meterPhotos.electricity, 'data:image/jpeg;base64,/9j/2Q==');
+  assert.deepEqual(Object.keys(result).sort(), ['details', 'invoice', 'link', 'meterPhotos']);
 });
 
 test('migration backfill snapshot và trang khách thuê render phòng, điện, nước, dịch vụ an toàn', () => {
@@ -100,7 +106,7 @@ test('migration backfill snapshot và trang khách thuê render phòng, điện,
   assert.match(appSource, /function currentInvoiceDetail/);
   assert.match(appSource, /function historicalInvoiceDetail/);
   assert.match(publicHtml, /id="invoice-detail-list"/);
-  assert.match(publicHtml, /invoice-public\.css\?v=2[\s\S]*invoice-public\.js\?v=2/);
+  assert.match(publicHtml, /invoice-public\.css\?v=3[\s\S]*invoice-public\.js\?v=3/);
   assert.match(publicJs, /appendDetailRow\(list, 'Tiền phòng'/);
   assert.match(publicJs, /'Tiền điện'/);
   assert.match(publicJs, /'Tiền nước'/);

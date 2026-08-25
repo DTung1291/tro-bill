@@ -8,7 +8,7 @@
  *   openOcrModal(roomId, targetField, onConfirm)
  *     roomId      — ID phòng (để hiển thị thông tin)
  *     targetField — 'elec' | 'water'
- *     onConfirm   — callback(number) khi người dùng xác nhận kết quả OCR
+ *     onConfirm   — callback(number, { photoDataUrl }) khi người dùng xác nhận
  */
 
 'use strict';
@@ -165,6 +165,19 @@ function _processCropArea() {
   }
 
   cropCtx.putImageData(imgData, 0, 0);
+}
+
+function _meterPhotoDataUrl() {
+  const cropCanvas = document.getElementById('ocr-crop-canvas');
+  if (!cropCanvas) return '';
+  // Canvas tái mã hóa ảnh nên không giữ EXIF/vị trí GPS. Chỉ lưu khung chỉ số
+  // 448x100 thay vì toàn bộ ảnh gốc để bảo vệ riêng tư và tiết kiệm dung lượng.
+  for (const quality of [0.72, 0.55, 0.4]) {
+    const dataUrl = cropCanvas.toDataURL('image/jpeg', quality);
+    const base64Length = dataUrl.split(',')[1]?.length || 0;
+    if (Math.ceil(base64Length * 3 / 4) <= 96 * 1024) return dataUrl;
+  }
+  return '';
 }
 
 // Loop vẽ camera
@@ -427,7 +440,7 @@ function initOcrModalEvents() {
   document.getElementById('ocr-confirm-btn').addEventListener('click', () => {
     const val = parseInt(document.getElementById('ocr-result-input').value, 10);
     if (!isNaN(val) && _ocrCallback) {
-      _ocrCallback(val);
+      _ocrCallback(val, { photoDataUrl: _meterPhotoDataUrl() });
     }
     closeOcrModal();
   });

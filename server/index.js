@@ -47,6 +47,7 @@ const deposits = require('./deposits');
 const rentPaymentChannels = require('./rent-payment-channels');
 const rentBankReconciliation = require('./rent-bank-reconciliation');
 const rentInvoiceLinks = require('./rent-invoice-links');
+const rentMeterPhotos = require('./rent-meter-photos');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -160,6 +161,11 @@ app.post(
 app.post(
   '/api/public/rent-invoice-links/resolve',
   wrap(rentInvoiceLinks.resolvePublicInvoiceLink)
+);
+app.post(
+  '/api/rent-meter-photos',
+  requireAuth,
+  wrap(rentMeterPhotos.upsertMeterPhoto)
 );
 app.get(
   '/api/rent-payment-channels',

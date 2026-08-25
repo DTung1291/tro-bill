@@ -260,6 +260,10 @@ const API = (() => {
     );
   }
 
+  function upsertRentMeterPhoto(input) {
+    return request('POST', '/api/rent-meter-photos', input);
+  }
+
   function getTenantDeposit(tenantId) {
     return request(
       'GET',
@@ -400,6 +404,7 @@ const API = (() => {
     createRentInvoiceShareLink,
     getRentInvoiceShareLinks,
     revokeRentInvoiceShareLink,
+    upsertRentMeterPhoto,
     getTenantDeposit,
     createDepositTransaction,
     reverseDepositTransaction,
