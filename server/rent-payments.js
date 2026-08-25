@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('./db');
+const DebtAge = require('../debt-age');
 
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{8,300}$/;
@@ -87,11 +88,15 @@ function paymentInput(body = {}) {
   };
 }
 
-function summaryJson(row) {
+function summaryJson(row, options = {}) {
   const total = Number(row.issued_total_vnd) || 0;
   const collected = Number(row.paid_amount_vnd) || 0;
   const remaining = Math.max(0, total - collected);
   const priorDebt = Math.max(0, Number(row.prior_debt_vnd) || 0);
+  const totalDue = priorDebt + remaining;
+  const oldestUnpaidPeriod = row.oldest_unpaid_period || null;
+  const debtAgePeriod = oldestUnpaidPeriod || row.period;
+  const debtAge = DebtAge.classify(debtAgePeriod, totalDue, options);
   let status = 'unpaid';
   if (collected > 0 && remaining > 0) status = 'partial';
   if (remaining === 0) status = collected > total ? 'overpaid' : 'paid';
@@ -104,9 +109,13 @@ function summaryJson(row) {
     paidAmountVnd: collected,
     remainingVnd: remaining,
     priorDebtVnd: priorDebt,
-    totalDueVnd: priorDebt + remaining,
+    totalDueVnd: totalDue,
     priorUnpaidInvoiceCount: Number(row.prior_unpaid_invoice_count) || 0,
-    oldestUnpaidPeriod: row.oldest_unpaid_period || null,
+    oldestUnpaidPeriod,
+    debtAgePeriod,
+    dueDate: debtAge.dueDate,
+    overdueDays: debtAge.overdueDays,
+    debtAgeBucket: debtAge.bucket,
     status,
     transactionCount: Number(row.transaction_count) || 0,
     lastPaymentAt: row.last_payment_at || null,

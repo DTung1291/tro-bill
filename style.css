@@ -259,6 +259,13 @@ body.modal-open {
 .room-status-name { font-weight: 700; font-size: .95rem; }
 .room-status-total { font-weight: 800; font-size: 1.05rem; color: var(--primary); }
 .room-status-detail { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+.room-status-payment,
+.room-status-badges {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .badge {
   padding: 4px 10px; border-radius: 20px;
@@ -269,6 +276,45 @@ body.modal-open {
 .badge--empty { background: rgba(136,146,164,.1);  color: var(--text-muted); }
 .badge--paid  { background: rgba(108,99,255,.15);  color: var(--primary); }
 .badge--partial { background: rgba(245,158,11,.15); color: #b45309; }
+
+.debt-age-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.debt-age-badge--settled {
+  color: var(--green);
+  background: rgba(16, 185, 129, .12);
+  border-color: rgba(16, 185, 129, .22);
+}
+.debt-age-badge--not-due {
+  color: var(--primary);
+  background: rgba(108, 99, 255, .11);
+  border-color: rgba(108, 99, 255, .2);
+}
+.debt-age-badge--overdue-1-7 {
+  color: #b45309;
+  background: rgba(245, 158, 11, .14);
+  border-color: rgba(245, 158, 11, .26);
+}
+.debt-age-badge--overdue-8-30 {
+  color: #c2410c;
+  background: rgba(249, 115, 22, .14);
+  border-color: rgba(249, 115, 22, .28);
+}
+.debt-age-badge--overdue-31-plus {
+  color: var(--red);
+  background: rgba(239, 68, 68, .13);
+  border-color: rgba(239, 68, 68, .28);
+}
 
 /* ===========================
    SETTINGS
@@ -1138,6 +1184,12 @@ body.modal-open {
 }
 .bill-room-name { font-weight: 700; font-size: 1.05rem; }
 .bill-total-big { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
+.bill-header-payment {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 6px;
+}
 .bill-body { padding: 14px 18px; }
 .bill-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
 .bill-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: .9rem; gap: 8px; }
@@ -1261,6 +1313,19 @@ body.modal-open {
 }
 .bill-preview-meta-item strong { font-size: .82rem; color: var(--text); }
 .bill-preview-meta-item span { color: var(--text-muted); overflow-wrap: anywhere; }
+.bill-preview-debt-age {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+.bill-preview-meta-item .debt-age-badge { color: inherit; }
+.bill-preview-meta-item .debt-age-badge--settled { color: var(--green); }
+.bill-preview-meta-item .debt-age-badge--not-due { color: var(--primary); }
+.bill-preview-meta-item .debt-age-badge--overdue-1-7 { color: #b45309; }
+.bill-preview-meta-item .debt-age-badge--overdue-8-30 { color: #c2410c; }
+.bill-preview-meta-item .debt-age-badge--overdue-31-plus { color: var(--red); }
+.bill-preview-debt-age small { color: var(--text-muted); font-size: .74rem; }
 .bill-preview-meta-item--wide { grid-column: 1 / -1; }
 .bill-preview-details,
 .bill-preview-qr-panel {
@@ -1683,6 +1748,7 @@ body.modal-open {
 .history-room-row:last-child { border-bottom: none; }
 .history-room-name { font-weight: 600; }
 .history-room-total { font-weight: 700; color: var(--green); }
+.history-room-debt-age { margin: 4px 0; }
 .history-badges { display: flex; gap: 6px; }
 .history-actions { display: flex; gap: 8px; padding-top: 12px; justify-content: flex-end; }
 
@@ -2601,6 +2667,10 @@ body.modal-open {
   }
   .history-room-row { align-items: flex-start; gap: 10px; }
   .history-room-row > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
+  .room-status-item { align-items: flex-start; }
+  .room-status-payment { min-width: 0; }
+  .room-status-badges { align-items: flex-end; }
+  .debt-age-badge { white-space: normal; text-align: center; }
   .history-actions { flex-wrap: wrap; }
   .history-actions .btn { flex: 1; justify-content: center; }
 }

@@ -77,6 +77,21 @@ function priorDebtFromLoadedInvoices(roomId, period) {
   return total;
 }
 
+function oldestPriorDebtPeriodFromLoadedInvoices(roomId, period) {
+  const room = STATE.rooms.find((item) => item.id === roomId);
+  const currentTenancyStart = String(room?.rentStartDate || '').slice(0, 7);
+  let oldest = null;
+  for (const invoice of RENT_INVOICE_SUMMARIES.values()) {
+    if (invoice.roomId !== roomId || invoice.period >= period) continue;
+    if (currentTenancyStart
+        && period >= currentTenancyStart
+        && invoice.period < currentTenancyStart) continue;
+    if (Math.max(0, Number(invoice.remainingVnd) || 0) === 0) continue;
+    if (!oldest || invoice.period < oldest) oldest = invoice.period;
+  }
+  return oldest;
+}
+
 function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = false) {
   const calculatedTotal = Math.max(0, Number(invoiceTotalVnd) || 0);
   const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period)) || null;
@@ -91,6 +106,11 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
   const priorDebtVnd = invoice
     ? Math.max(0, Number(invoice.priorDebtVnd) || 0)
     : priorDebtFromLoadedInvoices(roomId, period);
+  const oldestUnpaidPeriod = invoice?.oldestUnpaidPeriod
+    || oldestPriorDebtPeriodFromLoadedInvoices(roomId, period);
+  const totalDueVnd = priorDebtVnd + remaining;
+  const debtAgePeriod = invoice?.debtAgePeriod || oldestUnpaidPeriod || period;
+  const calculatedDebtAge = DebtAge.classify(debtAgePeriod, totalDueVnd);
   let status = paidAmount > 0 ? 'partial' : 'unpaid';
   if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
   return {
@@ -102,14 +122,18 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
     paidAmountVnd: paidAmount,
     remainingVnd: remaining,
     priorDebtVnd,
-    totalDueVnd: priorDebtVnd + remaining,
+    totalDueVnd,
     priorUnpaidInvoiceCount: invoice
       ? Math.max(0, Number(invoice.priorUnpaidInvoiceCount) || 0)
       : 0,
-    oldestUnpaidPeriod: invoice?.oldestUnpaidPeriod || null,
+    oldestUnpaidPeriod,
+    debtAgePeriod,
+    dueDate: calculatedDebtAge.dueDate,
+    overdueDays: calculatedDebtAge.overdueDays,
+    debtAgeBucket: calculatedDebtAge.bucket,
     status,
     settled: remaining === 0,
-    accountSettled: priorDebtVnd + remaining === 0
+    accountSettled: totalDueVnd === 0
   };
 }
 
@@ -912,6 +936,30 @@ function paymentStatusLabel(payment) {
   return 'Chưa thu';
 }
 
+function debtAgeLabel(payment) {
+  return DebtAge.label(payment?.debtAgeBucket);
+}
+
+function debtAgeDetails(payment) {
+  if (!payment || payment.accountSettled) return 'Không còn công nợ';
+  if (payment.overdueDays > 0) {
+    return `Quá hạn ${payment.overdueDays} ngày · Hạn ${payment.dueDate}`;
+  }
+  return `Hạn ${payment.dueDate}`;
+}
+
+function debtAgeBadge(payment) {
+  if (!payment) return '';
+  const bucket = String(payment.debtAgeBucket || 'not_due').replaceAll('_', '-');
+  return `<span class="debt-age-badge debt-age-badge--${bucket}" title="${escapeHtml(debtAgeDetails(payment))}">${escapeHtml(debtAgeLabel(payment))}</span>`;
+}
+
+function debtAgeMessageLine(payment) {
+  if (!payment || payment.accountSettled) return '';
+  const exact = payment.overdueDays > 0 ? ` · quá hạn ${payment.overdueDays} ngày` : '';
+  return `📅 Hạn thanh toán: ${payment.dueDate} · ${debtAgeLabel(payment)}${exact}`;
+}
+
 function renderRentPaymentViews() {
   renderDashboard();
   renderReport();
@@ -1370,8 +1418,7 @@ function billCode(room, period) {
 }
 
 function billDueDate(period) {
-  const days = RoomRates.daysInPeriod(period);
-  return days ? `${period}-${String(days).padStart(2, '0')}` : period;
+  return DebtAge.dueDate(period) || period;
 }
 
 function triggerHaptic(type = 'light') {
@@ -2061,11 +2108,14 @@ function renderDashboard() {
           ${bill ? `⚡ ${fmtNum(bill.kwh)} kWh &nbsp;|&nbsp; 💧 ${bill.waterUnits} ${waterUnit}` : 'Chưa nhập chỉ số'}
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div class="room-status-payment">
         <div class="room-status-total">${bill ? fmt(bill.total) : '—'}</div>
-        <span class="badge ${payment?.settled ? 'badge--paid' : payment?.paidAmountVnd > 0 ? 'badge--partial' : bill ? 'badge--ok' : 'badge--empty'}">
-          ${payment ? paymentStatusLabel(payment) : 'Chờ nhập'}
-        </span>
+        <div class="room-status-badges">
+          <span class="badge ${payment?.settled ? 'badge--paid' : payment?.paidAmountVnd > 0 ? 'badge--partial' : bill ? 'badge--ok' : 'badge--empty'}">
+            ${payment ? paymentStatusLabel(payment) : 'Chờ nhập'}
+          </span>
+          ${payment ? debtAgeBadge(payment) : ''}
+        </div>
       </div>
     `;
     listEl.appendChild(item);
@@ -3070,7 +3120,14 @@ function buildBillPreviewContent(room, rec, bill, period) {
           </div>
           <div class="bill-preview-meta-item">
             <strong>Hạn thanh toán:</strong>
-            <span>${escapeHtml(billDueDate(period))}</span>
+            <span>${escapeHtml(payment.dueDate || billDueDate(period))}</span>
+          </div>
+          <div class="bill-preview-meta-item">
+            <strong>Tuổi nợ:</strong>
+            <span class="bill-preview-debt-age">
+              ${debtAgeBadge(payment)}
+              <small>${escapeHtml(debtAgeDetails(payment))}</small>
+            </span>
           </div>
           <div class="bill-preview-meta-item">
             <strong>Điện sử dụng:</strong>
@@ -3257,7 +3314,10 @@ function renderReport() {
           <div class="bill-room-name">${room.name}</div>
           <div style="font-size:.75rem;color:var(--text-muted)">${periodLabel(period)}</div>
         </div>
-        <div class="bill-total-big">${fmt(bill.total)}</div>
+        <div class="bill-header-payment">
+          <div class="bill-total-big">${fmt(bill.total)}</div>
+          ${debtAgeBadge(payment)}
+        </div>
       </div>
       <div class="bill-body">
         <div class="bill-rows">
@@ -3412,6 +3472,7 @@ function renderReport() {
         ? `⚠️ Nợ cũ chuyển sang: ${fmt(payment.priorDebtVnd)}`
         : '';
       const totalDueLine = `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`;
+      const debtAgeLine = debtAgeMessageLine(payment);
 
       const waterLine = room.waterType === 'khối'
         ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
@@ -3436,6 +3497,7 @@ function renderReport() {
         paymentLine,
         priorDebtLine,
         totalDueLine,
+        debtAgeLine,
         qrPart
       ].filter(Boolean).join('\n');
 
@@ -3469,6 +3531,7 @@ function copyBillText(room, rec, bill, period) {
   const priorDebtLine = payment.priorDebtVnd > 0
     ? `⚠️ Nợ cũ chuyển sang: ${fmt(payment.priorDebtVnd)}`
     : '';
+  const debtAgeLine = debtAgeMessageLine(payment);
 
   const electricOld = getElectricOld(room, period);
   const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
@@ -3499,6 +3562,7 @@ function copyBillText(room, rec, bill, period) {
     paymentLine,
     priorDebtLine,
     `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`,
+    debtAgeLine,
     qrPart
   ].filter(Boolean).join('\n');
 
@@ -3684,6 +3748,7 @@ function renderHistory() {
             <div class="history-room-row">
               <div>
                 <span class="history-room-name">${b.roomName}</span>
+                <div class="history-room-debt-age">${debtAgeBadge(payment)}</div>
                 <div style="font-size:0.75rem;color:var(--text-muted)">
                   ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${rentDesc}${adjustmentDesc}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
                 </div>

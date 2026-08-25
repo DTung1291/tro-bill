@@ -105,13 +105,17 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
     prior_debt_vnd: '700000',
     prior_unpaid_invoice_count: 2,
     oldest_unpaid_period: '2026-06'
-  }));
+  }), { now: '2026-08-25T05:00:00.000Z' });
   assert.equal(summary.invoiceTotalVnd, 2000000);
   assert.equal(summary.remainingVnd, 1500000);
   assert.equal(summary.priorDebtVnd, 700000);
   assert.equal(summary.totalDueVnd, 2200000);
   assert.equal(summary.priorUnpaidInvoiceCount, 2);
   assert.equal(summary.oldestUnpaidPeriod, '2026-06');
+  assert.equal(summary.debtAgePeriod, '2026-06');
+  assert.equal(summary.dueDate, '2026-06-30');
+  assert.equal(summary.overdueDays, 56);
+  assert.equal(summary.debtAgeBucket, 'overdue_31_plus');
   assert.equal(receiptCode(60, '2026-08'), 'PT-202608-00001O');
 });
 
@@ -692,5 +696,5 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=82/);
+  assert.match(htmlSource, /app\.js\?v=83/);
 });
