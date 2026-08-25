@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=78" />
+  <link rel="stylesheet" href="style.css?v=79" />
 </head>
 
 <body>
@@ -837,6 +837,35 @@
     </div>
   </div>
 
+  <!-- MODAL: Record full or partial rent payment -->
+  <div class="modal-overlay" id="rent-payment-entry-modal" hidden>
+    <div class="modal rent-payment-entry-modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="rent-payment-entry-title">Ghi nhận thu tiền</h2>
+        <button type="button" class="modal-close" id="rent-payment-entry-close" aria-label="Đóng">✕</button>
+      </div>
+      <form id="rent-payment-entry-form" class="rent-payment-entry-form">
+        <div class="rent-payment-summary-grid" id="rent-payment-entry-summary"></div>
+        <label class="form-label" for="rent-payment-entry-amount">Số tiền đã nhận</label>
+        <input type="number" class="form-input" id="rent-payment-entry-amount" min="1" step="1" inputmode="numeric" required />
+        <p class="rent-payment-entry-hint" id="rent-payment-entry-hint"></p>
+        <label class="form-label" for="rent-payment-entry-method">Phương thức thanh toán</label>
+        <select class="form-input" id="rent-payment-entry-method" required>
+          <option value="bank_transfer">Chuyển khoản</option>
+          <option value="cash">Tiền mặt</option>
+          <option value="other">Khác</option>
+        </select>
+        <label class="form-label" for="rent-payment-entry-note">Ghi chú (không bắt buộc)</label>
+        <textarea class="form-input" id="rent-payment-entry-note" maxlength="500" rows="3" placeholder="Ví dụ: Khách chuyển khoản đợt 1"></textarea>
+        <p class="rent-payment-entry-error" id="rent-payment-entry-error" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="rent-payment-entry-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="rent-payment-entry-submit">Ghi nhận giao dịch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: Append-only rent payment ledger -->
   <div class="modal-overlay" id="rent-payment-modal" hidden>
     <div class="modal rent-payment-modal">
@@ -846,6 +875,7 @@
       </div>
       <div class="rent-payment-modal-body" id="rent-payment-modal-body"></div>
       <div class="rent-payment-modal-footer">
+        <button type="button" class="btn btn--primary" id="rent-payment-modal-add" hidden>+ Ghi nhận thêm</button>
         <button type="button" class="btn btn--ghost" id="rent-payment-modal-close-footer">Đóng</button>
       </div>
     </div>
@@ -1140,10 +1170,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=78"></script>
+  <script src="api.js?v=79"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=79"></script>
 </body>
 
 </html>

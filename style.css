@@ -1336,6 +1336,30 @@ body.modal-open {
 }
 
 /* Append-only rent payment ledger */
+.modal.rent-payment-entry-modal { max-width: 540px; }
+.rent-payment-entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px;
+}
+.rent-payment-entry-form .rent-payment-summary-grid { margin-bottom: 4px; }
+.rent-payment-entry-form textarea { resize: vertical; min-height: 76px; }
+.rent-payment-entry-hint {
+  margin: -4px 0 2px;
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.rent-payment-entry-error {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(239,68,68,.1);
+  color: var(--red);
+  font-size: .8rem;
+  line-height: 1.45;
+}
 .modal.rent-payment-modal {
   max-width: 760px;
   max-height: calc(100dvh - 48px);
@@ -1450,6 +1474,7 @@ body.modal-open {
   #rent-payment-modal { padding: 8px; }
   .modal.rent-payment-modal { max-height: calc(100dvh - 16px); }
   .rent-payment-modal-body { padding: 16px; }
+  .rent-payment-entry-form { padding: 16px; }
 }
 
 @media (max-width: 480px) {

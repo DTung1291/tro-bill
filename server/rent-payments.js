@@ -4,6 +4,7 @@ const db = require('./db');
 
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{8,300}$/;
+const PAYMENT_METHODS = new Set(['bank_transfer', 'cash', 'manual', 'other']);
 
 class RentPaymentError extends Error {
   constructor(statusCode, code, message) {
@@ -62,6 +63,23 @@ function invoiceInput(body = {}) {
     idempotencyKey,
     occurredAt: occurredAt.toISOString()
   };
+}
+
+function paymentInput(body = {}) {
+  const invoice = invoiceInput(body);
+  const rawAmount = body.amountVnd;
+  const amountVnd = rawAmount === undefined || rawAmount === null || rawAmount === ''
+    ? null
+    : integerVnd(rawAmount, 'Số tiền thanh toán');
+  const paymentMethod = String(body.paymentMethod || 'manual').trim().toLowerCase();
+  if (!PAYMENT_METHODS.has(paymentMethod)) {
+    throw new RentPaymentError(
+      400,
+      'INVALID_PAYMENT_METHOD',
+      'Phương thức thanh toán không hợp lệ'
+    );
+  }
+  return { ...invoice, amountVnd, paymentMethod };
 }
 
 function summaryJson(row) {
@@ -152,7 +170,7 @@ async function authorizedInvoiceSource(query, userId, input) {
 async function settleInvoice(req, res) {
   let input;
   try {
-    input = invoiceInput(req.body);
+    input = paymentInput(req.body);
   } catch (error) {
     if (sendRentPaymentError(res, error)) return res;
     throw error;
@@ -162,7 +180,8 @@ async function settleInvoice(req, res) {
   try {
     await client.query('BEGIN');
     const replay = await client.query(
-      `SELECT t.id, t.invoice_id, i.room_id, i.period
+      `SELECT t.id, t.invoice_id, t.amount_vnd, t.payment_method,
+              i.room_id, i.period, i.issued_total_vnd
        FROM rent_payment_transactions t
        JOIN rent_invoices i ON i.user_id=t.user_id AND i.id=t.invoice_id
        WHERE t.user_id=$1 AND t.idempotency_key=$2
@@ -171,11 +190,17 @@ async function settleInvoice(req, res) {
     );
     if (replay.rows[0]) {
       const row = replay.rows[0];
-      if (row.room_id !== input.roomId || row.period !== input.period) {
+      const amountConflict = input.amountVnd !== null
+        && Number(row.amount_vnd) !== input.amountVnd;
+      if (row.room_id !== input.roomId
+          || row.period !== input.period
+          || Number(row.issued_total_vnd) !== input.totalVnd
+          || row.payment_method !== input.paymentMethod
+          || amountConflict) {
         throw new RentPaymentError(
           409,
           'IDEMPOTENCY_KEY_REUSED',
-          'Mã chống ghi trùng đã được dùng cho hóa đơn khác'
+          'Mã chống ghi trùng đã được dùng cho một nội dung giao dịch khác'
         );
       }
       const summary = await invoiceSummary(client.query.bind(client), req.userId, row.invoice_id);
@@ -194,35 +219,66 @@ async function settleInvoice(req, res) {
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (user_id, room_id, period) DO UPDATE SET
          room_name_snapshot=EXCLUDED.room_name_snapshot,
-         issued_total_vnd=EXCLUDED.issued_total_vnd,
          updated_at=now()
-       RETURNING id`,
+       RETURNING id, issued_total_vnd`,
       [req.userId, input.roomId, roomName, input.period, input.totalVnd]
     );
     const invoiceId = invoiceResult.rows[0].id;
+    let invoiceTotalVnd = Number(invoiceResult.rows[0].issued_total_vnd);
     const collectedResult = await client.query(
-      `SELECT COALESCE(SUM(amount_vnd), 0) AS paid_amount_vnd
+      `SELECT COALESCE(SUM(amount_vnd), 0) AS paid_amount_vnd,
+              COUNT(*)::int AS transaction_count
        FROM rent_payment_transactions
        WHERE user_id=$1 AND invoice_id=$2`,
       [req.userId, invoiceId]
     );
     const collected = Number(collectedResult.rows[0].paid_amount_vnd) || 0;
-    const remaining = Math.max(0, input.totalVnd - collected);
+    const transactionCount = Number(collectedResult.rows[0].transaction_count) || 0;
+    if (invoiceTotalVnd !== input.totalVnd) {
+      if (transactionCount > 0) {
+        throw new RentPaymentError(
+          409,
+          'INVOICE_TOTAL_MISMATCH',
+          'Tổng hóa đơn đã thay đổi sau khi phát sinh giao dịch. Hãy lập bút toán điều chỉnh.'
+        );
+      }
+      await client.query(
+        `UPDATE rent_invoices
+         SET issued_total_vnd=$3, updated_at=now()
+         WHERE user_id=$1 AND id=$2`,
+        [req.userId, invoiceId, input.totalVnd]
+      );
+      invoiceTotalVnd = input.totalVnd;
+    }
+    const remaining = Math.max(0, invoiceTotalVnd - collected);
     if (remaining === 0) {
       throw new RentPaymentError(409, 'INVOICE_ALREADY_SETTLED', 'Hóa đơn đã được thu đủ');
     }
+    const paymentAmount = input.amountVnd === null ? remaining : input.amountVnd;
+    if (paymentAmount > remaining) {
+      throw new RentPaymentError(
+        409,
+        'PAYMENT_EXCEEDS_REMAINING',
+        `Số tiền thu không được vượt quá công nợ còn lại ${remaining} đồng`
+      );
+    }
+    const paymentSource = paymentAmount === remaining ? 'manual_full' : 'manual_partial';
 
     const transactionResult = await client.query(
       `INSERT INTO rent_payment_transactions
          (user_id, invoice_id, entry_type, amount_vnd, payment_method, note,
           source, idempotency_key, occurred_at)
-       VALUES ($1,$2,'payment',$3,'manual',$4,'manual_full',$5,$6)
+       VALUES ($1,$2,'payment',$3,$4,$5,$6,$7,$8)
        RETURNING id, occurred_at`,
       [
         req.userId,
         invoiceId,
-        remaining,
-        input.note || 'Chủ trọ xác nhận đã thu đủ',
+        paymentAmount,
+        input.paymentMethod,
+        input.note || (paymentSource === 'manual_full'
+          ? 'Chủ trọ xác nhận đã thu đủ'
+          : 'Chủ trọ ghi nhận thanh toán một phần'),
+        paymentSource,
         input.idempotencyKey,
         input.occurredAt
       ]
@@ -233,7 +289,9 @@ async function settleInvoice(req, res) {
       reused: false,
       transaction: {
         id: Number(transactionResult.rows[0].id),
-        amountVnd: remaining,
+        amountVnd: paymentAmount,
+        paymentMethod: input.paymentMethod,
+        source: paymentSource,
         occurredAt: transactionResult.rows[0].occurred_at
       },
       invoice: summary
@@ -517,6 +575,7 @@ async function loadRentPaymentExport(userId) {
 
 module.exports = {
   IDEMPOTENCY_PATTERN,
+  PAYMENT_METHODS,
   PERIOD_PATTERN,
   RentPaymentError,
   invoiceInput,
@@ -526,6 +585,7 @@ module.exports = {
   listInvoiceTransactions,
   loadRentPaymentExport,
   migrateLegacyPaid,
+  paymentInput,
   reverseTransaction,
   settleInvoice,
   summaryJson,

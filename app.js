@@ -46,6 +46,7 @@ let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
 let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
+let ACTIVE_RENT_PAYMENT_ENTRY = null;
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -668,6 +669,7 @@ function clearSensitiveStateFromMemory() {
   STATE.history = [];
   RENT_INVOICE_SUMMARIES = new Map();
   ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
+  ACTIVE_RENT_PAYMENT_ENTRY = null;
 }
 
 function saveState() {
@@ -886,46 +888,124 @@ function renderRentPaymentViews() {
   }
 }
 
-async function recordRentInvoiceFull({ roomId, roomName, period, total }) {
+function closeRentPaymentEntry() {
+  const modal = document.getElementById('rent-payment-entry-modal');
+  const form = document.getElementById('rent-payment-entry-form');
+  if (modal) modal.hidden = true;
+  if (form) form.reset();
+  ACTIVE_RENT_PAYMENT_ENTRY = null;
+}
+
+function openRentPaymentEntry({ roomId, roomName, period, total }) {
   const payment = rentInvoicePaymentState(roomId, period, total, false);
   if (payment.settled) {
-    if (payment.invoiceId) await openRentPaymentLedger(payment.invoiceId);
+    if (payment.invoiceId) openRentPaymentLedger(payment.invoiceId);
     return;
   }
-  showConfirm(
-    `Xác nhận đã thu ${fmt(payment.remainingVnd)} của ${roomName} cho ${periodLabel(period)}? Giao dịch sẽ được lưu vào sổ và không thể xóa trực tiếp.`,
-    async () => {
-      try {
-        const result = await API.settleRentInvoice({
-          roomId,
-          roomName,
-          period,
-          invoiceTotalVnd: Math.round(Number(total) || 0),
-          note: 'Chủ trọ xác nhận đã thu đủ',
-          idempotencyKey: `manual:${uuid()}`,
-          occurredAt: new Date().toISOString()
-        });
-        await refreshRentInvoiceSummaries();
-        renderRentPaymentViews();
-        triggerHaptic('success');
-        showToast(`Đã ghi nhận thu ${fmt(result.transaction?.amountVnd || payment.remainingVnd)}`, 'success');
-      } catch (error) {
-        if (error.code === 401) return handleAuthExpired();
-        showToast(error.message || 'Không ghi nhận được giao dịch', 'error', 4000);
-      }
-    },
-    null,
-    'Ghi nhận đã thu'
-  );
+  ACTIVE_RENT_PAYMENT_ENTRY = {
+    roomId,
+    roomName,
+    period,
+    total: Math.round(Number(total) || 0),
+    payment
+  };
+  const modal = document.getElementById('rent-payment-entry-modal');
+  const title = document.getElementById('rent-payment-entry-title');
+  const summary = document.getElementById('rent-payment-entry-summary');
+  const amount = document.getElementById('rent-payment-entry-amount');
+  const method = document.getElementById('rent-payment-entry-method');
+  const note = document.getElementById('rent-payment-entry-note');
+  const hint = document.getElementById('rent-payment-entry-hint');
+  const error = document.getElementById('rent-payment-entry-error');
+  if (!modal || !title || !summary || !amount || !method || !note || !hint || !error) return;
+
+  title.textContent = `Ghi nhận thu tiền ${roomName} – ${period}`;
+  summary.innerHTML = `
+    <div><span>Tổng hóa đơn</span><strong>${fmt(total)}</strong></div>
+    <div><span>Đã thu</span><strong>${fmt(payment.paidAmountVnd)}</strong></div>
+    <div><span>Còn phải thu</span><strong>${fmt(payment.remainingVnd)}</strong></div>`;
+  amount.max = String(payment.remainingVnd);
+  amount.value = String(payment.remainingVnd);
+  method.value = 'bank_transfer';
+  note.value = '';
+  hint.textContent = 'Có thể nhập số nhỏ hơn công nợ để ghi nhận thanh toán một phần.';
+  error.hidden = true;
+  error.textContent = '';
+  modal.hidden = false;
+  requestAnimationFrame(() => {
+    amount.focus();
+    amount.select();
+  });
+}
+
+async function submitRentPaymentEntry(event) {
+  event.preventDefault();
+  const entry = ACTIVE_RENT_PAYMENT_ENTRY;
+  if (!entry) return;
+  const amountInput = document.getElementById('rent-payment-entry-amount');
+  const methodInput = document.getElementById('rent-payment-entry-method');
+  const noteInput = document.getElementById('rent-payment-entry-note');
+  const error = document.getElementById('rent-payment-entry-error');
+  const submit = document.getElementById('rent-payment-entry-submit');
+  const amountVnd = Number(amountInput?.value);
+  if (!Number.isSafeInteger(amountVnd) || amountVnd <= 0 || amountVnd > entry.payment.remainingVnd) {
+    error.textContent = `Số tiền phải từ 1 đến ${fmt(entry.payment.remainingVnd)}.`;
+    error.hidden = false;
+    return;
+  }
+  submit.disabled = true;
+  error.hidden = true;
+  try {
+    const result = await API.settleRentInvoice({
+      roomId: entry.roomId,
+      roomName: entry.roomName,
+      period: entry.period,
+      invoiceTotalVnd: entry.total,
+      amountVnd,
+      paymentMethod: methodInput?.value || 'manual',
+      note: noteInput?.value.trim() || '',
+      idempotencyKey: `manual:${uuid()}`,
+      occurredAt: new Date().toISOString()
+    });
+    closeRentPaymentEntry();
+    await refreshRentInvoiceSummaries();
+    renderRentPaymentViews();
+    triggerHaptic('success');
+    const remaining = result.invoice?.remainingVnd || 0;
+    showToast(
+      remaining > 0
+        ? `Đã thu ${fmt(amountVnd)} · còn ${fmt(remaining)}`
+        : `Đã thu đủ ${fmt(amountVnd)}`,
+      'success',
+      4000
+    );
+  } catch (requestError) {
+    if (requestError.code === 401) return handleAuthExpired();
+    error.textContent = requestError.message || 'Không ghi nhận được giao dịch';
+    error.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 function rentPaymentSourceLabel(source) {
   const labels = {
     manual_full: 'Chủ trọ ghi nhận',
+    manual_partial: 'Thanh toán một phần',
     manual_reversal: 'Hoàn tác thủ công',
     legacy_paid: 'Chuyển từ dữ liệu cũ'
   };
   return labels[source] || source || 'Không xác định';
+}
+
+function rentPaymentMethodLabel(method) {
+  const labels = {
+    bank_transfer: 'Chuyển khoản',
+    cash: 'Tiền mặt',
+    manual: 'Thủ công',
+    other: 'Khác'
+  };
+  return labels[method] || method || 'Không xác định';
 }
 
 function closeRentPaymentLedger() {
@@ -962,7 +1042,7 @@ function renderRentPaymentLedgerContent(result) {
                 <strong>${isReversal ? 'Hoàn tác giao dịch' : 'Thu tiền'}</strong>
                 ${transaction.isReversed ? '<span class="badge badge--empty">Đã hoàn tác</span>' : ''}
               </div>
-              <span>${escapeHtml(rentPaymentSourceLabel(transaction.source))} · ${new Date(transaction.occurredAt).toLocaleString('vi-VN')}</span>
+              <span>${escapeHtml(rentPaymentMethodLabel(transaction.paymentMethod))} · ${escapeHtml(rentPaymentSourceLabel(transaction.source))} · ${new Date(transaction.occurredAt).toLocaleString('vi-VN')}</span>
               ${transaction.note ? `<p>${escapeHtml(transaction.note)}</p>` : ''}
             </div>
             <div class="rent-payment-transaction-side">
@@ -996,6 +1076,20 @@ function renderRentPaymentLedgerContent(result) {
       }
     });
   });
+
+  const addButton = document.getElementById('rent-payment-modal-add');
+  if (addButton) {
+    addButton.hidden = !(Number(invoice.remainingVnd) > 0);
+    addButton.onclick = () => {
+      closeRentPaymentLedger();
+      openRentPaymentEntry({
+        roomId: invoice.roomId,
+        roomName: invoice.roomName,
+        period: invoice.period,
+        total: invoice.invoiceTotalVnd
+      });
+    };
+  }
 }
 
 async function openRentPaymentLedger(invoiceId) {
@@ -1006,6 +1100,8 @@ async function openRentPaymentLedger(invoiceId) {
   if (!modal || !body) return;
   ACTIVE_RENT_PAYMENT_INVOICE_ID = parsedInvoiceId;
   body.innerHTML = '<p class="rent-payment-empty">Đang tải giao dịch…</p>';
+  const addButton = document.getElementById('rent-payment-modal-add');
+  if (addButton) addButton.hidden = true;
   modal.hidden = false;
   try {
     const result = await API.getRentPaymentTransactions(parsedInvoiceId);
@@ -1189,7 +1285,11 @@ function genVietQrUrl(room, bill, period, amountOverride = null) {
 
   if (!bankId || !account) return null;
 
-  const amount = amountOverride === null ? (bill.total || 0) : Math.max(0, Number(amountOverride) || 0);
+  const payment = rentInvoicePaymentState(room.id, period, bill.total, bill.paid);
+  const amount = amountOverride === null
+    ? payment.remainingVnd
+    : Math.max(0, Number(amountOverride) || 0);
+  if (amount <= 0) return null;
   const desc = getVietQrDescription(room, period);
   const encodedDesc = encodeURIComponent(desc);
   const encodedOwner = encodeURIComponent(owner);
@@ -2944,6 +3044,12 @@ document.getElementById('bill-preview-print').addEventListener('click', printBil
 document.getElementById('bill-preview-modal').addEventListener('click', event => {
   if (event.target === document.getElementById('bill-preview-modal')) closeBillPreview();
 });
+document.getElementById('rent-payment-entry-form')?.addEventListener('submit', submitRentPaymentEntry);
+document.getElementById('rent-payment-entry-close')?.addEventListener('click', closeRentPaymentEntry);
+document.getElementById('rent-payment-entry-cancel')?.addEventListener('click', closeRentPaymentEntry);
+document.getElementById('rent-payment-entry-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentPaymentEntry();
+});
 document.getElementById('rent-payment-modal-close-header')?.addEventListener('click', closeRentPaymentLedger);
 document.getElementById('rent-payment-modal-close-footer')?.addEventListener('click', closeRentPaymentLedger);
 document.getElementById('rent-payment-modal')?.addEventListener('click', event => {
@@ -3013,8 +3119,8 @@ function renderReport() {
     const paymentButtonLabel = paid
       ? payment.invoiceId ? '🧾 Đã thu · Xem giao dịch' : '💰 Chuyển trạng thái cũ vào sổ'
       : payment.paidAmountVnd > 0
-        ? `💰 Ghi nhận thu nốt ${fmt(payment.remainingVnd)}`
-        : '💰 Ghi nhận đã thu đủ';
+        ? `💰 Ghi nhận thêm · còn ${fmt(payment.remainingVnd)}`
+        : '💰 Ghi nhận thu tiền';
     const utilityOnly = isUtilityOnlyRecord(rec);
     const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
     const electricOld = getElectricOld(room, period);
@@ -3129,7 +3235,7 @@ function renderReport() {
         await openRentPaymentLedger(payment.invoiceId);
         return;
       }
-      await recordRentInvoiceFull({
+      openRentPaymentEntry({
         roomId: room.id,
         roomName: room.name,
         period,
@@ -3158,6 +3264,9 @@ function renderReport() {
       const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
       const qrUrl = genVietQrUrl(room, bill, period);
       const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
+      const paymentLine = payment.paidAmountVnd > 0
+        ? `✅ Đã thu: ${fmt(payment.paidAmountVnd)} | Còn lại: ${fmt(payment.remainingVnd)}`
+        : '';
 
       const waterLine = room.waterType === 'khối'
         ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
@@ -3176,6 +3285,7 @@ function renderReport() {
         noteLine,
         `${'─'.repeat(32)}`,
         `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
+        paymentLine,
         qrPart
       ].filter(Boolean).join('\n');
 
@@ -3199,6 +3309,10 @@ function copyBillText(room, rec, bill, period) {
   const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
   const rentLine = rentMessageLine(bill);
   const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
+  const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
+  const paymentLine = payment.paidAmountVnd > 0
+    ? `✅ Đã thu: ${fmt(payment.paidAmountVnd)} | Còn lại: ${fmt(payment.remainingVnd)}`
+    : '';
 
   const electricOld = getElectricOld(room, period);
   const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
@@ -3223,6 +3337,7 @@ function copyBillText(room, rec, bill, period) {
     noteLine,
     `${'─'.repeat(32)}`,
     `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
+    paymentLine,
     qrPart
   ].filter(Boolean).join('\n');
 
@@ -3451,7 +3566,7 @@ function renderHistory() {
           await openRentPaymentLedger(payment.invoiceId);
           return;
         }
-        await recordRentInvoiceFull({
+        openRentPaymentEntry({
           roomId: roomIdVal,
           roomName: historyBill.roomName,
           period: periodVal,
