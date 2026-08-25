@@ -53,14 +53,14 @@ test('chỉ đánh dấu refunded khi có thời điểm và mã giao dịch ho�
 test('runtime role chỉ được đọc, tạo và cập nhật workflow hoàn tiền', () => {
   assert.match(
     schema,
-    /GRANT SELECT, INSERT, UPDATE ON subscription_refund_requests TO tro_bill_app/
+    /GRANT SELECT, INSERT, UPDATE ON subscription_refund_requests TO tro_bill_runtime/
   );
   assert.match(
     schema,
-    /GRANT USAGE, SELECT ON SEQUENCE subscription_refund_requests_id_seq TO tro_bill_app/
+    /GRANT USAGE, SELECT ON SEQUENCE subscription_refund_requests_id_seq TO tro_bill_runtime/
   );
   assert.doesNotMatch(
     schema,
-    /GRANT[\s\S]{0,80}DELETE ON subscription_refund_requests TO tro_bill_app/
+    /GRANT[\s\S]{0,80}DELETE ON subscription_refund_requests TO tro_bill_runtime/
   );
 });

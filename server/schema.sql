@@ -395,9 +395,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_refund_one_completed_per_paym
   WHERE status = 'refunded';
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_app') THEN
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON subscription_refund_requests TO tro_bill_app';
-    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE subscription_refund_requests_id_seq TO tro_bill_app';
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_runtime') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON subscription_refund_requests TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE subscription_refund_requests_id_seq TO tro_bill_runtime';
   END IF;
 END $$;
 
@@ -840,11 +840,13 @@ ON CONFLICT (user_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTH
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_app') THEN
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON rent_invoices TO tro_bill_app';
-    EXECUTE 'GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_app';
-    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_invoices_id_seq TO tro_bill_app';
-    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_transactions_id_seq TO tro_bill_app';
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_runtime') THEN
+    -- Role runtime được tạo trực tiếp bằng SQL để không kế thừa neon_superuser.
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON rent_invoices TO tro_bill_runtime';
+    EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_payment_transactions FROM tro_bill_runtime';
+    EXECUTE 'GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_invoices_id_seq TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_transactions_id_seq TO tro_bill_runtime';
   END IF;
 END $$;
 

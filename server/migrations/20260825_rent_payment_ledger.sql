@@ -99,11 +99,14 @@ ON CONFLICT (user_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTH
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_app') THEN
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON rent_invoices TO tro_bill_app';
-    EXECUTE 'GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_app';
-    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_invoices_id_seq TO tro_bill_app';
-    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_transactions_id_seq TO tro_bill_app';
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'tro_bill_runtime') THEN
+    -- This role is created directly with SQL instead of Neon Console so it never
+    -- becomes a member of neon_superuser.
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON rent_invoices TO tro_bill_runtime';
+    EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_payment_transactions FROM tro_bill_runtime';
+    EXECUTE 'GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_invoices_id_seq TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_transactions_id_seq TO tro_bill_runtime';
   END IF;
 END $$;
 
@@ -112,6 +115,22 @@ COMMIT;
 SELECT
   to_regclass('public.rent_invoices') IS NOT NULL AS invoices_ready,
   to_regclass('public.rent_payment_transactions') IS NOT NULL AS transactions_ready,
-  has_table_privilege('tro_bill_app', 'rent_invoices', 'SELECT,INSERT,UPDATE') AS invoice_runtime_ready,
-  has_table_privilege('tro_bill_app', 'rent_payment_transactions', 'SELECT,INSERT') AS transaction_runtime_ready,
-  NOT has_table_privilege('tro_bill_app', 'rent_payment_transactions', 'UPDATE,DELETE') AS ledger_append_only;
+  has_table_privilege('tro_bill_runtime', 'rent_invoices', 'SELECT,INSERT,UPDATE') AS invoice_runtime_ready,
+  has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'SELECT,INSERT') AS transaction_runtime_ready,
+  NOT EXISTS (
+    SELECT 1
+    FROM pg_auth_members membership
+    JOIN pg_roles parent ON parent.oid = membership.roleid
+    JOIN pg_roles member ON member.oid = membership.member
+    WHERE parent.rolname = 'neon_superuser' AND member.rolname = 'tro_bill_runtime'
+  )
+    AND NOT (SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit
+                    OR rolreplication OR rolbypassrls
+             FROM pg_roles WHERE rolname = 'tro_bill_runtime')
+    AS runtime_role_least_privilege,
+  NOT has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'UPDATE')
+    AND NOT has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'DELETE')
+    AND NOT has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'TRUNCATE')
+    AND NOT has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'REFERENCES')
+    AND NOT has_table_privilege('tro_bill_runtime', 'rent_payment_transactions', 'TRIGGER')
+    AS ledger_append_only;

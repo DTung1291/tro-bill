@@ -38,9 +38,14 @@ test('transaction thuộc đúng hóa đơn của user và hoàn tác bằng bú
 });
 
 test('runtime ledger là append-only và migration paid cũ idempotent', () => {
-  assert.match(schema, /GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_app/);
-  assert.doesNotMatch(schema, /GRANT[^;]*UPDATE[^;]*rent_payment_transactions TO tro_bill_app/);
-  assert.doesNotMatch(schema, /GRANT[^;]*DELETE[^;]*rent_payment_transactions TO tro_bill_app/);
+  assert.match(schema, /Role runtime được tạo trực tiếp bằng SQL/);
+  assert.match(
+    schema,
+    /REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_payment_transactions FROM tro_bill_runtime/
+  );
+  assert.match(schema, /GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_runtime/);
+  assert.doesNotMatch(schema, /GRANT[^;]*UPDATE[^;]*rent_payment_transactions TO tro_bill_runtime/);
+  assert.doesNotMatch(schema, /GRANT[^;]*DELETE[^;]*rent_payment_transactions TO tro_bill_runtime/);
   assert.match(schema, /INSERT INTO rent_invoices[\s\S]*FROM history_bills/);
   assert.match(schema, /'legacy:' \|\| ri\.period \|\| ':' \|\| ri\.room_id/);
   assert.match(
@@ -53,7 +58,20 @@ test('migration triển khai chạy trong transaction và tự kiểm tra quyề
   assert.match(migration, /^BEGIN;/);
   assert.match(migration, /COMMIT;[\s\S]*invoices_ready/);
   assert.match(migration, /ledger_append_only/);
-  assert.match(migration, /GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_app/);
+  assert.match(migration, /runtime_role_least_privilege/);
+  assert.match(migration, /member\.rolname = 'tro_bill_runtime'/);
+  assert.match(migration, /rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit/);
+  assert.match(
+    migration,
+    /REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_payment_transactions FROM tro_bill_runtime/
+  );
+  assert.match(migration, /GRANT SELECT, INSERT ON rent_payment_transactions TO tro_bill_runtime/);
+  for (const privilege of ['UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) {
+    assert.match(
+      migration,
+      new RegExp(`NOT has_table_privilege\\('tro_bill_runtime', 'rent_payment_transactions', '${privilege}'\\)`)
+    );
+  }
   assert.doesNotMatch(migration, /DROP\s+(TABLE|SCHEMA|DATABASE)/i);
-  assert.doesNotMatch(migration, /TRUNCATE\s+/i);
+  assert.doesNotMatch(migration, /^\s*TRUNCATE\s+/im);
 });
