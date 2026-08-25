@@ -50,6 +50,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['GET', '/api/plans'],
     ['POST', '/api/subscription/orders'],
     ['GET', '/api/rent-payments/summary'],
+    ['POST', '/api/rent-payments/sync'],
     ['POST', '/api/rent-payments/settle'],
     ['POST', '/api/rent-payments/migrate-legacy'],
     ['GET', '/api/rent-payments/invoices/1/transactions'],

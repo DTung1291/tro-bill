@@ -160,6 +160,10 @@ const API = (() => {
     return request('POST', '/api/rent-payments/settle', input);
   }
 
+  function syncRentInvoices(entries) {
+    return request('POST', '/api/rent-payments/sync', { entries });
+  }
+
   function migrateLegacyRentPayments(entries) {
     return request('POST', '/api/rent-payments/migrate-legacy', { entries });
   }
@@ -285,6 +289,7 @@ const API = (() => {
     cancelSubscriptionRefundRequest,
     getRentPaymentSummaries,
     settleRentInvoice,
+    syncRentInvoices,
     migrateLegacyRentPayments,
     getRentPaymentTransactions,
     reverseRentPaymentTransaction,

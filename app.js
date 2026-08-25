@@ -61,6 +61,20 @@ function setRentInvoiceSummaries(invoices) {
   );
 }
 
+function priorDebtFromLoadedInvoices(roomId, period) {
+  let total = 0;
+  const room = STATE.rooms.find((item) => item.id === roomId);
+  const currentTenancyStart = String(room?.rentStartDate || '').slice(0, 7);
+  for (const invoice of RENT_INVOICE_SUMMARIES.values()) {
+    if (invoice.roomId !== roomId || invoice.period >= period) continue;
+    if (currentTenancyStart
+        && period >= currentTenancyStart
+        && invoice.period < currentTenancyStart) continue;
+    total += Math.max(0, Number(invoice.remainingVnd) || 0);
+  }
+  return total;
+}
+
 function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = false) {
   const total = Math.max(0, Number(invoiceTotalVnd) || 0);
   const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period)) || null;
@@ -68,6 +82,9 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
     ? Math.max(0, Number(invoice.paidAmountVnd) || 0)
     : (legacyPaid ? total : 0);
   const remaining = Math.max(0, total - paidAmount);
+  const priorDebtVnd = invoice
+    ? Math.max(0, Number(invoice.priorDebtVnd) || 0)
+    : priorDebtFromLoadedInvoices(roomId, period);
   let status = paidAmount > 0 ? 'partial' : 'unpaid';
   if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
   return {
@@ -75,8 +92,15 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
     invoiceId: invoice ? Number(invoice.invoiceId) : null,
     paidAmountVnd: paidAmount,
     remainingVnd: remaining,
+    priorDebtVnd,
+    totalDueVnd: priorDebtVnd + remaining,
+    priorUnpaidInvoiceCount: invoice
+      ? Math.max(0, Number(invoice.priorUnpaidInvoiceCount) || 0)
+      : 0,
+    oldestUnpaidPeriod: invoice?.oldestUnpaidPeriod || null,
     status,
-    settled: remaining === 0
+    settled: remaining === 0,
+    accountSettled: priorDebtVnd + remaining === 0
   };
 }
 
@@ -818,12 +842,12 @@ function syncLegacyPaidFlagsFromLedger() {
   }
 }
 
-function legacyPaidInvoicesForMigration() {
+function rentInvoicesForSync() {
   const entries = new Map();
   for (const history of STATE.history || []) {
     for (const bill of history.bills || []) {
       const key = rentInvoiceKey(bill.roomId, history.period);
-      if (!bill.paid || RENT_INVOICE_SUMMARIES.has(key) || !(Number(bill.total) > 0)) continue;
+      if (!(Number(bill.total) > 0)) continue;
       entries.set(key, {
         roomId: bill.roomId,
         roomName: bill.roomName || '',
@@ -835,7 +859,7 @@ function legacyPaidInvoicesForMigration() {
   for (const [period, byRoom] of Object.entries(STATE.billingData || {})) {
     for (const [roomId, rec] of Object.entries(byRoom || {})) {
       const key = rentInvoiceKey(roomId, period);
-      if (!rec?.paid || RENT_INVOICE_SUMMARIES.has(key) || entries.has(key)) continue;
+      if (!rec || entries.has(key)) continue;
       const room = STATE.rooms.find((item) => item.id === roomId);
       const bill = room ? calcBill(room, rec, period) : null;
       if (!room || !bill || !(Number(bill.total) > 0)) continue;
@@ -857,18 +881,21 @@ async function refreshRentInvoiceSummaries() {
   return result.invoices || [];
 }
 
-async function migrateLegacyPaidFlags() {
-  const entries = legacyPaidInvoicesForMigration();
+async function syncRentInvoicesWithLedger() {
+  const entries = rentInvoicesForSync();
   if (entries.length === 0) {
     syncLegacyPaidFlagsFromLedger();
     return;
   }
-  await API.migrateLegacyRentPayments(entries);
+  for (let index = 0; index < entries.length; index += 250) {
+    await API.syncRentInvoices(entries.slice(index, index + 250));
+  }
   await refreshRentInvoiceSummaries();
 }
 
 function paymentStatusLabel(payment) {
-  if (payment.settled) return 'Đã thu đủ';
+  if (payment.accountSettled) return 'Đã thu đủ';
+  if (payment.priorDebtVnd > 0) return `Còn tổng ${fmt(payment.totalDueVnd)}`;
   if (payment.paidAmountVnd > 0) return `Còn ${fmt(payment.remainingVnd)}`;
   return 'Chưa thu';
 }
@@ -898,7 +925,7 @@ function closeRentPaymentEntry() {
 
 function openRentPaymentEntry({ roomId, roomName, period, total }) {
   const payment = rentInvoicePaymentState(roomId, period, total, false);
-  if (payment.settled) {
+  if (payment.accountSettled) {
     if (payment.invoiceId) openRentPaymentLedger(payment.invoiceId);
     return;
   }
@@ -921,14 +948,17 @@ function openRentPaymentEntry({ roomId, roomName, period, total }) {
 
   title.textContent = `Ghi nhận thu tiền ${roomName} – ${period}`;
   summary.innerHTML = `
-    <div><span>Tổng hóa đơn</span><strong>${fmt(total)}</strong></div>
-    <div><span>Đã thu</span><strong>${fmt(payment.paidAmountVnd)}</strong></div>
-    <div><span>Còn phải thu</span><strong>${fmt(payment.remainingVnd)}</strong></div>`;
-  amount.max = String(payment.remainingVnd);
-  amount.value = String(payment.remainingVnd);
+    <div><span>Tổng hóa đơn tháng này</span><strong>${fmt(total)}</strong></div>
+    <div><span>Đã thu tháng này</span><strong>${fmt(payment.paidAmountVnd)}</strong></div>
+    <div><span>Nợ cũ chuyển sang</span><strong>${fmt(payment.priorDebtVnd)}</strong></div>
+    <div><span>Tổng còn phải thu</span><strong>${fmt(payment.totalDueVnd)}</strong></div>`;
+  amount.max = String(payment.totalDueVnd);
+  amount.value = String(payment.totalDueVnd);
   method.value = 'bank_transfer';
   note.value = '';
-  hint.textContent = 'Có thể nhập số nhỏ hơn công nợ để ghi nhận thanh toán một phần.';
+  hint.textContent = payment.priorDebtVnd > 0
+    ? 'Khoản thu được phân bổ cho nợ cũ nhất trước, sau đó mới đến hóa đơn tháng này.'
+    : 'Có thể nhập số nhỏ hơn công nợ để ghi nhận thanh toán một phần.';
   error.hidden = true;
   error.textContent = '';
   modal.hidden = false;
@@ -948,8 +978,8 @@ async function submitRentPaymentEntry(event) {
   const error = document.getElementById('rent-payment-entry-error');
   const submit = document.getElementById('rent-payment-entry-submit');
   const amountVnd = Number(amountInput?.value);
-  if (!Number.isSafeInteger(amountVnd) || amountVnd <= 0 || amountVnd > entry.payment.remainingVnd) {
-    error.textContent = `Số tiền phải từ 1 đến ${fmt(entry.payment.remainingVnd)}.`;
+  if (!Number.isSafeInteger(amountVnd) || amountVnd <= 0 || amountVnd > entry.payment.totalDueVnd) {
+    error.textContent = `Số tiền phải từ 1 đến ${fmt(entry.payment.totalDueVnd)}.`;
     error.hidden = false;
     return;
   }
@@ -962,6 +992,7 @@ async function submitRentPaymentEntry(event) {
       period: entry.period,
       invoiceTotalVnd: entry.total,
       amountVnd,
+      includePriorDebt: entry.payment.priorDebtVnd > 0,
       paymentMethod: methodInput?.value || 'manual',
       note: noteInput?.value.trim() || '',
       idempotencyKey: `manual:${uuid()}`,
@@ -971,11 +1002,12 @@ async function submitRentPaymentEntry(event) {
     await refreshRentInvoiceSummaries();
     renderRentPaymentViews();
     triggerHaptic('success');
-    const remaining = result.invoice?.remainingVnd || 0;
+    const remaining = result.invoice?.totalDueVnd || 0;
+    const receiptLabel = result.receipt?.code ? ` · ${result.receipt.code}` : '';
     showToast(
       remaining > 0
-        ? `Đã thu ${fmt(amountVnd)} · còn ${fmt(remaining)}`
-        : `Đã thu đủ ${fmt(amountVnd)}`,
+        ? `Đã thu ${fmt(amountVnd)}${receiptLabel} · còn ${fmt(remaining)}`
+        : `Đã thu đủ ${fmt(amountVnd)}${receiptLabel}`,
       'success',
       4000
     );
@@ -992,6 +1024,7 @@ function rentPaymentSourceLabel(source) {
   const labels = {
     manual_full: 'Chủ trọ ghi nhận',
     manual_partial: 'Thanh toán một phần',
+    manual_prior_debt: 'Phân bổ nợ cũ',
     manual_reversal: 'Hoàn tác thủ công',
     legacy_paid: 'Chuyển từ dữ liệu cũ'
   };
@@ -1025,7 +1058,8 @@ function renderRentPaymentLedgerContent(result) {
     <div class="rent-payment-summary-grid">
       <div><span>Tổng hóa đơn</span><strong>${fmt(invoice.invoiceTotalVnd)}</strong></div>
       <div><span>Đã thu</span><strong>${fmt(invoice.paidAmountVnd)}</strong></div>
-      <div><span>Còn lại</span><strong>${fmt(invoice.remainingVnd)}</strong></div>
+      <div><span>Còn lại tháng này</span><strong>${fmt(invoice.remainingVnd)}</strong></div>
+      <div><span>Nợ cũ trước kỳ</span><strong>${fmt(invoice.priorDebtVnd)}</strong></div>
     </div>
     <div class="rent-payment-ledger-note">
       Sổ giao dịch chỉ thêm dòng mới. Hoàn tác sẽ tạo một dòng âm và giữ nguyên giao dịch gốc để đối soát.
@@ -1043,6 +1077,7 @@ function renderRentPaymentLedgerContent(result) {
                 ${transaction.isReversed ? '<span class="badge badge--empty">Đã hoàn tác</span>' : ''}
               </div>
               <span>${escapeHtml(rentPaymentMethodLabel(transaction.paymentMethod))} · ${escapeHtml(rentPaymentSourceLabel(transaction.source))} · ${new Date(transaction.occurredAt).toLocaleString('vi-VN')}</span>
+              ${transaction.receiptCode ? `<span>Phiếu thu: <strong>${escapeHtml(transaction.receiptCode)}</strong></span>` : ''}
               ${transaction.note ? `<p>${escapeHtml(transaction.note)}</p>` : ''}
             </div>
             <div class="rent-payment-transaction-side">
@@ -2917,7 +2952,8 @@ function billPreviewDetailRows(room, rec, bill, period) {
 function buildBillPreviewContent(room, rec, bill, period) {
   const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
   const paidAmount = Math.min(bill.total, payment.paidAmountVnd);
-  const remaining = payment.remainingVnd;
+  const currentRemaining = payment.remainingVnd;
+  const remaining = payment.totalDueVnd;
   const transferContent = getVietQrDescription(room, period);
   const qrUrl = remaining > 0 ? genVietQrUrl(room, bill, period, remaining) : null;
   const hasBankConfig = !!(STATE.settings.bankId && STATE.settings.bankAccount);
@@ -2978,15 +3014,24 @@ function buildBillPreviewContent(room, rec, bill, period) {
           <h3>Chi tiết hóa đơn</h3>
           <div class="bill-preview-detail-list">
             ${billPreviewDetailRows(room, rec, bill, period)}
+            ${payment.priorDebtVnd > 0 ? `
+              <div class="bill-preview-detail-row">
+                <div class="bill-preview-detail-main">
+                  <strong>Nợ cũ chuyển sang</strong>
+                  <span>${payment.oldestUnpaidPeriod ? `Từ kỳ ${escapeHtml(payment.oldestUnpaidPeriod)}` : 'Các kỳ trước chưa thu đủ'}</span>
+                </div>
+                <strong class="bill-preview-detail-amount">${fmt(payment.priorDebtVnd)}</strong>
+              </div>` : ''}
           </div>
           ${isUtilityOnlyRecord(rec) ? '<p class="bill-preview-note bill-preview-note--warning">Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</p>' : ''}
           ${rec.note ? `<p class="bill-preview-note">Ghi chú: ${escapeHtml(rec.note)}</p>` : ''}
         </section>
 
         <div class="bill-preview-summary">
-          <div><span>Tổng</span><strong>${fmt(bill.total)}</strong></div>
-          <div><span>Đã thu</span><strong>${fmt(paidAmount)}</strong></div>
-          <div><span>Còn lại</span><strong>${fmt(remaining)}</strong></div>
+          <div><span>Tháng này</span><strong>${fmt(bill.total)}</strong></div>
+          <div><span>Đã thu tháng này</span><strong>${fmt(paidAmount)}</strong></div>
+          <div><span>Còn tháng này</span><strong>${fmt(currentRemaining)}</strong></div>
+          <div><span>Tổng cần trả</span><strong>${fmt(remaining)}</strong></div>
         </div>
       </div>
 
@@ -3090,7 +3135,7 @@ function renderReport() {
     const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
     totalRevenue += bill.total;
     totalPaid += Math.min(bill.total, payment.paidAmountVnd);
-    if (payment.settled) paidCount++;
+    if (payment.accountSettled) paidCount++;
     activeBills.push({ room, rec, bill, payment });
   }
 
@@ -3115,11 +3160,11 @@ function renderReport() {
   }
 
   for (const { room, rec, bill, payment } of activeBills) {
-    const paid = payment.settled;
+    const paid = payment.accountSettled;
     const paymentButtonLabel = paid
       ? payment.invoiceId ? '🧾 Đã thu · Xem giao dịch' : '💰 Chuyển trạng thái cũ vào sổ'
-      : payment.paidAmountVnd > 0
-        ? `💰 Ghi nhận thêm · còn ${fmt(payment.remainingVnd)}`
+      : payment.paidAmountVnd > 0 || payment.priorDebtVnd > 0
+        ? `💰 Ghi nhận thêm · còn ${fmt(payment.totalDueVnd)}`
         : '💰 Ghi nhận thu tiền';
     const utilityOnly = isUtilityOnlyRecord(rec);
     const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
@@ -3231,7 +3276,7 @@ function renderReport() {
 
     card.querySelector(`[data-paid-room]`).addEventListener('click', async e => {
       triggerHaptic('light');
-      if (payment.settled && payment.invoiceId) {
+      if (payment.accountSettled && payment.invoiceId) {
         await openRentPaymentLedger(payment.invoiceId);
         return;
       }
@@ -3262,11 +3307,15 @@ function renderReport() {
       const manageLine = bill.manageAmt > 0 ? `💼 Phí quản lý & DV khác: ${fmt(bill.manageAmt)}` : '';
       const rentLine = rentMessageLine(bill);
       const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
-      const qrUrl = genVietQrUrl(room, bill, period);
+      const qrUrl = genVietQrUrl(room, bill, period, payment.totalDueVnd);
       const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
       const paymentLine = payment.paidAmountVnd > 0
-        ? `✅ Đã thu: ${fmt(payment.paidAmountVnd)} | Còn lại: ${fmt(payment.remainingVnd)}`
+        ? `✅ Đã thu tháng này: ${fmt(payment.paidAmountVnd)} | Còn tháng này: ${fmt(payment.remainingVnd)}`
         : '';
+      const priorDebtLine = payment.priorDebtVnd > 0
+        ? `⚠️ Nợ cũ chuyển sang: ${fmt(payment.priorDebtVnd)}`
+        : '';
+      const totalDueLine = `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`;
 
       const waterLine = room.waterType === 'khối'
         ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
@@ -3286,6 +3335,8 @@ function renderReport() {
         `${'─'.repeat(32)}`,
         `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
         paymentLine,
+        priorDebtLine,
+        totalDueLine,
         qrPart
       ].filter(Boolean).join('\n');
 
@@ -3311,7 +3362,10 @@ function copyBillText(room, rec, bill, period) {
   const noteLine = rec.note ? `📝 Ghi chú: ${rec.note}` : '';
   const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
   const paymentLine = payment.paidAmountVnd > 0
-    ? `✅ Đã thu: ${fmt(payment.paidAmountVnd)} | Còn lại: ${fmt(payment.remainingVnd)}`
+    ? `✅ Đã thu tháng này: ${fmt(payment.paidAmountVnd)} | Còn tháng này: ${fmt(payment.remainingVnd)}`
+    : '';
+  const priorDebtLine = payment.priorDebtVnd > 0
+    ? `⚠️ Nợ cũ chuyển sang: ${fmt(payment.priorDebtVnd)}`
     : '';
 
   const electricOld = getElectricOld(room, period);
@@ -3321,7 +3375,7 @@ function copyBillText(room, rec, bill, period) {
     ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
     : `💧 Tiền nước: ${bill.waterUnits} ${waterUnitText} × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`;
 
-  const qrUrl = genVietQrUrl(room, bill, period);
+  const qrUrl = genVietQrUrl(room, bill, period, payment.totalDueVnd);
   const qrPart = qrUrl ? `\n🔗 Link quét mã QR thanh toán nhanh:\n${qrUrl}` : '';
 
   const lines = [
@@ -3338,6 +3392,8 @@ function copyBillText(room, rec, bill, period) {
     `${'─'.repeat(32)}`,
     `💰 TỔNG CỘNG: ${fmt(bill.total)}`,
     paymentLine,
+    priorDebtLine,
+    `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`,
     qrPart
   ].filter(Boolean).join('\n');
 
@@ -3640,10 +3696,14 @@ function generatePrintHTML(period, deduction, bills) {
     <div class="print-bills-container">
       ${bills.map(b => {
         const waterUnit = b.waterType === 'người' ? 'người' : 'khối';
-        const roomObj = STATE.rooms.find(r => r.name === b.roomName);
+        const roomObj = STATE.rooms.find(r => r.id === b.roomId)
+          || STATE.rooms.find(r => r.name === b.roomName);
+        const payment = roomObj
+          ? rentInvoicePaymentState(roomObj.id, period, b.total, b.paid)
+          : null;
         let qrImgHtml = '';
         if (roomObj) {
-          const qrUrl = genVietQrUrl(roomObj, b, period);
+          const qrUrl = genVietQrUrl(roomObj, b, period, payment.totalDueVnd);
           if (qrUrl) {
             qrImgHtml = '<div style="text-align:center; padding:5px; flex-shrink:0;">' +
                         '<img src="' + qrUrl + '" alt="VietQR" style="max-height:130px; width:auto; border:1px solid #ccc; border-radius:4px; display:block" />' +
@@ -3655,7 +3715,7 @@ function generatePrintHTML(period, deduction, bills) {
         <div class="print-bill" style="margin-bottom:20px; border:1px solid #ccc; border-radius:6px; page-break-inside:avoid">
           <div class="print-bill-header" style="background:#f5f5f5; padding:10px; display:flex; justify-content:space-between; font-weight:bold">
             <span class="room">${b.roomName}</span>
-            <span class="total">${fmt(b.total)}</span>
+            <span class="total">Tổng cần trả: ${fmt(payment?.totalDueVnd ?? b.total)}</span>
           </div>
           <div class="print-bill-body" style="padding:10px; display:flex; gap:15px; align-items:center; justify-content:space-between">
             <table class="print-bill-table" style="flex:1; border-collapse:collapse; font-size:13px">
@@ -3699,6 +3759,11 @@ function generatePrintHTML(period, deduction, bills) {
                 <td style="padding:6px 0">Tiền rác</td>
                 <td style="text-align:right">${fmt(b.trashFee)}</td>
               </tr>` : ''}
+              ${payment?.priorDebtVnd > 0 ? `
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:6px 0">Nợ cũ chuyển sang</td>
+                <td style="text-align:right">${fmt(payment.priorDebtVnd)}</td>
+              </tr>` : ''}
               ${b.wifiFee > 0 ? `
               <tr style="border-bottom:1px solid #eee">
                 <td style="padding:6px 0">Mạng Wifi</td>
@@ -3736,6 +3801,7 @@ function printActiveReport() {
     const rec = getPeriodRecord(room.id, period) || {};
     const bill = calcBill(room, rec, period);
     return {
+      roomId: room.id,
       roomName: room.name,
       rentPrice: bill.rentAmt || 0,
       rentBasePrice: bill.rentBasePrice,
@@ -5060,9 +5126,9 @@ async function startApp() {
   loadState(serverState);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   try {
-    await migrateLegacyPaidFlags();
+    await syncRentInvoicesWithLedger();
   } catch (error) {
-    console.warn('Không chuyển được trạng thái đã thu cũ sang ledger:', error.message);
+    console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
     syncLegacyPaidFlagsFromLedger();
   }
   renderSubscriptionSummary();

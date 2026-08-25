@@ -125,6 +125,7 @@ app.post(
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));
+app.post('/api/rent-payments/sync', requireAuth, wrap(rentPayments.syncInvoices));
 app.post('/api/rent-payments/settle', requireAuth, wrap(rentPayments.settleInvoice));
 app.post('/api/rent-payments/migrate-legacy', requireAuth, wrap(rentPayments.migrateLegacyPaid));
 app.get(
