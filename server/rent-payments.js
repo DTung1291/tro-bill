@@ -7,6 +7,7 @@ const InvoiceReference = require('../invoice-reference');
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{8,300}$/;
 const PAYMENT_METHODS = new Set(['bank_transfer', 'cash', 'manual', 'other']);
+const WATER_BILLING_TYPES = new Set(['cubic_meter', 'person']);
 
 class RentPaymentError extends Error {
   constructor(statusCode, code, message) {
@@ -29,6 +30,113 @@ function integerVnd(value, field, { allowZero = false } = {}) {
     throw new RentPaymentError(400, 'INVALID_AMOUNT', `${field} không hợp lệ`);
   }
   return parsed;
+}
+
+function detailNumber(value, field, options = {}) {
+  if ((value === null || value === undefined || value === '') && options.nullable) return null;
+  const parsed = Number(value);
+  const max = options.max ?? 999999999999;
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > max) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', `${field} không hợp lệ`);
+  }
+  return Math.round(parsed * 1000) / 1000;
+}
+
+function detailInteger(value, field, { min = 0, max = 999999999999 } = {}) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', `${field} không hợp lệ`);
+  }
+  return parsed;
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${canonicalJson(value[key])}`
+    )).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function invoiceDetailInput(detail, totalVnd) {
+  if (detail === null || detail === undefined) return {};
+  if (typeof detail !== 'object' || Array.isArray(detail)) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', 'Chi tiết hóa đơn không hợp lệ');
+  }
+  if (Object.keys(detail).length === 0) return {};
+  const rent = detail.rent || {};
+  const electricity = detail.electricity || {};
+  const water = detail.water || {};
+  const services = detail.services || {};
+  const adjustments = detail.adjustments || {};
+  const billingType = String(water.billingType || '').trim();
+  if (!WATER_BILLING_TYPES.has(billingType)) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', 'Cách tính tiền nước không hợp lệ');
+  }
+  const normalized = {
+    rent: {
+      amountVnd: detailNumber(rent.amountVnd, 'Tiền phòng'),
+      basePriceVnd: detailNumber(rent.basePriceVnd, 'Giá phòng gốc'),
+      chargedDays: detailInteger(rent.chargedDays, 'Số ngày thuê', { max: 31 }),
+      daysInMonth: detailInteger(rent.daysInMonth, 'Số ngày trong tháng', { min: 28, max: 31 }),
+      prorated: rent.prorated === true,
+      startsAfterPeriod: rent.startsAfterPeriod === true
+    },
+    electricity: {
+      previousReading: detailNumber(electricity.previousReading, 'Chỉ số điện cũ', { max: 999999999 }),
+      currentReading: detailNumber(electricity.currentReading, 'Chỉ số điện mới', { max: 999999999 }),
+      units: detailNumber(electricity.units, 'Điện sử dụng', { max: 999999999 }),
+      rateVnd: detailNumber(electricity.rateVnd, 'Đơn giá điện'),
+      amountVnd: detailNumber(electricity.amountVnd, 'Tiền điện')
+    },
+    water: {
+      billingType,
+      previousReading: detailNumber(water.previousReading, 'Chỉ số nước cũ', { nullable: true, max: 999999999 }),
+      currentReading: detailNumber(water.currentReading, 'Chỉ số nước mới', { nullable: true, max: 999999999 }),
+      units: detailNumber(water.units, 'Nước sử dụng', { max: 999999999 }),
+      rateVnd: detailNumber(water.rateVnd, 'Đơn giá nước'),
+      amountVnd: detailNumber(water.amountVnd, 'Tiền nước')
+    },
+    services: {
+      trashVnd: detailNumber(services.trashVnd, 'Phí rác'),
+      wifiVnd: detailNumber(services.wifiVnd, 'Phí Wifi'),
+      managementVnd: detailNumber(services.managementVnd, 'Phí quản lý và dịch vụ')
+    },
+    adjustments: {
+      discountVnd: detailNumber(adjustments.discountVnd, 'Giảm giá'),
+      surchargeVnd: detailNumber(adjustments.surchargeVnd, 'Phụ thu'),
+      lateFeeVnd: detailNumber(adjustments.lateFeeVnd, 'Phí chậm thanh toán')
+    },
+    utilityOnly: detail.utilityOnly === true
+  };
+  if (normalized.electricity.currentReading < normalized.electricity.previousReading) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', 'Chỉ số điện mới không được nhỏ hơn chỉ số cũ');
+  }
+  if (normalized.water.billingType === 'cubic_meter'
+      && (normalized.water.previousReading === null
+        || normalized.water.currentReading === null
+        || normalized.water.currentReading < normalized.water.previousReading)) {
+    throw new RentPaymentError(400, 'INVALID_INVOICE_DETAIL', 'Chỉ số nước theo khối không hợp lệ');
+  }
+  const calculatedTotal = normalized.rent.amountVnd
+    + normalized.electricity.amountVnd
+    + normalized.water.amountVnd
+    + normalized.services.trashVnd
+    + normalized.services.wifiVnd
+    + normalized.services.managementVnd
+    - normalized.adjustments.discountVnd
+    + normalized.adjustments.surchargeVnd
+    + normalized.adjustments.lateFeeVnd;
+  if (Math.round(calculatedTotal) !== Number(totalVnd)) {
+    throw new RentPaymentError(
+      400,
+      'INVOICE_DETAIL_TOTAL_MISMATCH',
+      'Tổng chi tiết không khớp tổng hóa đơn'
+    );
+  }
+  return normalized;
 }
 
 function invoiceInput(body = {}) {
@@ -717,7 +825,8 @@ function invoiceSyncEntries(body = {}) {
     if (!roomId || roomId.length > 200 || !PERIOD_PATTERN.test(period)) {
       throw new RentPaymentError(400, 'INVALID_INVOICE_SYNC', 'Hóa đơn đồng bộ không hợp lệ');
     }
-    return { roomId, roomName, period, totalVnd };
+    const detail = invoiceDetailInput(entry?.detail, totalVnd);
+    return { roomId, roomName, period, totalVnd, detail };
   });
 }
 
@@ -766,18 +875,22 @@ async function syncInvoices(req, res) {
       const totalVnd = Number.isSafeInteger(serverTotal) && serverTotal > 0
         ? serverTotal
         : entry.totalVnd;
+      // Dữ liệu lịch sử trên máy chủ là nguồn chuẩn cho tổng hóa đơn. Nếu một
+      // client cũ gửi tổng khác, không gắn breakdown của client vào tổng đó.
+      const detail = totalVnd === entry.totalVnd ? entry.detail : {};
       const inserted = await client.query(
         `INSERT INTO rent_invoices
-           (user_id, room_id, room_name_snapshot, period, issued_total_vnd)
-         VALUES ($1,$2,$3,$4,$5)
+           (user_id, room_id, room_name_snapshot, period, issued_total_vnd, detail_snapshot)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb)
          ON CONFLICT (user_id, room_id, period) DO NOTHING
-         RETURNING id, issued_total_vnd`,
+         RETURNING id, issued_total_vnd, detail_snapshot`,
         [
           req.userId,
           entry.roomId,
           entry.roomName || source.room_name || '',
           entry.period,
-          totalVnd
+          totalVnd,
+          JSON.stringify(detail)
         ]
       );
       let invoice = inserted.rows[0];
@@ -786,7 +899,7 @@ async function syncInvoices(req, res) {
         stats.created += 1;
       } else {
         const existing = await client.query(
-          `SELECT i.id, i.issued_total_vnd,
+          `SELECT i.id, i.issued_total_vnd, i.detail_snapshot,
                   (SELECT COUNT(*)::int FROM rent_payment_transactions t
                    WHERE t.user_id=i.user_id AND t.invoice_id=i.id) AS transaction_count
            FROM rent_invoices i
@@ -796,12 +909,31 @@ async function syncInvoices(req, res) {
         );
         invoice = existing.rows[0];
         transactionCount = Number(invoice?.transaction_count) || 0;
-        if (invoice && transactionCount === 0 && Number(invoice.issued_total_vnd) !== totalVnd) {
+        const currentDetail = invoice?.detail_snapshot || {};
+        const hasEntryDetail = Object.keys(detail).length > 0;
+        const totalChanged = Number(invoice?.issued_total_vnd) !== totalVnd;
+        const detailChanged = hasEntryDetail
+          && canonicalJson(currentDetail) !== canonicalJson(detail);
+        const canBackfillDetail = Object.keys(currentDetail).length === 0
+          && hasEntryDetail
+          && Number(invoice?.issued_total_vnd) === totalVnd;
+        const canUpdateUnpaidInvoice = invoice && transactionCount === 0
+          && (totalChanged || detailChanged);
+        if (canUpdateUnpaidInvoice || canBackfillDetail) {
+          const nextDetail = hasEntryDetail || totalChanged ? detail : currentDetail;
           await client.query(
             `UPDATE rent_invoices
-             SET room_name_snapshot=$4, issued_total_vnd=$5, updated_at=now()
+             SET room_name_snapshot=$4, issued_total_vnd=$5,
+                 detail_snapshot=$6::jsonb, updated_at=now()
              WHERE user_id=$1 AND room_id=$2 AND period=$3`,
-            [req.userId, entry.roomId, entry.period, entry.roomName || source.room_name || '', totalVnd]
+            [
+              req.userId,
+              entry.roomId,
+              entry.period,
+              entry.roomName || source.room_name || '',
+              totalVnd,
+              JSON.stringify(nextDetail)
+            ]
           );
           stats.updated += 1;
         } else {
@@ -978,6 +1110,7 @@ module.exports = {
   PERIOD_PATTERN,
   RentPaymentError,
   invoiceInput,
+  invoiceDetailInput,
   invoiceSyncEntries,
   integerVnd,
   legacyEntries,

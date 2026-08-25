@@ -177,9 +177,10 @@ test('schema, API và trang công khai không lưu token rõ hoặc lộ qua que
   assert.match(apiSource, /function revokeRentInvoiceShareLink/);
   assert.match(appSource, /function openInvoiceShareModal/);
   assert.match(htmlSource, /id="invoice-share-modal"/);
-  assert.match(htmlSource, /style\.css\?v=88[\s\S]*api\.js\?v=88[\s\S]*app\.js\?v=88/);
+  assert.match(htmlSource, /style\.css\?v=89[\s\S]*api\.js\?v=89[\s\S]*app\.js\?v=89/);
   assert.match(publicHtml, /name="referrer" content="no-referrer"/);
   assert.match(publicHtml, /Content-Security-Policy/);
+  assert.match(publicHtml, /invoice-public\.css\?v=2[\s\S]*invoice-public\.js\?v=2/);
   assert.match(publicJs, /location\.hash/);
   assert.match(publicJs, /history\.replaceState\(null, '', location\.pathname\)/);
   assert.match(publicJs, /credentials: 'omit'/);

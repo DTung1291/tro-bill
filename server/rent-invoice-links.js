@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const db = require('./db');
 const DebtAge = require('../debt-age');
 const InvoiceReference = require('../invoice-reference');
+const { invoiceDetailInput } = require('./rent-payments');
 
 const TOKEN_PATTERN = /^tbril_[A-Za-z0-9_-]{43}$/;
 const MAX_LINK_HOURS = 24 * 30;
@@ -163,6 +164,12 @@ function publicInvoiceJson(row) {
   const paid = Math.max(0, Number(row.paid_amount_vnd) || 0);
   const remaining = Math.max(0, total - paid);
   const debtAge = DebtAge.classify(row.period, remaining);
+  let details = {};
+  try {
+    details = invoiceDetailInput(row.detail_snapshot || {}, total);
+  } catch (_) {
+    // Hóa đơn legacy chưa có snapshot hợp lệ vẫn hiển thị được phần tổng quan.
+  }
   return {
     invoice: {
       transferContent: InvoiceReference.fromInvoiceId(row.invoice_id),
@@ -174,6 +181,7 @@ function publicInvoiceJson(row) {
       dueDate: debtAge.dueDate,
       status: remaining === 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
     },
+    details,
     link: {
       expiresAt: row.expires_at
     }
@@ -207,7 +215,7 @@ async function resolvePublicInvoiceLink(req, res) {
     }
     const invoiceResult = await client.query(
       `SELECT invoice.id AS invoice_id, invoice.room_name_snapshot,
-              invoice.period, invoice.issued_total_vnd,
+              invoice.period, invoice.issued_total_vnd, invoice.detail_snapshot,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices invoice
        LEFT JOIN rent_payment_transactions tx

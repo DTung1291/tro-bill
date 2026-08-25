@@ -780,14 +780,34 @@ CREATE TABLE IF NOT EXISTS rent_invoices (
   room_name_snapshot TEXT NOT NULL DEFAULT '',
   period             TEXT NOT NULL,
   issued_total_vnd   NUMERIC(12, 0) NOT NULL,
+  detail_snapshot    JSONB NOT NULL DEFAULT '{}'::jsonb,
   issued_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT rent_invoices_user_id_id_unique UNIQUE (user_id, id),
   CONSTRAINT rent_invoices_room_period_unique UNIQUE (user_id, room_id, period),
   CONSTRAINT rent_invoices_period_format CHECK (period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
   CONSTRAINT rent_invoices_total_nonnegative CHECK (issued_total_vnd >= 0),
+  CONSTRAINT rent_invoices_detail_snapshot_valid CHECK (
+    jsonb_typeof(detail_snapshot)='object'
+    AND octet_length(detail_snapshot::text) <= 8192
+  ),
   CONSTRAINT rent_invoices_room_id_length CHECK (char_length(room_id) BETWEEN 1 AND 200)
 );
+ALTER TABLE rent_invoices
+  ADD COLUMN IF NOT EXISTS detail_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rent_invoices_detail_snapshot_valid'
+  ) THEN
+    ALTER TABLE rent_invoices
+      ADD CONSTRAINT rent_invoices_detail_snapshot_valid CHECK (
+        jsonb_typeof(detail_snapshot)='object'
+        AND octet_length(detail_snapshot::text) <= 8192
+      );
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_rent_invoices_user_period
   ON rent_invoices(user_id, period DESC, room_id);
 

@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=1" />
+  <link rel="stylesheet" href="invoice-public.css?v=2" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -50,9 +50,19 @@
         <div><span>Đã thanh toán</span><strong id="invoice-paid">—</strong></div>
         <div class="public-invoice-summary-due"><span>Còn lại</span><strong id="invoice-remaining">—</strong></div>
       </div>
+      <section class="public-invoice-details" id="invoice-details" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Chi tiết hóa đơn</p>
+            <h2>Các khoản trong kỳ</h2>
+          </div>
+          <span id="invoice-utility-only" hidden>Chỉ thu điện, nước</span>
+        </div>
+        <div class="public-invoice-detail-list" id="invoice-detail-list"></div>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=1"></script>
+  <script src="invoice-public.js?v=2"></script>
 </body>
 </html>

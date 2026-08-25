@@ -1222,6 +1222,127 @@ function syncLegacyPaidFlagsFromLedger() {
   }
 }
 
+function invoiceDetailSnapshot(values = {}) {
+  const electricOld = Number(values.electricOld) || 0;
+  const electricNew = values.electricNew === null || values.electricNew === undefined
+    ? electricOld
+    : Number(values.electricNew);
+  const cubicWater = values.waterType === 'khối';
+  const waterOld = cubicWater ? (Number(values.waterOld) || 0) : null;
+  const waterNew = cubicWater
+    ? (values.waterNew === null || values.waterNew === undefined
+      ? waterOld
+      : Number(values.waterNew))
+    : null;
+  return {
+    rent: {
+      amountVnd: Number(values.rentAmountVnd) || 0,
+      basePriceVnd: Number(values.rentBasePriceVnd) || 0,
+      chargedDays: Number(values.rentDays) || 0,
+      daysInMonth: Number(values.rentDaysInMonth) || RoomRates.daysInPeriod(values.period),
+      prorated: values.rentProrated === true,
+      startsAfterPeriod: values.rentStartsAfterPeriod === true
+    },
+    electricity: {
+      previousReading: electricOld,
+      currentReading: electricNew,
+      units: Number(values.electricUnits) || 0,
+      rateVnd: Number(values.electricRateVnd) || 0,
+      amountVnd: Number(values.electricAmountVnd) || 0
+    },
+    water: {
+      billingType: cubicWater ? 'cubic_meter' : 'person',
+      previousReading: waterOld,
+      currentReading: waterNew,
+      units: Number(values.waterUnits) || 0,
+      rateVnd: Number(values.waterRateVnd) || 0,
+      amountVnd: Number(values.waterAmountVnd) || 0
+    },
+    services: {
+      trashVnd: Number(values.trashVnd) || 0,
+      wifiVnd: Number(values.wifiVnd) || 0,
+      managementVnd: Number(values.managementVnd) || 0
+    },
+    adjustments: {
+      discountVnd: Number(values.discountVnd) || 0,
+      surchargeVnd: Number(values.surchargeVnd) || 0,
+      lateFeeVnd: Number(values.lateFeeVnd) || 0
+    },
+    utilityOnly: values.utilityOnly === true
+  };
+}
+
+function historicalInvoiceDetail(bill, period) {
+  return invoiceDetailSnapshot({
+    period,
+    rentAmountVnd: bill.rentPrice,
+    rentBasePriceVnd: bill.rentBasePrice,
+    rentDays: bill.rentDays,
+    rentDaysInMonth: bill.rentDaysInMonth,
+    rentProrated: bill.rentProrated,
+    rentStartsAfterPeriod: bill.rentStartsAfterPeriod,
+    electricOld: bill.electricOld,
+    electricNew: bill.electricNew,
+    electricUnits: bill.kwh,
+    electricRateVnd: bill.electricRate,
+    electricAmountVnd: bill.electricAmt,
+    waterType: bill.waterType,
+    waterOld: bill.waterPrev,
+    waterNew: bill.waterNew,
+    waterUnits: bill.waterUnits,
+    waterRateVnd: bill.waterRate,
+    waterAmountVnd: bill.waterAmt,
+    trashVnd: bill.trashFee,
+    wifiVnd: bill.wifiFee,
+    managementVnd: bill.manageFee,
+    discountVnd: bill.discountAmount,
+    surchargeVnd: bill.surchargeAmount,
+    lateFeeVnd: bill.lateFeeAmount,
+    utilityOnly: bill.utilityOnly
+  });
+}
+
+function currentInvoiceDetail(room, record, bill, period) {
+  const electricOld = getElectricOld(room, period);
+  const electricNew = record.electricNew !== undefined && record.electricNew !== ''
+    ? Number(record.electricNew)
+    : electricOld;
+  const cubicWater = room.waterType === 'khối';
+  const waterOld = cubicWater ? getWaterOld(room, period) : null;
+  const waterNew = cubicWater
+    ? (record.waterNew !== undefined && record.waterNew !== '' && record.waterNew !== null
+      ? Number(record.waterNew)
+      : waterOld)
+    : null;
+  return invoiceDetailSnapshot({
+    period,
+    rentAmountVnd: bill.rentAmt,
+    rentBasePriceVnd: bill.rentBasePrice,
+    rentDays: bill.rentDays,
+    rentDaysInMonth: bill.rentDaysInMonth,
+    rentProrated: bill.rentProrated,
+    rentStartsAfterPeriod: bill.rentStartsAfterPeriod,
+    electricOld,
+    electricNew,
+    electricUnits: bill.kwh,
+    electricRateVnd: bill.electricRate,
+    electricAmountVnd: bill.electricAmt,
+    waterType: room.waterType,
+    waterOld,
+    waterNew,
+    waterUnits: bill.waterUnits,
+    waterRateVnd: bill.waterRate,
+    waterAmountVnd: bill.waterAmt,
+    trashVnd: bill.trashAmt,
+    wifiVnd: bill.wifiAmt,
+    managementVnd: bill.manageAmt,
+    discountVnd: bill.discountAmt,
+    surchargeVnd: bill.surchargeAmt,
+    lateFeeVnd: bill.lateFeeAmt,
+    utilityOnly: isUtilityOnlyRecord(record)
+  });
+}
+
 function rentInvoicesForSync() {
   const entries = new Map();
   for (const history of STATE.history || []) {
@@ -1232,7 +1353,8 @@ function rentInvoicesForSync() {
         roomId: bill.roomId,
         roomName: bill.roomName || '',
         period: history.period,
-        invoiceTotalVnd: Math.round(Number(bill.total))
+        invoiceTotalVnd: Math.round(Number(bill.total)),
+        detail: historicalInvoiceDetail(bill, history.period)
       });
     }
   }
@@ -1247,7 +1369,8 @@ function rentInvoicesForSync() {
         roomId,
         roomName: room.name || '',
         period,
-        invoiceTotalVnd: Math.round(Number(bill.total))
+        invoiceTotalVnd: Math.round(Number(bill.total)),
+        detail: currentInvoiceDetail(room, rec, bill, period)
       });
     }
   }

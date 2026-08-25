@@ -36,10 +36,23 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
 .public-invoice-summary strong { overflow-wrap: anywhere; font-size: .98rem; }
 .public-invoice-summary-due { border-color: #cbc7ff !important; background: #f3f2ff !important; }
 .public-invoice-summary-due strong { color: #5149d8; }
+.public-invoice-details { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e7ebf2; }
+.public-invoice-details-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
+.public-invoice-details-head p { margin: 0 0 3px; color: #667085; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+.public-invoice-details-head h2 { margin: 0; font-size: 1rem; }
+.public-invoice-details-head > span { padding: 5px 8px; border-radius: 999px; background: #fff4df; color: #a35b00; font-size: .68rem; font-weight: 800; }
+.public-invoice-detail-list { display: flex; flex-direction: column; }
+.public-invoice-detail-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 12px 0; border-bottom: 1px solid #edf0f5; }
+.public-invoice-detail-row:last-child { border-bottom: 0; }
+.public-invoice-detail-row > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.public-invoice-detail-row span { color: #667085; font-size: .74rem; line-height: 1.45; overflow-wrap: anywhere; }
+.public-invoice-detail-row > strong { flex: 0 0 auto; white-space: nowrap; font-size: .9rem; }
+.public-invoice-detail-row > strong.is-discount { color: #14783d; }
 .public-invoice-privacy { margin: 18px 0 0; padding: 10px 12px; border-radius: 10px; background: #f2f5f9; color: #667085; font-size: .74rem; line-height: 1.5; }
 @media (max-width: 560px) {
   .public-invoice-shell { width: min(100% - 20px, 760px); padding-top: 18px; }
   .public-invoice-card { padding: 19px; border-radius: 18px; }
   .public-invoice-heading { flex-direction: column; }
   .public-invoice-meta, .public-invoice-summary { grid-template-columns: 1fr; }
+  .public-invoice-detail-row { gap: 10px; }
 }
