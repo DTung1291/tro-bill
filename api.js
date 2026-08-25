@@ -183,6 +183,38 @@ const API = (() => {
     );
   }
 
+  function getRentPaymentChannels() {
+    return request('GET', '/api/rent-payment-channels');
+  }
+
+  function createSepayRentPaymentChannel(expectedAccountNumber) {
+    return request('POST', '/api/rent-payment-channels/sepay', { expectedAccountNumber });
+  }
+
+  function rotateRentPaymentChannelSecret(channelId) {
+    return request(
+      'POST',
+      `/api/rent-payment-channels/${encodeURIComponent(channelId)}/rotate-secret`,
+      {}
+    );
+  }
+
+  function setRentPaymentChannelStatus(channelId, active) {
+    return request(
+      'PATCH',
+      `/api/rent-payment-channels/${encodeURIComponent(channelId)}/status`,
+      { active: !!active }
+    );
+  }
+
+  function updateRentPaymentChannelAccount(channelId, expectedAccountNumber) {
+    return request(
+      'PATCH',
+      `/api/rent-payment-channels/${encodeURIComponent(channelId)}/account`,
+      { expectedAccountNumber }
+    );
+  }
+
   function getTenantDeposit(tenantId) {
     return request(
       'GET',
@@ -312,6 +344,11 @@ const API = (() => {
     migrateLegacyRentPayments,
     getRentPaymentTransactions,
     reverseRentPaymentTransaction,
+    getRentPaymentChannels,
+    createSepayRentPaymentChannel,
+    rotateRentPaymentChannelSecret,
+    setRentPaymentChannelStatus,
+    updateRentPaymentChannelAccount,
     getTenantDeposit,
     createDepositTransaction,
     reverseDepositTransaction,

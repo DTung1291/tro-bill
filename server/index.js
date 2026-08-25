@@ -44,6 +44,7 @@ const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
 const rentPayments = require('./rent-payments');
 const deposits = require('./deposits');
+const rentPaymentChannels = require('./rent-payment-channels');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -138,6 +139,35 @@ app.post(
   '/api/rent-payments/transactions/:id/reverse',
   requireAuth,
   wrap(rentPayments.reverseTransaction)
+);
+app.get(
+  '/api/rent-payment-channels',
+  requireAuth,
+  wrap(rentPaymentChannels.listChannels)
+);
+app.post(
+  '/api/rent-payment-channels/sepay',
+  requireAuth,
+  wrap(rentPaymentChannels.createSepayChannel)
+);
+app.post(
+  '/api/rent-payment-channels/:id/rotate-secret',
+  requireAuth,
+  wrap(rentPaymentChannels.rotateChannelSecret)
+);
+app.patch(
+  '/api/rent-payment-channels/:id/status',
+  requireAuth,
+  wrap(rentPaymentChannels.setChannelStatus)
+);
+app.patch(
+  '/api/rent-payment-channels/:id/account',
+  requireAuth,
+  wrap(rentPaymentChannels.updateChannelAccount)
+);
+app.post(
+  '/api/rent-payment-channels/sepay/:publicId/webhook',
+  wrap(rentPaymentChannels.sepayWebhook)
 );
 app.get(
   '/api/deposits/tenants/:tenantId',

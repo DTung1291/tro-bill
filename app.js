@@ -50,6 +50,8 @@ let ACTIVE_RENT_PAYMENT_ENTRY = null;
 let ACTIVE_DEPOSIT_TENANT_ID = null;
 let ACTIVE_DEPOSIT_RESULT = null;
 let RENT_INVOICE_SYNC_PROMISE = null;
+let RENT_PAYMENT_CHANNELS = [];
+let ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -267,6 +269,197 @@ function subscriptionDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
 }
+
+function activeSepayChannel() {
+  return RENT_PAYMENT_CHANNELS.find(channel => channel.provider === 'sepay') || null;
+}
+
+function currentBankAccountDigits() {
+  return String(STATE.settings.bankAccount || '').replace(/[^0-9]/g, '');
+}
+
+function applyRentPaymentChannelResult(result) {
+  const channel = result?.channel;
+  if (!channel) return;
+  const index = RENT_PAYMENT_CHANNELS.findIndex(item => Number(item.id) === Number(channel.id));
+  if (index >= 0) RENT_PAYMENT_CHANNELS[index] = channel;
+  else RENT_PAYMENT_CHANNELS.push(channel);
+  if (result.secret) {
+    ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = {
+      channelId: Number(channel.id),
+      value: result.secret
+    };
+  }
+  renderRentPaymentChannel();
+}
+
+function renderRentPaymentChannel() {
+  const empty = document.getElementById('sepay-channel-empty');
+  const detail = document.getElementById('sepay-channel-detail');
+  const status = document.getElementById('sepay-channel-status');
+  const secretPanel = document.getElementById('sepay-channel-secret');
+  const secretInput = document.getElementById('sepay-secret-value');
+  if (!empty || !detail || !status || !secretPanel || !secretInput) return;
+
+  const channel = activeSepayChannel();
+  empty.hidden = !!channel;
+  detail.hidden = !channel;
+  status.className = 'payment-channel-status';
+
+  if (!channel) {
+    status.textContent = 'Chưa kết nối';
+    secretPanel.hidden = true;
+    secretInput.value = '';
+    const createButton = document.getElementById('sepay-channel-create');
+    const hasAccount = /^[0-9]{4,30}$/.test(currentBankAccountDigits());
+    if (createButton) {
+      createButton.disabled = !hasAccount;
+      createButton.title = hasAccount ? '' : 'Hãy lưu số tài khoản VietQR trước';
+    }
+    return;
+  }
+
+  const isActive = channel.status === 'active';
+  status.textContent = isActive ? 'Đang hoạt động' : 'Đã tắt';
+  status.classList.add(isActive
+    ? 'payment-channel-status--active'
+    : 'payment-channel-status--disabled');
+
+  const webhookInput = document.getElementById('sepay-webhook-url');
+  const account = document.getElementById('sepay-channel-account');
+  const key = document.getElementById('sepay-channel-key');
+  const lastReceived = document.getElementById('sepay-channel-last-received');
+  const toggle = document.getElementById('sepay-channel-toggle');
+  const accountWarning = document.getElementById('sepay-channel-account-warning');
+  const syncAccount = document.getElementById('sepay-channel-sync-account');
+  const currentAccount = currentBankAccountDigits();
+  const accountMismatch = /^[0-9]{4,30}$/.test(currentAccount)
+    && currentAccount !== channel.expectedAccountNumber;
+
+  if (webhookInput) webhookInput.value = channel.webhookUrl || '';
+  if (account) account.textContent = `Tài khoản nhận: ${channel.expectedAccountNumber || '—'}`;
+  if (key) key.textContent = `API key: ••••••••${channel.secretLast4 || ''}`;
+  if (lastReceived) {
+    lastReceived.textContent = channel.lastReceivedAt
+      ? `Nhận gần nhất: ${subscriptionDateTime(channel.lastReceivedAt)}`
+      : 'Chưa nhận giao dịch';
+  }
+  if (toggle) toggle.textContent = isActive ? 'Tắt kết nối' : 'Bật kết nối';
+  if (accountWarning) accountWarning.hidden = !accountMismatch;
+  if (syncAccount) {
+    syncAccount.disabled = !accountMismatch;
+    syncAccount.hidden = !accountMismatch;
+  }
+
+  const activeSecret = ACTIVE_RENT_PAYMENT_CHANNEL_SECRET;
+  const shouldShowSecret = activeSecret
+    && Number(activeSecret.channelId) === Number(channel.id);
+  secretPanel.hidden = !shouldShowSecret;
+  secretInput.value = shouldShowSecret ? activeSecret.value : '';
+}
+
+async function loadRentPaymentChannels() {
+  try {
+    const result = await API.getRentPaymentChannels();
+    RENT_PAYMENT_CHANNELS = Array.isArray(result.channels) ? result.channels : [];
+    renderRentPaymentChannel();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    console.warn('Không tải được kênh thanh toán:', error.message);
+    showToast('Không tải được trạng thái kết nối SePay.', 'error');
+  }
+}
+
+document.getElementById('sepay-channel-create')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  const account = currentBankAccountDigits();
+  if (!/^[0-9]{4,30}$/.test(account)) {
+    showToast('Hãy lưu số tài khoản VietQR trước khi kết nối SePay.', 'error');
+    return;
+  }
+  button.disabled = true;
+  try {
+    const result = await API.createSepayRentPaymentChannel(account);
+    applyRentPaymentChannelResult(result);
+    showToast('Đã tạo endpoint và API key SePay.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được kết nối SePay', 'error', 4000);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('sepay-copy-webhook')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(activeSepayChannel()?.webhookUrl, 'Đã sao chép Webhook URL.');
+});
+
+document.getElementById('sepay-copy-secret')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(
+    ACTIVE_RENT_PAYMENT_CHANNEL_SECRET?.value,
+    'Đã sao chép API key SePay.'
+  );
+});
+
+document.getElementById('sepay-hide-secret')?.addEventListener('click', () => {
+  ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
+  renderRentPaymentChannel();
+});
+
+document.getElementById('sepay-channel-rotate')?.addEventListener('click', () => {
+  const channel = activeSepayChannel();
+  if (!channel) return;
+  showConfirm(
+    'API key cũ sẽ ngừng hoạt động ngay. Sau khi xoay key, bạn phải cập nhật key mới trên SePay.',
+    async () => {
+      try {
+        const result = await API.rotateRentPaymentChannelSecret(channel.id);
+        applyRentPaymentChannelResult(result);
+        showToast('Đã xoay API key. Hãy cập nhật key mới trên SePay.', 'success', 4500);
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không xoay được API key', 'error');
+      }
+    },
+    null,
+    'Xoay key'
+  );
+});
+
+document.getElementById('sepay-channel-toggle')?.addEventListener('click', async event => {
+  const channel = activeSepayChannel();
+  if (!channel) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await API.setRentPaymentChannelStatus(channel.id, channel.status !== 'active');
+    applyRentPaymentChannelResult(result);
+    showToast(result.channel.status === 'active' ? 'Đã bật kết nối SePay.' : 'Đã tắt kết nối SePay.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không cập nhật được kết nối', 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('sepay-channel-sync-account')?.addEventListener('click', async event => {
+  const channel = activeSepayChannel();
+  const account = currentBankAccountDigits();
+  if (!channel || !/^[0-9]{4,30}$/.test(account)) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await API.updateRentPaymentChannelAccount(channel.id, account);
+    applyRentPaymentChannelResult(result);
+    showToast('Đã đồng bộ tài khoản nhận tiền cho webhook.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không đồng bộ được tài khoản', 'error');
+  } finally {
+    button.disabled = false;
+  }
+});
 
 function renderSubscriptionPaymentHistory() {
   const list = document.getElementById('subscription-payment-list');
@@ -2012,6 +2205,7 @@ function renderPage(page) {
       renderSubscriptionSummary();
       renderSubscriptionPlans();
       renderSubscriptionPaymentHistory();
+      renderRentPaymentChannel();
       break;
   }
 }
@@ -4233,6 +4427,7 @@ if (saveBankBtn) {
     saveState();
     showToast('Đã lưu cấu hình tài khoản nhận tiền ✓', 'success');
     renderDashboard();
+    renderRentPaymentChannel();
   });
 }
 
@@ -5553,7 +5748,7 @@ function handleAuthExpired() {
 
 async function startApp() {
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
     API.getPlans().catch(() => ({ plans: [] })),
@@ -5561,6 +5756,10 @@ async function startApp() {
     API.getRentPaymentSummaries().catch((error) => {
       console.warn('Không tải được sổ giao dịch tiền trọ:', error.message);
       return { invoices: [] };
+    }),
+    API.getRentPaymentChannels().catch((error) => {
+      console.warn('Không tải được kênh thanh toán:', error.message);
+      return { channels: [] };
     })
   ]);
   applyServerEntitlements(entitlement);
@@ -5570,6 +5769,7 @@ async function startApp() {
     : [];
   loadState(serverState);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
+  RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
   try {
     await syncRentInvoicesWithLedger();
   } catch (error) {
@@ -5579,6 +5779,7 @@ async function startApp() {
   renderSubscriptionSummary();
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
+  renderRentPaymentChannel();
   loadDonateConfig();
   loadPrivacyStatus();
   showAuthScreen(false);

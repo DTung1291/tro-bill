@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=84" />
+  <link rel="stylesheet" href="style.css?v=85" />
 </head>
 
 <body>
@@ -434,6 +434,57 @@
         </div>
         <div class="bank-transfer-reference-hint">
           🧾 TrọBill tự tạo mã chuyển khoản ngắn dạng <strong>HD0000001A</strong> riêng cho từng hóa đơn để tránh trùng và hỗ trợ đối soát.
+        </div>
+      </div>
+
+      <div class="settings-card payment-channel-card" id="sepay-channel-card">
+        <div class="payment-channel-head">
+          <div>
+            <strong>🔔 Nhận biến động số dư qua SePay Free</strong>
+            <div class="settings-security-note">
+              Mỗi chủ trọ có endpoint và API key riêng. TrọBill không cần mật khẩu ngân hàng hoặc tài khoản đăng nhập SePay.
+            </div>
+          </div>
+          <span class="payment-channel-status" id="sepay-channel-status">Chưa kết nối</span>
+        </div>
+
+        <div class="payment-channel-empty" id="sepay-channel-empty">
+          <p>Kết nối tài khoản VietQR phía trên để nhận giao dịch chuyển vào và chuẩn bị đối soát hóa đơn tự động.</p>
+          <button type="button" class="btn btn--sm btn--primary" id="sepay-channel-create">Tạo kết nối SePay</button>
+        </div>
+
+        <div class="payment-channel-detail" id="sepay-channel-detail" hidden>
+          <div class="payment-channel-field">
+            <label for="sepay-webhook-url">Webhook URL</label>
+            <div class="payment-channel-value-row">
+              <input id="sepay-webhook-url" class="inline-input" type="text" readonly />
+              <button type="button" class="btn btn--sm btn--ghost" id="sepay-copy-webhook">Sao chép</button>
+            </div>
+          </div>
+          <div class="payment-channel-meta">
+            <span id="sepay-channel-account">Tài khoản: —</span>
+            <span id="sepay-channel-key">API key: —</span>
+            <span id="sepay-channel-last-received">Chưa nhận giao dịch</span>
+          </div>
+          <div class="payment-channel-warning" id="sepay-channel-account-warning" hidden>
+            Số tài khoản VietQR đã thay đổi. Hãy đồng bộ để webhook chỉ nhận đúng tài khoản mới.
+          </div>
+          <div class="payment-channel-actions">
+            <button type="button" class="btn btn--sm btn--ghost" id="sepay-channel-sync-account">Đồng bộ STK VietQR</button>
+            <button type="button" class="btn btn--sm btn--ghost" id="sepay-channel-rotate">Xoay API key</button>
+            <button type="button" class="btn btn--sm btn--ghost" id="sepay-channel-toggle">Tắt kết nối</button>
+            <a class="btn btn--sm btn--ghost" href="https://developer.sepay.vn/vi/sepay-webhooks/tao-webhook" target="_blank" rel="noopener">Hướng dẫn SePay</a>
+          </div>
+        </div>
+
+        <div class="payment-channel-secret" id="sepay-channel-secret" hidden>
+          <strong>API key mới — chỉ hiển thị lần này</strong>
+          <p>Sao chép key này vào phần Authorization/API Key khi tạo webhook trên SePay. Không gửi key cho người khác.</p>
+          <div class="payment-channel-value-row">
+            <input id="sepay-secret-value" class="inline-input" type="text" readonly autocomplete="off" />
+            <button type="button" class="btn btn--sm btn--primary" id="sepay-copy-secret">Sao chép key</button>
+            <button type="button" class="btn btn--sm btn--ghost" id="sepay-hide-secret">Đã lưu</button>
+          </div>
         </div>
       </div>
 
@@ -1225,13 +1276,13 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=82"></script>
+  <script src="api.js?v=85"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
-  <script src="app.js?v=84"></script>
+  <script src="app.js?v=85"></script>
 </body>
 
 </html>
