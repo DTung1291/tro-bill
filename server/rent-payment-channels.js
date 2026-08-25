@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const db = require('./db');
+const { autoMatchBankTransaction } = require('./rent-payment-auto-match');
 
 const PROVIDER = 'sepay';
 const MAX_WEBHOOK_BODY_BYTES = 64 * 1024;
@@ -351,7 +352,7 @@ async function sepayWebhook(req, res) {
           transaction_code, provider_reference, occurred_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        ON CONFLICT (channel_id, provider_transaction_id) DO NOTHING
-       RETURNING id`,
+       RETURNING *`,
       [
         channel.user_id,
         channel.id,
@@ -367,6 +368,19 @@ async function sepayWebhook(req, res) {
         input.occurredAt
       ]
     );
+    let bankTransaction = inserted.rows[0];
+    if (!bankTransaction) {
+      const existing = await client.query(
+        `SELECT * FROM rent_bank_transactions
+         WHERE channel_id=$1 AND provider_transaction_id=$2
+         FOR UPDATE`,
+        [channel.id, input.providerTransactionId]
+      );
+      bankTransaction = existing.rows[0];
+    }
+    const match = bankTransaction
+      ? await autoMatchBankTransaction(client, bankTransaction)
+      : { matched: false, status: 'pending', reason: 'transaction_not_found' };
     await client.query(
       `UPDATE rent_payment_channels
        SET last_received_at=now(), updated_at=now()
@@ -374,7 +388,14 @@ async function sepayWebhook(req, res) {
       [channel.id, channel.user_id]
     );
     await client.query('COMMIT');
-    return res.json({ success: true, duplicate: !inserted.rows[0] });
+    return res.json({
+      success: true,
+      duplicate: !inserted.rows[0],
+      matched: match.matched,
+      matchStatus: match.status,
+      matchReason: match.reason,
+      receiptCode: match.receiptCode || undefined
+    });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) {}
     throw error;

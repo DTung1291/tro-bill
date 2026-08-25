@@ -983,7 +983,9 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
   occurred_at             TIMESTAMPTZ NOT NULL,
   received_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
   match_status            TEXT NOT NULL DEFAULT 'pending',
+  match_reason            TEXT NOT NULL DEFAULT '',
   matched_invoice_id      BIGINT,
+  matched_receipt_id      BIGINT,
   matched_at              TIMESTAMPTZ,
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT rent_bank_transactions_channel_owner_fk
@@ -992,6 +994,9 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
   CONSTRAINT rent_bank_transactions_invoice_owner_fk
     FOREIGN KEY (user_id, matched_invoice_id)
     REFERENCES rent_invoices(user_id, id) ON DELETE RESTRICT,
+  CONSTRAINT rent_bank_transactions_receipt_owner_fk
+    FOREIGN KEY (user_id, matched_receipt_id)
+    REFERENCES rent_payment_receipts(user_id, id) ON DELETE RESTRICT,
   CONSTRAINT rent_bank_transactions_provider_id_unique
     UNIQUE (channel_id, provider_transaction_id),
   CONSTRAINT rent_bank_transactions_provider_valid CHECK (provider IN ('sepay')),
@@ -1001,9 +1006,17 @@ CREATE TABLE IF NOT EXISTS rent_bank_transactions (
   CONSTRAINT rent_bank_transactions_match_status_valid
     CHECK (match_status IN ('pending', 'matched', 'ignored')),
   CONSTRAINT rent_bank_transactions_match_consistent CHECK (
-    (match_status='matched' AND matched_invoice_id IS NOT NULL AND matched_at IS NOT NULL)
-    OR (match_status<>'matched' AND matched_invoice_id IS NULL AND matched_at IS NULL)
+    (match_status='matched'
+      AND matched_invoice_id IS NOT NULL
+      AND matched_receipt_id IS NOT NULL
+      AND matched_at IS NOT NULL)
+    OR (match_status<>'matched'
+      AND matched_invoice_id IS NULL
+      AND matched_receipt_id IS NULL
+      AND matched_at IS NULL)
   ),
+  CONSTRAINT rent_bank_transactions_match_reason_valid
+    CHECK (match_reason ~ '^[a-z0-9_]{0,100}$'),
   CONSTRAINT rent_bank_transactions_lengths_valid CHECK (
     char_length(provider_transaction_id) BETWEEN 1 AND 128
     AND char_length(gateway) <= 100
@@ -1023,7 +1036,7 @@ BEGIN
     EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_payment_channels_id_seq TO tro_bill_runtime';
     EXECUTE 'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rent_bank_transactions FROM tro_bill_runtime';
     EXECUTE 'GRANT SELECT, INSERT ON rent_bank_transactions TO tro_bill_runtime';
-    EXECUTE 'GRANT UPDATE (match_status, matched_invoice_id, matched_at, updated_at) ON rent_bank_transactions TO tro_bill_runtime';
+    EXECUTE 'GRANT UPDATE (match_status, match_reason, matched_invoice_id, matched_receipt_id, matched_at, updated_at) ON rent_bank_transactions TO tro_bill_runtime';
     EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE rent_bank_transactions_id_seq TO tro_bill_runtime';
   END IF;
 END $$;

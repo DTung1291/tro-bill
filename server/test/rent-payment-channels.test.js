@@ -179,11 +179,26 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
   }] });
   let duplicate = false;
   const calls = [];
+  const storedTransaction = {
+    id: 99,
+    user_id: 7,
+    channel_id: 3,
+    provider_transaction_id: '92704',
+    transaction_code: 'HD00000015',
+    transaction_content: 'Thanh toan HD00000015',
+    amount_vnd: '3000000',
+    occurred_at: '2026-08-24T13:15:30.000Z',
+    match_status: 'pending',
+    match_reason: ''
+  };
   db.getClient = async () => ({
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (sql.includes('INSERT INTO rent_bank_transactions')) {
-        return { rows: duplicate ? [] : [{ id: 99 }] };
+        return { rows: duplicate ? [] : [storedTransaction] };
+      }
+      if (sql.includes('SELECT * FROM rent_bank_transactions')) {
+        return { rows: [storedTransaction] };
       }
       return { rows: [] };
     },
@@ -200,7 +215,14 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
   });
   let response = responseRecorder();
   await sepayWebhook(req, response.res);
-  assert.deepEqual(response.record.body, { success: true, duplicate: false });
+  assert.deepEqual(response.record.body, {
+    success: true,
+    duplicate: false,
+    matched: false,
+    matchStatus: 'pending',
+    matchReason: 'invoice_not_found',
+    receiptCode: undefined
+  });
 
   const insert = calls.find((call) => call.sql.includes('INSERT INTO rent_bank_transactions'));
   assert.deepEqual(insert.params.slice(0, 8), [
@@ -211,7 +233,14 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
   duplicate = true;
   response = responseRecorder();
   await sepayWebhook(req, response.res);
-  assert.deepEqual(response.record.body, { success: true, duplicate: true });
+  assert.deepEqual(response.record.body, {
+    success: true,
+    duplicate: true,
+    matched: false,
+    matchStatus: 'pending',
+    matchReason: 'invoice_not_found',
+    receiptCode: undefined
+  });
   assert.equal(calls.filter((call) => call.sql === 'COMMIT').length, 2);
 });
 
@@ -229,7 +258,7 @@ test('schema và migration giữ queue append-only, secret hash và khóa chốn
     assert.match(source, /secret_hash ~ '\^\[a-f0-9\]\{64\}\$'/);
     assert.match(source, /UNIQUE \(channel_id, provider_transaction_id\)/);
     assert.match(source, /REVOKE UPDATE, DELETE, TRUNCATE[\s\S]*ON rent_bank_transactions/);
-    assert.match(source, /GRANT UPDATE \(match_status, matched_invoice_id, matched_at, updated_at\)/);
+    assert.match(source, /GRANT UPDATE \(match_status,[^)]*matched_invoice_id,[^)]*matched_at, updated_at\)/);
     assert.doesNotMatch(transactionTable, /raw_payload|payload\s+JSONB/i);
   }
 });
