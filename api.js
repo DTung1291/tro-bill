@@ -260,6 +260,13 @@ const API = (() => {
     );
   }
 
+  function getRentInvoicePaymentProofs(invoiceId) {
+    return request(
+      'GET',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/payment-proofs`
+    );
+  }
+
   function upsertRentMeterPhoto(input) {
     return request('POST', '/api/rent-meter-photos', input);
   }
@@ -404,6 +411,7 @@ const API = (() => {
     createRentInvoiceShareLink,
     getRentInvoiceShareLinks,
     revokeRentInvoiceShareLink,
+    getRentInvoicePaymentProofs,
     upsertRentMeterPhoto,
     getTenantDeposit,
     createDepositTransaction,

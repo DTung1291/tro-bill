@@ -55,6 +55,7 @@ let ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
 let RENT_BANK_TRANSACTIONS = [];
 let ACTIVE_RENT_INVOICE_SHARE_ID = null;
 let RENT_INVOICE_SHARE_LINKS = [];
+let RENT_INVOICE_PAYMENT_PROOFS = [];
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -3755,6 +3756,7 @@ function closeInvoiceShareModal() {
   if (modal) modal.hidden = true;
   ACTIVE_RENT_INVOICE_SHARE_ID = null;
   RENT_INVOICE_SHARE_LINKS = [];
+  RENT_INVOICE_PAYMENT_PROOFS = [];
   const result = document.getElementById('invoice-share-result');
   const url = document.getElementById('invoice-share-url');
   if (result) result.hidden = true;
@@ -3810,6 +3812,43 @@ function renderInvoiceShareLinks() {
   }
 }
 
+function renderInvoicePaymentProofs() {
+  const list = document.getElementById('invoice-payment-proof-list');
+  const empty = document.getElementById('invoice-payment-proof-empty');
+  if (!list || !empty) return;
+  list.replaceChildren();
+  empty.hidden = RENT_INVOICE_PAYMENT_PROOFS.length > 0;
+  for (const proof of RENT_INVOICE_PAYMENT_PROOFS) {
+    const item = document.createElement('article');
+    item.className = 'invoice-payment-proof-item';
+
+    const image = document.createElement('img');
+    const imageDataUrl = String(proof.imageDataUrl || '');
+    if (/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(imageDataUrl)) {
+      image.src = imageDataUrl;
+    }
+    image.alt = `Minh chứng chuyển khoản gửi lúc ${subscriptionDateTime(proof.submittedAt)}`;
+
+    const details = document.createElement('div');
+    const heading = document.createElement('div');
+    const title = document.createElement('strong');
+    const badge = document.createElement('span');
+    const submitted = document.createElement('p');
+    const note = document.createElement('p');
+    title.textContent = `Link ••••${proof.linkTokenLast4 || ''}`;
+    badge.className = 'invoice-share-status invoice-payment-proof-status';
+    badge.textContent = proof.status === 'accepted'
+      ? 'Đã xác nhận'
+      : (proof.status === 'rejected' ? 'Không hợp lệ' : 'Chờ đối chiếu');
+    submitted.textContent = `Gửi lúc: ${subscriptionDateTime(proof.submittedAt)}`;
+    note.textContent = 'Ảnh này không tự động ghi nhận đã thu tiền.';
+    heading.append(title, badge);
+    details.append(heading, submitted, note);
+    item.append(image, details);
+    list.appendChild(item);
+  }
+}
+
 async function loadInvoiceShareLinks() {
   if (!ACTIVE_RENT_INVOICE_SHARE_ID) return;
   try {
@@ -3820,6 +3859,22 @@ async function loadInvoiceShareLinks() {
     if (error.code === 401) return handleAuthExpired();
     showToast(error.message || 'Không tải được liên kết hóa đơn', 'error');
   }
+}
+
+async function loadInvoicePaymentProofs() {
+  if (!ACTIVE_RENT_INVOICE_SHARE_ID) return;
+  try {
+    const result = await API.getRentInvoicePaymentProofs(ACTIVE_RENT_INVOICE_SHARE_ID);
+    RENT_INVOICE_PAYMENT_PROOFS = Array.isArray(result.proofs) ? result.proofs : [];
+    renderInvoicePaymentProofs();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tải được minh chứng chuyển khoản', 'error');
+  }
+}
+
+async function loadInvoiceShareData() {
+  await Promise.all([loadInvoiceShareLinks(), loadInvoicePaymentProofs()]);
 }
 
 async function openInvoiceShareModal() {
@@ -3841,13 +3896,14 @@ async function openInvoiceShareModal() {
   }
   ACTIVE_RENT_INVOICE_SHARE_ID = Number(invoice.invoiceId);
   RENT_INVOICE_SHARE_LINKS = [];
+  RENT_INVOICE_PAYMENT_PROOFS = [];
   document.getElementById('invoice-share-subtitle').textContent = `${room.name} · ${periodLabel(period)}`;
   document.getElementById('invoice-share-result').hidden = true;
   document.getElementById('invoice-share-url').value = '';
   closeBillPreview();
   document.getElementById('invoice-share-modal').hidden = false;
   syncModalScrollLock();
-  await loadInvoiceShareLinks();
+  await loadInvoiceShareData();
 }
 
 async function createInvoiceShareLink(event) {
@@ -3877,7 +3933,7 @@ document.getElementById('bill-preview-close-footer').addEventListener('click', c
 document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
 document.getElementById('bill-preview-share-link')?.addEventListener('click', openInvoiceShareModal);
 document.getElementById('invoice-share-create')?.addEventListener('click', createInvoiceShareLink);
-document.getElementById('invoice-share-refresh')?.addEventListener('click', loadInvoiceShareLinks);
+document.getElementById('invoice-share-refresh')?.addEventListener('click', loadInvoiceShareData);
 document.getElementById('invoice-share-copy')?.addEventListener('click', () => {
   copySubscriptionOrderValue(
     document.getElementById('invoice-share-url')?.value,

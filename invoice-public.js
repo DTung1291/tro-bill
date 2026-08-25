@@ -5,6 +5,10 @@
   const errorPanel = document.getElementById('invoice-error');
   const content = document.getElementById('invoice-content');
   const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+  const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
+  const MAX_PROOF_BYTES = 192 * 1024;
+  let activeToken = '';
+  let encodedProofDataUrl = '';
 
   function text(id, value) {
     const element = document.getElementById(id);
@@ -139,6 +143,140 @@
     section.hidden = false;
   }
 
+  function renderPaymentProof(proof, invoice) {
+    const section = document.getElementById('invoice-payment-proof');
+    const form = document.getElementById('invoice-payment-proof-form');
+    const submitted = document.getElementById('invoice-payment-proof-submitted');
+    const hasProof = proof && ['pending', 'accepted', 'rejected'].includes(proof.status);
+    const canSubmit = Number(invoice?.remainingVnd) > 0;
+    section.hidden = !hasProof && !canSubmit;
+    form.hidden = hasProof || !canSubmit;
+    submitted.hidden = !hasProof;
+    if (hasProof) {
+      text('invoice-payment-proof-submitted-at', `Gửi lúc: ${dateTime(proof.submittedAt)}`);
+    }
+  }
+
+  function proofByteSize(dataUrl) {
+    const base64 = String(dataUrl || '').split(',')[1] || '';
+    return Math.floor((base64.length * 3) / 4) - ((base64.match(/=*$/) || [''])[0].length);
+  }
+
+  async function loadImageBitmap(file) {
+    if (typeof createImageBitmap === 'function') {
+      return createImageBitmap(file, { imageOrientation: 'from-image' });
+    }
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('Không đọc được ảnh đã chọn.'));
+        image.src = objectUrl;
+      });
+      return image;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  async function encodePaymentProof(file) {
+    if (!(file instanceof File) || !String(file.type || '').startsWith('image/')) {
+      throw new Error('Vui lòng chọn một tệp ảnh.');
+    }
+    if (file.size < 1 || file.size > MAX_SOURCE_IMAGE_BYTES) {
+      throw new Error('Ảnh gốc phải nhỏ hơn 10 MB.');
+    }
+    const source = await loadImageBitmap(file);
+    const sourceWidth = Number(source.width || source.naturalWidth) || 0;
+    const sourceHeight = Number(source.height || source.naturalHeight) || 0;
+    if (sourceWidth < 16 || sourceHeight < 16) {
+      source.close?.();
+      throw new Error('Kích thước ảnh không hợp lệ.');
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) {
+      source.close?.();
+      throw new Error('Trình duyệt không thể xử lý ảnh này.');
+    }
+    const longest = Math.max(sourceWidth, sourceHeight);
+    let scale = Math.min(1, 1280 / longest);
+    const qualities = [0.84, 0.74, 0.64, 0.54];
+    try {
+      for (let resizeAttempt = 0; resizeAttempt < 4; resizeAttempt += 1) {
+        canvas.width = Math.max(16, Math.round(sourceWidth * scale));
+        canvas.height = Math.max(16, Math.round(sourceHeight * scale));
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(source, 0, 0, canvas.width, canvas.height);
+        for (const quality of qualities) {
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          if (proofByteSize(dataUrl) <= MAX_PROOF_BYTES) return dataUrl;
+        }
+        scale *= 0.78;
+      }
+    } finally {
+      source.close?.();
+    }
+    throw new Error('Không thể thu nhỏ ảnh xuống dưới 192 KB. Vui lòng chọn ảnh khác.');
+  }
+
+  function setProofMessage(message, isError = false) {
+    const element = document.getElementById('invoice-payment-proof-message');
+    element.textContent = message;
+    element.dataset.error = isError ? 'true' : 'false';
+  }
+
+  async function selectPaymentProof(event) {
+    encodedProofDataUrl = '';
+    const preview = document.getElementById('invoice-payment-proof-preview');
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setProofMessage('Đang bảo vệ và thu nhỏ ảnh…');
+    try {
+      encodedProofDataUrl = await encodePaymentProof(file);
+      preview.src = encodedProofDataUrl;
+      preview.hidden = false;
+      setProofMessage(`Ảnh đã sẵn sàng (${Math.ceil(proofByteSize(encodedProofDataUrl) / 1024)} KB), EXIF đã được loại bỏ.`);
+    } catch (error) {
+      event.target.value = '';
+      setProofMessage(error.message || 'Không xử lý được ảnh đã chọn.', true);
+    }
+  }
+
+  async function submitPaymentProof(event) {
+    event.preventDefault();
+    if (!activeToken || !encodedProofDataUrl) {
+      setProofMessage('Vui lòng chọn ảnh minh chứng trước khi gửi.', true);
+      return;
+    }
+    const button = document.getElementById('invoice-payment-proof-submit');
+    button.disabled = true;
+    setProofMessage('Đang gửi minh chứng…');
+    try {
+      const response = await fetch('/api/public/rent-invoice-links/payment-proof', {
+        method: 'POST',
+        credentials: 'omit',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: activeToken, dataUrl: encodedProofDataUrl })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Không gửi được minh chứng.');
+      encodedProofDataUrl = '';
+      document.getElementById('invoice-payment-proof-file').value = '';
+      document.getElementById('invoice-payment-proof-preview').removeAttribute('src');
+      renderPaymentProof(data.proof, { remainingVnd: 1 });
+    } catch (error) {
+      setProofMessage(error.message || 'Không gửi được minh chứng.', true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function showError(message) {
     loading.hidden = true;
     content.hidden = true;
@@ -163,6 +301,7 @@
     renderDetails(data.details || {});
     renderMeterPhotos(data.meterPhotos || {});
     renderPayment(data.payment || null);
+    renderPaymentProof(data.link?.paymentProof || null, invoice);
     loading.hidden = true;
     errorPanel.hidden = true;
     content.hidden = false;
@@ -176,6 +315,7 @@
       showError('Liên kết không hợp lệ hoặc thiếu token bảo mật.');
       return;
     }
+    activeToken = token;
     try {
       const response = await fetch('/api/public/rent-invoice-links/resolve', {
         method: 'POST',
@@ -191,5 +331,9 @@
     }
   }
 
+  document.getElementById('invoice-payment-proof-file')
+    ?.addEventListener('change', selectPaymentProof);
+  document.getElementById('invoice-payment-proof-form')
+    ?.addEventListener('submit', submitPaymentProof);
   boot();
 })();

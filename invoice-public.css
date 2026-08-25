@@ -61,6 +61,53 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
 .public-invoice-payment-layout dt { color: #667085; font-size: .68rem; }
 .public-invoice-payment-layout dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: .82rem; font-weight: 750; }
 .public-invoice-payment > p { margin: 12px 0 0; color: #667085; font-size: .72rem; line-height: 1.5; }
+.public-invoice-payment-proof { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e7ebf2; }
+#invoice-payment-proof-form { display: flex; flex-direction: column; gap: 10px; }
+#invoice-payment-proof-form > label { color: #344054; font-size: .78rem; font-weight: 750; }
+#invoice-payment-proof-file {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d6deeb;
+  border-radius: 10px;
+  background: #f9fafc;
+  color: #344054;
+  font: inherit;
+  font-size: .78rem;
+}
+#invoice-payment-proof-preview {
+  display: block;
+  width: min(100%, 420px);
+  max-height: 300px;
+  object-fit: contain;
+  border: 1px solid #d6deeb;
+  border-radius: 12px;
+  background: #f3f5f9;
+}
+#invoice-payment-proof-submit {
+  align-self: flex-start;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: #625af6;
+  color: #fff;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+#invoice-payment-proof-submit:disabled { cursor: wait; opacity: .65; }
+#invoice-payment-proof-message { margin: 0; color: #667085; font-size: .72rem; line-height: 1.5; }
+#invoice-payment-proof-message[data-error="true"] { color: #b42318; }
+.public-invoice-proof-submitted {
+  padding: 13px 14px;
+  border: 1px solid #bbdfca;
+  border-radius: 12px;
+  background: #eefaf2;
+}
+.public-invoice-proof-submitted strong { display: block; color: #14783d; font-size: .84rem; }
+.public-invoice-proof-submitted p,
+.public-invoice-proof-submitted span { display: block; margin: 5px 0 0; color: #52665a; font-size: .72rem; line-height: 1.45; }
 .public-invoice-privacy { margin: 18px 0 0; padding: 10px 12px; border-radius: 10px; background: #f2f5f9; color: #667085; font-size: .74rem; line-height: 1.5; }
 @media (max-width: 560px) {
   .public-invoice-shell { width: min(100% - 20px, 760px); padding-top: 18px; }

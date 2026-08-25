@@ -220,7 +220,8 @@ function publicInvoiceJson(row) {
     meterPhotos,
     payment,
     link: {
-      expiresAt: row.expires_at
+      expiresAt: row.expires_at,
+      paymentProof: row.payment_proof || null
     }
   };
 }
@@ -274,10 +275,22 @@ async function resolvePublicInvoiceLink(req, res) {
        ORDER BY meter_type`,
       [link.user_id, invoice.room_id, invoice.period]
     );
+    const proofResult = await client.query(
+      `SELECT status, submitted_at
+       FROM rent_payment_proofs
+       WHERE user_id=$1 AND invoice_id=$2 AND share_link_id=$3`,
+      [link.user_id, link.invoice_id, link.id]
+    );
     const row = {
       ...invoice,
       expires_at: link.expires_at,
-      meter_photos: meterPhotoResult.rows
+      meter_photos: meterPhotoResult.rows,
+      payment_proof: proofResult.rows[0]
+        ? {
+            status: proofResult.rows[0].status,
+            submittedAt: proofResult.rows[0].submitted_at
+          }
+        : null
     };
     await client.query(
       `UPDATE rent_invoice_share_links

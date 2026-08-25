@@ -138,7 +138,7 @@ test('schema, migration, OCR và trang khách thuê bảo vệ dung lượng và
   assert.match(ocrSource, /_ocrCallback\(val, \{ photoDataUrl:/);
   assert.match(htmlSource, /ocr\.js\?v=90/);
   assert.match(publicHtml, /id="invoice-meter-photos"/);
-  assert.match(publicHtml, /invoice-public\.css\?v=4[\s\S]*invoice-public\.js\?v=4/);
+  assert.match(publicHtml, /invoice-public\.css\?v=5[\s\S]*invoice-public\.js\?v=5/);
   assert.match(publicJs, /function renderMeterPhotos/);
   assert.doesNotMatch(publicJs, /innerHTML/);
 });

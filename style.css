@@ -1793,10 +1793,53 @@ body.modal-open {
   text-align: center;
   font-size: .8rem;
 }
+.invoice-payment-proof-head > div { min-width: 0; }
+.invoice-payment-proof-head p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.invoice-payment-proof-list { display: flex; flex-direction: column; gap: 9px; }
+.invoice-payment-proof-item {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.invoice-payment-proof-item > img {
+  display: block;
+  width: 104px;
+  height: 78px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+}
+.invoice-payment-proof-item > div { min-width: 0; }
+.invoice-payment-proof-item > div > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.invoice-payment-proof-item p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.invoice-payment-proof-status { background: #fff4df; color: #a35b00; }
 @media (max-width: 560px) {
   .invoice-share-create-row { grid-template-columns: 1fr; }
   .invoice-share-item { align-items: stretch; flex-direction: column; }
   .invoice-share-item > button { align-self: flex-start; }
+  .invoice-payment-proof-item { grid-template-columns: 82px minmax(0, 1fr); }
+  .invoice-payment-proof-item > img { width: 82px; height: 68px; }
 }
 
 /* Append-only rent payment ledger */

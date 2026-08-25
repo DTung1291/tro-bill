@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=4" />
+  <link rel="stylesheet" href="invoice-public.css?v=5" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -96,9 +96,29 @@
         </div>
         <p>Tiền được chuyển thẳng vào tài khoản chủ trọ. TrọBill không nhận, giữ hoặc chuyển tiếp tiền thuê.</p>
       </section>
+      <section class="public-invoice-payment-proof" id="invoice-payment-proof" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Sau khi chuyển khoản</p>
+            <h2>Gửi minh chứng cho chủ trọ</h2>
+          </div>
+        </div>
+        <form id="invoice-payment-proof-form">
+          <label for="invoice-payment-proof-file">Chọn ảnh biên lai hoặc ảnh chụp giao dịch</label>
+          <input id="invoice-payment-proof-file" type="file" accept="image/*" required />
+          <img id="invoice-payment-proof-preview" alt="Xem trước minh chứng chuyển khoản" hidden />
+          <button id="invoice-payment-proof-submit" type="submit">Gửi minh chứng</button>
+          <p id="invoice-payment-proof-message">Ảnh sẽ được thu nhỏ, chuyển thành JPEG và loại bỏ thông tin EXIF trước khi gửi.</p>
+        </form>
+        <div class="public-invoice-proof-submitted" id="invoice-payment-proof-submitted" hidden>
+          <strong>Đã gửi — đang chờ chủ trọ đối chiếu</strong>
+          <p id="invoice-payment-proof-submitted-at"></p>
+          <span>Minh chứng không tự động xác nhận hóa đơn đã thanh toán.</span>
+        </div>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=4"></script>
+  <script src="invoice-public.js?v=5"></script>
 </body>
 </html>
