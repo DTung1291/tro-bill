@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <meta name="referrer" content="no-referrer" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=3" />
+  <link rel="stylesheet" href="invoice-public.css?v=4" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -78,9 +78,27 @@
           </figure>
         </div>
       </section>
+      <section class="public-invoice-payment" id="invoice-payment" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Thanh toán trực tiếp</p>
+            <h2>Quét VietQR cho chủ trọ</h2>
+          </div>
+        </div>
+        <div class="public-invoice-payment-layout">
+          <img id="invoice-payment-qr" alt="VietQR thanh toán tiền trọ" loading="lazy" referrerpolicy="no-referrer" />
+          <dl>
+            <div><dt>Số tiền</dt><dd id="invoice-payment-amount">—</dd></div>
+            <div><dt>Người nhận</dt><dd id="invoice-payment-owner">—</dd></div>
+            <div><dt>Ngân hàng · tài khoản</dt><dd id="invoice-payment-account">—</dd></div>
+            <div><dt>Nội dung chuyển khoản</dt><dd><code id="invoice-payment-content">—</code></dd></div>
+          </dl>
+        </div>
+        <p>Tiền được chuyển thẳng vào tài khoản chủ trọ. TrọBill không nhận, giữ hoặc chuyển tiếp tiền thuê.</p>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=3"></script>
+  <script src="invoice-public.js?v=4"></script>
 </body>
 </html>

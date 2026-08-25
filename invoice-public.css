@@ -53,6 +53,14 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
 .public-invoice-meter-photo-grid figure { margin: 0; overflow: hidden; border: 1px solid #e0e5ed; border-radius: 12px; background: #f7f9fc; }
 .public-invoice-meter-photo-grid img { display: block; width: 100%; aspect-ratio: 4.48 / 1; object-fit: cover; background: #101828; }
 .public-invoice-meter-photo-grid figcaption { padding: 8px 10px; color: #475467; font-size: .74rem; font-weight: 700; }
+.public-invoice-payment { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e7ebf2; }
+.public-invoice-payment-layout { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: 18px; align-items: center; }
+.public-invoice-payment-layout > img { display: block; width: 100%; border: 1px solid #d6deeb; border-radius: 14px; background: #fff; }
+.public-invoice-payment-layout dl { display: grid; gap: 9px; margin: 0; }
+.public-invoice-payment-layout dl > div { padding: 9px 10px; border-radius: 10px; background: #f7f9fc; }
+.public-invoice-payment-layout dt { color: #667085; font-size: .68rem; }
+.public-invoice-payment-layout dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: .82rem; font-weight: 750; }
+.public-invoice-payment > p { margin: 12px 0 0; color: #667085; font-size: .72rem; line-height: 1.5; }
 .public-invoice-privacy { margin: 18px 0 0; padding: 10px 12px; border-radius: 10px; background: #f2f5f9; color: #667085; font-size: .74rem; line-height: 1.5; }
 @media (max-width: 560px) {
   .public-invoice-shell { width: min(100% - 20px, 760px); padding-top: 18px; }
@@ -61,4 +69,6 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
   .public-invoice-meta, .public-invoice-summary { grid-template-columns: 1fr; }
   .public-invoice-detail-row { gap: 10px; }
   .public-invoice-meter-photo-grid { grid-template-columns: 1fr; }
+  .public-invoice-payment-layout { grid-template-columns: 1fr; }
+  .public-invoice-payment-layout > img { width: min(100%, 280px); margin: 0 auto; }
 }

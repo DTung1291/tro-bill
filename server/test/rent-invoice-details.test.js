@@ -71,6 +71,9 @@ test('API công khai trả breakdown đã chuẩn hóa nhưng không thêm dữ 
     paid_amount_vnd: '0',
     expires_at: '2099-01-01T00:00:00.000Z',
     detail_snapshot: validDetail(),
+    bank_id: 'VCB',
+    bank_account: '123456789',
+    bank_owner_name: 'NGUYEN VAN A',
     meter_photos: [{
       meter_type: 'electricity',
       mime_type: 'image/jpeg',
@@ -81,7 +84,13 @@ test('API công khai trả breakdown đã chuẩn hóa nhưng không thêm dữ 
   assert.equal(result.details.electricity.amountVnd, 175000);
   assert.equal(result.details.water.amountVnd, 100000);
   assert.equal(result.meterPhotos.electricity, 'data:image/jpeg;base64,/9j/2Q==');
-  assert.deepEqual(Object.keys(result).sort(), ['details', 'invoice', 'link', 'meterPhotos']);
+  assert.equal(result.payment.settlementMode, 'direct_to_landlord');
+  assert.equal(result.payment.amountVnd, 2610000);
+  assert.equal(result.payment.accountNumber, '123456789');
+  assert.match(result.payment.imageUrl, /^https:\/\/img\.vietqr\.io\/image\/VCB-123456789-compact2\.png/);
+  assert.match(result.payment.imageUrl, /amount=2610000/);
+  assert.match(result.payment.imageUrl, /addInfo=HD00000015/);
+  assert.deepEqual(Object.keys(result).sort(), ['details', 'invoice', 'link', 'meterPhotos', 'payment']);
 });
 
 test('migration backfill snapshot và trang khách thuê render phòng, điện, nước, dịch vụ an toàn', () => {
@@ -106,11 +115,15 @@ test('migration backfill snapshot và trang khách thuê render phòng, điện,
   assert.match(appSource, /function currentInvoiceDetail/);
   assert.match(appSource, /function historicalInvoiceDetail/);
   assert.match(publicHtml, /id="invoice-detail-list"/);
-  assert.match(publicHtml, /invoice-public\.css\?v=3[\s\S]*invoice-public\.js\?v=3/);
+  assert.match(publicHtml, /invoice-public\.css\?v=4[\s\S]*invoice-public\.js\?v=4/);
+  assert.match(publicHtml, /id="invoice-payment"/);
+  assert.match(publicHtml, /img-src 'self' data: https:\/\/img\.vietqr\.io/);
   assert.match(publicJs, /appendDetailRow\(list, 'Tiền phòng'/);
   assert.match(publicJs, /'Tiền điện'/);
   assert.match(publicJs, /'Tiền nước'/);
   assert.match(publicJs, /'Phí quản lý & dịch vụ'/);
+  assert.match(publicJs, /function renderPayment/);
+  assert.match(publicJs, /settlementMode === 'direct_to_landlord'/);
   assert.doesNotMatch(publicJs, /innerHTML/);
   assert.match(publicCss, /\.public-invoice-detail-row/);
 });

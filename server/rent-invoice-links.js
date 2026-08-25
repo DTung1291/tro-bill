@@ -5,6 +5,7 @@ const db = require('./db');
 const DebtAge = require('../debt-age');
 const InvoiceReference = require('../invoice-reference');
 const { invoiceDetailInput } = require('./rent-payments');
+const { normalizeRentBankSettings } = require('./rent-bank-settings');
 
 const TOKEN_PATTERN = /^tbril_[A-Za-z0-9_-]{43}$/;
 const MAX_LINK_HOURS = 24 * 30;
@@ -164,6 +165,7 @@ function publicInvoiceJson(row) {
   const paid = Math.max(0, Number(row.paid_amount_vnd) || 0);
   const remaining = Math.max(0, total - paid);
   const debtAge = DebtAge.classify(row.period, remaining);
+  const transferContent = InvoiceReference.fromInvoiceId(row.invoice_id);
   let details = {};
   try {
     details = invoiceDetailInput(row.detail_snapshot || {}, total);
@@ -181,9 +183,31 @@ function publicInvoiceJson(row) {
       meterPhotos[meterType] = `data:${mimeType};base64,${imageBase64}`;
     }
   }
+  let payment = null;
+  try {
+    const bank = normalizeRentBankSettings(row, { allowEmpty: false });
+    if (remaining > 0 && transferContent) {
+      const imageUrl = `https://img.vietqr.io/image/${encodeURIComponent(bank.bankId)}`
+        + `-${encodeURIComponent(bank.accountNumber)}-compact2.png`
+        + `?amount=${remaining}`
+        + `&addInfo=${encodeURIComponent(transferContent)}`
+        + `&accountName=${encodeURIComponent(bank.ownerName)}`;
+      payment = {
+        settlementMode: 'direct_to_landlord',
+        amountVnd: remaining,
+        transferContent,
+        bankId: bank.bankId,
+        accountNumber: bank.accountNumber,
+        ownerName: bank.ownerName,
+        imageUrl
+      };
+    }
+  } catch (_) {
+    // Chủ trọ chưa cấu hình đủ ngân hàng: vẫn hiển thị hóa đơn, không tạo QR sai.
+  }
   return {
     invoice: {
-      transferContent: InvoiceReference.fromInvoiceId(row.invoice_id),
+      transferContent,
       roomName: row.room_name_snapshot || '',
       period: row.period,
       invoiceTotalVnd: total,
@@ -194,6 +218,7 @@ function publicInvoiceJson(row) {
     },
     details,
     meterPhotos,
+    payment,
     link: {
       expiresAt: row.expires_at
     }
@@ -228,12 +253,14 @@ async function resolvePublicInvoiceLink(req, res) {
     const invoiceResult = await client.query(
       `SELECT invoice.id AS invoice_id, invoice.room_id, invoice.room_name_snapshot,
               invoice.period, invoice.issued_total_vnd, invoice.detail_snapshot,
+              settings.bank_id, settings.bank_account, settings.bank_owner_name,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices invoice
+       LEFT JOIN settings ON settings.user_id=invoice.user_id
        LEFT JOIN rent_payment_transactions tx
          ON tx.user_id=invoice.user_id AND tx.invoice_id=invoice.id
        WHERE invoice.user_id=$1 AND invoice.id=$2
-       GROUP BY invoice.id`,
+       GROUP BY invoice.id, settings.bank_id, settings.bank_account, settings.bank_owner_name`,
       [link.user_id, link.invoice_id]
     );
     const invoice = invoiceResult.rows[0];

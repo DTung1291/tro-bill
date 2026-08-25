@@ -119,6 +119,26 @@
     section.hidden = visibleCount === 0;
   }
 
+  function renderPayment(payment) {
+    const section = document.getElementById('invoice-payment');
+    const image = document.getElementById('invoice-payment-qr');
+    const imageUrl = String(payment?.imageUrl || '');
+    const valid = payment?.settlementMode === 'direct_to_landlord'
+      && Number(payment?.amountVnd) > 0
+      && imageUrl.startsWith('https://img.vietqr.io/image/');
+    if (!valid) {
+      image.removeAttribute('src');
+      section.hidden = true;
+      return;
+    }
+    image.src = imageUrl;
+    text('invoice-payment-amount', money.format(Number(payment.amountVnd)));
+    text('invoice-payment-owner', payment.ownerName || '—');
+    text('invoice-payment-account', `${payment.bankId || '—'} · ${payment.accountNumber || '—'}`);
+    text('invoice-payment-content', payment.transferContent || '—');
+    section.hidden = false;
+  }
+
   function showError(message) {
     loading.hidden = true;
     content.hidden = true;
@@ -142,6 +162,7 @@
     status.dataset.status = invoice.status || 'unpaid';
     renderDetails(data.details || {});
     renderMeterPhotos(data.meterPhotos || {});
+    renderPayment(data.payment || null);
     loading.hidden = true;
     errorPanel.hidden = true;
     content.hidden = false;
