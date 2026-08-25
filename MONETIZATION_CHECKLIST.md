@@ -160,20 +160,20 @@ Trạng thái ngày 24/08/2026:
 
 ### Công nợ và giao dịch
 
-- [ ] Thay trạng thái `paid` đơn giản bằng sổ giao dịch thanh toán.
-- [ ] Hỗ trợ thanh toán đủ, thanh toán một phần và nhiều lần.
+- [x] Thay trạng thái `paid` đơn giản bằng sổ giao dịch thanh toán.
+- [x] Hỗ trợ thanh toán đủ, thanh toán một phần và nhiều lần.
 - [ ] Hỗ trợ nợ cũ chuyển sang kỳ sau.
 - [ ] Hỗ trợ giảm giá, phụ thu và phí chậm thanh toán.
 - [ ] Hỗ trợ tiền cọc, khấu trừ cọc và hoàn cọc.
-- [ ] Hỗ trợ sửa/hủy giao dịch bằng bút toán điều chỉnh, không xóa dấu vết.
+- [x] Hỗ trợ sửa/hủy giao dịch bằng bút toán điều chỉnh, không xóa dấu vết.
 - [ ] Tạo phiếu thu có mã riêng cho từng lần thanh toán.
 - [ ] Hiển thị tuổi nợ: chưa đến hạn, quá hạn 1–7 ngày, 8–30 ngày và trên 30 ngày.
 
 ### VietQR và đối soát
 
 - [ ] Mỗi hóa đơn có nội dung chuyển khoản duy nhất, ngắn và dễ nhập.
-- [ ] QR luôn chứa đúng số tiền còn phải trả, không chỉ tổng hóa đơn ban đầu.
-- [ ] Cho phép chủ trọ xác nhận thủ công khi chưa kết nối ngân hàng.
+- [x] QR luôn chứa đúng số tiền còn phải trả, không chỉ tổng hóa đơn ban đầu.
+- [x] Cho phép chủ trọ xác nhận thủ công khi chưa kết nối ngân hàng.
 - [ ] Cho phép kết nối kênh thanh toán của từng chủ trọ để nhận webhook.
 - [ ] Tự động ghép giao dịch với hóa đơn theo mã, số tiền và tài khoản nhận.
 - [ ] Có danh sách giao dịch chưa ghép hoặc nghi ngờ để xử lý thủ công.
@@ -285,7 +285,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Backup và phục hồi đã được kiểm chứng.
 - [ ] Subscription và giới hạn gói được kiểm tra ở server.
 - [ ] Thanh toán gói TrọBill được ghi nhận tự động và không bị trùng.
-- [ ] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
+- [x] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.
 - [ ] Có ít nhất 3 khách hàng trả phí và sẵn sàng tiếp tục sử dụng.
 - [ ] Có quy trình hỗ trợ, xử lý sự cố và phản hồi bảo mật.
