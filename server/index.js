@@ -46,6 +46,7 @@ const rentPayments = require('./rent-payments');
 const deposits = require('./deposits');
 const rentPaymentChannels = require('./rent-payment-channels');
 const rentBankReconciliation = require('./rent-bank-reconciliation');
+const rentInvoiceLinks = require('./rent-invoice-links');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -140,6 +141,25 @@ app.post(
   '/api/rent-payments/transactions/:id/reverse',
   requireAuth,
   wrap(rentPayments.reverseTransaction)
+);
+app.post(
+  '/api/rent-invoices/:invoiceId/share-links',
+  requireAuth,
+  wrap(rentInvoiceLinks.createInvoiceLink)
+);
+app.get(
+  '/api/rent-invoices/:invoiceId/share-links',
+  requireAuth,
+  wrap(rentInvoiceLinks.listInvoiceLinks)
+);
+app.post(
+  '/api/rent-invoice-share-links/:id/revoke',
+  requireAuth,
+  wrap(rentInvoiceLinks.revokeInvoiceLink)
+);
+app.post(
+  '/api/public/rent-invoice-links/resolve',
+  wrap(rentInvoiceLinks.resolvePublicInvoiceLink)
 );
 app.get(
   '/api/rent-payment-channels',

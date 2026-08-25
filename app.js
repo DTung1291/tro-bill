@@ -53,6 +53,8 @@ let RENT_INVOICE_SYNC_PROMISE = null;
 let RENT_PAYMENT_CHANNELS = [];
 let ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
 let RENT_BANK_TRANSACTIONS = [];
+let ACTIVE_RENT_INVOICE_SHARE_ID = null;
+let RENT_INVOICE_SHARE_LINKS = [];
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -3607,9 +3609,145 @@ async function printBillPreview() {
   triggerPrint(`hoa-don-${filenameRoom}-${period}.pdf`);
 }
 
+function closeInvoiceShareModal() {
+  const modal = document.getElementById('invoice-share-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_RENT_INVOICE_SHARE_ID = null;
+  RENT_INVOICE_SHARE_LINKS = [];
+  const result = document.getElementById('invoice-share-result');
+  const url = document.getElementById('invoice-share-url');
+  if (result) result.hidden = true;
+  if (url) url.value = '';
+  syncModalScrollLock();
+}
+
+function invoiceShareStatusLabel(status) {
+  return ({ active: 'Đang hoạt động', expired: 'Đã hết hạn', revoked: 'Đã thu hồi' })[status]
+    || 'Không xác định';
+}
+
+function renderInvoiceShareLinks() {
+  const list = document.getElementById('invoice-share-list');
+  const empty = document.getElementById('invoice-share-empty');
+  if (!list || !empty) return;
+  list.textContent = '';
+  empty.hidden = RENT_INVOICE_SHARE_LINKS.length > 0;
+  for (const link of RENT_INVOICE_SHARE_LINKS) {
+    const item = document.createElement('article');
+    item.className = 'invoice-share-item';
+    item.innerHTML = `
+      <div class="invoice-share-item-main">
+        <div>
+          <strong>Link ••••${escapeHtml(link.tokenLast4 || '')}</strong>
+          <span class="invoice-share-status invoice-share-status--${escapeHtml(link.status)}">${escapeHtml(invoiceShareStatusLabel(link.status))}</span>
+        </div>
+        <p>Hết hạn: ${escapeHtml(subscriptionDateTime(link.expiresAt))} · ${Number(link.viewCount) || 0} lượt mở</p>
+        ${link.lastViewedAt ? `<p>Mở gần nhất: ${escapeHtml(subscriptionDateTime(link.lastViewedAt))}</p>` : ''}
+      </div>
+      ${link.status === 'active'
+        ? `<button type="button" class="btn btn--ghost btn--sm invoice-share-revoke" data-link-id="${Number(link.id)}">Thu hồi</button>`
+        : ''}`;
+    item.querySelector('.invoice-share-revoke')?.addEventListener('click', event => {
+      const linkId = Number(event.currentTarget.dataset.linkId);
+      showConfirm(
+        'Thu hồi liên kết này? Khách thuê sẽ không thể mở lại dù liên kết chưa hết hạn.',
+        async () => {
+          try {
+            await API.revokeRentInvoiceShareLink(linkId);
+            await loadInvoiceShareLinks();
+            showToast('Đã thu hồi liên kết hóa đơn.', 'success');
+          } catch (error) {
+            if (error.code === 401) return handleAuthExpired();
+            showToast(error.message || 'Không thu hồi được liên kết', 'error');
+          }
+        },
+        null,
+        'Thu hồi'
+      );
+    });
+    list.appendChild(item);
+  }
+}
+
+async function loadInvoiceShareLinks() {
+  if (!ACTIVE_RENT_INVOICE_SHARE_ID) return;
+  try {
+    const result = await API.getRentInvoiceShareLinks(ACTIVE_RENT_INVOICE_SHARE_ID);
+    RENT_INVOICE_SHARE_LINKS = Array.isArray(result.links) ? result.links : [];
+    renderInvoiceShareLinks();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tải được liên kết hóa đơn', 'error');
+  }
+}
+
+async function openInvoiceShareModal() {
+  if (!activeBillPreview) return;
+  const { room, period } = activeBillPreview;
+  let invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+  if (!invoice?.invoiceId) {
+    try {
+      await ensureRentInvoicesSynced();
+      invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+    } catch (error) {
+      showToast(error.message || 'Chưa tạo được hóa đơn để chia sẻ', 'error');
+      return;
+    }
+  }
+  if (!invoice?.invoiceId) {
+    showToast('Chưa tạo được hóa đơn để chia sẻ.', 'error');
+    return;
+  }
+  ACTIVE_RENT_INVOICE_SHARE_ID = Number(invoice.invoiceId);
+  RENT_INVOICE_SHARE_LINKS = [];
+  document.getElementById('invoice-share-subtitle').textContent = `${room.name} · ${periodLabel(period)}`;
+  document.getElementById('invoice-share-result').hidden = true;
+  document.getElementById('invoice-share-url').value = '';
+  closeBillPreview();
+  document.getElementById('invoice-share-modal').hidden = false;
+  syncModalScrollLock();
+  await loadInvoiceShareLinks();
+}
+
+async function createInvoiceShareLink(event) {
+  if (!ACTIVE_RENT_INVOICE_SHARE_ID) return;
+  const button = event.currentTarget;
+  const expiresInHours = Number(document.getElementById('invoice-share-expiry').value);
+  button.disabled = true;
+  try {
+    const result = await API.createRentInvoiceShareLink(
+      ACTIVE_RENT_INVOICE_SHARE_ID,
+      expiresInHours
+    );
+    document.getElementById('invoice-share-url').value = result.publicUrl || '';
+    document.getElementById('invoice-share-result').hidden = false;
+    await loadInvoiceShareLinks();
+    showToast('Đã tạo liên kết bảo mật. Hãy sao chép ngay.', 'success', 3500);
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được liên kết hóa đơn', 'error', 4000);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.getElementById('bill-preview-close-header').addEventListener('click', closeBillPreview);
 document.getElementById('bill-preview-close-footer').addEventListener('click', closeBillPreview);
 document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
+document.getElementById('bill-preview-share-link')?.addEventListener('click', openInvoiceShareModal);
+document.getElementById('invoice-share-create')?.addEventListener('click', createInvoiceShareLink);
+document.getElementById('invoice-share-refresh')?.addEventListener('click', loadInvoiceShareLinks);
+document.getElementById('invoice-share-copy')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(
+    document.getElementById('invoice-share-url')?.value,
+    'Đã sao chép liên kết hóa đơn.'
+  );
+});
+document.getElementById('invoice-share-close-header')?.addEventListener('click', closeInvoiceShareModal);
+document.getElementById('invoice-share-close-footer')?.addEventListener('click', closeInvoiceShareModal);
+document.getElementById('invoice-share-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeInvoiceShareModal();
+});
 document.getElementById('bill-preview-modal').addEventListener('click', event => {
   const copyReferenceButton = event.target instanceof Element
     ? event.target.closest('[data-copy-transfer-reference]')

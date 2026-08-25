@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=87" />
+  <link rel="stylesheet" href="style.css?v=88" />
 </head>
 
 <body>
@@ -897,8 +897,53 @@
       </div>
       <div class="bill-preview-content" id="bill-preview-content"></div>
       <div class="bill-preview-footer">
+        <button type="button" class="btn btn--ghost" id="bill-preview-share-link">🔗 Link khách thuê</button>
         <button type="button" class="btn btn--ghost" id="bill-preview-close-footer">Đóng</button>
         <button type="button" class="btn btn--primary" id="bill-preview-print">🖨️ In bill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Secure tenant invoice link -->
+  <div class="modal-overlay" id="invoice-share-modal" hidden>
+    <div class="modal invoice-share-modal">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Liên kết hóa đơn cho khách thuê</h2>
+          <p class="invoice-share-subtitle" id="invoice-share-subtitle"></p>
+        </div>
+        <button type="button" class="modal-close" id="invoice-share-close-header" aria-label="Đóng">✕</button>
+      </div>
+      <div class="invoice-share-body">
+        <div class="invoice-share-create">
+          <label class="form-label" for="invoice-share-expiry">Thời hạn liên kết</label>
+          <div class="invoice-share-create-row">
+            <select class="form-input" id="invoice-share-expiry">
+              <option value="24">24 giờ</option>
+              <option value="72" selected>3 ngày</option>
+              <option value="168">7 ngày</option>
+              <option value="720">30 ngày</option>
+            </select>
+            <button type="button" class="btn btn--primary" id="invoice-share-create">Tạo liên kết mới</button>
+          </div>
+          <p class="invoice-share-security-note">Token ngẫu nhiên chỉ hiện trong URL mới tạo. Có thể thu hồi bất cứ lúc nào.</p>
+        </div>
+        <div class="invoice-share-result" id="invoice-share-result" hidden>
+          <strong>Liên kết mới — hãy sao chép ngay</strong>
+          <div class="payment-channel-value-row">
+            <input type="text" class="inline-input" id="invoice-share-url" readonly autocomplete="off" />
+            <button type="button" class="btn btn--primary btn--sm" id="invoice-share-copy">Sao chép</button>
+          </div>
+        </div>
+        <div class="invoice-share-list-head">
+          <strong>Các liên kết đã tạo</strong>
+          <button type="button" class="btn btn--ghost btn--sm" id="invoice-share-refresh">Làm mới</button>
+        </div>
+        <div class="invoice-share-list" id="invoice-share-list"></div>
+        <p class="invoice-share-empty" id="invoice-share-empty">Chưa có liên kết nào.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--ghost" id="invoice-share-close-footer">Đóng</button>
       </div>
     </div>
   </div>
@@ -1295,13 +1340,13 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=87"></script>
+  <script src="api.js?v=88"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
 </body>
 
 </html>

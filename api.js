@@ -238,6 +238,28 @@ const API = (() => {
     );
   }
 
+  function createRentInvoiceShareLink(invoiceId, expiresInHours) {
+    return request(
+      'POST',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/share-links`,
+      { expiresInHours }
+    );
+  }
+
+  function getRentInvoiceShareLinks(invoiceId) {
+    return request(
+      'GET',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/share-links`
+    );
+  }
+
+  function revokeRentInvoiceShareLink(linkId) {
+    return request(
+      'POST',
+      `/api/rent-invoice-share-links/${encodeURIComponent(linkId)}/revoke`
+    );
+  }
+
   function getTenantDeposit(tenantId) {
     return request(
       'GET',
@@ -375,6 +397,9 @@ const API = (() => {
     getRentBankTransactions,
     matchRentBankTransaction,
     ignoreRentBankTransaction,
+    createRentInvoiceShareLink,
+    getRentInvoiceShareLinks,
+    revokeRentInvoiceShareLink,
     getTenantDeposit,
     createDepositTransaction,
     reverseDepositTransaction,

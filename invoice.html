@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+  <title>Hóa đơn TrọBill</title>
+  <link rel="stylesheet" href="invoice-public.css?v=1" />
+</head>
+<body>
+  <main class="public-invoice-shell">
+    <header class="public-invoice-brand">
+      <span class="public-invoice-logo">🏠</span>
+      <div>
+        <strong>TrọBill</strong>
+        <p>Hóa đơn dành cho khách thuê</p>
+      </div>
+    </header>
+
+    <section class="public-invoice-card" id="invoice-loading">
+      <div class="public-invoice-spinner" aria-hidden="true"></div>
+      <h1>Đang kiểm tra liên kết…</h1>
+      <p>Vui lòng chờ trong giây lát.</p>
+    </section>
+
+    <section class="public-invoice-card public-invoice-error" id="invoice-error" hidden>
+      <span>⚠️</span>
+      <h1>Không mở được hóa đơn</h1>
+      <p id="invoice-error-message">Liên kết không hợp lệ hoặc đã hết hạn.</p>
+    </section>
+
+    <article class="public-invoice-card" id="invoice-content" hidden>
+      <div class="public-invoice-heading">
+        <div>
+          <p>Hóa đơn tiền trọ</p>
+          <h1 id="invoice-room">—</h1>
+        </div>
+        <span class="public-invoice-status" id="invoice-status">—</span>
+      </div>
+      <dl class="public-invoice-meta">
+        <div><dt>Kỳ hóa đơn</dt><dd id="invoice-period">—</dd></div>
+        <div><dt>Hạn thanh toán</dt><dd id="invoice-due-date">—</dd></div>
+        <div><dt>Mã chuyển khoản</dt><dd><code id="invoice-transfer-content">—</code></dd></div>
+        <div><dt>Liên kết hết hạn</dt><dd id="invoice-link-expiry">—</dd></div>
+      </dl>
+      <div class="public-invoice-summary">
+        <div><span>Tổng hóa đơn</span><strong id="invoice-total">—</strong></div>
+        <div><span>Đã thanh toán</span><strong id="invoice-paid">—</strong></div>
+        <div class="public-invoice-summary-due"><span>Còn lại</span><strong id="invoice-remaining">—</strong></div>
+      </div>
+      <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
+    </article>
+  </main>
+  <script src="invoice-public.js?v=1"></script>
+</body>
+</html>
