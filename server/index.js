@@ -42,6 +42,7 @@ const { paymentWebhook } = require('./payment-webhook');
 const paymentHistory = require('./subscription-payment-history');
 const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
+const rentPayments = require('./rent-payments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -123,6 +124,19 @@ app.post(
 );
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
+app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));
+app.post('/api/rent-payments/settle', requireAuth, wrap(rentPayments.settleInvoice));
+app.post('/api/rent-payments/migrate-legacy', requireAuth, wrap(rentPayments.migrateLegacyPaid));
+app.get(
+  '/api/rent-payments/invoices/:invoiceId/transactions',
+  requireAuth,
+  wrap(rentPayments.listInvoiceTransactions)
+);
+app.post(
+  '/api/rent-payments/transactions/:id/reverse',
+  requireAuth,
+  wrap(rentPayments.reverseTransaction)
+);
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));

@@ -151,6 +151,34 @@ const API = (() => {
     );
   }
 
+  function getRentPaymentSummaries(period = '') {
+    const query = period ? `?period=${encodeURIComponent(period)}` : '';
+    return request('GET', `/api/rent-payments/summary${query}`);
+  }
+
+  function settleRentInvoice(input) {
+    return request('POST', '/api/rent-payments/settle', input);
+  }
+
+  function migrateLegacyRentPayments(entries) {
+    return request('POST', '/api/rent-payments/migrate-legacy', { entries });
+  }
+
+  function getRentPaymentTransactions(invoiceId) {
+    return request(
+      'GET',
+      `/api/rent-payments/invoices/${encodeURIComponent(invoiceId)}/transactions`
+    );
+  }
+
+  function reverseRentPaymentTransaction(transactionId, reason) {
+    return request(
+      'POST',
+      `/api/rent-payments/transactions/${encodeURIComponent(transactionId)}/reverse`,
+      { reason }
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -255,6 +283,11 @@ const API = (() => {
     getSubscriptionReceipt,
     createSubscriptionRefundRequest,
     cancelSubscriptionRefundRequest,
+    getRentPaymentSummaries,
+    settleRentInvoice,
+    migrateLegacyRentPayments,
+    getRentPaymentTransactions,
+    reverseRentPaymentTransaction,
     privacy,
     getConfig,
     admin

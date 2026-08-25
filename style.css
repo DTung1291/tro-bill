@@ -268,6 +268,7 @@ body.modal-open {
 .badge--ok    { background: rgba(16,185,129,.15); color: var(--green); }
 .badge--empty { background: rgba(136,146,164,.1);  color: var(--text-muted); }
 .badge--paid  { background: rgba(108,99,255,.15);  color: var(--primary); }
+.badge--partial { background: rgba(245,158,11,.15); color: #b45309; }
 
 /* ===========================
    SETTINGS
@@ -1334,6 +1335,111 @@ body.modal-open {
   background: var(--bg2);
 }
 
+/* Append-only rent payment ledger */
+.modal.rent-payment-modal {
+  max-width: 760px;
+  max-height: calc(100dvh - 48px);
+}
+.rent-payment-modal-body {
+  min-width: 0;
+  padding: 20px 22px;
+}
+.rent-payment-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.rent-payment-summary-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rent-payment-summary-grid span {
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+.rent-payment-summary-grid strong { overflow-wrap: anywhere; }
+.rent-payment-summary-grid > div:last-child strong { color: var(--primary); }
+.rent-payment-ledger-note {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.rent-payment-transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rent-payment-transaction {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.rent-payment-transaction.is-reversed { opacity: .72; }
+.rent-payment-transaction-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.rent-payment-transaction-main > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.rent-payment-transaction-main > span {
+  color: var(--text-muted);
+  font-size: .76rem;
+}
+.rent-payment-transaction-main p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: .82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.rent-payment-transaction-side {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.rent-payment-transaction-side .is-positive { color: var(--green); }
+.rent-payment-transaction-side .is-negative { color: var(--red); }
+.rent-payment-empty {
+  margin: 0;
+  padding: 28px 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.rent-payment-error { color: var(--red); }
+.rent-payment-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
 @media (max-width: 760px) {
   #bill-preview-modal { padding: 8px; }
   .modal.bill-preview-modal { max-height: calc(100dvh - 16px); }
@@ -1341,6 +1447,9 @@ body.modal-open {
   .bill-preview-layout { grid-template-columns: 1fr; gap: 16px; }
   .bill-preview-qr-panel { order: 2; }
   .bill-preview-footer { padding: 14px 16px; }
+  #rent-payment-modal { padding: 8px; }
+  .modal.rent-payment-modal { max-height: calc(100dvh - 16px); }
+  .rent-payment-modal-body { padding: 16px; }
 }
 
 @media (max-width: 480px) {
@@ -1356,6 +1465,12 @@ body.modal-open {
   .bill-preview-qr-panel { padding: 14px; }
   .bill-preview-qr-empty { min-height: 200px; }
   .bill-preview-footer .btn { flex: 1; justify-content: center; }
+  .rent-payment-summary-grid { grid-template-columns: 1fr; }
+  .rent-payment-summary-grid > div { flex-direction: row; justify-content: space-between; }
+  .rent-payment-transaction { flex-direction: column; }
+  .rent-payment-transaction-side { width: 100%; align-items: stretch; }
+  .rent-payment-transaction-side > strong { text-align: right; }
+  .rent-payment-transaction-side .btn { justify-content: center; }
 }
 
 /* ===========================

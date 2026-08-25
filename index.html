@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=76" />
+  <link rel="stylesheet" href="style.css?v=78" />
 </head>
 
 <body>
@@ -837,6 +837,20 @@
     </div>
   </div>
 
+  <!-- MODAL: Append-only rent payment ledger -->
+  <div class="modal-overlay" id="rent-payment-modal" hidden>
+    <div class="modal rent-payment-modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="rent-payment-modal-title">Sổ giao dịch tiền thuê</h2>
+        <button type="button" class="modal-close" id="rent-payment-modal-close-header" aria-label="Đóng">✕</button>
+      </div>
+      <div class="rent-payment-modal-body" id="rent-payment-modal-body"></div>
+      <div class="rent-payment-modal-footer">
+        <button type="button" class="btn btn--ghost" id="rent-payment-modal-close-footer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Edit Old Meter Reading -->
   <div class="modal-overlay" id="edit-old-modal" hidden>
     <div class="modal" style="max-width:420px">
@@ -1126,10 +1140,10 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=76"></script>
+  <script src="api.js?v=78"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
-  <script src="app.js?v=76"></script>
+  <script src="app.js?v=78"></script>
 </body>
 
 </html>

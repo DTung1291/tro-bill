@@ -11,7 +11,7 @@
 // ============================================================
 const STATE = {
   rooms: [],            // Room[]
-  billingData: {},      // { "YYYY-MM": { roomId: { electricNew, waterUnits, paid } } }
+  billingData: {},      // paid chỉ còn là cờ legacy/import; ledger server là nguồn thật
   expenses: {},         // { "YYYY-MM": Expense[] } chi thực tế trả nhà cung cấp
   settings: {
     deduction: 450000,   // Chi phí khấu trừ hàng tháng
@@ -44,6 +44,46 @@ let SERVER_SUBSCRIPTION_PAYMENTS = [];
 let CURRENT_SUBSCRIPTION_ORDER = null;
 let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
+let RENT_INVOICE_SUMMARIES = new Map();
+let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
+
+function rentInvoiceKey(roomId, period) {
+  return `${period}::${roomId}`;
+}
+
+function setRentInvoiceSummaries(invoices) {
+  RENT_INVOICE_SUMMARIES = new Map(
+    (Array.isArray(invoices) ? invoices : []).map((invoice) => [
+      rentInvoiceKey(invoice.roomId, invoice.period),
+      invoice
+    ])
+  );
+}
+
+function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = false) {
+  const total = Math.max(0, Number(invoiceTotalVnd) || 0);
+  const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period)) || null;
+  const paidAmount = invoice
+    ? Math.max(0, Number(invoice.paidAmountVnd) || 0)
+    : (legacyPaid ? total : 0);
+  const remaining = Math.max(0, total - paidAmount);
+  let status = paidAmount > 0 ? 'partial' : 'unpaid';
+  if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
+  return {
+    invoice,
+    invoiceId: invoice ? Number(invoice.invoiceId) : null,
+    paidAmountVnd: paidAmount,
+    remainingVnd: remaining,
+    status,
+    settled: remaining === 0
+  };
+}
+
+function isInvoiceSettled(roomId, period, legacyPaid = false) {
+  const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period));
+  if (!invoice) return !!legacyPaid;
+  return Number(invoice.paidAmountVnd) >= Number(invoice.invoiceTotalVnd);
+}
 
 function applyServerEntitlements(value) {
   if (!value || !value.plan || !value.features) {
@@ -626,6 +666,8 @@ function clearSensitiveStateFromMemory() {
   };
   STATE.currentPeriod = null;
   STATE.history = [];
+  RENT_INVOICE_SUMMARIES = new Map();
+  ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 }
 
 function saveState() {
@@ -746,6 +788,232 @@ function loadState(savedObj) {
   } catch (e) {
     console.warn('Could not load saved state', e);
     return false;
+  }
+}
+
+function syncLegacyPaidFlagsFromLedger() {
+  for (const [period, byRoom] of Object.entries(STATE.billingData || {})) {
+    for (const [roomId, rec] of Object.entries(byRoom || {})) {
+      const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period));
+      if (!invoice) continue;
+      const room = STATE.rooms.find((item) => item.id === roomId);
+      const bill = room ? calcBill(room, rec, period) : null;
+      const total = bill ? bill.total : Number(invoice.invoiceTotalVnd) || 0;
+      rec.paid = rentInvoicePaymentState(roomId, period, total, false).settled;
+    }
+  }
+  for (const history of STATE.history || []) {
+    for (const bill of history.bills || []) {
+      const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(bill.roomId, history.period));
+      if (!invoice) continue;
+      bill.paid = rentInvoicePaymentState(
+        bill.roomId,
+        history.period,
+        bill.total,
+        false
+      ).settled;
+    }
+  }
+}
+
+function legacyPaidInvoicesForMigration() {
+  const entries = new Map();
+  for (const history of STATE.history || []) {
+    for (const bill of history.bills || []) {
+      const key = rentInvoiceKey(bill.roomId, history.period);
+      if (!bill.paid || RENT_INVOICE_SUMMARIES.has(key) || !(Number(bill.total) > 0)) continue;
+      entries.set(key, {
+        roomId: bill.roomId,
+        roomName: bill.roomName || '',
+        period: history.period,
+        invoiceTotalVnd: Math.round(Number(bill.total))
+      });
+    }
+  }
+  for (const [period, byRoom] of Object.entries(STATE.billingData || {})) {
+    for (const [roomId, rec] of Object.entries(byRoom || {})) {
+      const key = rentInvoiceKey(roomId, period);
+      if (!rec?.paid || RENT_INVOICE_SUMMARIES.has(key) || entries.has(key)) continue;
+      const room = STATE.rooms.find((item) => item.id === roomId);
+      const bill = room ? calcBill(room, rec, period) : null;
+      if (!room || !bill || !(Number(bill.total) > 0)) continue;
+      entries.set(key, {
+        roomId,
+        roomName: room.name || '',
+        period,
+        invoiceTotalVnd: Math.round(Number(bill.total))
+      });
+    }
+  }
+  return [...entries.values()];
+}
+
+async function refreshRentInvoiceSummaries() {
+  const result = await API.getRentPaymentSummaries();
+  setRentInvoiceSummaries(result.invoices || []);
+  syncLegacyPaidFlagsFromLedger();
+  return result.invoices || [];
+}
+
+async function migrateLegacyPaidFlags() {
+  const entries = legacyPaidInvoicesForMigration();
+  if (entries.length === 0) {
+    syncLegacyPaidFlagsFromLedger();
+    return;
+  }
+  await API.migrateLegacyRentPayments(entries);
+  await refreshRentInvoiceSummaries();
+}
+
+function paymentStatusLabel(payment) {
+  if (payment.settled) return 'Đã thu đủ';
+  if (payment.paidAmountVnd > 0) return `Còn ${fmt(payment.remainingVnd)}`;
+  return 'Chưa thu';
+}
+
+function renderRentPaymentViews() {
+  renderDashboard();
+  renderReport();
+  renderHistory();
+  if (activeBillPreview && !document.getElementById('bill-preview-modal')?.hidden) {
+    const { room, rec, bill, period } = activeBillPreview;
+    document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(
+      room,
+      rec,
+      bill,
+      period
+    );
+  }
+}
+
+async function recordRentInvoiceFull({ roomId, roomName, period, total }) {
+  const payment = rentInvoicePaymentState(roomId, period, total, false);
+  if (payment.settled) {
+    if (payment.invoiceId) await openRentPaymentLedger(payment.invoiceId);
+    return;
+  }
+  showConfirm(
+    `Xác nhận đã thu ${fmt(payment.remainingVnd)} của ${roomName} cho ${periodLabel(period)}? Giao dịch sẽ được lưu vào sổ và không thể xóa trực tiếp.`,
+    async () => {
+      try {
+        const result = await API.settleRentInvoice({
+          roomId,
+          roomName,
+          period,
+          invoiceTotalVnd: Math.round(Number(total) || 0),
+          note: 'Chủ trọ xác nhận đã thu đủ',
+          idempotencyKey: `manual:${uuid()}`,
+          occurredAt: new Date().toISOString()
+        });
+        await refreshRentInvoiceSummaries();
+        renderRentPaymentViews();
+        triggerHaptic('success');
+        showToast(`Đã ghi nhận thu ${fmt(result.transaction?.amountVnd || payment.remainingVnd)}`, 'success');
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không ghi nhận được giao dịch', 'error', 4000);
+      }
+    },
+    null,
+    'Ghi nhận đã thu'
+  );
+}
+
+function rentPaymentSourceLabel(source) {
+  const labels = {
+    manual_full: 'Chủ trọ ghi nhận',
+    manual_reversal: 'Hoàn tác thủ công',
+    legacy_paid: 'Chuyển từ dữ liệu cũ'
+  };
+  return labels[source] || source || 'Không xác định';
+}
+
+function closeRentPaymentLedger() {
+  const modal = document.getElementById('rent-payment-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
+}
+
+function renderRentPaymentLedgerContent(result) {
+  const body = document.getElementById('rent-payment-modal-body');
+  const title = document.getElementById('rent-payment-modal-title');
+  if (!body || !title) return;
+  const invoice = result.invoice;
+  const transactions = Array.isArray(result.transactions) ? result.transactions : [];
+  title.textContent = `Giao dịch ${invoice.roomName || invoice.roomId} – ${invoice.period}`;
+  body.innerHTML = `
+    <div class="rent-payment-summary-grid">
+      <div><span>Tổng hóa đơn</span><strong>${fmt(invoice.invoiceTotalVnd)}</strong></div>
+      <div><span>Đã thu</span><strong>${fmt(invoice.paidAmountVnd)}</strong></div>
+      <div><span>Còn lại</span><strong>${fmt(invoice.remainingVnd)}</strong></div>
+    </div>
+    <div class="rent-payment-ledger-note">
+      Sổ giao dịch chỉ thêm dòng mới. Hoàn tác sẽ tạo một dòng âm và giữ nguyên giao dịch gốc để đối soát.
+    </div>
+    <div class="rent-payment-transaction-list">
+      ${transactions.length === 0 ? '<p class="rent-payment-empty">Chưa có giao dịch.</p>' : transactions.map(transaction => {
+        const isReversal = transaction.entryType === 'reversal';
+        const amountClass = Number(transaction.amountVnd) < 0 ? 'is-negative' : 'is-positive';
+        const canReverse = transaction.entryType === 'payment' && !transaction.isReversed;
+        return `
+          <article class="rent-payment-transaction ${transaction.isReversed ? 'is-reversed' : ''}">
+            <div class="rent-payment-transaction-main">
+              <div>
+                <strong>${isReversal ? 'Hoàn tác giao dịch' : 'Thu tiền'}</strong>
+                ${transaction.isReversed ? '<span class="badge badge--empty">Đã hoàn tác</span>' : ''}
+              </div>
+              <span>${escapeHtml(rentPaymentSourceLabel(transaction.source))} · ${new Date(transaction.occurredAt).toLocaleString('vi-VN')}</span>
+              ${transaction.note ? `<p>${escapeHtml(transaction.note)}</p>` : ''}
+            </div>
+            <div class="rent-payment-transaction-side">
+              <strong class="${amountClass}">${Number(transaction.amountVnd) > 0 ? '+' : ''}${fmt(transaction.amountVnd)}</strong>
+              ${canReverse ? `<button type="button" class="btn btn--danger btn--sm" data-reverse-rent-payment="${transaction.id}">Hoàn tác</button>` : ''}
+            </div>
+          </article>`;
+      }).join('')}
+    </div>`;
+
+  body.querySelectorAll('[data-reverse-rent-payment]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const reason = window.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', '');
+      if (reason === null) return;
+      const normalizedReason = reason.trim();
+      if (normalizedReason.length < 10 || normalizedReason.length > 500) {
+        showToast('Lý do hoàn tác phải từ 10 đến 500 ký tự', 'error');
+        return;
+      }
+      button.disabled = true;
+      try {
+        await API.reverseRentPaymentTransaction(button.dataset.reverseRentPayment, normalizedReason);
+        await refreshRentInvoiceSummaries();
+        renderRentPaymentViews();
+        showToast('Đã hoàn tác bằng một giao dịch âm', 'success');
+        await openRentPaymentLedger(invoice.invoiceId);
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        button.disabled = false;
+        showToast(error.message || 'Không hoàn tác được giao dịch', 'error', 4000);
+      }
+    });
+  });
+}
+
+async function openRentPaymentLedger(invoiceId) {
+  const parsedInvoiceId = Number(invoiceId);
+  if (!Number.isInteger(parsedInvoiceId) || parsedInvoiceId <= 0) return;
+  const modal = document.getElementById('rent-payment-modal');
+  const body = document.getElementById('rent-payment-modal-body');
+  if (!modal || !body) return;
+  ACTIVE_RENT_PAYMENT_INVOICE_ID = parsedInvoiceId;
+  body.innerHTML = '<p class="rent-payment-empty">Đang tải giao dịch…</p>';
+  modal.hidden = false;
+  try {
+    const result = await API.getRentPaymentTransactions(parsedInvoiceId);
+    if (ACTIVE_RENT_PAYMENT_INVOICE_ID !== parsedInvoiceId) return;
+    renderRentPaymentLedgerContent(result);
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    body.innerHTML = `<p class="rent-payment-empty rent-payment-error">${escapeHtml(error.message || 'Không tải được giao dịch')}</p>`;
   }
 }
 
@@ -1090,7 +1358,8 @@ function getElectricOld(room, period) {
   }
   const prevPeriod = getPreviousPeriodKey(period);
   const prevRec = getPeriodRecord(room.id, prevPeriod);
-  if (prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '') {
+  if (prevRec && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+      && prevRec.electricNew !== undefined && prevRec.electricNew !== '') {
     return Number(prevRec.electricNew);
   }
   return room.electricPrev || 0;
@@ -1101,7 +1370,8 @@ function getLatestPaidElectric(room) {
   let latestPeriod = '';
   for (const period in STATE.billingData) {
     const rec = STATE.billingData[period]?.[room.id];
-    if (rec && rec.paid && rec.electricNew !== undefined && rec.electricNew !== '') {
+    if (rec && isInvoiceSettled(room.id, period, rec.paid)
+        && rec.electricNew !== undefined && rec.electricNew !== '') {
       if (!latestPeriod || period.localeCompare(latestPeriod) > 0) {
         latestPeriod = period;
         latestVal = Number(rec.electricNew);
@@ -1118,7 +1388,8 @@ function getWaterOld(room, period) {
   }
   const prevPeriod = getPreviousPeriodKey(period);
   const prevRec = getPeriodRecord(room.id, prevPeriod);
-  if (prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null) {
+  if (prevRec && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+      && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null) {
     return Number(prevRec.waterNew);
   }
   return room.waterPrev || 0;
@@ -1129,7 +1400,8 @@ function getLatestPaidWater(room) {
   let latestPeriod = '';
   for (const period in STATE.billingData) {
     const rec = STATE.billingData[period]?.[room.id];
-    if (rec && rec.paid && rec.waterNew !== undefined && rec.waterNew !== '' && rec.waterNew !== null) {
+    if (rec && isInvoiceSettled(room.id, period, rec.paid)
+        && rec.waterNew !== undefined && rec.waterNew !== '' && rec.waterNew !== null) {
       if (!latestPeriod || period.localeCompare(latestPeriod) > 0) {
         latestPeriod = period;
         latestVal = Number(rec.waterNew);
@@ -1151,10 +1423,12 @@ function openEditOldModal(roomId, targetType = 'elec') {
   const prevRec = getPeriodRecord(roomId, prevPeriod);
   let autoVal = 0;
   if (isElec) {
-    autoVal = (prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '')
+    autoVal = (prevRec && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+      && prevRec.electricNew !== undefined && prevRec.electricNew !== '')
       ? Number(prevRec.electricNew) : (room.electricPrev || 0);
   } else {
-    autoVal = (prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null)
+    autoVal = (prevRec && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+      && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null)
       ? Number(prevRec.waterNew) : (room.waterPrev || 0);
   }
 
@@ -1597,12 +1871,15 @@ function renderDashboard() {
   for (const room of STATE.rooms) {
     const rec = getPeriodRecord(room.id, period);
     const bill = rec ? calcBill(room, rec, period) : null;
+    const payment = bill
+      ? rentInvoicePaymentState(room.id, period, bill.total, rec?.paid)
+      : null;
 
     if (bill) {
       totalAmt   += bill.total;
       totalElec  += bill.electricAmt;
       totalWater += bill.waterAmt;
-      if (rec.paid) totalPaid += bill.total;
+      totalPaid += Math.min(bill.total, payment.paidAmountVnd);
       entered++;
     }
 
@@ -1618,8 +1895,8 @@ function renderDashboard() {
       </div>
       <div style="display:flex;align-items:center;gap:12px">
         <div class="room-status-total">${bill ? fmt(bill.total) : '—'}</div>
-        <span class="badge ${rec?.paid ? 'badge--paid' : bill ? 'badge--ok' : 'badge--empty'}">
-          ${rec?.paid ? 'Đã thu' : bill ? 'Chưa thu' : 'Chờ nhập'}
+        <span class="badge ${payment?.settled ? 'badge--paid' : payment?.paidAmountVnd > 0 ? 'badge--partial' : bill ? 'badge--ok' : 'badge--empty'}">
+          ${payment ? paymentStatusLabel(payment) : 'Chờ nhập'}
         </span>
       </div>
     `;
@@ -2143,7 +2420,10 @@ function renderBilling() {
     // Check if electricOld is auto-rolled, overridden, or static
     const prevPeriod = getPreviousPeriodKey(period);
     const prevRec = getPeriodRecord(room.id, prevPeriod);
-    const isAutoRolled = prevRec && prevRec.paid && prevRec.electricNew !== undefined && prevRec.electricNew !== '';
+    const isAutoRolled = prevRec
+      && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+      && prevRec.electricNew !== undefined
+      && prevRec.electricNew !== '';
     const isElecOverridden = rec && rec.electricOldOverride !== undefined && rec.electricOldOverride !== '' && rec.electricOldOverride !== null;
     
     let electricOldSubText = isAutoRolled ? '↑ tự động' : '';
@@ -2159,7 +2439,11 @@ function renderBilling() {
 
     let waterCellHtml = '';
     if (room.waterType === 'khối') {
-      const isWaterAutoRolled = prevRec && prevRec.paid && prevRec.waterNew !== undefined && prevRec.waterNew !== '' && prevRec.waterNew !== null;
+      const isWaterAutoRolled = prevRec
+        && isInvoiceSettled(room.id, prevPeriod, prevRec.paid)
+        && prevRec.waterNew !== undefined
+        && prevRec.waterNew !== ''
+        && prevRec.waterNew !== null;
       const isWaterOverridden = rec && rec.waterOldOverride !== undefined && rec.waterOldOverride !== '' && rec.waterOldOverride !== null;
       
       let waterOldSubText = isWaterAutoRolled ? '↑ tự động' : '';
@@ -2531,8 +2815,9 @@ function billPreviewDetailRows(room, rec, bill, period) {
 }
 
 function buildBillPreviewContent(room, rec, bill, period) {
-  const paidAmount = rec.paid ? bill.total : 0;
-  const remaining = Math.max(0, bill.total - paidAmount);
+  const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
+  const paidAmount = Math.min(bill.total, payment.paidAmountVnd);
+  const remaining = payment.remainingVnd;
   const transferContent = getVietQrDescription(room, period);
   const qrUrl = remaining > 0 ? genVietQrUrl(room, bill, period, remaining) : null;
   const hasBankConfig = !!(STATE.settings.bankId && STATE.settings.bankAccount);
@@ -2659,6 +2944,11 @@ document.getElementById('bill-preview-print').addEventListener('click', printBil
 document.getElementById('bill-preview-modal').addEventListener('click', event => {
   if (event.target === document.getElementById('bill-preview-modal')) closeBillPreview();
 });
+document.getElementById('rent-payment-modal-close-header')?.addEventListener('click', closeRentPaymentLedger);
+document.getElementById('rent-payment-modal-close-footer')?.addEventListener('click', closeRentPaymentLedger);
+document.getElementById('rent-payment-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentPaymentLedger();
+});
 
 function renderReport() {
   const period = STATE.currentPeriod;
@@ -2682,6 +2972,7 @@ function renderReport() {
   if (summaryEl) summaryEl.style.display = 'flex';
 
   let totalRevenue = 0;
+  let totalPaid = 0;
   let paidCount = 0;
   const activeBills = [];
 
@@ -2690,13 +2981,15 @@ function renderReport() {
     if (!rec) continue;
     const bill = calcBill(room, rec, period);
     if (!bill) continue;
+    const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
     totalRevenue += bill.total;
-    if (rec.paid) paidCount++;
-    activeBills.push({ room, rec, bill });
+    totalPaid += Math.min(bill.total, payment.paidAmountVnd);
+    if (payment.settled) paidCount++;
+    activeBills.push({ room, rec, bill, payment });
   }
 
   const deduction = STATE.settings.deduction ?? 450000;
-  const netRevenue = totalRevenue - deduction;
+  const netRevenue = totalPaid - deduction;
 
   if (summaryEl) {
     summaryEl.innerHTML = `
@@ -2715,8 +3008,13 @@ function renderReport() {
     `;
   }
 
-  for (const { room, rec, bill } of activeBills) {
-    const paid = rec.paid || false;
+  for (const { room, rec, bill, payment } of activeBills) {
+    const paid = payment.settled;
+    const paymentButtonLabel = paid
+      ? payment.invoiceId ? '🧾 Đã thu · Xem giao dịch' : '💰 Chuyển trạng thái cũ vào sổ'
+      : payment.paidAmountVnd > 0
+        ? `💰 Ghi nhận thu nốt ${fmt(payment.remainingVnd)}`
+        : '💰 Ghi nhận đã thu đủ';
     const utilityOnly = isUtilityOnlyRecord(rec);
     const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
     const electricOld = getElectricOld(room, period);
@@ -2815,8 +3113,8 @@ function renderReport() {
           <div style="color:var(--primary)">${fmt(bill.total)}</div>
         </div>
         <div class="bill-footer">
-          <button class="btn btn--paid btn--sm ${paid ? 'is-paid' : ''}" data-paid-room="${room.id}">
-            ${paid ? '✅ Đã thu tiền' : '💰 Đánh dấu đã thu'}
+          <button class="btn ${paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-paid-room="${room.id}" ${bill.total <= 0 ? 'disabled' : ''}>
+            ${bill.total <= 0 ? 'Không có khoản phải thu' : paymentButtonLabel}
           </button>
           ${billPreviewBtnHtml}
           <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
@@ -2825,15 +3123,18 @@ function renderReport() {
       </div>
     `;
 
-    card.querySelector(`[data-paid-room]`).addEventListener('click', e => {
+    card.querySelector(`[data-paid-room]`).addEventListener('click', async e => {
       triggerHaptic('light');
-      const rId = e.target.dataset.paidRoom;
-      if (!STATE.billingData[period]) STATE.billingData[period] = {};
-      if (!STATE.billingData[period][rId]) STATE.billingData[period][rId] = {};
-      STATE.billingData[period][rId].paid = !STATE.billingData[period][rId].paid;
-      saveState();
-      renderReport();
-      renderDashboard();
+      if (payment.settled && payment.invoiceId) {
+        await openRentPaymentLedger(payment.invoiceId);
+        return;
+      }
+      await recordRentInvoiceFull({
+        roomId: room.id,
+        roomName: room.name,
+        period,
+        total: bill.total
+      });
     });
 
     card.querySelector(`[data-bill-preview-room="${room.id}"]`).addEventListener('click', () => {
@@ -2999,7 +3300,7 @@ function saveMonth() {
         manageFee: bill.manageAmt || 0,
         total: bill.total,
         utilityOnly: isUtilityOnlyRecord(rec),
-        paid: !!rec.paid
+        paid: rentInvoicePaymentState(room.id, period, bill.total, rec.paid).settled
       };
     })
   };
@@ -3057,8 +3358,16 @@ function renderHistory() {
     card.className = 'history-month-card';
     
     const totalRevenue = record.bills.reduce((sum, b) => sum + (b.total || 0), 0);
-    const netRevenue = totalRevenue - (record.deduction || 0);
-    const paidCount = record.bills.filter(b => b.paid).length;
+    const paymentStates = new Map(record.bills.map(b => [
+      b.roomId,
+      rentInvoicePaymentState(b.roomId, record.period, b.total, b.paid)
+    ]));
+    const collectedRevenue = record.bills.reduce((sum, b) => {
+      const payment = paymentStates.get(b.roomId);
+      return sum + Math.min(Number(b.total) || 0, payment?.paidAmountVnd || 0);
+    }, 0);
+    const netRevenue = collectedRevenue - (record.deduction || 0);
+    const paidCount = record.bills.filter(b => paymentStates.get(b.roomId)?.settled).length;
     const totalRooms = record.bills.length;
 
     card.innerHTML = `
@@ -3080,6 +3389,7 @@ function renderHistory() {
         </div>
         <div class="history-rooms-list">
           ${record.bills.map(b => {
+            const payment = paymentStates.get(b.roomId);
             const waterUnit = b.waterType === 'người' ? 'người' : 'khối';
             const waterDesc = b.waterType === 'khối' && b.waterNew !== undefined && b.waterNew !== null && b.waterPrev !== undefined && b.waterPrev !== null
               ? `💧 ${fmtNum(b.waterUnits)} khối (${fmtNum(b.waterNew)} - ${fmtNum(b.waterPrev)})`
@@ -3099,8 +3409,8 @@ function renderHistory() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <span class="history-room-total">${fmt(b.total)}</span>
-                <button class="btn ${b.paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-history-paid="${record.period}:${b.roomId}">
-                  ${b.paid ? 'Đã thu' : 'Chưa thu'}
+                <button class="btn ${payment.settled ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-history-paid data-history-period="${record.period}" data-history-room="${escapeHtml(b.roomId)}" ${Number(b.total) <= 0 ? 'disabled' : ''}>
+                  ${Number(b.total) <= 0 ? 'Không phải thu' : payment.invoiceId ? (payment.settled ? 'Xem giao dịch' : paymentStatusLabel(payment)) : payment.settled ? 'Chuyển vào sổ' : 'Ghi nhận đã thu'}
                 </button>
               </div>
             </div>
@@ -3124,10 +3434,29 @@ function renderHistory() {
     });
 
     card.querySelectorAll('[data-history-paid]').forEach(btn => {
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', async e => {
         e.stopPropagation();
-        const [periodVal, roomIdVal] = e.target.dataset.historyPaid.split(':');
-        toggleHistoryPaid(periodVal, roomIdVal);
+        const periodVal = e.currentTarget.dataset.historyPeriod;
+        const roomIdVal = e.currentTarget.dataset.historyRoom;
+        const historyRecord = STATE.history.find(item => item.period === periodVal);
+        const historyBill = historyRecord?.bills.find(item => item.roomId === roomIdVal);
+        if (!historyBill) return;
+        const payment = rentInvoicePaymentState(
+          roomIdVal,
+          periodVal,
+          historyBill.total,
+          historyBill.paid
+        );
+        if (payment.settled && payment.invoiceId) {
+          await openRentPaymentLedger(payment.invoiceId);
+          return;
+        }
+        await recordRentInvoiceFull({
+          roomId: roomIdVal,
+          roomName: historyBill.roomName,
+          period: periodVal,
+          total: historyBill.total
+        });
       });
     });
 
@@ -3150,27 +3479,6 @@ function renderHistory() {
     });
 
     listEl.appendChild(card);
-  }
-}
-
-function toggleHistoryPaid(period, roomId) {
-  const hRec = STATE.history.find(h => h.period === period);
-  if (hRec) {
-    const bill = hRec.bills.find(b => b.roomId === roomId);
-    if (bill) {
-      bill.paid = !bill.paid;
-      // Sync back to current period billingData if applicable
-      if (STATE.billingData[period]?.[roomId]) {
-        STATE.billingData[period][roomId].paid = bill.paid;
-      }
-      saveState();
-      renderHistory();
-      if (period === STATE.currentPeriod) {
-        renderDashboard();
-        renderReport();
-      }
-      showToast('Đã cập nhật trạng thái', 'success');
-    }
   }
 }
 
@@ -4619,11 +4927,15 @@ function handleAuthExpired() {
 
 async function startApp() {
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
     API.getPlans().catch(() => ({ plans: [] })),
-    API.getSubscriptionPayments(30).catch(() => ({ payments: [] }))
+    API.getSubscriptionPayments(30).catch(() => ({ payments: [] })),
+    API.getRentPaymentSummaries().catch((error) => {
+      console.warn('Không tải được sổ giao dịch tiền trọ:', error.message);
+      return { invoices: [] };
+    })
   ]);
   applyServerEntitlements(entitlement);
   SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
@@ -4631,6 +4943,13 @@ async function startApp() {
     ? paymentsResult.payments
     : [];
   loadState(serverState);
+  setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
+  try {
+    await migrateLegacyPaidFlags();
+  } catch (error) {
+    console.warn('Không chuyển được trạng thái đã thu cũ sang ledger:', error.message);
+    syncLegacyPaidFlagsFromLedger();
+  }
   renderSubscriptionSummary();
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
