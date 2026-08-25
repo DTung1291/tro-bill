@@ -162,11 +162,11 @@ Trạng thái ngày 24/08/2026:
 
 - [x] Thay trạng thái `paid` đơn giản bằng sổ giao dịch thanh toán.
 - [x] Hỗ trợ thanh toán đủ, thanh toán một phần và nhiều lần.
-- [ ] Hỗ trợ nợ cũ chuyển sang kỳ sau.
+- [x] Hỗ trợ nợ cũ chuyển sang kỳ sau.
 - [ ] Hỗ trợ giảm giá, phụ thu và phí chậm thanh toán.
 - [ ] Hỗ trợ tiền cọc, khấu trừ cọc và hoàn cọc.
 - [x] Hỗ trợ sửa/hủy giao dịch bằng bút toán điều chỉnh, không xóa dấu vết.
-- [ ] Tạo phiếu thu có mã riêng cho từng lần thanh toán.
+- [x] Tạo phiếu thu có mã riêng cho từng lần thanh toán.
 - [ ] Hiển thị tuổi nợ: chưa đến hạn, quá hạn 1–7 ngày, 8–30 ngày và trên 30 ngày.
 
 ### VietQR và đối soát
