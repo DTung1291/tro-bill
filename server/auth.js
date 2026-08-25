@@ -27,6 +27,24 @@ const SESSION_COOKIE = 'trobill_session';
 const EMAIL_TOKEN_TTL_HOURS = 24;
 const PASSWORD_RESET_TTL_MINUTES = 30;
 
+function accountContextForUser(userId, tokenVersion = 0) {
+  return crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${String(userId)}:${Number(tokenVersion || 0)}`)
+    .digest('hex');
+}
+
+function safeContextEqual(actual, expected) {
+  const actualBuffer = Buffer.from(String(actual || ''), 'utf8');
+  const expectedBuffer = Buffer.from(String(expected || ''), 'utf8');
+  return actualBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function isMutationRequest(req) {
+  return !['GET', 'HEAD', 'OPTIONS'].includes(String(req.method || '').toUpperCase());
+}
+
 function signToken(user) {
   return jwt.sign(
     {
@@ -247,7 +265,11 @@ async function login(req, res) {
   }
   await clearAccountRateLimit('login', email);
   setSessionCookie(res, user);
-  return res.json({ email: user.email, isAdmin: !!user.is_admin });
+  return res.json({
+    email: user.email,
+    isAdmin: !!user.is_admin,
+    accountContext: accountContextForUser(user.id, user.token_version)
+  });
 }
 
 // POST /api/auth/verify-email
@@ -287,7 +309,12 @@ async function verifyEmail(req, res) {
   }
 
   setSessionCookie(res, user);
-  return res.json({ email: user.email, isAdmin: !!user.is_admin, verified: true });
+  return res.json({
+    email: user.email,
+    isAdmin: !!user.is_admin,
+    verified: true,
+    accountContext: accountContextForUser(user.id, user.token_version)
+  });
 }
 
 // POST /api/auth/resend-verification
@@ -471,6 +498,15 @@ async function requireAuth(req, res, next) {
     req.userId = payload.uid;
     req.userEmail = user.email;
     req.isAdmin = !!user.is_admin;
+    req.accountContext = accountContextForUser(payload.uid, user.token_version);
+    const submittedContext = req.get('x-trobill-account-context');
+    if ((submittedContext || isMutationRequest(req)) &&
+        !safeContextEqual(submittedContext, req.accountContext)) {
+        return res.status(409).json({
+          error: 'Tài khoản của tab đã thay đổi. Vui lòng tải lại trang trước khi tiếp tục.',
+          code: 'SESSION_ACCOUNT_CHANGED'
+        });
+    }
     return next();
   } catch (error) {
     return next(error);

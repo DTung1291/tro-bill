@@ -110,7 +110,11 @@ app.post('/api/auth/resend-verification', wrap(resendVerification));
 app.post('/api/auth/forgot-password', wrap(forgotPassword));
 app.post('/api/auth/reset-password', wrap(resetPassword));
 
-app.get('/api/me', requireAuth, (req, res) => res.json({ email: req.userEmail, isAdmin: !!req.isAdmin }));
+app.get('/api/me', requireAuth, (req, res) => res.json({
+  email: req.userEmail,
+  isAdmin: !!req.isAdmin,
+  accountContext: req.accountContext
+}));
 app.get('/api/subscription', requireAuth, wrap(subscription.getSubscription));
 app.get('/api/subscription/payments', requireAuth, wrap(paymentHistory.listSubscriptionPayments));
 app.get(

@@ -8,6 +8,7 @@ process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('../db');
 const app = require('../index');
 
@@ -72,7 +73,9 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
 
   assert.equal(loginResponse.status, 200);
   const loginBody = await loginResponse.json();
-  assert.deepEqual(loginBody, { email: 'owner@example.com', isAdmin: true });
+  assert.equal(loginBody.email, 'owner@example.com');
+  assert.equal(loginBody.isAdmin, true);
+  assert.match(loginBody.accountContext, /^[a-f0-9]{64}$/);
   assert.equal(Object.hasOwn(loginBody, 'token'), false);
 
   const setCookie = loginResponse.headers.get('set-cookie');
@@ -87,11 +90,42 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
     headers: { Cookie: cookie }
   });
   assert.equal(meResponse.status, 200);
-  assert.deepEqual(await meResponse.json(), { email: 'owner@example.com', isAdmin: true });
+  assert.deepEqual(await meResponse.json(), {
+    email: 'owner@example.com',
+    isAdmin: true,
+    accountContext: loginBody.accountContext
+  });
+
+  const missingContextResponse = await fetch(`${baseUrl}/api/auth/logout-all`, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: baseUrl }
+  });
+  assert.equal(missingContextResponse.status, 409);
+  assert.equal((await missingContextResponse.json()).code, 'SESSION_ACCOUNT_CHANGED');
+
+  const otherAccountCookie = `trobill_session=${jwt.sign(
+    { uid: 8, email: 'other@example.com', admin: false, ver: tokenVersion },
+    process.env.JWT_SECRET,
+    { expiresIn: '5m' }
+  )}`;
+  const staleTabResponse = await fetch(`${baseUrl}/api/auth/logout-all`, {
+    method: 'POST',
+    headers: {
+      Cookie: otherAccountCookie,
+      Origin: baseUrl,
+      'X-Trobill-Account-Context': loginBody.accountContext
+    }
+  });
+  assert.equal(staleTabResponse.status, 409, 'tab cũ không được ghi bằng cookie tài khoản mới');
+  assert.equal((await staleTabResponse.json()).code, 'SESSION_ACCOUNT_CHANGED');
 
   const logoutAllResponse = await fetch(`${baseUrl}/api/auth/logout-all`, {
     method: 'POST',
-    headers: { Cookie: cookie, Origin: baseUrl }
+    headers: {
+      Cookie: cookie,
+      Origin: baseUrl,
+      'X-Trobill-Account-Context': loginBody.accountContext
+    }
   });
   assert.equal(logoutAllResponse.status, 200);
   assert.deepEqual(await logoutAllResponse.json(), { ok: true });

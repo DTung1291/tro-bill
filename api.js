@@ -8,6 +8,9 @@
 const API = (() => {
   const LEGACY_TOKEN_KEY = 'trobill_token';
   let sessionActive = false;
+  let accountContext = '';
+  let sessionMismatchHandler = null;
+  let sessionMismatchNotified = false;
 
   // JWT của phiên bản cũ không còn được sử dụng. Xóa ngay để token không tiếp
   // tục nằm trong vùng JavaScript có thể đọc sau khi người dùng nâng cấp.
@@ -17,15 +20,42 @@ const API = (() => {
 
   function clearSession() {
     sessionActive = false;
+    accountContext = '';
+    sessionMismatchNotified = false;
   }
 
   function isLoggedIn() {
     return sessionActive;
   }
 
+  function getAccountContext() {
+    return accountContext;
+  }
+
+  function adoptSession(session) {
+    const nextContext = String(session && session.accountContext || '');
+    if (!/^[a-f0-9]{64}$/i.test(nextContext)) {
+      clearSession();
+      throw new Error('Máy chủ không trả về định danh phiên hợp lệ');
+    }
+    accountContext = nextContext;
+    sessionActive = true;
+    sessionMismatchNotified = false;
+    return session;
+  }
+
+  function onSessionMismatch(handler) {
+    sessionMismatchHandler = typeof handler === 'function' ? handler : null;
+  }
+
   async function request(method, url, body) {
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
+    // /api/me luôn phải đọc được cookie hiện tại để phát hiện một tab khác đã
+    // đổi tài khoản. Mọi API còn lại đều được ràng buộc với accountContext.
+    if (url !== '/api/me' && accountContext) {
+      headers['X-Trobill-Account-Context'] = accountContext;
+    }
 
     let res;
     try {
@@ -51,6 +81,11 @@ const API = (() => {
       const err = new Error((data && data.error) || 'Lỗi máy chủ');
       err.code = res.status;
       err.errorCode = data && data.code;
+      if (err.errorCode === 'SESSION_ACCOUNT_CHANGED' && !sessionMismatchNotified) {
+        sessionActive = false;
+        sessionMismatchNotified = true;
+        Promise.resolve().then(() => sessionMismatchHandler && sessionMismatchHandler(err));
+      }
       throw err;
     }
     const doesNotCreateSession = [
@@ -75,10 +110,10 @@ const API = (() => {
     });
   }
   async function login(email, password) {
-    return request('POST', '/api/auth/login', { email, password });
+    return adoptSession(await request('POST', '/api/auth/login', { email, password }));
   }
   async function verifyEmail(token) {
-    return request('POST', '/api/auth/verify-email', { token });
+    return adoptSession(await request('POST', '/api/auth/verify-email', { token }));
   }
   async function resendVerification(email) {
     return request('POST', '/api/auth/resend-verification', { email });
@@ -376,6 +411,9 @@ const API = (() => {
   return {
     clearSession,
     isLoggedIn,
+    getAccountContext,
+    adoptSession,
+    onSessionMismatch,
     register,
     login,
     verifyEmail,

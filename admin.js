@@ -11,6 +11,40 @@
   const table = $('#admin-table');
   const msgEl = $('#admin-msg');
   let adminPlans = [];
+  let authChannel = null;
+  const authChannelName = 'trobill_auth_v1';
+  const authEventStorageKey = 'trobill_auth_event_v1';
+
+  function announceSessionChange() {
+    const event = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      accountContext: API.getAccountContext()
+    };
+    if (authChannel) authChannel.postMessage(event);
+    try {
+      localStorage.setItem(authEventStorageKey, JSON.stringify(event));
+    } catch (_) {}
+  }
+
+  function handleExternalSession(event) {
+    if (String(event && event.accountContext || '') !== API.getAccountContext()) {
+      location.reload();
+    }
+  }
+
+  function initSessionCoordination() {
+    API.onSessionMismatch(() => location.reload());
+    if ('BroadcastChannel' in window) {
+      authChannel = new BroadcastChannel(authChannelName);
+      authChannel.addEventListener('message', ({ data }) => handleExternalSession(data));
+    }
+    window.addEventListener('storage', (event) => {
+      if (event.key !== authEventStorageKey || !event.newValue) return;
+      try {
+        handleExternalSession(JSON.parse(event.newValue));
+      } catch (_) {}
+    });
+  }
 
   const subscriptionStatusLabels = {
     trialing: 'Dùng thử',
@@ -42,6 +76,7 @@
   async function gotoLogin() {
     try {
       await API.logout();
+      announceSessionChange();
       location.replace('index.html');
     } catch (e) {
       showMsg('Không thể đăng xuất, vui lòng thử lại.', true);
@@ -938,13 +973,24 @@
   });
   $('#admin-logout').addEventListener('click', gotoLogin);
 
-  // Cookie HttpOnly không thể được kiểm tra bằng JavaScript. API admin sẽ xác
-  // nhận phiên; nếu hết hạn, loadUsers() tự chuyển về trang đăng nhập.
-  loadUsers();
-  loadRevenueSummary();
-  loadConfig();
-  loadPlans();
-  loadSubscriptionRefundRequests();
-  loadManualSubscriptionChangeLogs();
-  loadSensitiveAccessLogs();
+  // Xác định account context trước khi gọi các API admin. Mọi thao tác ghi sau
+  // đó sẽ bị server từ chối nếu cookie đã được một tab khác đổi tài khoản.
+  (async () => {
+    try {
+      API.adoptSession(await API.me());
+      initSessionCoordination();
+      await Promise.all([
+        loadUsers(),
+        loadRevenueSummary(),
+        loadConfig(),
+        loadPlans(),
+        loadSubscriptionRefundRequests(),
+        loadManualSubscriptionChangeLogs(),
+        loadSensitiveAccessLogs()
+      ]);
+    } catch (error) {
+      if (error.code === 401) return gotoLogin();
+      showMsg(error.message || 'Không xác nhận được phiên quản trị.', true);
+    }
+  })();
 })();

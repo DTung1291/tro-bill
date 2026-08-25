@@ -145,11 +145,10 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   await verifyEmail(request({ token }), verification.res);
 
   assert.equal(verification.record.statusCode, 200);
-  assert.deepEqual(verification.record.body, {
-    email: 'new@example.com',
-    isAdmin: false,
-    verified: true
-  });
+  assert.equal(verification.record.body.email, 'new@example.com');
+  assert.equal(verification.record.body.isAdmin, false);
+  assert.equal(verification.record.body.verified, true);
+  assert.match(verification.record.body.accountContext, /^[a-f0-9]{64}$/);
   assert.equal(verification.record.cookie.name, 'trobill_session');
   assert.equal(verification.record.cookie.options.httpOnly, true);
   assert.equal(verification.record.cookie.options.sameSite, 'lax');

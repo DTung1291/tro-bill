@@ -1021,6 +1021,12 @@ const STORAGE_KEY = 'trobill_v1'; // giữ lại cho import/export JSON tương 
 let _saveTimer = null;
 let _savePending = false;
 
+function cancelPendingStateSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = null;
+  _savePending = false;
+}
+
 function _serializeState() {
   return {
     rooms: STATE.rooms,
@@ -1038,11 +1044,17 @@ async function flushState(options = {}) {
     clearTimeout(_saveTimer);
     _saveTimer = null;
   }
-  if (!API.isLoggedIn()) return;
+  const expectedAccountContext = API.getAccountContext();
+  const expectedGeneration = _sessionGeneration;
+  if (!API.isLoggedIn() || !expectedAccountContext) return;
   try {
     await API.putState(_serializeState());
-    _savePending = false;
+    if (expectedGeneration === _sessionGeneration &&
+        expectedAccountContext === API.getAccountContext()) {
+      _savePending = false;
+    }
   } catch (e) {
+    if (e.errorCode === 'SESSION_ACCOUNT_CHANGED') return;
     if (e.code === 401) return handleAuthExpired();
     console.warn('Lưu lên server thất bại:', e.message);
     if (typeof showToast === 'function') {
@@ -1072,9 +1084,24 @@ function clearSensitiveStateFromMemory() {
   RENT_INVOICE_SUMMARIES = new Map();
   ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
   ACTIVE_RENT_PAYMENT_ENTRY = null;
+  ACTIVE_DEPOSIT_TENANT_ID = null;
+  ACTIVE_DEPOSIT_RESULT = null;
+  RENT_INVOICE_SYNC_PROMISE = null;
+  RENT_PAYMENT_CHANNELS = [];
+  ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
+  RENT_BANK_TRANSACTIONS = [];
+  ACTIVE_RENT_INVOICE_SHARE_ID = null;
+  RENT_INVOICE_SHARE_LINKS = [];
+  RENT_INVOICE_PAYMENT_PROOFS = [];
+  SERVER_PLANS = [];
+  SERVER_SUBSCRIPTION_PAYMENTS = [];
+  CURRENT_SUBSCRIPTION_ORDER = null;
+  ACTIVE_SUBSCRIPTION_RECEIPT = null;
+  ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 }
 
 function saveState() {
+  if (!API.isLoggedIn() || !API.getAccountContext()) return;
   _savePending = true;
   if (_saveTimer) clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => {
@@ -5015,6 +5042,10 @@ if (logoutAllDevicesBtn) {
     try {
       await flushState();
       await API.logoutAll();
+      _sessionGeneration += 1;
+      cancelPendingStateSave();
+      clearSensitiveStateFromMemory();
+      announceSessionChange();
       _appStarted = false;
       showAuthScreen(true);
       showAuthFeedback('Đã đăng xuất khỏi tất cả thiết bị.', 'success');
@@ -5139,7 +5170,11 @@ function initPrivacyEvents() {
         await loadPrivacyAudit();
       } else if (privacyActionMode === 'delete') {
         await API.privacy.deleteAccount(password, confirmation);
+        _sessionGeneration += 1;
+        cancelPendingStateSave();
+        API.clearSession();
         clearSensitiveStateFromMemory();
+        announceSessionChange();
         closePrivacyActionModal();
         _appStarted = false;
         showAuthScreen(true);
@@ -6260,6 +6295,85 @@ function runRegressionTests() {
 //  AUTH GATE + BOOT
 // ============================================================
 let _appStarted = false;
+let _sessionGeneration = 0;
+let _sessionReloading = false;
+let _sessionCheckPromise = null;
+let _authChannel = null;
+const AUTH_CHANNEL_NAME = 'trobill_auth_v1';
+const AUTH_EVENT_STORAGE_KEY = 'trobill_auth_event_v1';
+
+function announceSessionChange() {
+  const event = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    accountContext: API.getAccountContext()
+  };
+  if (_authChannel) _authChannel.postMessage(event);
+  try {
+    localStorage.setItem(AUTH_EVENT_STORAGE_KEY, JSON.stringify(event));
+  } catch (_) {}
+}
+
+function reloadForSessionChange(message = 'Tài khoản đã thay đổi ở một tab khác.') {
+  if (_sessionReloading) return;
+  _sessionReloading = true;
+  _sessionGeneration += 1;
+  cancelPendingStateSave();
+  API.clearSession();
+  clearSensitiveStateFromMemory();
+  _appStarted = false;
+  showAuthScreen(true);
+  showAuthFeedback(`${message} Đang tải lại dữ liệu an toàn...`, 'success');
+  setTimeout(() => window.location.reload(), 0);
+}
+
+function handleExternalAuthEvent(event) {
+  const nextContext = String(event && event.accountContext || '');
+  if (nextContext === API.getAccountContext()) return;
+  reloadForSessionChange();
+}
+
+function initSessionCoordination() {
+  API.onSessionMismatch(() => reloadForSessionChange(
+    'Phiên của tab không còn thuộc tài khoản đang đăng nhập.'
+  ));
+  if ('BroadcastChannel' in window) {
+    _authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+    _authChannel.addEventListener('message', ({ data }) => handleExternalAuthEvent(data));
+  }
+  window.addEventListener('storage', (event) => {
+    if (event.key !== AUTH_EVENT_STORAGE_KEY || !event.newValue) return;
+    try {
+      handleExternalAuthEvent(JSON.parse(event.newValue));
+    } catch (_) {}
+  });
+  window.addEventListener('focus', () => revalidateCurrentSession());
+}
+
+function beginAccountSession(session, { announce = false } = {}) {
+  _sessionGeneration += 1;
+  cancelPendingStateSave();
+  clearSensitiveStateFromMemory();
+  API.adoptSession(session);
+  if (announce) announceSessionChange();
+}
+
+async function revalidateCurrentSession() {
+  if (_sessionReloading || _sessionCheckPromise) return _sessionCheckPromise;
+  const expectedContext = API.getAccountContext();
+  _sessionCheckPromise = API.me()
+    .then((session) => {
+      if (String(session.accountContext || '') !== expectedContext) {
+        reloadForSessionChange();
+      }
+    })
+    .catch((error) => {
+      if (error.code === 401 && expectedContext) {
+        reloadForSessionChange('Phiên đăng nhập đã kết thúc ở một tab khác.');
+      }
+    })
+    .finally(() => { _sessionCheckPromise = null; });
+  return _sessionCheckPromise;
+}
 
 function showAuthScreen(show) {
   const el = document.getElementById('auth-screen');
@@ -6277,13 +6391,24 @@ function showAuthScreen(show) {
 }
 
 function handleAuthExpired() {
+  _sessionGeneration += 1;
+  cancelPendingStateSave();
+  clearSensitiveStateFromMemory();
   _appStarted = false;
   API.clearSession();
+  announceSessionChange();
   if (typeof showToast === 'function') showToast('Phiên đăng nhập đã hết hạn', 'error', 3000);
   showAuthScreen(true);
 }
 
 async function startApp() {
+  const expectedAccountContext = API.getAccountContext();
+  const expectedGeneration = _sessionGeneration;
+  if (!expectedAccountContext) {
+    const error = new Error('Chưa xác định được tài khoản của phiên');
+    error.code = 401;
+    throw error;
+  }
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
   const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult] = await Promise.all([
     API.getState(),
@@ -6303,6 +6428,8 @@ async function startApp() {
       return { transactions: [] };
     })
   ]);
+  if (expectedGeneration !== _sessionGeneration ||
+      expectedAccountContext !== API.getAccountContext()) return;
   applyServerEntitlements(entitlement);
   SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
   SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(paymentsResult.payments)
@@ -6320,6 +6447,8 @@ async function startApp() {
     console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
     syncLegacyPaidFlagsFromLedger();
   }
+  if (expectedGeneration !== _sessionGeneration ||
+      expectedAccountContext !== API.getAccountContext()) return;
   renderSubscriptionSummary();
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
@@ -6472,7 +6601,8 @@ function initAuthUI() {
     submitBtn.textContent = 'Đang xử lý...';
     try {
       if (mode === 'login') {
-        await API.login(email, password);
+        const session = await API.login(email, password);
+        beginAccountSession(session, { announce: true });
         await startApp();
       } else if (mode === 'register') {
         const result = await API.register(email, password, {
@@ -6505,6 +6635,11 @@ function initAuthUI() {
           throw new Error('Mật khẩu nhập lại chưa khớp');
         }
         await API.resetPassword(resetToken, password);
+        _sessionGeneration += 1;
+        cancelPendingStateSave();
+        API.clearSession();
+        clearSensitiveStateFromMemory();
+        announceSessionChange();
         resetToken = '';
         passEl.value = '';
         confirmEl.value = '';
@@ -6550,6 +6685,10 @@ function initAuthUI() {
       await flushState();
       try {
         await API.logout();
+        _sessionGeneration += 1;
+        cancelPendingStateSave();
+        clearSensitiveStateFromMemory();
+        announceSessionChange();
         _appStarted = false;
         showAuthScreen(true);
       } catch (err) {
@@ -6562,6 +6701,7 @@ function initAuthUI() {
 }
 
 async function boot() {
+  initSessionCoordination();
   initAuthUI();
 
   const verificationToken = new URLSearchParams(window.location.search).get('verify');
@@ -6569,7 +6709,8 @@ async function boot() {
     showAuthScreen(true);
     showAuthFeedback('Đang xác minh địa chỉ email...', 'success');
     try {
-      await API.verifyEmail(verificationToken);
+      const session = await API.verifyEmail(verificationToken);
+      beginAccountSession(session, { announce: true });
       clearAuthQueryParam('verify');
       await startApp();
       showToast('Đã xác minh email thành công ✓', 'success', 3000);
@@ -6591,6 +6732,7 @@ async function boot() {
   // Cookie HttpOnly không thể được JavaScript đọc. Gọi API để server xác nhận
   // phiên thay vì dựa vào một token lưu ở trình duyệt.
   try {
+    beginAccountSession(await API.me());
     await startApp();
     return;
   } catch (err) {
