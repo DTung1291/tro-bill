@@ -181,7 +181,7 @@ Trạng thái ngày 24/08/2026:
 
 ### Cổng dành cho khách thuê
 
-- [ ] Tạo liên kết hóa đơn bảo mật, có thời hạn hoặc OTP.
+- [x] Tạo liên kết hóa đơn bảo mật, có thời hạn hoặc OTP.
 - [ ] Khách xem được chi tiết tiền phòng, điện, nước và dịch vụ.
 - [ ] Khách xem được chỉ số và ảnh đồng hồ nếu có.
 - [ ] Khách quét VietQR theo số tiền còn lại.
