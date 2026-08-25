@@ -177,7 +177,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Cho phép kết nối kênh thanh toán của từng chủ trọ để nhận webhook.
 - [x] Tự động ghép giao dịch với hóa đơn theo mã, số tiền và tài khoản nhận.
 - [x] Có danh sách giao dịch chưa ghép hoặc nghi ngờ để xử lý thủ công.
-- [ ] Tiền thuê đi thẳng vào tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê.
+- [x] Tiền thuê đi thẳng vào tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê.
 
 ### Cổng dành cho khách thuê
 
