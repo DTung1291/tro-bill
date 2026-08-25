@@ -8,25 +8,55 @@ const db = require('./db');
 const { buildState } = require('./state');
 const { keyHash, requestIp } = require('./rate-limit');
 const { recordDataAudit, requestAuditContext } = require('./data-audit');
+const { resolveLifecycle } = require('./subscription');
 
 // GET /api/admin/users — danh sách user + vài số liệu tóm tắt
 async function listUsers(req, res) {
   const { rows } = await db.query(
     `SELECT u.id, u.email, u.is_admin, u.created_at,
+            s.id AS subscription_id, s.status AS subscription_status,
+            s.billing_cycle, s.starts_at AS subscription_starts_at,
+            s.ends_at AS subscription_ends_at, s.trial_used_at,
+            p.code AS plan_code, p.name AS plan_name, p.room_limit,
+            p.trial_days,
             (SELECT COUNT(*)::int FROM rooms r WHERE r.user_id = u.id)              AS room_count,
             (SELECT COUNT(*)::int FROM history_snapshots h WHERE h.user_id = u.id)  AS history_count
      FROM users u
+     LEFT JOIN subscriptions s ON s.user_id=u.id
+     LEFT JOIN plans p ON p.id=s.plan_id
      ORDER BY u.id`
   );
+  res.set('Cache-Control', 'no-store');
   res.json({
-    users: rows.map((u) => ({
-      id: Number(u.id),
-      email: u.email,
-      isAdmin: !!u.is_admin,
-      createdAt: u.created_at,
-      roomCount: u.room_count,
-      historyCount: u.history_count
-    }))
+    users: rows.map((u) => {
+      const lifecycle = u.subscription_id === null
+        ? null
+        : resolveLifecycle({
+          status: u.subscription_status,
+          ends_at: u.subscription_ends_at
+        });
+      return {
+        id: Number(u.id),
+        email: u.email,
+        isAdmin: !!u.is_admin,
+        createdAt: u.created_at,
+        roomCount: Number(u.room_count) || 0,
+        historyCount: Number(u.history_count) || 0,
+        subscription: u.subscription_id === null ? null : {
+          id: Number(u.subscription_id),
+          planCode: u.plan_code,
+          planName: u.plan_name,
+          roomLimit: Number(u.room_limit) || 0,
+          trialDays: Number(u.trial_days) || 0,
+          status: lifecycle.status,
+          recordedStatus: lifecycle.sourceStatus,
+          billingCycle: u.billing_cycle || null,
+          startsAt: u.subscription_starts_at,
+          endsAt: u.subscription_ends_at,
+          trialUsed: !!u.trial_used_at
+        }
+      };
+    })
   });
 }
 

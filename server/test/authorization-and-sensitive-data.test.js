@@ -66,6 +66,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['POST', '/api/admin/users/2/admin'],
     ['POST', '/api/admin/users/2/subscription/trial'],
     ['POST', '/api/admin/users/2/subscription/change'],
+    ['GET', '/api/admin/subscription/manual-change-logs'],
     ['POST', '/api/admin/users/2/tenants/t-1/reveal-cccd'],
     ['GET', '/api/admin/sensitive-access-logs'],
     ['GET', '/api/admin/config'],

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Quản trị</title>
-  <link rel="stylesheet" href="style.css?v=76" />
+  <link rel="stylesheet" href="style.css?v=77" />
 </head>
 <body>
   <div class="admin-wrap">
@@ -167,15 +167,42 @@
       <p class="admin-muted" id="plans-empty" hidden>Chưa tải được danh sách gói.</p>
     </section>
 
-    <table class="admin-table" id="admin-table" hidden>
-      <thead>
-        <tr>
-          <th>ID</th><th>Email</th><th>Phòng</th><th>Lịch sử</th>
-          <th>Admin</th><th>Tạo lúc</th><th>Thao tác</th>
-        </tr>
-      </thead>
-      <tbody id="admin-tbody"></tbody>
-    </table>
+    <section class="admin-config" id="admin-users-section">
+      <h2>👥 Tài khoản và gói dịch vụ</h2>
+      <p class="admin-config-note">
+        Cấp dùng thử, nâng gói hoặc gia hạn thủ công chỉ dành cho trường hợp hỗ trợ đã được xác minh. Mọi thao tác bắt buộc có lý do và được ghi nhật ký.
+      </p>
+      <div class="admin-table-wrap">
+        <table class="admin-table admin-users-table" id="admin-table" hidden>
+          <thead>
+            <tr>
+              <th>ID</th><th>Email</th><th>Gói hiện tại</th><th>Phòng</th><th>Lịch sử</th>
+              <th>Admin</th><th>Tạo lúc</th><th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="admin-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-config" id="subscription-change-audit-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>🧾 Nhật ký cấp và gia hạn gói</h2>
+          <p class="admin-config-note">Lưu admin thực hiện, tài khoản nhận gói, thay đổi và lý do hỗ trợ.</p>
+        </div>
+        <button type="button" class="admin-btn-ghost" id="subscription-change-log-refresh">Làm mới</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-subtable admin-subscription-log-table" id="subscription-change-log-table" hidden>
+          <thead>
+            <tr><th>Thời gian</th><th>Admin</th><th>Tài khoản</th><th>Thao tác</th><th>Thay đổi</th><th>Lý do</th></tr>
+          </thead>
+          <tbody id="subscription-change-log-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-muted" id="subscription-change-log-empty" hidden>Chưa có thao tác cấp hoặc gia hạn gói thủ công.</p>
+    </section>
 
     <section class="admin-config" id="sensitive-audit-section">
       <h2>🪪 Nhật ký xem CCCD đầy đủ</h2>
@@ -205,7 +232,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=76"></script>
-  <script src="admin.js?v=76"></script>
+  <script src="api.js?v=77"></script>
+  <script src="admin.js?v=77"></script>
 </body>
 </html>

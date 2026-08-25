@@ -186,6 +186,20 @@ const API = (() => {
     deleteUser: (id, reason) => request('DELETE', `/api/admin/users/${id}`, { reason }),
     resetPassword: (id, password) => request('POST', `/api/admin/users/${id}/password`, { password }),
     setAdmin: (id, isAdmin) => request('POST', `/api/admin/users/${id}/admin`, { isAdmin }),
+    startSubscriptionTrial: (id, input) => request(
+      'POST',
+      `/api/admin/users/${id}/subscription/trial`,
+      input
+    ),
+    changeSubscription: (id, input) => request(
+      'POST',
+      `/api/admin/users/${id}/subscription/change`,
+      input
+    ),
+    listManualSubscriptionChangeLogs: (limit = 100) => request(
+      'GET',
+      `/api/admin/subscription/manual-change-logs?limit=${encodeURIComponent(limit)}`
+    ),
     revealTenantCccd: (userId, tenantId, reason) => request(
       'POST',
       `/api/admin/users/${userId}/tenants/${encodeURIComponent(tenantId)}/reveal-cccd`,

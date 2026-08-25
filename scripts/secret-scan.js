@@ -24,7 +24,11 @@ function databaseCredential(line) {
   const [, username, password, hostWithPort] = match;
   const hostname = hostWithPort.replace(/:\d+$/, '').toLowerCase();
   if (['localhost', '127.0.0.1', 'postgres'].includes(hostname)) return false;
+  if (hostname.endsWith('.invalid')) return false;
   if (/^(?:test|user|username)$/i.test(username) && /^(?:test|password)$/i.test(password)) return false;
+  if (/^(?:host|hostname)$/i.test(hostname)
+      && /^(?:test|user|username|placeholder)$/i.test(username)
+      && /^(?:test|secret|password|placeholder)$/i.test(password)) return false;
   return true;
 }
 
@@ -138,7 +142,11 @@ async function main() {
   console.log(`Secret scan sạch (${process.argv.includes('--history') ? 'tracked files + git history' : 'tracked files'}).`);
 }
 
-main().catch(error => {
-  console.error(`Secret scan không chạy được: ${error.message}`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(error => {
+    console.error(`Secret scan không chạy được: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { databaseCredential, detect, ignoredPath, scanHistory, scanTrackedFiles };

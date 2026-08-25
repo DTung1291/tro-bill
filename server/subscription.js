@@ -543,6 +543,55 @@ async function changeSubscription(req, res) {
   }
 }
 
+// GET /api/admin/subscription/manual-change-logs
+// Chỉ trả những thao tác cấp/gia hạn thủ công do admin thực hiện. Metadata được
+// thu hẹp về chu kỳ/số ngày trial để không vô tình mở rộng dữ liệu audit ra UI.
+async function listAdminManualChangeLogs(req, res) {
+  const requestedLimit = Number(req.query?.limit || 100);
+  const limit = Number.isInteger(requestedLimit)
+    ? Math.min(200, Math.max(1, requestedLimit))
+    : 100;
+  const { rows } = await db.query(
+    `SELECT id, actor_user_id, actor_email_snapshot, target_user_id,
+            target_email_snapshot, action, previous_plan_code, new_plan_code,
+            previous_status, new_status, reason, metadata, created_at
+     FROM subscription_change_logs
+     WHERE actor_user_id IS NOT NULL
+       AND action IN ('trial_started', 'subscription_upgraded', 'subscription_renewed')
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    changeLogs: rows.map((row) => {
+      const metadata = row.metadata && typeof row.metadata === 'object'
+        ? row.metadata
+        : {};
+      return {
+        id: Number(row.id),
+        actorUserId: row.actor_user_id === null ? null : Number(row.actor_user_id),
+        actorEmail: row.actor_email_snapshot,
+        targetUserId: row.target_user_id === null ? null : Number(row.target_user_id),
+        targetEmail: row.target_email_snapshot,
+        action: row.action,
+        previousPlanCode: row.previous_plan_code || null,
+        newPlanCode: row.new_plan_code || null,
+        previousStatus: row.previous_status || null,
+        newStatus: row.new_status || null,
+        reason: row.reason,
+        billingCycle: ['monthly', 'yearly'].includes(metadata.billingCycle)
+          ? metadata.billingCycle
+          : null,
+        trialDays: Number.isInteger(Number(metadata.trialDays))
+          ? Number(metadata.trialDays)
+          : null,
+        createdAt: row.created_at
+      };
+    })
+  });
+}
+
 module.exports = {
   EntitlementError,
   SubscriptionOperationError,
@@ -550,6 +599,7 @@ module.exports = {
   enforceStateWrite,
   getSubscription,
   getUserEntitlements,
+  listAdminManualChangeLogs,
   resolveEntitlements,
   resolveLifecycle,
   sendEntitlementError,

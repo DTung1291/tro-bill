@@ -155,6 +155,11 @@ app.post(
   adminGuard,
   wrap(subscription.changeSubscription)
 );
+app.get(
+  '/api/admin/subscription/manual-change-logs',
+  adminGuard,
+  wrap(subscription.listAdminManualChangeLogs)
+);
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
 app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));
