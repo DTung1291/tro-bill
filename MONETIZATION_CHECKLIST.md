@@ -171,7 +171,7 @@ Trạng thái ngày 24/08/2026:
 
 ### VietQR và đối soát
 
-- [ ] Mỗi hóa đơn có nội dung chuyển khoản duy nhất, ngắn và dễ nhập.
+- [x] Mỗi hóa đơn có nội dung chuyển khoản duy nhất, ngắn và dễ nhập.
 - [x] QR luôn chứa đúng số tiền còn phải trả, không chỉ tổng hóa đơn ban đầu.
 - [x] Cho phép chủ trọ xác nhận thủ công khi chưa kết nối ngân hàng.
 - [ ] Cho phép kết nối kênh thanh toán của từng chủ trọ để nhận webhook.
