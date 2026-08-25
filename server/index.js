@@ -43,6 +43,7 @@ const paymentHistory = require('./subscription-payment-history');
 const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
 const rentPayments = require('./rent-payments');
+const deposits = require('./deposits');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -137,6 +138,21 @@ app.post(
   '/api/rent-payments/transactions/:id/reverse',
   requireAuth,
   wrap(rentPayments.reverseTransaction)
+);
+app.get(
+  '/api/deposits/tenants/:tenantId',
+  requireAuth,
+  wrap(deposits.getTenantDeposit)
+);
+app.post(
+  '/api/deposits/transactions',
+  requireAuth,
+  wrap(deposits.createDepositTransaction)
+);
+app.post(
+  '/api/deposits/transactions/:id/reverse',
+  requireAuth,
+  wrap(deposits.reverseDepositTransaction)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

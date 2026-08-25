@@ -289,6 +289,33 @@ async function putState(req, res) {
       [uid]
     );
     const existingTenants = new Map(existingTenantResult.rows.map(tenant => [tenant.id, tenant]));
+    const removedTenantIds = Array.from(existingTenants.keys())
+      .filter((tenantId) => !tenantIds.has(tenantId));
+    if (removedTenantIds.length > 0) {
+      const outstandingDepositResult = await client.query(
+        `SELECT a.tenant_id, a.tenant_name_snapshot,
+                COALESCE(SUM(t.amount_vnd), 0) AS balance_vnd
+         FROM tenant_deposit_accounts a
+         LEFT JOIN tenant_deposit_transactions t
+           ON t.user_id=a.user_id AND t.account_id=a.id
+         WHERE a.user_id=$1 AND a.tenant_id=ANY($2::text[])
+         GROUP BY a.id
+         HAVING COALESCE(SUM(t.amount_vnd), 0) > 0
+         ORDER BY a.id
+         LIMIT 1`,
+        [uid, removedTenantIds]
+      );
+      if (outstandingDepositResult.rows[0]) {
+        const deposit = outstandingDepositResult.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Khách ${deposit.tenant_name_snapshot || deposit.tenant_id} còn ${num(deposit.balance_vnd)} đồng tiền cọc. Hãy hoàn hoặc khấu trừ hết cọc trước khi xóa.`,
+          code: 'TENANT_DEPOSIT_BALANCE_REMAINS',
+          tenantId: deposit.tenant_id,
+          balanceVnd: num(deposit.balance_vnd)
+        });
+      }
+    }
     const resolvedTenants = new Map();
     const tenantAudits = [];
 

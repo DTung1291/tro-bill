@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=81" />
+  <link rel="stylesheet" href="style.css?v=82" />
 </head>
 
 <body>
@@ -979,6 +979,65 @@
   </div>
 
 
+  <!-- MODAL: Append-only tenant deposit ledger -->
+  <div class="modal-overlay" id="deposit-modal" hidden>
+    <div class="modal deposit-modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="deposit-modal-title">💰 Tiền cọc khách thuê</h2>
+        <button type="button" class="modal-close" id="deposit-modal-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="deposit-modal-body">
+        <div class="deposit-balance-card">
+          <span>Số dư cọc hiện tại</span>
+          <strong id="deposit-balance">0 ₫</strong>
+          <small id="deposit-account-context">—</small>
+        </div>
+
+        <form id="deposit-transaction-form" class="deposit-transaction-form">
+          <div class="deposit-form-grid">
+            <label class="form-row">
+              <span class="form-label">Loại giao dịch</span>
+              <select class="form-input" id="deposit-entry-type" required>
+                <option value="collection">Thu tiền cọc</option>
+                <option value="deduction">Khấu trừ cọc</option>
+                <option value="refund">Hoàn cọc cho khách</option>
+              </select>
+            </label>
+            <label class="form-row">
+              <span class="form-label">Số tiền</span>
+              <input class="form-input" type="number" id="deposit-amount" min="1" step="1" inputmode="numeric" required />
+            </label>
+            <label class="form-row">
+              <span class="form-label">Phương thức</span>
+              <select class="form-input" id="deposit-payment-method" required>
+                <option value="bank_transfer">Chuyển khoản</option>
+                <option value="cash">Tiền mặt</option>
+                <option value="other">Khác</option>
+              </select>
+            </label>
+          </div>
+          <label class="form-row">
+            <span class="form-label">Ghi chú</span>
+            <textarea class="form-input" id="deposit-note" maxlength="500" rows="2" placeholder="Bắt buộc khi khấu trừ hoặc hoàn cọc"></textarea>
+          </label>
+          <p class="deposit-form-hint" id="deposit-form-hint">Thu cọc sẽ làm tăng số dư của khách.</p>
+          <p class="deposit-form-error" id="deposit-form-error" hidden></p>
+          <div class="modal-actions">
+            <button type="submit" class="btn btn--primary" id="deposit-submit">Ghi giao dịch</button>
+          </div>
+        </form>
+
+        <section class="deposit-ledger-section">
+          <h3>Lịch sử tiền cọc</h3>
+          <div id="deposit-ledger-list" class="deposit-ledger-list"></div>
+        </section>
+      </div>
+      <div class="deposit-modal-footer">
+        <button type="button" class="btn btn--ghost" id="deposit-modal-close-footer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Room Tenants Management -->
   <div class="modal-overlay" id="tenants-modal" hidden>
     <div class="modal" style="max-width: 600px;">
@@ -1171,11 +1230,11 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=81"></script>
+  <script src="api.js?v=82"></script>
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
-  <script src="app.js?v=81"></script>
+  <script src="app.js?v=82"></script>
 </body>
 
 </html>

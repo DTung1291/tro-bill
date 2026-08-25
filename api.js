@@ -183,6 +183,25 @@ const API = (() => {
     );
   }
 
+  function getTenantDeposit(tenantId) {
+    return request(
+      'GET',
+      `/api/deposits/tenants/${encodeURIComponent(tenantId)}`
+    );
+  }
+
+  function createDepositTransaction(input) {
+    return request('POST', '/api/deposits/transactions', input);
+  }
+
+  function reverseDepositTransaction(transactionId, reason) {
+    return request(
+      'POST',
+      `/api/deposits/transactions/${encodeURIComponent(transactionId)}/reverse`,
+      { reason }
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -293,6 +312,9 @@ const API = (() => {
     migrateLegacyRentPayments,
     getRentPaymentTransactions,
     reverseRentPaymentTransaction,
+    getTenantDeposit,
+    createDepositTransaction,
+    reverseDepositTransaction,
     privacy,
     getConfig,
     admin

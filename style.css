@@ -1509,6 +1509,110 @@ body.modal-open {
   background: var(--bg2);
 }
 
+/* Sổ tiền cọc theo khách thuê */
+#deposit-modal { z-index: 1200; }
+.modal.deposit-modal {
+  max-width: 760px;
+  max-height: calc(100dvh - 48px);
+}
+.deposit-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: 20px 22px;
+}
+.deposit-balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-radius: var(--radius);
+  background: var(--primary-light);
+}
+.deposit-balance-card > span,
+.deposit-balance-card > small { color: var(--text-muted); }
+.deposit-balance-card > span { font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.deposit-balance-card > strong { color: var(--primary); font-size: 1.55rem; }
+.deposit-balance-card > small { font-size: .78rem; }
+.deposit-transaction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.deposit-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.deposit-transaction-form textarea { resize: vertical; min-height: 66px; }
+.deposit-form-hint,
+.deposit-form-error {
+  margin: 0;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.deposit-form-hint { color: var(--text-muted); }
+.deposit-form-error {
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(239,68,68,.1);
+  color: var(--red);
+}
+.deposit-ledger-section h3 { margin: 0 0 10px; font-size: .95rem; }
+.deposit-ledger-list { display: flex; flex-direction: column; gap: 10px; }
+.deposit-ledger-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.deposit-ledger-item.is-reversed { opacity: .72; }
+.deposit-ledger-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.deposit-ledger-main > div { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.deposit-ledger-main > span { color: var(--text-muted); font-size: .76rem; }
+.deposit-ledger-main p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: .82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.deposit-ledger-side {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.deposit-ledger-side .is-positive { color: var(--green); }
+.deposit-ledger-side .is-negative { color: var(--red); }
+.deposit-ledger-empty {
+  margin: 0;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.deposit-modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
 @media (max-width: 760px) {
   #bill-preview-modal { padding: 8px; }
   .modal.bill-preview-modal { max-height: calc(100dvh - 16px); }
@@ -1520,6 +1624,10 @@ body.modal-open {
   .modal.rent-payment-modal { max-height: calc(100dvh - 16px); }
   .rent-payment-modal-body { padding: 16px; }
   .rent-payment-entry-form { padding: 16px; }
+  #deposit-modal { padding: 8px; }
+  .modal.deposit-modal { max-height: calc(100dvh - 16px); }
+  .deposit-modal-body { padding: 16px; }
+  .deposit-form-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
@@ -1541,6 +1649,10 @@ body.modal-open {
   .rent-payment-transaction-side { width: 100%; align-items: stretch; }
   .rent-payment-transaction-side > strong { text-align: right; }
   .rent-payment-transaction-side .btn { justify-content: center; }
+  .deposit-ledger-item { flex-direction: column; }
+  .deposit-ledger-side { width: 100%; align-items: stretch; }
+  .deposit-ledger-side > strong { text-align: right; }
+  .deposit-ledger-side .btn { justify-content: center; }
 }
 
 /* ===========================

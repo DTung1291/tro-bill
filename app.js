@@ -47,6 +47,8 @@ let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
 let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 let ACTIVE_RENT_PAYMENT_ENTRY = null;
+let ACTIVE_DEPOSIT_TENANT_ID = null;
+let ACTIVE_DEPOSIT_RESULT = null;
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -4657,6 +4659,182 @@ function seedDemoData() {
 let activeTenantRoomId = null;
 let _cccdScanner = null;
 
+function depositEntryTypeLabel(entryType) {
+  const labels = {
+    collection: 'Thu tiền cọc',
+    deduction: 'Khấu trừ cọc',
+    refund: 'Hoàn cọc',
+    reversal: 'Hoàn tác giao dịch'
+  };
+  return labels[entryType] || entryType || 'Giao dịch tiền cọc';
+}
+
+function closeTenantDepositModal() {
+  const modal = document.getElementById('deposit-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_DEPOSIT_TENANT_ID = null;
+  ACTIVE_DEPOSIT_RESULT = null;
+}
+
+function updateDepositFormState() {
+  const typeInput = document.getElementById('deposit-entry-type');
+  const amountInput = document.getElementById('deposit-amount');
+  const hint = document.getElementById('deposit-form-hint');
+  if (!typeInput || !amountInput || !hint) return;
+  const type = typeInput.value;
+  const balance = Math.max(0, Number(ACTIVE_DEPOSIT_RESULT?.account?.balanceVnd) || 0);
+  amountInput.removeAttribute('max');
+  if (type === 'collection') {
+    hint.textContent = 'Thu cọc sẽ làm tăng số dư của khách.';
+    return;
+  }
+  amountInput.max = String(balance);
+  hint.textContent = type === 'deduction'
+    ? `Khấu trừ tối đa ${fmt(balance)}. Ghi rõ lý do hư hỏng hoặc chi phí.`
+    : `Hoàn tối đa ${fmt(balance)} cho khách.`;
+}
+
+function renderTenantDeposit(result) {
+  ACTIVE_DEPOSIT_RESULT = result;
+  const account = result.account || {};
+  const transactions = Array.isArray(result.transactions) ? result.transactions : [];
+  const title = document.getElementById('deposit-modal-title');
+  const balance = document.getElementById('deposit-balance');
+  const context = document.getElementById('deposit-account-context');
+  const list = document.getElementById('deposit-ledger-list');
+  if (!title || !balance || !context || !list) return;
+
+  title.textContent = `💰 Tiền cọc – ${account.tenantName || 'Khách thuê'}`;
+  balance.textContent = fmt(account.balanceVnd || 0);
+  context.textContent = `${account.roomName || account.roomId || '—'} · ${account.transactionCount || 0} giao dịch`;
+
+  if (transactions.length === 0) {
+    list.innerHTML = '<p class="deposit-ledger-empty">Chưa có giao dịch tiền cọc.</p>';
+  } else {
+    list.innerHTML = transactions.map((transaction) => {
+      const amount = Number(transaction.amountVnd) || 0;
+      const canReverse = transaction.entryType !== 'reversal' && !transaction.isReversed;
+      return `
+        <article class="deposit-ledger-item ${transaction.isReversed ? 'is-reversed' : ''}">
+          <div class="deposit-ledger-main">
+            <div>
+              <strong>${escapeHtml(depositEntryTypeLabel(transaction.entryType))}</strong>
+              ${transaction.isReversed ? '<span class="badge badge--empty">Đã hoàn tác</span>' : ''}
+            </div>
+            <span>${escapeHtml(transaction.code || '')} · ${escapeHtml(rentPaymentMethodLabel(transaction.paymentMethod))}</span>
+            <span>${escapeHtml(new Date(transaction.occurredAt).toLocaleString('vi-VN'))}</span>
+            ${transaction.note ? `<p>${escapeHtml(transaction.note)}</p>` : ''}
+          </div>
+          <div class="deposit-ledger-side">
+            <strong class="${amount < 0 ? 'is-negative' : 'is-positive'}">${amount > 0 ? '+' : ''}${fmt(amount)}</strong>
+            ${canReverse ? `<button type="button" class="btn btn--danger btn--sm" data-reverse-deposit="${transaction.id}">Hoàn tác</button>` : ''}
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  list.querySelectorAll('[data-reverse-deposit]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const reason = window.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', '');
+      if (reason === null) return;
+      const normalizedReason = reason.trim();
+      if (normalizedReason.length < 10 || normalizedReason.length > 500) {
+        showToast('Lý do hoàn tác phải từ 10 đến 500 ký tự', 'error');
+        return;
+      }
+      button.disabled = true;
+      try {
+        await API.reverseDepositTransaction(button.dataset.reverseDeposit, normalizedReason);
+        showToast('Đã tạo bút toán hoàn tác tiền cọc', 'success');
+        await openTenantDeposit(ACTIVE_DEPOSIT_TENANT_ID, { preserveForm: true });
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        button.disabled = false;
+        showToast(error.message || 'Không hoàn tác được giao dịch tiền cọc', 'error', 4000);
+      }
+    });
+  });
+  updateDepositFormState();
+}
+
+async function openTenantDeposit(tenantId, options = {}) {
+  const normalizedTenantId = String(tenantId || '').trim();
+  if (!normalizedTenantId) return;
+  const modal = document.getElementById('deposit-modal');
+  const list = document.getElementById('deposit-ledger-list');
+  const form = document.getElementById('deposit-transaction-form');
+  const error = document.getElementById('deposit-form-error');
+  if (!modal || !list || !form || !error) return;
+  ACTIVE_DEPOSIT_TENANT_ID = normalizedTenantId;
+  ACTIVE_DEPOSIT_RESULT = null;
+  if (!options.preserveForm) form.reset();
+  error.hidden = true;
+  error.textContent = '';
+  list.innerHTML = '<p class="deposit-ledger-empty">Đang tải sổ tiền cọc…</p>';
+  modal.hidden = false;
+  try {
+    const result = await API.getTenantDeposit(normalizedTenantId);
+    if (ACTIVE_DEPOSIT_TENANT_ID !== normalizedTenantId) return;
+    renderTenantDeposit(result);
+  } catch (apiError) {
+    if (apiError.code === 401) return handleAuthExpired();
+    list.innerHTML = `<p class="deposit-ledger-empty deposit-form-error">${escapeHtml(apiError.message || 'Không tải được sổ tiền cọc')}</p>`;
+  }
+}
+
+async function submitDepositTransaction(event) {
+  event.preventDefault();
+  if (!ACTIVE_DEPOSIT_TENANT_ID || !ACTIVE_DEPOSIT_RESULT) return;
+  const entryType = document.getElementById('deposit-entry-type').value;
+  const amountVnd = Number(document.getElementById('deposit-amount').value);
+  const paymentMethod = document.getElementById('deposit-payment-method').value;
+  const note = document.getElementById('deposit-note').value.trim();
+  const error = document.getElementById('deposit-form-error');
+  const submit = document.getElementById('deposit-submit');
+  const balance = Math.max(0, Number(ACTIVE_DEPOSIT_RESULT.account?.balanceVnd) || 0);
+  error.hidden = true;
+  if (!Number.isSafeInteger(amountVnd) || amountVnd <= 0) {
+    error.textContent = 'Số tiền phải là số nguyên lớn hơn 0.';
+    error.hidden = false;
+    return;
+  }
+  if (entryType !== 'collection' && amountVnd > balance) {
+    error.textContent = `Số tiền không được vượt quá số dư ${fmt(balance)}.`;
+    error.hidden = false;
+    return;
+  }
+  if (entryType !== 'collection' && note.length < 3) {
+    error.textContent = 'Khấu trừ hoặc hoàn cọc phải có ghi chú ít nhất 3 ký tự.';
+    error.hidden = false;
+    return;
+  }
+  submit.disabled = true;
+  const originalLabel = submit.textContent;
+  submit.textContent = 'Đang ghi…';
+  try {
+    await API.createDepositTransaction({
+      tenantId: ACTIVE_DEPOSIT_TENANT_ID,
+      entryType,
+      amountVnd,
+      paymentMethod,
+      note,
+      idempotencyKey: `deposit:${uuid()}`,
+      occurredAt: new Date().toISOString()
+    });
+    document.getElementById('deposit-amount').value = '';
+    document.getElementById('deposit-note').value = '';
+    showToast(`Đã ghi ${depositEntryTypeLabel(entryType).toLowerCase()}`, 'success');
+    await openTenantDeposit(ACTIVE_DEPOSIT_TENANT_ID, { preserveForm: true });
+  } catch (apiError) {
+    if (apiError.code === 401) return handleAuthExpired();
+    error.textContent = apiError.message || 'Không ghi được giao dịch tiền cọc';
+    error.hidden = false;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = originalLabel;
+  }
+}
+
 function openTenantsModal(roomId) {
   checkServerEntitlement('quản lý khách trọ và CCCD', () => {
     activeTenantRoomId = roomId;
@@ -4717,7 +4895,8 @@ function renderTenantsList(roomId) {
           <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${escapeHtml(t.address || '—')}</div>
         </div>
       </div>
-      <div class="tenant-actions" style="display:flex; gap:8px; align-self:flex-start;">
+      <div class="tenant-actions" style="display:flex; gap:8px; align-self:flex-start; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-deposit-tenant="${escapeHtml(t.id)}">💰 Cọc</button>
         <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-edit-tenant="${escapeHtml(t.id)}">✏️</button>
         <button type="button" class="btn btn--danger btn--sm" style="padding: 4px 8px; font-size: 0.8rem; background: var(--red); border-color: var(--red);" data-delete-tenant="${escapeHtml(t.id)}">🗑️</button>
       </div>
@@ -4746,6 +4925,10 @@ function renderTenantsList(roomId) {
     
     item.querySelector('[data-edit-tenant]').addEventListener('click', () => {
       openTenantForm(roomId, t.id);
+    });
+
+    item.querySelector('[data-deposit-tenant]').addEventListener('click', () => {
+      openTenantDeposit(t.id);
     });
     
     item.querySelector('[data-delete-tenant]').addEventListener('click', () => {
@@ -4937,6 +5120,11 @@ function parseCccdQr(qrText) {
 }
 
 function initTenantsEvents() {
+  document.getElementById('deposit-modal-close').addEventListener('click', closeTenantDepositModal);
+  document.getElementById('deposit-modal-close-footer').addEventListener('click', closeTenantDepositModal);
+  document.getElementById('deposit-entry-type').addEventListener('change', updateDepositFormState);
+  document.getElementById('deposit-transaction-form').addEventListener('submit', submitDepositTransaction);
+
   document.getElementById('tenants-modal-close').addEventListener('click', () => {
     document.getElementById('tenants-modal').hidden = true;
     stopCccdScanner();
