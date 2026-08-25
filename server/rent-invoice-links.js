@@ -219,6 +219,13 @@ function publicInvoiceJson(row) {
     details,
     meterPhotos,
     payment,
+    receipts: (Array.isArray(row.receipts) ? row.receipts : []).map(receipt => ({
+      code: receipt.receipt_code,
+      receiptTotalVnd: Number(receipt.receipt_total_vnd) || 0,
+      allocatedAmountVnd: Number(receipt.allocated_amount_vnd) || 0,
+      paymentMethod: receipt.payment_method,
+      occurredAt: receipt.occurred_at
+    })),
     link: {
       expiresAt: row.expires_at,
       paymentProof: row.payment_proof || null
@@ -281,10 +288,31 @@ async function resolvePublicInvoiceLink(req, res) {
        WHERE user_id=$1 AND invoice_id=$2 AND share_link_id=$3`,
       [link.user_id, link.invoice_id, link.id]
     );
+    const receiptResult = await client.query(
+      `SELECT receipt.receipt_code, receipt.amount_vnd AS receipt_total_vnd,
+              receipt.payment_method, receipt.occurred_at,
+              SUM(tx.amount_vnd) AS allocated_amount_vnd
+       FROM rent_payment_transactions tx
+       JOIN rent_payment_receipts receipt
+         ON receipt.user_id=tx.user_id AND receipt.id=tx.receipt_id
+       WHERE tx.user_id=$1 AND tx.invoice_id=$2
+         AND tx.entry_type='payment' AND tx.amount_vnd > 0
+         AND NOT EXISTS (
+           SELECT 1 FROM rent_payment_transactions reversal
+           WHERE reversal.user_id=tx.user_id
+             AND reversal.reverses_transaction_id=tx.id
+         )
+       GROUP BY receipt.id
+       HAVING SUM(tx.amount_vnd) > 0
+       ORDER BY receipt.occurred_at DESC, receipt.id DESC
+       LIMIT 20`,
+      [link.user_id, link.invoice_id]
+    );
     const row = {
       ...invoice,
       expires_at: link.expires_at,
       meter_photos: meterPhotoResult.rows,
+      receipts: receiptResult.rows,
       payment_proof: proofResult.rows[0]
         ? {
             status: proofResult.rows[0].status,

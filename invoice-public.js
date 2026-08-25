@@ -157,6 +157,110 @@
     }
   }
 
+  function paymentMethodLabel(method) {
+    return ({
+      bank_transfer: 'Chuyển khoản',
+      cash: 'Tiền mặt',
+      manual: 'Ghi nhận thủ công'
+    })[String(method || '')] || 'Thanh toán';
+  }
+
+  function drawReceiptText(context, label, value, y, options = {}) {
+    context.fillStyle = options.color || '#344054';
+    context.font = options.font || '500 30px system-ui, sans-serif';
+    context.textAlign = options.align || 'left';
+    context.fillText(`${label}${value}`, options.x || 92, y);
+  }
+
+  async function downloadReceipt(receipt, invoice) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 1040;
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) return;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#625af6';
+    context.fillRect(0, 0, canvas.width, 20);
+
+    drawReceiptText(context, '', 'TRỌBILL', 100, {
+      font: '800 34px system-ui, sans-serif', color: '#625af6'
+    });
+    drawReceiptText(context, '', 'PHIẾU THU TIỀN TRỌ', 190, {
+      font: '800 52px system-ui, sans-serif', color: '#172033', align: 'center', x: 600
+    });
+    drawReceiptText(context, '', receipt.code || '—', 245, {
+      font: '700 28px ui-monospace, monospace', color: '#667085', align: 'center', x: 600
+    });
+
+    context.strokeStyle = '#dfe5f0';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(92, 292);
+    context.lineTo(1108, 292);
+    context.stroke();
+
+    drawReceiptText(context, 'Phòng: ', invoice.roomName || '—', 370);
+    drawReceiptText(context, 'Kỳ hóa đơn: ', periodLabel(invoice.period), 430);
+    drawReceiptText(context, 'Thời gian xác nhận: ', dateTime(receipt.occurredAt), 490);
+    drawReceiptText(context, 'Phương thức: ', paymentMethodLabel(receipt.paymentMethod), 550);
+    drawReceiptText(context, 'Mã chuyển khoản: ', invoice.transferContent || '—', 610);
+
+    context.fillStyle = '#f3f2ff';
+    context.fillRect(92, 665, 1016, 170);
+    drawReceiptText(context, 'Số tiền phiếu thu: ', money.format(Number(receipt.receiptTotalVnd) || 0), 730, {
+      font: '700 34px system-ui, sans-serif', color: '#5149d8', x: 125
+    });
+    drawReceiptText(context, 'Phân bổ cho hóa đơn này: ', money.format(Number(receipt.allocatedAmountVnd) || 0), 790, {
+      font: '800 38px system-ui, sans-serif', color: '#172033', x: 125
+    });
+
+    drawReceiptText(context, '', 'ĐÃ XÁC NHẬN', 900, {
+      font: '800 32px system-ui, sans-serif', color: '#14783d', align: 'right', x: 1108
+    });
+    drawReceiptText(context, '', 'Phiếu được tạo từ sổ thu tiền append-only của chủ trọ.', 965, {
+      font: '500 23px system-ui, sans-serif', color: '#667085', align: 'center', x: 600
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) return;
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = `phieu-thu-${String(receipt.code || 'tien-tro').replace(/[^A-Za-z0-9-]/g, '-')}.png`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+
+  function renderReceipts(receipts, invoice) {
+    const section = document.getElementById('invoice-receipts');
+    const list = document.getElementById('invoice-receipt-list');
+    list.replaceChildren();
+    const validReceipts = (Array.isArray(receipts) ? receipts : []).filter(receipt => (
+      /^PT-[0-9]{6}-[A-Z0-9]{6}$/.test(String(receipt?.code || ''))
+      && Number(receipt?.allocatedAmountVnd) > 0
+    ));
+    section.hidden = validReceipts.length === 0;
+    for (const receipt of validReceipts) {
+      const item = document.createElement('article');
+      item.className = 'public-invoice-receipt-item';
+      const details = document.createElement('div');
+      const title = document.createElement('strong');
+      const meta = document.createElement('span');
+      const button = document.createElement('button');
+      title.textContent = `${receipt.code} · ${money.format(Number(receipt.allocatedAmountVnd))}`;
+      meta.textContent = `${paymentMethodLabel(receipt.paymentMethod)} · ${dateTime(receipt.occurredAt)}`;
+      button.type = 'button';
+      button.textContent = 'Tải phiếu thu';
+      button.addEventListener('click', () => downloadReceipt(receipt, invoice));
+      details.append(title, meta);
+      item.append(details, button);
+      list.appendChild(item);
+    }
+  }
+
   function proofByteSize(dataUrl) {
     const base64 = String(dataUrl || '').split(',')[1] || '';
     return Math.floor((base64.length * 3) / 4) - ((base64.match(/=*$/) || [''])[0].length);
@@ -302,6 +406,7 @@
     renderMeterPhotos(data.meterPhotos || {});
     renderPayment(data.payment || null);
     renderPaymentProof(data.link?.paymentProof || null, invoice);
+    renderReceipts(data.receipts || [], invoice);
     loading.hidden = true;
     errorPanel.hidden = true;
     content.hidden = false;

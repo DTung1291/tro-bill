@@ -108,6 +108,35 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
 .public-invoice-proof-submitted strong { display: block; color: #14783d; font-size: .84rem; }
 .public-invoice-proof-submitted p,
 .public-invoice-proof-submitted span { display: block; margin: 5px 0 0; color: #52665a; font-size: .72rem; line-height: 1.45; }
+.public-invoice-receipts { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e7ebf2; }
+.public-invoice-receipt-list { display: flex; flex-direction: column; gap: 10px; }
+.public-invoice-receipt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 13px;
+  border: 1px solid #dfe5f0;
+  border-radius: 12px;
+  background: #fafbfe;
+}
+.public-invoice-receipt-item > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.public-invoice-receipt-item strong { color: #172033; font-size: .84rem; overflow-wrap: anywhere; }
+.public-invoice-receipt-item span { color: #667085; font-size: .72rem; line-height: 1.4; }
+.public-invoice-receipt-item button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #cbc7ff;
+  border-radius: 9px;
+  background: #f3f2ff;
+  color: #5149d8;
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.public-invoice-receipts > p { margin: 10px 0 0; color: #667085; font-size: .7rem; line-height: 1.5; }
 .public-invoice-privacy { margin: 18px 0 0; padding: 10px 12px; border-radius: 10px; background: #f2f5f9; color: #667085; font-size: .74rem; line-height: 1.5; }
 @media (max-width: 560px) {
   .public-invoice-shell { width: min(100% - 20px, 760px); padding-top: 18px; }
@@ -118,4 +147,6 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(145deg, #f8faff
   .public-invoice-meter-photo-grid { grid-template-columns: 1fr; }
   .public-invoice-payment-layout { grid-template-columns: 1fr; }
   .public-invoice-payment-layout > img { width: min(100%, 280px); margin: 0 auto; }
+  .public-invoice-receipt-item { align-items: stretch; flex-direction: column; }
+  .public-invoice-receipt-item button { align-self: flex-start; }
 }

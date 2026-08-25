@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=5" />
+  <link rel="stylesheet" href="invoice-public.css?v=6" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -116,9 +116,19 @@
           <span>Minh chứng không tự động xác nhận hóa đơn đã thanh toán.</span>
         </div>
       </section>
+      <section class="public-invoice-receipts" id="invoice-receipts" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Khoản thu đã xác nhận</p>
+            <h2>Phiếu thu của hóa đơn</h2>
+          </div>
+        </div>
+        <div class="public-invoice-receipt-list" id="invoice-receipt-list"></div>
+        <p>Phiếu thu chỉ xuất hiện sau khi chủ trọ ghi nhận hoặc đối soát giao dịch. Tệp tải về là ảnh PNG để dễ lưu và chia sẻ.</p>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=5"></script>
+  <script src="invoice-public.js?v=6"></script>
 </body>
 </html>
