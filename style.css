@@ -325,6 +325,17 @@ body.modal-open {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   font-size: .85rem; color: var(--text-muted);
 }
+.bank-transfer-reference-hint {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.bank-transfer-reference-hint strong {
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .04em;
+}
 .settings-card[hidden] { display: none !important; }
 /* Premium đang tạm tắt, không chiếm chỗ trong bất kỳ layout nào. */
 #premium-card { display: none !important; }
@@ -1183,6 +1194,14 @@ body.modal-open {
   background: var(--bg3); border-bottom: 1px solid var(--border);
 }
 .bill-room-name { font-weight: 700; font-size: 1.05rem; }
+.bill-transfer-reference {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
 .bill-total-big { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
 .bill-header-payment {
   display: flex;
@@ -1326,6 +1345,23 @@ body.modal-open {
 .bill-preview-meta-item .debt-age-badge--overdue-8-30 { color: #c2410c; }
 .bill-preview-meta-item .debt-age-badge--overdue-31-plus { color: var(--red); }
 .bill-preview-debt-age small { color: var(--text-muted); font-size: .74rem; }
+.bill-preview-transfer-reference {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bill-preview-transfer-reference code {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--primary);
+  background: var(--bg2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .88rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+}
 .bill-preview-meta-item--wide { grid-column: 1 / -1; }
 .bill-preview-details,
 .bill-preview-qr-panel {
@@ -1499,6 +1535,10 @@ body.modal-open {
 }
 .rent-payment-summary-grid strong { overflow-wrap: anywhere; }
 .rent-payment-summary-grid > div:last-child strong { color: var(--primary); }
+.rent-payment-transfer-content {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: .06em;
+}
 .rent-payment-ledger-note {
   margin: 14px 0;
   padding: 10px 12px;

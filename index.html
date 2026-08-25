@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=83" />
+  <link rel="stylesheet" href="style.css?v=84" />
 </head>
 
 <body>
@@ -430,15 +430,10 @@
           <input type="text" id="bank-custom-input" class="inline-input" placeholder="Mã ngân hàng (e.g. OCB)" style="width: 160px; display: none;" />
           <input type="text" id="bank-account-input" class="inline-input" placeholder="Số tài khoản" style="width: 140px;" />
           <input type="text" id="bank-owner-input" class="inline-input" placeholder="Tên chủ tài khoản (KHONG DAU)" style="width: 210px;" />
-          <input type="text" id="bank-pattern-input" class="inline-input" placeholder="Mẫu nội dung (e.g. {room} {period})" style="width: 240px;" />
           <button class="btn btn--sm" id="save-bank-settings">Lưu cấu hình</button>
         </div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap;">
-          <span>💡 Placeholder hỗ trợ:</span>
-          <span><strong>{room}</strong>: Tên phòng</span>
-          <span><strong>{period}</strong>: Tháng năm dạng MMYYYY (e.g. 062026)</span>
-          <span><strong>{month}</strong>: Tháng MM (e.g. 06)</span>
-          <span><strong>{year}</strong>: Năm YYYY (e.g. 2026)</span>
+        <div class="bank-transfer-reference-hint">
+          🧾 TrọBill tự tạo mã chuyển khoản ngắn dạng <strong>HD0000001A</strong> riêng cho từng hóa đơn để tránh trùng và hỗ trợ đối soát.
         </div>
       </div>
 
@@ -1234,8 +1229,9 @@
   <script src="ocr.js?v=55"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
+  <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
-  <script src="app.js?v=83"></script>
+  <script src="app.js?v=84"></script>
 </body>
 
 </html>

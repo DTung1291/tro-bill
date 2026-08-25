@@ -116,6 +116,7 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
   assert.equal(summary.dueDate, '2026-06-30');
   assert.equal(summary.overdueDays, 56);
   assert.equal(summary.debtAgeBucket, 'overdue_31_plus');
+  assert.equal(summary.transferContent, 'HD00000015');
   assert.equal(receiptCode(60, '2026-08'), 'PT-202608-00001O');
 });
 
@@ -696,5 +697,5 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=83/);
+  assert.match(htmlSource, /app\.js\?v=84/);
 });

@@ -2,6 +2,7 @@
 
 const db = require('./db');
 const DebtAge = require('../debt-age');
+const InvoiceReference = require('../invoice-reference');
 
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{8,300}$/;
@@ -102,6 +103,7 @@ function summaryJson(row, options = {}) {
   if (remaining === 0) status = collected > total ? 'overpaid' : 'paid';
   return {
     invoiceId: Number(row.id),
+    transferContent: InvoiceReference.fromInvoiceId(row.id),
     roomId: row.room_id,
     roomName: row.room_name_snapshot || '',
     period: row.period,
@@ -954,6 +956,7 @@ async function loadRentPaymentExport(userId) {
   return {
     invoices: invoiceResult.rows.map((row) => ({
       id: Number(row.id),
+      transferContent: InvoiceReference.fromInvoiceId(row.id),
       roomId: row.room_id,
       roomName: row.room_name_snapshot,
       period: row.period,

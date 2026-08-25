@@ -49,6 +49,7 @@ let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 let ACTIVE_RENT_PAYMENT_ENTRY = null;
 let ACTIVE_DEPOSIT_TENANT_ID = null;
 let ACTIVE_DEPOSIT_RESULT = null;
+let RENT_INVOICE_SYNC_PROMISE = null;
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -929,6 +930,26 @@ async function syncRentInvoicesWithLedger() {
   await refreshRentInvoiceSummaries();
 }
 
+function rentInvoiceSyncNeeded() {
+  return rentInvoicesForSync().some((entry) => {
+    const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(entry.roomId, entry.period));
+    if (!invoice) return true;
+    return Number(invoice.transactionCount) === 0
+      && Number(invoice.invoiceTotalVnd) !== Number(entry.invoiceTotalVnd);
+  });
+}
+
+async function ensureRentInvoicesSynced() {
+  if (!rentInvoiceSyncNeeded()) return;
+  if (!RENT_INVOICE_SYNC_PROMISE) {
+    RENT_INVOICE_SYNC_PROMISE = (async () => {
+      if (_savePending) await flushState({ throwOnError: true });
+      await syncRentInvoicesWithLedger();
+    })().finally(() => { RENT_INVOICE_SYNC_PROMISE = null; });
+  }
+  await RENT_INVOICE_SYNC_PROMISE;
+}
+
 function paymentStatusLabel(payment) {
   if (payment.accountSettled) return 'Đã thu đủ';
   if (payment.priorDebtVnd > 0) return `Còn tổng ${fmt(payment.totalDueVnd)}`;
@@ -1120,6 +1141,7 @@ function renderRentPaymentLedgerContent(result) {
       <div><span>Đã thu</span><strong>${fmt(invoice.paidAmountVnd)}</strong></div>
       <div><span>Còn lại tháng này</span><strong>${fmt(invoice.remainingVnd)}</strong></div>
       <div><span>Nợ cũ trước kỳ</span><strong>${fmt(invoice.priorDebtVnd)}</strong></div>
+      <div><span>Nội dung chuyển khoản</span><strong class="rent-payment-transfer-content">${escapeHtml(invoice.transferContent || '—')}</strong></div>
     </div>
     <div class="rent-payment-ledger-note">
       Sổ giao dịch chỉ thêm dòng mới. Hoàn tác sẽ tạo một dòng âm và giữ nguyên giao dịch gốc để đối soát.
@@ -1357,20 +1379,11 @@ function removeVietnameseTones(str) {
 }
 
 function getVietQrDescription(room, period) {
-  const pattern = STATE.settings.bankTransferPattern || '{room} {period}';
-  const { year, month } = parsePeriod(period);
-  const formattedPeriod = `${String(month).padStart(2, '0')}${year}`;
-
-  let desc = pattern
-    .replace(/{room}/gi, room.name)
-    .replace(/{period}/gi, formattedPeriod)
-    .replace(/{month}/gi, String(month).padStart(2, '0'))
-    .replace(/{year}/gi, String(year));
-
-  return removeVietnameseTones(desc)
-    .replace(/[^a-zA-Z0-9 ]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+  const uniqueReference = invoice?.transferContent
+    || InvoiceReference.fromInvoiceId(invoice?.invoiceId);
+  if (uniqueReference) return uniqueReference;
+  return '';
 }
 
 function genVietQrUrl(room, bill, period, amountOverride = null) {
@@ -1386,6 +1399,7 @@ function genVietQrUrl(room, bill, period, amountOverride = null) {
     : Math.max(0, Number(amountOverride) || 0);
   if (amount <= 0) return null;
   const desc = getVietQrDescription(room, period);
+  if (!desc) return null;
   const encodedDesc = encodeURIComponent(desc);
   const encodedOwner = encodeURIComponent(owner);
 
@@ -1976,6 +1990,14 @@ function navigate(page) {
   if (tabEl)   tabEl.classList.add('active');
   if (btabEl)  btabEl.classList.add('active');
   renderPage(page);
+  if (page === 'report' || page === 'history') {
+    ensureRentInvoicesSynced().then(() => {
+      if (activePage === page) renderPage(page);
+    }).catch((error) => {
+      console.warn('Không tạo được mã chuyển khoản riêng:', error.message);
+      showToast('Chưa tạo được mã chuyển khoản. Vui lòng thử lại.', 'error', 3000);
+    });
+  }
 }
 
 function renderPage(page) {
@@ -2057,9 +2079,6 @@ function renderDashboard() {
   }
   if (bankAccountInput) bankAccountInput.value = STATE.settings.bankAccount || '';
   if (bankOwnerInput) bankOwnerInput.value = STATE.settings.bankOwnerName || '';
-  const bankPatternInput = document.getElementById('bank-pattern-input');
-  if (bankPatternInput) bankPatternInput.value = STATE.settings.bankTransferPattern || '';
-
   // Ẩn/hiện gợi ý ủng hộ theo cấu hình chung do admin thiết lập
   renderDonateInfo();
 
@@ -3095,6 +3114,13 @@ function buildBillPreviewContent(room, rec, bill, period) {
         <strong>Hóa đơn đã thu đủ</strong>
         <p>Không còn số tiền cần thanh toán.</p>
       </div>`;
+  } else if (!transferContent) {
+    qrContent = `
+      <div class="bill-preview-qr-empty">
+        <span>🧾</span>
+        <strong>Chưa tạo được mã chuyển khoản</strong>
+        <p>Đóng bill và thử mở lại sau khi dữ liệu được đồng bộ.</p>
+      </div>`;
   } else if (!hasBankConfig || !qrUrl) {
     qrContent = `
       <div class="bill-preview-qr-empty">
@@ -3138,8 +3164,11 @@ function buildBillPreviewContent(room, rec, bill, period) {
             <span>${waterUsage}</span>
           </div>
           <div class="bill-preview-meta-item bill-preview-meta-item--wide">
-            <strong>Nội dung VietQR:</strong>
-            <span>${escapeHtml(transferContent || '—')}</span>
+            <strong>Nội dung chuyển khoản:</strong>
+            <span class="bill-preview-transfer-reference">
+              <code>${escapeHtml(transferContent || '—')}</code>
+              ${transferContent ? `<button type="button" class="btn btn--ghost btn--sm" data-copy-transfer-reference="${escapeHtml(transferContent)}">Sao chép</button>` : ''}
+            </span>
           </div>
         </div>
 
@@ -3176,7 +3205,14 @@ function buildBillPreviewContent(room, rec, bill, period) {
   `;
 }
 
-function openBillPreview(room, rec, bill, period) {
+async function openBillPreview(room, rec, bill, period) {
+  if (!getVietQrDescription(room, period)) {
+    try {
+      await ensureRentInvoicesSynced();
+    } catch (error) {
+      console.warn('Không tạo được mã chuyển khoản riêng:', error.message);
+    }
+  }
   activeBillPreview = { room, rec, bill, period };
   document.getElementById('bill-preview-title').textContent = `Hóa đơn ${room.name} – ${period}`;
   document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(room, rec, bill, period);
@@ -3220,6 +3256,17 @@ document.getElementById('bill-preview-close-header').addEventListener('click', c
 document.getElementById('bill-preview-close-footer').addEventListener('click', closeBillPreview);
 document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
 document.getElementById('bill-preview-modal').addEventListener('click', event => {
+  const copyReferenceButton = event.target instanceof Element
+    ? event.target.closest('[data-copy-transfer-reference]')
+    : null;
+  if (copyReferenceButton) {
+    navigator.clipboard.writeText(copyReferenceButton.dataset.copyTransferReference || '').then(() => {
+      showToast('Đã sao chép nội dung chuyển khoản ✓', 'success');
+    }).catch(() => {
+      showToast('Không sao chép được nội dung chuyển khoản', 'error');
+    });
+    return;
+  }
   if (event.target === document.getElementById('bill-preview-modal')) closeBillPreview();
 });
 document.getElementById('rent-payment-entry-form')?.addEventListener('submit', submitRentPaymentEntry);
@@ -3313,6 +3360,7 @@ function renderReport() {
         <div>
           <div class="bill-room-name">${room.name}</div>
           <div style="font-size:.75rem;color:var(--text-muted)">${periodLabel(period)}</div>
+          <div class="bill-transfer-reference">🧾 ${escapeHtml(getVietQrDescription(room, period) || 'Đang tạo mã...')}</div>
         </div>
         <div class="bill-header-payment">
           <div class="bill-total-big">${fmt(bill.total)}</div>
@@ -3451,7 +3499,15 @@ function renderReport() {
       copyBillText(room, rec, bill, period);
     });
 
-    card.querySelector(`[data-share-room]`).addEventListener('click', () => {
+    card.querySelector(`[data-share-room]`).addEventListener('click', async () => {
+      if (!getVietQrDescription(room, period)) {
+        try {
+          await ensureRentInvoicesSynced();
+        } catch (error) {
+          showToast('Chưa tạo được mã chuyển khoản. Vui lòng thử lại.', 'error', 3000);
+          return;
+        }
+      }
       const pLabel = periodLabel(period);
       const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
       const utilityOnlyLine = utilityOnly ? `🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.` : '';
@@ -3473,6 +3529,7 @@ function renderReport() {
         : '';
       const totalDueLine = `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`;
       const debtAgeLine = debtAgeMessageLine(payment);
+      const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
 
       const waterLine = room.waterType === 'khối'
         ? `💧 Tiền nước: (Cũ: ${fmtNum(waterOld)} - Mới: ${fmtNum(rec.waterNew)}) = ${bill.waterUnits} khối × ${fmtNum(bill.waterRate)}đ = ${fmt(bill.waterAmt)}`
@@ -3498,6 +3555,7 @@ function renderReport() {
         priorDebtLine,
         totalDueLine,
         debtAgeLine,
+        transferLine,
         qrPart
       ].filter(Boolean).join('\n');
 
@@ -3512,7 +3570,15 @@ function renderReport() {
 
 
 // Copy Bill for Zalo
-function copyBillText(room, rec, bill, period) {
+async function copyBillText(room, rec, bill, period) {
+  if (!getVietQrDescription(room, period)) {
+    try {
+      await ensureRentInvoicesSynced();
+    } catch (error) {
+      showToast('Chưa tạo được mã chuyển khoản. Vui lòng thử lại.', 'error', 3000);
+      return;
+    }
+  }
   const pLabel = periodLabel(period);
   const utilityOnlyLine = isUtilityOnlyRecord(rec) ? `🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.` : '';
   const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
@@ -3532,6 +3598,7 @@ function copyBillText(room, rec, bill, period) {
     ? `⚠️ Nợ cũ chuyển sang: ${fmt(payment.priorDebtVnd)}`
     : '';
   const debtAgeLine = debtAgeMessageLine(payment);
+  const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
 
   const electricOld = getElectricOld(room, period);
   const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
@@ -3563,6 +3630,7 @@ function copyBillText(room, rec, bill, period) {
     priorDebtLine,
     `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`,
     debtAgeLine,
+    transferLine,
     qrPart
   ].filter(Boolean).join('\n');
 
@@ -4148,7 +4216,6 @@ if (saveBankBtn) {
     const bankCustomVal = document.getElementById('bank-custom-input').value.trim();
     const accountVal = document.getElementById('bank-account-input').value.trim();
     const ownerVal = document.getElementById('bank-owner-input').value.trim();
-    const patternVal = document.getElementById('bank-pattern-input').value.trim();
 
     let finalBankId = bankSelectVal;
     if (bankSelectVal === 'custom') {
@@ -4163,7 +4230,6 @@ if (saveBankBtn) {
     STATE.settings.bankId = finalBankId;
     STATE.settings.bankAccount = accountVal;
     STATE.settings.bankOwnerName = removeVietnameseTones(ownerVal).toUpperCase();
-    STATE.settings.bankTransferPattern = patternVal;
     saveState();
     showToast('Đã lưu cấu hình tài khoản nhận tiền ✓', 'success');
     renderDashboard();
