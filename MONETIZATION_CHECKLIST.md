@@ -184,7 +184,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Tạo liên kết hóa đơn bảo mật, có thời hạn hoặc OTP.
 - [x] Khách xem được chi tiết tiền phòng, điện, nước và dịch vụ.
 - [x] Khách xem được chỉ số và ảnh đồng hồ nếu có.
-- [ ] Khách quét VietQR theo số tiền còn lại.
+- [x] Khách quét VietQR theo số tiền còn lại.
 - [ ] Khách gửi minh chứng chuyển khoản.
 - [ ] Khách tải phiếu thu sau khi được xác nhận.
 - [ ] Khách xem lịch sử hóa đơn và thanh toán của chính phòng mình.
