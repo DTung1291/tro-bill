@@ -74,7 +74,8 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['GET', '/api/admin/plans'],
     ['PUT', '/api/admin/plans/pro'],
     ['GET', '/api/admin/subscription/refund-requests'],
-    ['POST', '/api/admin/subscription/refund-requests/1/transition']
+    ['POST', '/api/admin/subscription/refund-requests/1/transition'],
+    ['GET', '/api/admin/revenue/summary']
   ];
 
   for (const [method, path] of protectedRequests) {

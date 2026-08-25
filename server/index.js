@@ -41,6 +41,7 @@ const { createSubscriptionOrder } = require('./subscription-orders');
 const { paymentWebhook } = require('./payment-webhook');
 const paymentHistory = require('./subscription-payment-history');
 const subscriptionRefunds = require('./subscription-refunds');
+const adminRevenue = require('./admin-revenue');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -172,6 +173,7 @@ app.post(
   adminGuard,
   wrap(subscriptionRefunds.transitionAdminRefundRequest)
 );
+app.get('/api/admin/revenue/summary', adminGuard, wrap(adminRevenue.getRevenueSummary));
 
 // ---------- Frontend tĩnh (thư mục cha) ----------
 const FRONTEND_DIR = path.join(__dirname, '..');

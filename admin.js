@@ -54,6 +54,56 @@
     renderUsers(data.users || []);
   }
 
+  // ---------- Dashboard doanh thu ----------
+  function setRevenueText(id, value) {
+    const element = $(id);
+    if (element) element.textContent = value;
+  }
+
+  function renderRevenueSummary(summary) {
+    const accounts = summary.accounts || {};
+    const revenue = summary.revenue || {};
+    const conversion = summary.trialConversion || {};
+    setRevenueText('#revenue-trialing', String(accounts.trialing || 0));
+    setRevenueText('#revenue-paying', String(accounts.paying || 0));
+    setRevenueText('#revenue-expired', String(accounts.expired || 0));
+    setRevenueText('#revenue-expiring', String(accounts.expiringSoon || 0));
+    setRevenueText('#revenue-month', fmtVND(revenue.monthNetVnd));
+    setRevenueText(
+      '#revenue-month-detail',
+      `Tổng thu ${fmtVND(revenue.monthGrossVnd)} · hoàn ${fmtVND(revenue.monthRefundedVnd)}`
+    );
+    setRevenueText('#revenue-year', fmtVND(revenue.yearNetVnd));
+    setRevenueText(
+      '#revenue-year-detail',
+      `Tổng thu ${fmtVND(revenue.yearGrossVnd)} · hoàn ${fmtVND(revenue.yearRefundedVnd)}`
+    );
+    setRevenueText('#revenue-mrr', fmtVND(revenue.mrrVnd));
+    setRevenueText('#revenue-arr', `ARR ước tính ${fmtVND(revenue.arrVnd)}`);
+    setRevenueText('#revenue-conversion', `${Number(conversion.ratePercent || 0).toLocaleString('vi-VN')}%`);
+    setRevenueText(
+      '#revenue-conversion-detail',
+      `${conversion.converted || 0} / ${conversion.trialEver || 0} tài khoản từng trial`
+    );
+    setRevenueText('#admin-revenue-generated', `Cập nhật ${fmtDate(summary.generatedAt)}`);
+  }
+
+  async function loadRevenueSummary() {
+    const refresh = $('#admin-revenue-refresh');
+    refresh.disabled = true;
+    try {
+      const result = await API.admin.getRevenueSummary();
+      renderRevenueSummary(result.summary || {});
+    } catch (error) {
+      if (error.code === 401) return gotoLogin();
+      showMsg(error.message || 'Không tải được dashboard doanh thu.', true);
+    } finally {
+      refresh.disabled = false;
+    }
+  }
+
+  $('#admin-revenue-refresh').addEventListener('click', loadRevenueSummary);
+
   function renderUsers(users) {
     tbody.innerHTML = '';
     for (const u of users) {
@@ -608,6 +658,7 @@
   // Cookie HttpOnly không thể được kiểm tra bằng JavaScript. API admin sẽ xác
   // nhận phiên; nếu hết hạn, loadUsers() tự chuyển về trang đăng nhập.
   loadUsers();
+  loadRevenueSummary();
   loadConfig();
   loadPlans();
   loadSubscriptionRefundRequests();

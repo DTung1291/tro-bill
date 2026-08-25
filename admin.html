@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Quản trị</title>
-  <link rel="stylesheet" href="style.css?v=75" />
+  <link rel="stylesheet" href="style.css?v=76" />
 </head>
 <body>
   <div class="admin-wrap">
@@ -17,6 +17,27 @@
     </header>
 
     <p id="admin-msg" class="admin-msg" hidden></p>
+
+    <section class="admin-revenue" id="admin-revenue-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>📈 Tổng quan doanh thu TrọBill</h2>
+          <p class="admin-config-note">Doanh thu thuần đã trừ các yêu cầu được xác nhận “Đã hoàn tiền”. MRR là giá trị tháng tương đương của gói còn hiệu lực.</p>
+        </div>
+        <button type="button" class="admin-btn-ghost" id="admin-revenue-refresh">Làm mới</button>
+      </div>
+      <div class="admin-revenue-grid">
+        <article><span>Đang dùng thử</span><strong id="revenue-trialing">—</strong></article>
+        <article><span>Đang trả phí</span><strong id="revenue-paying">—</strong></article>
+        <article><span>Đã hết hạn</span><strong id="revenue-expired">—</strong></article>
+        <article><span>Sắp hết hạn ≤ 7 ngày</span><strong id="revenue-expiring">—</strong></article>
+        <article><span>Doanh thu thuần tháng</span><strong id="revenue-month">—</strong><small id="revenue-month-detail"></small></article>
+        <article><span>Doanh thu thuần năm</span><strong id="revenue-year">—</strong><small id="revenue-year-detail"></small></article>
+        <article><span>MRR</span><strong id="revenue-mrr">—</strong><small id="revenue-arr"></small></article>
+        <article><span>Trial → trả phí</span><strong id="revenue-conversion">—</strong><small id="revenue-conversion-detail"></small></article>
+      </div>
+      <p class="admin-cell-note" id="admin-revenue-generated"></p>
+    </section>
 
     <!-- Cấu hình ủng hộ nhà phát triển (toàn cục) -->
     <section class="admin-config">
@@ -184,7 +205,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=75"></script>
-  <script src="admin.js?v=75"></script>
+  <script src="api.js?v=76"></script>
+  <script src="admin.js?v=76"></script>
 </body>
 </html>

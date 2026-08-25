@@ -141,10 +141,10 @@ Trạng thái ngày 24/08/2026:
 
 ### Trang quản trị doanh thu
 
-- [ ] Hiển thị số tài khoản dùng thử, đang trả phí và đã hết hạn.
-- [ ] Hiển thị doanh thu tháng, doanh thu năm và doanh thu định kỳ.
-- [ ] Hiển thị tỷ lệ dùng thử chuyển thành trả phí.
-- [ ] Hiển thị số gói sắp hết hạn cần chăm sóc.
+- [x] Hiển thị số tài khoản dùng thử, đang trả phí và đã hết hạn.
+- [x] Hiển thị doanh thu tháng, doanh thu năm và doanh thu định kỳ.
+- [x] Hiển thị tỷ lệ dùng thử chuyển thành trả phí.
+- [x] Hiển thị số gói sắp hết hạn cần chăm sóc.
 - [ ] Cho phép admin gia hạn hoặc cấp gói có ghi rõ lý do và audit log.
 
 ### Hoàn thành giai đoạn khi

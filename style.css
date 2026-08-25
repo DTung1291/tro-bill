@@ -2511,6 +2511,34 @@ body.modal-open {
 .admin-msg-error { color: #dc2626; }
 .admin-muted { color: var(--muted, #64748b); }
 
+.admin-revenue {
+  border: 1px solid rgba(79, 70, 229, .28);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0 20px;
+  background: var(--card, #fff);
+}
+.admin-revenue h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.admin-revenue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.admin-revenue-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 9px;
+  background: var(--bg, #f8fafc);
+}
+.admin-revenue-grid span { color: var(--muted, #64748b); font-size: .75rem; font-weight: 600; }
+.admin-revenue-grid strong { color: var(--text, #0f172a); font-size: 1.15rem; overflow-wrap: anywhere; }
+.admin-revenue-grid small { color: var(--muted, #64748b); font-size: .68rem; line-height: 1.35; }
+#admin-revenue-generated { margin: 10px 0 0; text-align: right; }
+
 .admin-table, .admin-subtable {
   width: 100%;
   border-collapse: collapse;
