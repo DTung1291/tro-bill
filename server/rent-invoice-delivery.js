@@ -79,83 +79,121 @@ function sendDeliveryError(res, error) {
 }
 
 async function deliverInvoiceEmail(req, res, dependencies = {}) {
-  const loadInvoiceSummary = dependencies.invoiceSummary || invoiceSummary;
-  const createLink = dependencies.issueInvoiceLink || issueInvoiceLink;
-  const sendEmail = dependencies.sendRentInvoiceEmail || sendRentInvoiceEmail;
-  const ensureEmailConfigured = dependencies.assertEmailConfigured || assertEmailConfigured;
   const checkDeliveryRateLimit = dependencies.checkDeliveryRateLimit || checkAuthRateLimit;
   const recordDeliveryAttempt = dependencies.recordDeliveryAttempt || recordAuthAttempt;
   let input;
   try {
     input = deliveryInput(req);
-    const summary = await loadInvoiceSummary(db.query, req.userId, input.invoiceId);
-    if (!summary) {
-      throw new RentInvoiceDeliveryError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn');
-    }
-    const { rows } = await db.query(
-      `SELECT tenant.id, tenant.full_name, tenant.email,
-              settings.bank_id, settings.bank_account, settings.bank_owner_name
-       FROM tenants tenant
-       LEFT JOIN settings ON settings.user_id=tenant.user_id
-       WHERE tenant.user_id=$1 AND tenant.room_id=$2 AND tenant.id=$3`,
-      [req.userId, summary.roomId, input.tenantId]
-    );
-    const tenant = rows[0];
-    if (!tenant) {
-      throw new RentInvoiceDeliveryError(
-        404,
-        'INVOICE_RECIPIENT_NOT_FOUND',
-        'Khách thuê không thuộc phòng của hóa đơn này'
-      );
-    }
-    const email = String(tenant.email || '').trim().toLowerCase();
-    if (!email) {
-      throw new RentInvoiceDeliveryError(
-        409,
-        'TENANT_EMAIL_MISSING',
-        'Khách thuê chưa có email nhận hóa đơn'
-      );
-    }
-    if (email.length > 254 || !TENANT_EMAIL_PATTERN.test(email)) {
-      throw new RentInvoiceDeliveryError(409, 'TENANT_EMAIL_INVALID', 'Email khách thuê không hợp lệ');
-    }
-    if (input.templateType === 'reminder' && summary.totalDueVnd <= 0) {
-      throw new RentInvoiceDeliveryError(
-        409,
-        'INVOICE_ALREADY_PAID',
-        'Hóa đơn đã thanh toán đủ nên không gửi nhắc nợ'
-      );
-    }
-
-    ensureEmailConfigured();
     if (!(await checkDeliveryRateLimit(req, res, 'invoiceEmail', req.userEmail))) return res;
     if (!(await recordDeliveryAttempt(req, res, 'invoiceEmail', req.userEmail))) return res;
-    const issuedLink = await createLink({
+    const result = await executeInvoiceEmailDelivery({
       userId: req.userId,
       invoiceId: input.invoiceId,
+      tenantId: input.tenantId,
+      templateType: input.templateType,
       expiresInHours: input.expiresInHours,
+      idempotencyKey: deliveryIdempotencyKey(
+        req.userId,
+        input.invoiceId,
+        input.tenantId,
+        input.deliveryKey
+      ),
       req
+    }, dependencies);
+    res.set('Cache-Control', 'no-store');
+    return res.status(201).json({
+      delivered: result.delivery.delivered === true,
+      development: result.delivery.development === true,
+      emailId: result.delivery.emailId || null,
+      recipient: maskEmail(result.email),
+      message: result.message,
+      link: result.issuedLink.link,
+      publicUrl: result.issuedLink.publicUrl
     });
-    const context = {
-      roomName: summary.roomName,
-      periodLabel: periodLabel(summary.period),
-      invoiceTotalVnd: summary.invoiceTotalVnd,
-      paidAmountVnd: summary.paidAmountVnd,
-      priorDebtVnd: summary.priorDebtVnd,
-      totalDueVnd: summary.totalDueVnd,
-      dueDate: summary.dueDate,
-      overdueDays: summary.overdueDays,
-      transferContent: summary.transferContent,
-      bankRecipient: bankRecipient(tenant),
-      invoiceUrl: issuedLink.publicUrl
-    };
-    const message = input.templateType === 'reminder'
-      ? BillMessageTemplates.reminder(context)
-      : BillMessageTemplates.invoice(context);
-    const deliveryFingerprint = crypto
-      .createHash('sha256')
-      .update(`${req.userId}:${input.invoiceId}:${input.tenantId}:${input.deliveryKey}`)
-      .digest('hex');
+  } catch (error) {
+    if (sendDeliveryError(res, error)) return res;
+    throw error;
+  }
+}
+
+function deliveryIdempotencyKey(userId, invoiceId, tenantId, deliveryKey) {
+  const fingerprint = crypto
+    .createHash('sha256')
+    .update(`${userId}:${invoiceId}:${tenantId}:${deliveryKey}`)
+    .digest('hex');
+  return `rent-invoice-${fingerprint}`;
+}
+
+async function executeInvoiceEmailDelivery(input, dependencies = {}) {
+  const query = dependencies.query || db.query;
+  const loadInvoiceSummary = dependencies.invoiceSummary || invoiceSummary;
+  const createLink = dependencies.issueInvoiceLink || issueInvoiceLink;
+  const sendEmail = dependencies.sendRentInvoiceEmail || sendRentInvoiceEmail;
+  const ensureEmailConfigured = dependencies.assertEmailConfigured || assertEmailConfigured;
+  const summary = await loadInvoiceSummary(query, input.userId, input.invoiceId);
+  if (!summary) {
+    throw new RentInvoiceDeliveryError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn');
+  }
+  const { rows } = await query(
+    `SELECT tenant.id, tenant.full_name, tenant.email,
+            settings.bank_id, settings.bank_account, settings.bank_owner_name
+     FROM tenants tenant
+     LEFT JOIN settings ON settings.user_id=tenant.user_id
+     WHERE tenant.user_id=$1 AND tenant.room_id=$2 AND tenant.id=$3`,
+    [input.userId, summary.roomId, input.tenantId]
+  );
+  const tenant = rows[0];
+  if (!tenant) {
+    throw new RentInvoiceDeliveryError(
+      404,
+      'INVOICE_RECIPIENT_NOT_FOUND',
+      'Khách thuê không thuộc phòng của hóa đơn này'
+    );
+  }
+  const email = String(tenant.email || '').trim().toLowerCase();
+  if (!email) {
+    throw new RentInvoiceDeliveryError(
+      409,
+      'TENANT_EMAIL_MISSING',
+      'Khách thuê chưa có email nhận hóa đơn'
+    );
+  }
+  if (email.length > 254 || !TENANT_EMAIL_PATTERN.test(email)) {
+    throw new RentInvoiceDeliveryError(409, 'TENANT_EMAIL_INVALID', 'Email khách thuê không hợp lệ');
+  }
+  if (input.templateType === 'reminder' && summary.totalDueVnd <= 0) {
+    throw new RentInvoiceDeliveryError(
+      409,
+      'INVOICE_ALREADY_PAID',
+      'Hóa đơn đã thanh toán đủ nên không gửi nhắc nợ'
+    );
+  }
+
+  ensureEmailConfigured();
+  const issuedLink = await createLink({
+    userId: input.userId,
+    invoiceId: input.invoiceId,
+    expiresInHours: input.expiresInHours,
+    req: input.req,
+    query
+  });
+  const context = {
+    roomName: summary.roomName,
+    periodLabel: periodLabel(summary.period),
+    invoiceTotalVnd: summary.invoiceTotalVnd,
+    paidAmountVnd: summary.paidAmountVnd,
+    priorDebtVnd: summary.priorDebtVnd,
+    totalDueVnd: summary.totalDueVnd,
+    dueDate: summary.dueDate,
+    overdueDays: summary.overdueDays,
+    transferContent: summary.transferContent,
+    bankRecipient: bankRecipient(tenant),
+    invoiceUrl: issuedLink.publicUrl
+  };
+  const message = input.templateType === 'reminder'
+    ? BillMessageTemplates.reminder(context)
+    : BillMessageTemplates.invoice(context);
+  try {
     const delivery = await sendEmail({
       email,
       tenantName: tenant.full_name || '',
@@ -164,20 +202,18 @@ async function deliverInvoiceEmail(req, res, dependencies = {}) {
       templateType: input.templateType,
       message,
       invoiceUrl: issuedLink.publicUrl,
-      idempotencyKey: `rent-invoice-${deliveryFingerprint}`
+      idempotencyKey: input.idempotencyKey
     });
-    res.set('Cache-Control', 'no-store');
-    return res.status(201).json({
-      delivered: delivery.delivered === true,
-      development: delivery.development === true,
-      emailId: delivery.emailId || null,
-      recipient: maskEmail(email),
-      message,
-      link: issuedLink.link,
-      publicUrl: issuedLink.publicUrl
-    });
+    return { delivery, email, issuedLink, message, summary, tenant };
   } catch (error) {
-    if (sendDeliveryError(res, error)) return res;
+    if (issuedLink?.link?.id) {
+      await query(
+        `UPDATE rent_invoice_share_links
+         SET revoked_at=COALESCE(revoked_at, now())
+         WHERE user_id=$1 AND id=$2`,
+        [input.userId, issuedLink.link.id]
+      ).catch(() => {});
+    }
     throw error;
   }
 }
@@ -185,10 +221,13 @@ async function deliverInvoiceEmail(req, res, dependencies = {}) {
 module.exports = {
   DELIVERY_KEY_PATTERN,
   RentInvoiceDeliveryError,
+  TENANT_EMAIL_PATTERN,
   TEMPLATE_TYPES,
   bankRecipient,
+  deliveryIdempotencyKey,
   deliverInvoiceEmail,
   deliveryInput,
+  executeInvoiceEmailDelivery,
   maskEmail,
   periodLabel,
   sendDeliveryError

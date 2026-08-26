@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=93" />
+  <link rel="stylesheet" href="style.css?v=94" />
 </head>
 
 <body>
@@ -929,6 +929,15 @@
           <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
           <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
         </div>
+        <section class="bill-message-schedule" aria-labelledby="bill-message-schedule-title">
+          <strong id="bill-message-schedule-title">🗓️ Hẹn ngày gửi email</strong>
+          <div class="bill-message-schedule-form">
+            <input type="date" class="form-input" id="bill-message-schedule-date" aria-label="Ngày gửi email hóa đơn" />
+            <button type="button" class="btn btn--ghost" id="bill-message-schedule">Hẹn gửi</button>
+          </div>
+          <p>Gửi từ khoảng 07:15 vào ngày đã chọn (giờ Việt Nam). Cron miễn phí có thể kích hoạt trễ hơn ít phút.</p>
+          <div class="bill-message-schedule-list" id="bill-message-schedule-list" aria-live="polite"></div>
+        </section>
         <p class="bill-message-note">Zalo dùng bảng chia sẻ của điện thoại. Email được gửi qua dịch vụ đã cấu hình. Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</p>
       </div>
       <div class="modal-actions bill-message-actions">
@@ -1393,14 +1402,14 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=93"></script>
+  <script src="api.js?v=94"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="app.js?v=94"></script>
+  <script src="app.js?v=95"></script>
 </body>
 
 </html>

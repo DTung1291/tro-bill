@@ -3752,6 +3752,7 @@ function closeBillPreview() {
 
 let ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
 let BILL_MESSAGE_LINK_PROMISE = null;
+let BILL_MESSAGE_SCHEDULES = [];
 
 function selectedBillMessageTenant() {
   if (!activeBillPreview) return null;
@@ -3812,6 +3813,7 @@ function renderBillMessageTemplate() {
   const copyButton = document.getElementById('bill-message-copy');
   const shareButton = document.getElementById('bill-message-share');
   const emailButton = document.getElementById('bill-message-email');
+  const scheduleButton = document.getElementById('bill-message-schedule');
   const contactNote = document.getElementById('bill-message-contact-note');
   if (!context || !selector || !content || !window.BillMessageTemplates) return '';
   const template = selector.value === 'reminder'
@@ -3822,6 +3824,7 @@ function renderBillMessageTemplate() {
   if (shareButton) shareButton.disabled = !template;
   const tenant = selectedBillMessageTenant();
   if (emailButton) emailButton.disabled = !template || !tenant?.email;
+  if (scheduleButton) scheduleButton.disabled = !template || !tenant?.email;
   if (contactNote) {
     if (!tenant) contactNote.textContent = 'Thêm khách thuê để chọn người nhận email.';
     else if (tenant.email) contactNote.textContent = `Email sẽ gửi đến ${tenant.email}.`;
@@ -3842,6 +3845,7 @@ function openBillMessageModal() {
   if (!modal || !selector) return;
   ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
   BILL_MESSAGE_LINK_PROMISE = null;
+  BILL_MESSAGE_SCHEDULES = [];
   document.getElementById('bill-message-link-result').hidden = true;
   document.getElementById('bill-message-link-url').value = '';
   if (reminderOption) reminderOption.disabled = context.totalDueVnd <= 0;
@@ -3849,11 +3853,14 @@ function openBillMessageModal() {
   document.getElementById('bill-message-subtitle').textContent =
     `${context.roomName} · ${context.periodLabel}`;
   populateBillMessageTenants();
+  prepareBillMessageScheduleDate();
+  renderBillMessageSchedules({ loading: true });
   renderBillMessageTemplate();
   closeBillPreview();
   modal.hidden = false;
   syncModalScrollLock();
   document.getElementById('bill-message-content')?.focus();
+  void loadBillMessageSchedules();
 }
 
 function closeBillMessageModal() {
@@ -3861,6 +3868,7 @@ function closeBillMessageModal() {
   if (modal) modal.hidden = true;
   ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
   BILL_MESSAGE_LINK_PROMISE = null;
+  BILL_MESSAGE_SCHEDULES = [];
   syncModalScrollLock();
 }
 
@@ -3969,6 +3977,143 @@ async function sendBillMessageEmail(event) {
     showToast(error.message || 'Không gửi được email hóa đơn', 'error', 4500);
   } finally {
     button.disabled = !selectedBillMessageTenant()?.email;
+  }
+}
+
+function vietnamCalendarDate(daysFromToday = 0) {
+  const vietnamNow = new Date(Date.now() + (7 * 60 * 60 * 1000));
+  vietnamNow.setUTCDate(vietnamNow.getUTCDate() + daysFromToday);
+  return vietnamNow.toISOString().slice(0, 10);
+}
+
+function prepareBillMessageScheduleDate() {
+  const input = document.getElementById('bill-message-schedule-date');
+  if (!input) return;
+  input.min = vietnamCalendarDate(1);
+  input.max = vietnamCalendarDate(90);
+  if (!input.value || input.value < input.min || input.value > input.max) {
+    input.value = input.min;
+  }
+}
+
+function billMessageScheduleStatusLabel(status) {
+  return ({
+    scheduled: 'Đã hẹn',
+    sending: 'Đang gửi',
+    sent: 'Đã gửi',
+    failed: 'Gửi lỗi',
+    skipped: 'Đã bỏ qua',
+    cancelled: 'Đã hủy'
+  })[status] || 'Không xác định';
+}
+
+function billMessageScheduleDateLabel(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || '');
+}
+
+function renderBillMessageSchedules({ loading = false } = {}) {
+  const container = document.getElementById('bill-message-schedule-list');
+  if (!container) return;
+  container.replaceChildren();
+  if (loading) {
+    const note = document.createElement('span');
+    note.className = 'bill-message-schedule-empty';
+    note.textContent = 'Đang tải lịch gửi…';
+    container.appendChild(note);
+    return;
+  }
+  if (BILL_MESSAGE_SCHEDULES.length === 0) {
+    const note = document.createElement('span');
+    note.className = 'bill-message-schedule-empty';
+    note.textContent = 'Chưa có lịch gửi cho hóa đơn này.';
+    container.appendChild(note);
+    return;
+  }
+  for (const schedule of BILL_MESSAGE_SCHEDULES) {
+    const item = document.createElement('div');
+    item.className = 'bill-message-schedule-item';
+    const info = document.createElement('div');
+    info.className = 'bill-message-schedule-info';
+    const title = document.createElement('strong');
+    const templateLabel = schedule.templateType === 'reminder' ? 'Nhắc thanh toán' : 'Thông báo hóa đơn';
+    title.textContent = `${billMessageScheduleDateLabel(schedule.scheduledFor)} · ${templateLabel}`;
+    const meta = document.createElement('span');
+    meta.textContent = `${billMessageScheduleStatusLabel(schedule.status)} · ${schedule.recipient || 'email khách thuê'}`;
+    info.append(title, meta);
+    item.appendChild(info);
+    if (['scheduled', 'failed'].includes(schedule.status)) {
+      const cancelButton = document.createElement('button');
+      cancelButton.type = 'button';
+      cancelButton.className = 'btn btn--ghost btn--sm';
+      cancelButton.dataset.cancelInvoiceSchedule = String(schedule.id);
+      cancelButton.textContent = 'Hủy lịch';
+      item.appendChild(cancelButton);
+    }
+    container.appendChild(item);
+  }
+}
+
+async function loadBillMessageSchedules() {
+  try {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn để xem lịch gửi');
+    const result = await API.getRentInvoiceDeliverySchedules(invoiceId);
+    BILL_MESSAGE_SCHEDULES = Array.isArray(result.schedules) ? result.schedules : [];
+    renderBillMessageSchedules();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    BILL_MESSAGE_SCHEDULES = [];
+    renderBillMessageSchedules();
+    showToast(error.message || 'Không tải được lịch gửi hóa đơn', 'error', 4000);
+  }
+}
+
+async function scheduleBillMessageEmail(event) {
+  const tenant = selectedBillMessageTenant();
+  const scheduledFor = document.getElementById('bill-message-schedule-date')?.value || '';
+  if (!tenant?.email) {
+    showToast('Khách thuê chưa có email nhận hóa đơn.', 'error');
+    return;
+  }
+  if (!scheduledFor) {
+    showToast('Hãy chọn ngày gửi hóa đơn.', 'error');
+    return;
+  }
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn để hẹn gửi');
+    const result = await API.scheduleRentInvoiceEmail(invoiceId, {
+      tenantId: tenant.id,
+      templateType: document.getElementById('bill-message-template-type').value,
+      scheduledFor
+    });
+    await loadBillMessageSchedules();
+    showToast(
+      result.created ? 'Đã hẹn ngày gửi email hóa đơn.' : 'Lịch gửi này đã tồn tại.',
+      result.created ? 'success' : 'info',
+      4000
+    );
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không hẹn được ngày gửi hóa đơn', 'error', 4500);
+  } finally {
+    button.disabled = !selectedBillMessageTenant()?.email;
+  }
+}
+
+async function cancelBillMessageSchedule(scheduleId, button) {
+  button.disabled = true;
+  try {
+    await API.cancelRentInvoiceDeliverySchedule(scheduleId);
+    await loadBillMessageSchedules();
+    showToast('Đã hủy lịch gửi hóa đơn.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không hủy được lịch gửi', 'error', 4000);
+    button.disabled = false;
   }
 }
 
@@ -4188,6 +4333,7 @@ document.getElementById('bill-message-tenant')?.addEventListener('change', rende
 document.getElementById('bill-message-copy')?.addEventListener('click', copyBillMessageTemplate);
 document.getElementById('bill-message-share')?.addEventListener('click', shareBillMessageTemplate);
 document.getElementById('bill-message-email')?.addEventListener('click', sendBillMessageEmail);
+document.getElementById('bill-message-schedule')?.addEventListener('click', scheduleBillMessageEmail);
 document.getElementById('bill-message-create-link')?.addEventListener('click', createBillMessageSystemLink);
 document.getElementById('bill-message-link-copy')?.addEventListener('click', () => {
   copySubscriptionOrderValue(
@@ -4199,6 +4345,11 @@ document.getElementById('bill-message-close-header')?.addEventListener('click', 
 document.getElementById('bill-message-close-footer')?.addEventListener('click', closeBillMessageModal);
 document.getElementById('bill-message-modal')?.addEventListener('click', event => {
   if (event.target === event.currentTarget) closeBillMessageModal();
+});
+document.getElementById('bill-message-schedule-list')?.addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-cancel-invoice-schedule]');
+  if (!button) return;
+  void cancelBillMessageSchedule(Number(button.dataset.cancelInvoiceSchedule), button);
 });
 document.getElementById('invoice-share-create')?.addEventListener('click', createInvoiceShareLink);
 document.getElementById('invoice-share-refresh')?.addEventListener('click', loadInvoiceShareData);

@@ -1752,6 +1752,41 @@ body.modal-open {
 }
 .bill-message-link-result[hidden] { display: none; }
 .bill-message-link-result .inline-input { min-width: 0; width: 100%; }
+.bill-message-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+}
+.bill-message-schedule > strong { font-size: .84rem; }
+.bill-message-schedule > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.bill-message-schedule-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.bill-message-schedule-list { display: flex; flex-direction: column; gap: 6px; }
+.bill-message-schedule-empty { color: var(--text-muted); font-size: .74rem; }
+.bill-message-schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.bill-message-schedule-info { min-width: 0; font-size: .75rem; line-height: 1.4; }
+.bill-message-schedule-info strong,
+.bill-message-schedule-info span { display: block; overflow-wrap: anywhere; }
+.bill-message-schedule-info span { color: var(--text-muted); }
 .bill-message-note {
   margin: 0;
   color: var(--text-muted);
@@ -2172,6 +2207,8 @@ body.modal-open {
   .bill-message-actions .btn { flex: 1; justify-content: center; }
   .bill-message-link-result { grid-template-columns: minmax(0, 1fr); }
   .bill-message-link-result .btn { justify-content: center; }
+  .bill-message-schedule-form { grid-template-columns: minmax(0, 1fr); }
+  .bill-message-schedule-form .btn { justify-content: center; }
   .rent-payment-summary-grid { grid-template-columns: 1fr; }
   .rent-payment-summary-grid > div { flex-direction: row; justify-content: space-between; }
   .rent-payment-transaction { flex-direction: column; }

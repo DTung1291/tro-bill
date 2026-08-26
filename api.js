@@ -289,6 +289,28 @@ const API = (() => {
     );
   }
 
+  function scheduleRentInvoiceEmail(invoiceId, input) {
+    return request(
+      'POST',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/delivery-schedules`,
+      input
+    );
+  }
+
+  function getRentInvoiceDeliverySchedules(invoiceId) {
+    return request(
+      'GET',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/delivery-schedules`
+    );
+  }
+
+  function cancelRentInvoiceDeliverySchedule(scheduleId) {
+    return request(
+      'POST',
+      `/api/rent-invoice-delivery-schedules/${encodeURIComponent(scheduleId)}/cancel`
+    );
+  }
+
   function getRentInvoiceShareLinks(invoiceId) {
     return request(
       'GET',
@@ -456,6 +478,9 @@ const API = (() => {
     ignoreRentBankTransaction,
     createRentInvoiceShareLink,
     deliverRentInvoiceEmail,
+    scheduleRentInvoiceEmail,
+    getRentInvoiceDeliverySchedules,
+    cancelRentInvoiceDeliverySchedule,
     getRentInvoiceShareLinks,
     revokeRentInvoiceShareLink,
     getRentInvoicePaymentProofs,

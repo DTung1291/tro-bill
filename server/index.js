@@ -48,6 +48,7 @@ const rentPaymentChannels = require('./rent-payment-channels');
 const rentBankReconciliation = require('./rent-bank-reconciliation');
 const rentInvoiceLinks = require('./rent-invoice-links');
 const rentInvoiceDelivery = require('./rent-invoice-delivery');
+const rentInvoiceSchedules = require('./rent-invoice-schedules');
 const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
 
@@ -101,6 +102,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 app.get('/api/health/live', live);
 app.get('/api/health/ready', wrap(ready));
 app.get('/api/cron/subscription-expiry', wrap(expiryReminderCron));
+app.get('/api/cron/rent-invoice-deliveries', wrap(rentInvoiceSchedules.invoiceScheduleCron));
 app.post('/api/webhooks/subscription-payments/bank-transfer', wrap(paymentWebhook));
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
@@ -158,6 +160,21 @@ app.post(
   '/api/rent-invoices/:invoiceId/deliver-email',
   requireAuth,
   wrap(rentInvoiceDelivery.deliverInvoiceEmail)
+);
+app.post(
+  '/api/rent-invoices/:invoiceId/delivery-schedules',
+  requireAuth,
+  wrap(rentInvoiceSchedules.createInvoiceSchedule)
+);
+app.get(
+  '/api/rent-invoices/:invoiceId/delivery-schedules',
+  requireAuth,
+  wrap(rentInvoiceSchedules.listInvoiceSchedules)
+);
+app.post(
+  '/api/rent-invoice-delivery-schedules/:id/cancel',
+  requireAuth,
+  wrap(rentInvoiceSchedules.cancelInvoiceSchedule)
 );
 app.get(
   '/api/rent-invoices/:invoiceId/share-links',

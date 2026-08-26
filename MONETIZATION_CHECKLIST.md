@@ -82,6 +82,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Tách rõ môi trường development, staging và production.
 - [x] Không để secret hoặc thông tin database trong repository.
 - [x] Viết kiểm thử cho đăng nhập, phân quyền và các công thức tính bill quan trọng.
+- [ ] Thay `DATABASE_URL` bằng role Neon tạo qua SQL, không kế thừa `neon_superuser`, rồi thu hồi role runtime tạo từ Console/API.
 
 Trạng thái ngày 24/08/2026:
 
@@ -194,7 +195,7 @@ Trạng thái ngày 24/08/2026:
 
 - [x] Có mẫu tin nhắn hóa đơn và mẫu nhắc nợ.
 - [x] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống.
-- [ ] Cho phép hẹn ngày gửi hóa đơn.
+- [x] Cho phép hẹn ngày gửi hóa đơn.
 - [ ] Tự động nhắc trước hạn và sau hạn theo cấu hình.
 - [ ] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ.
 - [ ] Lưu trạng thái gửi thành công/thất bại và cho phép gửi lại.
