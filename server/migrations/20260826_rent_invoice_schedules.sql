@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS rent_invoice_deliveries (
   id                       BIGSERIAL PRIMARY KEY,
   user_id                  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   invoice_id               BIGINT NOT NULL,
-  tenant_id                TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id                TEXT NOT NULL,
   channel                  TEXT NOT NULL DEFAULT 'email',
   template_type            TEXT NOT NULL DEFAULT 'invoice',
   scheduled_for            DATE NOT NULL,

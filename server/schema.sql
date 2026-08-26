@@ -86,8 +86,36 @@ CREATE TABLE IF NOT EXISTS settings (
   reminder_enabled      BOOLEAN  NOT NULL DEFAULT false,
   reminder_day          INTEGER  NOT NULL DEFAULT 30,
   reminder_time         TEXT     NOT NULL DEFAULT '20:00',
+  invoice_reminder_enabled     BOOLEAN   NOT NULL DEFAULT false,
+  invoice_reminder_before_days INTEGER[] NOT NULL DEFAULT ARRAY[3,1],
+  invoice_reminder_after_days  INTEGER[] NOT NULL DEFAULT ARRAY[1,3,7],
   theme                 TEXT     NOT NULL DEFAULT 'system'
 );
+ALTER TABLE settings
+  ADD COLUMN IF NOT EXISTS invoice_reminder_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE settings
+  ADD COLUMN IF NOT EXISTS invoice_reminder_before_days INTEGER[] NOT NULL DEFAULT ARRAY[3,1];
+ALTER TABLE settings
+  ADD COLUMN IF NOT EXISTS invoice_reminder_after_days INTEGER[] NOT NULL DEFAULT ARRAY[1,3,7];
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='settings_invoice_reminder_before_valid'
+  ) THEN
+    ALTER TABLE settings ADD CONSTRAINT settings_invoice_reminder_before_valid CHECK (
+      cardinality(invoice_reminder_before_days) <= 6
+      AND invoice_reminder_before_days <@ ARRAY[1,2,3,5,7,14]
+    );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='settings_invoice_reminder_after_valid'
+  ) THEN
+    ALTER TABLE settings ADD CONSTRAINT settings_invoice_reminder_after_valid CHECK (
+      cardinality(invoice_reminder_after_days) <= 7
+      AND invoice_reminder_after_days <@ ARRAY[1,2,3,5,7,14,30]
+    );
+  END IF;
+END $$;
 
 -- Cấu hình toàn cục của app (do admin thiết lập). Chỉ 1 dòng (id=1).
 -- Thông tin ủng hộ nhà phát triển (VietQR) dùng chung cho mọi người dùng.
@@ -919,7 +947,7 @@ CREATE TABLE IF NOT EXISTS rent_invoice_deliveries (
   id                       BIGSERIAL PRIMARY KEY,
   user_id                  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   invoice_id               BIGINT NOT NULL,
-  tenant_id                TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id                TEXT NOT NULL,
   channel                  TEXT NOT NULL DEFAULT 'email',
   template_type            TEXT NOT NULL DEFAULT 'invoice',
   scheduled_for            DATE NOT NULL,
@@ -928,6 +956,8 @@ CREATE TABLE IF NOT EXISTS rent_invoice_deliveries (
   attempt_count            INTEGER NOT NULL DEFAULT 0,
   provider_message_id      TEXT,
   last_error_code          TEXT,
+  trigger_source           TEXT NOT NULL DEFAULT 'manual',
+  reminder_offset_days     INTEGER,
   sent_at                  TIMESTAMPTZ,
   cancelled_at             TIMESTAMPTZ,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -950,6 +980,16 @@ CREATE TABLE IF NOT EXISTS rent_invoice_deliveries (
   CONSTRAINT rent_invoice_deliveries_error_code_valid CHECK (
     last_error_code IS NULL OR last_error_code ~ '^[A-Z0-9_]{3,64}$'
   ),
+  CONSTRAINT rent_invoice_deliveries_trigger_source_valid
+    CHECK (trigger_source IN ('manual','automatic')),
+  CONSTRAINT rent_invoice_deliveries_reminder_offset_valid CHECK (
+    (trigger_source='manual' AND reminder_offset_days IS NULL)
+    OR (
+      trigger_source='automatic' AND template_type='reminder'
+      AND reminder_offset_days BETWEEN -30 AND 14
+      AND reminder_offset_days <> 0
+    )
+  ),
   CONSTRAINT rent_invoice_deliveries_sent_consistent CHECK (
     (status='sent' AND sent_at IS NOT NULL) OR (status<>'sent' AND sent_at IS NULL)
   ),
@@ -958,6 +998,37 @@ CREATE TABLE IF NOT EXISTS rent_invoice_deliveries (
     OR (status<>'cancelled' AND cancelled_at IS NULL)
   )
 );
+ALTER TABLE rent_invoice_deliveries
+  ADD COLUMN IF NOT EXISTS trigger_source TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE rent_invoice_deliveries
+  ADD COLUMN IF NOT EXISTS reminder_offset_days INTEGER;
+ALTER TABLE rent_invoice_deliveries
+  DROP CONSTRAINT IF EXISTS rent_invoice_deliveries_tenant_id_fkey;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rent_invoice_deliveries_trigger_source_valid'
+  ) THEN
+    ALTER TABLE rent_invoice_deliveries
+      ADD CONSTRAINT rent_invoice_deliveries_trigger_source_valid
+      CHECK (trigger_source IN ('manual','automatic'));
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rent_invoice_deliveries_reminder_offset_valid'
+  ) THEN
+    ALTER TABLE rent_invoice_deliveries
+      ADD CONSTRAINT rent_invoice_deliveries_reminder_offset_valid CHECK (
+        (trigger_source='manual' AND reminder_offset_days IS NULL)
+        OR (
+          trigger_source='automatic' AND template_type='reminder'
+          AND reminder_offset_days BETWEEN -30 AND 14
+          AND reminder_offset_days <> 0
+        )
+      );
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_rent_invoice_deliveries_due
   ON rent_invoice_deliveries(status, scheduled_for, updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_rent_invoice_deliveries_invoice

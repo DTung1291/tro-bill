@@ -6,6 +6,12 @@ const { recordDataAudit, requestAuditContext } = require('./data-audit');
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
+const {
+  DEFAULT_AFTER_DAYS,
+  DEFAULT_BEFORE_DAYS,
+  RentInvoiceReminderSettingsError,
+  normalizeInvoiceReminderSettings
+} = require('./rent-invoice-reminder-settings');
 
 // ---------- helpers chuyển đổi kiểu ----------
 const num = (v, d = 0) => (v === null || v === undefined || v === '' ? d : Number(v));
@@ -87,7 +93,14 @@ async function buildState(uid, options = {}) {
     bankTransferPattern: s.bank_transfer_pattern || '',
     reminderEnabled: !!s.reminder_enabled,
     reminderDay: num(s.reminder_day, 30),
-    reminderTime: s.reminder_time || '20:00'
+    reminderTime: s.reminder_time || '20:00',
+    invoiceReminderEnabled: !!s.invoice_reminder_enabled,
+    invoiceReminderBeforeDays: Array.isArray(s.invoice_reminder_before_days)
+      ? s.invoice_reminder_before_days.map(Number)
+      : [...DEFAULT_BEFORE_DAYS],
+    invoiceReminderAfterDays: Array.isArray(s.invoice_reminder_after_days)
+      ? s.invoice_reminder_after_days.map(Number)
+      : [...DEFAULT_AFTER_DAYS]
   };
   const theme = s.theme || 'system';
 
@@ -240,10 +253,12 @@ async function putState(req, res) {
   const history = Array.isArray(body.history) ? body.history : [];
   const theme = body.theme || 'system';
   let rentBankSettings;
+  let invoiceReminderSettings;
   try {
     rentBankSettings = normalizeRentBankSettings(settings);
+    invoiceReminderSettings = normalizeInvoiceReminderSettings(settings, { allowMissing: true });
   } catch (error) {
-    if (error instanceof RentBankSettingsError) {
+    if (error instanceof RentBankSettingsError || error instanceof RentInvoiceReminderSettingsError) {
       return res.status(400).json({ error: error.message, code: error.code });
     }
     throw error;
@@ -396,12 +411,22 @@ async function putState(req, res) {
     await client.query(
       `INSERT INTO settings
          (user_id, deduction, bank_id, bank_account, bank_owner_name,
-          bank_transfer_pattern, reminder_enabled, reminder_day, reminder_time, theme)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          bank_transfer_pattern, reminder_enabled, reminder_day, reminder_time,
+          invoice_reminder_enabled, invoice_reminder_before_days,
+          invoice_reminder_after_days, theme)
+       VALUES (
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,
+         COALESCE($10, false), COALESCE($11, ARRAY[3,1]::integer[]),
+         COALESCE($12, ARRAY[1,3,7]::integer[]), $13
+       )
        ON CONFLICT (user_id) DO UPDATE SET
          deduction=$2, bank_id=$3, bank_account=$4, bank_owner_name=$5,
          bank_transfer_pattern=$6, reminder_enabled=$7, reminder_day=$8,
-         reminder_time=$9, theme=$10`,
+         reminder_time=$9,
+         invoice_reminder_enabled=COALESCE($10, settings.invoice_reminder_enabled),
+         invoice_reminder_before_days=COALESCE($11, settings.invoice_reminder_before_days),
+         invoice_reminder_after_days=COALESCE($12, settings.invoice_reminder_after_days),
+         theme=$13`,
       [
         uid,
         num(settings.deduction, 450000),
@@ -412,6 +437,9 @@ async function putState(req, res) {
         !!settings.reminderEnabled,
         num(settings.reminderDay, 30),
         settings.reminderTime || '20:00',
+        invoiceReminderSettings.enabled,
+        invoiceReminderSettings.beforeDays,
+        invoiceReminderSettings.afterDays,
         theme
       ]
     );

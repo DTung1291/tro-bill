@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=94" />
+  <link rel="stylesheet" href="style.css?v=95" />
 </head>
 
 <body>
@@ -553,6 +553,48 @@
           <button class="btn btn--sm" id="save-reminder-settings">Lưu nhắc nhở</button>
         </div>
       </div>
+
+      <section class="settings-card invoice-reminder-settings" aria-labelledby="invoice-reminder-settings-title">
+        <div class="invoice-reminder-settings__head">
+          <div>
+            <strong id="invoice-reminder-settings-title">✉️ Tự động nhắc thanh toán hóa đơn</strong>
+            <p>Gửi email cho khách thuê còn nợ theo các mốc trước và sau ngày cuối tháng.</p>
+          </div>
+          <label class="invoice-reminder-toggle">
+            <input type="checkbox" id="invoice-reminder-enabled" />
+            <span>Kích hoạt</span>
+          </label>
+        </div>
+        <div class="invoice-reminder-groups">
+          <fieldset class="invoice-reminder-group">
+            <legend>Trước hạn</legend>
+            <div class="invoice-reminder-options">
+              <label><input type="checkbox" name="invoice-reminder-before" value="14" /> 14 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-before" value="7" /> 7 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-before" value="5" /> 5 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-before" value="3" /> 3 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-before" value="2" /> 2 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-before" value="1" /> 1 ngày</label>
+            </div>
+          </fieldset>
+          <fieldset class="invoice-reminder-group">
+            <legend>Sau hạn</legend>
+            <div class="invoice-reminder-options">
+              <label><input type="checkbox" name="invoice-reminder-after" value="1" /> 1 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="2" /> 2 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="3" /> 3 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="5" /> 5 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="7" /> 7 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="14" /> 14 ngày</label>
+              <label><input type="checkbox" name="invoice-reminder-after" value="30" /> 30 ngày</label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="invoice-reminder-settings__foot">
+          <p>Gửi khoảng 07:15 giờ Việt Nam qua Brevo. Hệ thống kiểm tra lại công nợ ngay trước khi gửi và không nhắc hóa đơn đã thu đủ.</p>
+          <button type="button" class="btn btn--sm btn--primary" id="save-invoice-reminder-settings">Lưu cấu hình email</button>
+        </div>
+      </section>
 
       <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
         <span>💾 Dữ liệu tài khoản:</span>
@@ -1409,7 +1451,7 @@
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="app.js?v=95"></script>
+  <script src="app.js?v=96"></script>
 </body>
 
 </html>

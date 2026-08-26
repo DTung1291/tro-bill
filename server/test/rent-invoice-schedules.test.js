@@ -207,6 +207,7 @@ test('schema, migration, API, UI và cron hỗ trợ hẹn ngày gửi hóa đơ
   const checklist = fs.readFileSync(path.join(root, 'MONETIZATION_CHECKLIST.md'), 'utf8');
 
   assert.match(schema, /CREATE TABLE IF NOT EXISTS rent_invoice_deliveries/);
+  assert.doesNotMatch(schema, /tenant_id\s+TEXT NOT NULL REFERENCES tenants/);
   assert.match(schema, /UNIQUE \(user_id, invoice_id, tenant_id, channel, template_type, scheduled_for\)/);
   assert.match(
     migration,

@@ -21,12 +21,51 @@ const STATE = {
     bankTransferPattern: '',
     reminderEnabled: false,
     reminderDay: 30,
-    reminderTime: '20:00'
+    reminderTime: '20:00',
+    invoiceReminderEnabled: false,
+    invoiceReminderBeforeDays: [3, 1],
+    invoiceReminderAfterDays: [1, 3, 7]
   },
   currentPeriod: null,  // "YYYY-MM"
   history: [],          // Record of monthly snapshots: { period, deduction, timestamp, bills: [] }
   theme: 'system'       // 'light' | 'dark' | 'system'
 };
+
+const INVOICE_REMINDER_BEFORE_OPTIONS = [14, 7, 5, 3, 2, 1];
+const INVOICE_REMINDER_AFTER_OPTIONS = [1, 2, 3, 5, 7, 14, 30];
+
+function normalizeInvoiceReminderDays(value, options, defaults) {
+  const selected = new Set((Array.isArray(value) ? value : defaults).map(Number));
+  return options.filter(day => selected.has(day));
+}
+
+function renderInvoiceReminderSettings() {
+  const enabledInput = document.getElementById('invoice-reminder-enabled');
+  if (enabledInput) enabledInput.checked = !!STATE.settings.invoiceReminderEnabled;
+  const beforeDays = new Set(normalizeInvoiceReminderDays(
+    STATE.settings.invoiceReminderBeforeDays,
+    INVOICE_REMINDER_BEFORE_OPTIONS,
+    [3, 1]
+  ));
+  const afterDays = new Set(normalizeInvoiceReminderDays(
+    STATE.settings.invoiceReminderAfterDays,
+    INVOICE_REMINDER_AFTER_OPTIONS,
+    [1, 3, 7]
+  ));
+  document.querySelectorAll('input[name="invoice-reminder-before"]').forEach(input => {
+    input.checked = beforeDays.has(Number(input.value));
+  });
+  document.querySelectorAll('input[name="invoice-reminder-after"]').forEach(input => {
+    input.checked = afterDays.has(Number(input.value));
+  });
+}
+
+function selectedInvoiceReminderDays(name, options) {
+  const selected = new Set(
+    [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(input => Number(input.value))
+  );
+  return options.filter(day => selected.has(day));
+}
 
 // Chỉ là bản sao read-only phục vụ UX. Quyền ghi thực tế luôn được server
 // kiểm tra lại từ subscriptions/plans khi nhận PUT /api/state.
@@ -1077,7 +1116,10 @@ function clearSensitiveStateFromMemory() {
     bankTransferPattern: '',
     reminderEnabled: false,
     reminderDay: 30,
-    reminderTime: '20:00'
+    reminderTime: '20:00',
+    invoiceReminderEnabled: false,
+    invoiceReminderBeforeDays: [3, 1],
+    invoiceReminderAfterDays: [1, 3, 7]
   };
   STATE.currentPeriod = null;
   STATE.history = [];
@@ -1180,6 +1222,16 @@ function loadState(savedObj) {
       }))
     ]));
     STATE.settings = { ...STATE.settings, ...(saved.settings || {}) };
+    STATE.settings.invoiceReminderBeforeDays = normalizeInvoiceReminderDays(
+      STATE.settings.invoiceReminderBeforeDays,
+      INVOICE_REMINDER_BEFORE_OPTIONS,
+      [3, 1]
+    );
+    STATE.settings.invoiceReminderAfterDays = normalizeInvoiceReminderDays(
+      STATE.settings.invoiceReminderAfterDays,
+      INVOICE_REMINDER_AFTER_OPTIONS,
+      [1, 3, 7]
+    );
     
     // Normalize history snapshots
     STATE.history = (saved.history || []).map(h => ({
@@ -2593,6 +2645,7 @@ function renderDashboard() {
   if (reminderEnabledInput) reminderEnabledInput.checked = !!STATE.settings.reminderEnabled;
   if (reminderDaySelect) reminderDaySelect.value = STATE.settings.reminderDay || 30;
   if (reminderTimeInput) reminderTimeInput.value = STATE.settings.reminderTime || '20:00';
+  renderInvoiceReminderSettings();
 
   let totalAmt = 0, totalPaid = 0, totalElec = 0, totalWater = 0;
   let entered = 0;
@@ -4012,6 +4065,14 @@ function billMessageScheduleDateLabel(value) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || '');
 }
 
+function billMessageScheduleTriggerLabel(schedule) {
+  if (schedule.triggerSource !== 'automatic') return 'Hẹn thủ công';
+  const offset = Number(schedule.reminderOffsetDays) || 0;
+  if (offset > 0) return `Tự động · trước hạn ${offset} ngày`;
+  if (offset < 0) return `Tự động · sau hạn ${Math.abs(offset)} ngày`;
+  return 'Tự động';
+}
+
 function renderBillMessageSchedules({ loading = false } = {}) {
   const container = document.getElementById('bill-message-schedule-list');
   if (!container) return;
@@ -4039,7 +4100,7 @@ function renderBillMessageSchedules({ loading = false } = {}) {
     const templateLabel = schedule.templateType === 'reminder' ? 'Nhắc thanh toán' : 'Thông báo hóa đơn';
     title.textContent = `${billMessageScheduleDateLabel(schedule.scheduledFor)} · ${templateLabel}`;
     const meta = document.createElement('span');
-    meta.textContent = `${billMessageScheduleStatusLabel(schedule.status)} · ${schedule.recipient || 'email khách thuê'}`;
+    meta.textContent = `${billMessageScheduleStatusLabel(schedule.status)} · ${billMessageScheduleTriggerLabel(schedule)} · ${schedule.recipient || 'email khách thuê'}`;
     info.append(title, meta);
     item.appendChild(info);
     if (['scheduled', 'failed'].includes(schedule.status)) {
@@ -5422,6 +5483,46 @@ if (saveReminderBtn) {
     
     showToast('Đã lưu cấu hình nhắc nhở ✓', 'success');
     renderDashboard();
+  });
+}
+
+const saveInvoiceReminderBtn = document.getElementById('save-invoice-reminder-settings');
+if (saveInvoiceReminderBtn) {
+  saveInvoiceReminderBtn.addEventListener('click', async () => {
+    const enabled = !!document.getElementById('invoice-reminder-enabled')?.checked;
+    const beforeDays = selectedInvoiceReminderDays(
+      'invoice-reminder-before',
+      INVOICE_REMINDER_BEFORE_OPTIONS
+    );
+    const afterDays = selectedInvoiceReminderDays(
+      'invoice-reminder-after',
+      INVOICE_REMINDER_AFTER_OPTIONS
+    );
+    if (enabled && beforeDays.length + afterDays.length === 0) {
+      showToast('Cần chọn ít nhất một mốc nhắc trước hạn hoặc sau hạn', 'error');
+      return;
+    }
+    const previous = {
+      enabled: !!STATE.settings.invoiceReminderEnabled,
+      beforeDays: [...(STATE.settings.invoiceReminderBeforeDays || [])],
+      afterDays: [...(STATE.settings.invoiceReminderAfterDays || [])]
+    };
+    saveInvoiceReminderBtn.disabled = true;
+    try {
+      STATE.settings.invoiceReminderEnabled = enabled;
+      STATE.settings.invoiceReminderBeforeDays = beforeDays;
+      STATE.settings.invoiceReminderAfterDays = afterDays;
+      saveState();
+      await flushState({ throwOnError: true });
+      showToast(enabled ? 'Đã bật nhắc thanh toán tự động ✓' : 'Đã tắt nhắc thanh toán tự động', 'success');
+    } catch (_) {
+      STATE.settings.invoiceReminderEnabled = previous.enabled;
+      STATE.settings.invoiceReminderBeforeDays = previous.beforeDays;
+      STATE.settings.invoiceReminderAfterDays = previous.afterDays;
+      renderInvoiceReminderSettings();
+    } finally {
+      saveInvoiceReminderBtn.disabled = false;
+    }
   });
 }
 

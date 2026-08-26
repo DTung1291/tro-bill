@@ -100,6 +100,10 @@ function scheduleJson(row) {
     status: row.status,
     attemptCount: Number(row.attempt_count) || 0,
     lastErrorCode: row.last_error_code || null,
+    triggerSource: row.trigger_source || 'manual',
+    reminderOffsetDays: row.reminder_offset_days === null || row.reminder_offset_days === undefined
+      ? null
+      : Number(row.reminder_offset_days),
     sentAt: row.sent_at || null,
     cancelledAt: row.cancelled_at || null,
     createdAt: row.created_at,
@@ -262,6 +266,109 @@ function safeErrorCode(error) {
   return /^[A-Z0-9_]{3,64}$/.test(code) ? code : 'EMAIL_SEND_FAILED';
 }
 
+async function enqueueAutomaticInvoiceReminders(dependencies = {}) {
+  const query = dependencies.query || db.query;
+  const scheduledFor = vietnamDate(dependencies.now || new Date());
+  const { rows } = await query(
+    `WITH disabled_or_changed AS (
+       UPDATE rent_invoice_deliveries delivery
+       SET status='skipped', last_error_code='REMINDER_CONFIG_DISABLED', updated_at=now()
+       WHERE delivery.trigger_source='automatic'
+         AND delivery.status IN ('scheduled','failed')
+         AND NOT EXISTS (
+           SELECT 1
+           FROM settings active_settings
+           WHERE active_settings.user_id=delivery.user_id
+             AND active_settings.invoice_reminder_enabled=true
+             AND (
+               (
+                 delivery.reminder_offset_days > 0
+                 AND delivery.reminder_offset_days=ANY(active_settings.invoice_reminder_before_days)
+               ) OR (
+                 delivery.reminder_offset_days < 0
+                 AND -delivery.reminder_offset_days=ANY(active_settings.invoice_reminder_after_days)
+               )
+             )
+         )
+       RETURNING delivery.id
+     ), invoice_candidates AS (
+       SELECT
+         invoice.user_id,
+         invoice.id AS invoice_id,
+         invoice.room_id,
+         invoice.period,
+         settings.invoice_reminder_before_days,
+         settings.invoice_reminder_after_days,
+         (
+           to_date(invoice.period || '-01', 'YYYY-MM-DD')
+           + interval '1 month - 1 day'
+         )::date AS due_date
+       FROM rent_invoices invoice
+       JOIN settings ON settings.user_id=invoice.user_id
+         AND settings.invoice_reminder_enabled=true
+       JOIN rooms room ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+       WHERE invoice.period <= to_char($1::date, 'YYYY-MM')
+         AND (
+           NULLIF(left(room.rent_start_date, 7), '') IS NULL
+           OR invoice.period >= left(room.rent_start_date, 7)
+         )
+         AND invoice.issued_total_vnd > COALESCE((
+           SELECT SUM(payment_tx.amount_vnd)
+           FROM rent_payment_transactions payment_tx
+           WHERE payment_tx.user_id=invoice.user_id
+             AND payment_tx.invoice_id=invoice.id
+         ), 0)
+     ), due_candidates AS (
+       SELECT
+         candidate.*,
+         tenant.id AS tenant_id,
+         lower(tenant.email) AS recipient_email,
+         CASE
+           WHEN candidate.due_date > $1::date THEN candidate.due_date - $1::date
+           ELSE -($1::date - candidate.due_date)
+         END AS reminder_offset_days
+       FROM invoice_candidates candidate
+       JOIN LATERAL (
+         SELECT current_tenant.id, current_tenant.email
+         FROM tenants current_tenant
+         WHERE current_tenant.user_id=candidate.user_id
+           AND current_tenant.room_id=candidate.room_id
+           AND NULLIF(trim(current_tenant.email), '') IS NOT NULL
+         ORDER BY current_tenant.sort_order, current_tenant.id
+         LIMIT 1
+       ) tenant ON true
+     ), inserted AS (
+       INSERT INTO rent_invoice_deliveries
+         (user_id, invoice_id, tenant_id, channel, template_type,
+          scheduled_for, recipient_email_snapshot, status,
+          trigger_source, reminder_offset_days)
+       SELECT
+         user_id, invoice_id, tenant_id, 'email', 'reminder',
+         $1::date, recipient_email, 'scheduled', 'automatic', reminder_offset_days
+       FROM due_candidates
+       WHERE (
+         reminder_offset_days > 0
+         AND reminder_offset_days=ANY(invoice_reminder_before_days)
+       ) OR (
+         reminder_offset_days < 0
+         AND -reminder_offset_days=ANY(invoice_reminder_after_days)
+       )
+       ON CONFLICT (user_id, invoice_id, tenant_id, channel, template_type, scheduled_for)
+       DO NOTHING
+       RETURNING id
+     )
+     SELECT
+       (SELECT COUNT(*)::int FROM inserted) AS queued,
+       (SELECT COUNT(*)::int FROM disabled_or_changed) AS skipped`,
+    [scheduledFor]
+  );
+  return {
+    queued: Number(rows[0]?.queued) || 0,
+    skipped: Number(rows[0]?.skipped) || 0,
+    scheduledFor
+  };
+}
+
 async function processDueInvoiceSchedules(dependencies = {}) {
   const query = dependencies.query || db.query;
   const executeDelivery = dependencies.executeInvoiceEmailDelivery || executeInvoiceEmailDelivery;
@@ -321,14 +428,21 @@ async function processDueInvoiceSchedules(dependencies = {}) {
   return result;
 }
 
-async function invoiceScheduleCron(req, res) {
+async function invoiceScheduleCron(req, res, dependencies = {}) {
   if (!process.env.CRON_SECRET) {
     return res.status(503).json({ error: 'Cron chưa được cấu hình', code: 'CRON_NOT_CONFIGURED' });
   }
   if (!authorizedCronRequest(req)) {
     return res.status(401).json({ error: 'Không được phép', code: 'CRON_UNAUTHORIZED' });
   }
-  const result = await processDueInvoiceSchedules();
+  const enqueueReminders = dependencies.enqueueAutomaticInvoiceReminders
+    || enqueueAutomaticInvoiceReminders;
+  const processSchedules = dependencies.processDueInvoiceSchedules
+    || processDueInvoiceSchedules;
+  const queued = await enqueueReminders(dependencies);
+  const result = await processSchedules(dependencies);
+  result.queued = Number(queued?.queued) || 0;
+  result.configurationSkipped = Number(queued?.skipped) || 0;
   writeLog(result.failed > 0 ? 'warn' : 'info', 'rent_invoice_schedules_completed', result);
   return res.json({ ok: true, ...result });
 }
@@ -340,6 +454,7 @@ module.exports = {
   addUtcDays,
   cancelInvoiceSchedule,
   createInvoiceSchedule,
+  enqueueAutomaticInvoiceReminders,
   invoiceScheduleCron,
   listInvoiceSchedules,
   processDueInvoiceSchedules,

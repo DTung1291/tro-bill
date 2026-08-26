@@ -196,8 +196,8 @@ Trạng thái ngày 24/08/2026:
 - [x] Có mẫu tin nhắn hóa đơn và mẫu nhắc nợ.
 - [x] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống.
 - [x] Cho phép hẹn ngày gửi hóa đơn.
-- [ ] Tự động nhắc trước hạn và sau hạn theo cấu hình.
-- [ ] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ.
+- [x] Tự động nhắc trước hạn và sau hạn theo cấu hình.
+- [x] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ.
 - [ ] Lưu trạng thái gửi thành công/thất bại và cho phép gửi lại.
 - [ ] Tách phí SMS/Zalo khỏi giá subscription nếu phát sinh theo lượt.
 
