@@ -60,7 +60,7 @@ test('trang khách thuê tải phiếu thu PNG từ dữ liệu xác nhận, kh�
 
   assert.match(html, /id="invoice-receipts"/);
   assert.match(html, /id="invoice-receipt-list"/);
-  assert.match(html, /invoice-public\.css\?v=6[\s\S]*invoice-public\.js\?v=6/);
+  assert.match(html, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
   assert.match(js, /function renderReceipts/);
   assert.match(js, /function downloadReceipt/);
   assert.match(js, /canvas\.toBlob\(resolve, 'image\/png'\)/);

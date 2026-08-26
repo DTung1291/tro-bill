@@ -817,6 +817,7 @@ CREATE TABLE IF NOT EXISTS rent_invoice_share_links (
   id             BIGSERIAL PRIMARY KEY,
   user_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   invoice_id     BIGINT NOT NULL,
+  tenancy_start_period TEXT NOT NULL,
   token_hash     TEXT NOT NULL UNIQUE,
   token_last4    TEXT NOT NULL,
   expires_at     TIMESTAMPTZ NOT NULL,
@@ -829,6 +830,8 @@ CREATE TABLE IF NOT EXISTS rent_invoice_share_links (
     REFERENCES rent_invoices(user_id, id) ON DELETE CASCADE,
   CONSTRAINT rent_invoice_share_links_user_invoice_id_unique
     UNIQUE (user_id, invoice_id, id),
+  CONSTRAINT rent_invoice_share_links_tenancy_period_valid
+    CHECK (tenancy_start_period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
   CONSTRAINT rent_invoice_share_links_token_hash_valid
     CHECK (token_hash ~ '^[a-f0-9]{64}$'),
   CONSTRAINT rent_invoice_share_links_token_last4_valid
@@ -844,6 +847,17 @@ CREATE INDEX IF NOT EXISTS idx_rent_invoice_share_links_active
   ON rent_invoice_share_links(token_hash, expires_at)
   WHERE revoked_at IS NULL;
 
+ALTER TABLE rent_invoice_share_links
+  ADD COLUMN IF NOT EXISTS tenancy_start_period TEXT;
+UPDATE rent_invoice_share_links link
+SET tenancy_start_period=invoice.period
+FROM rent_invoices invoice
+WHERE invoice.user_id=link.user_id
+  AND invoice.id=link.invoice_id
+  AND link.tenancy_start_period IS NULL;
+ALTER TABLE rent_invoice_share_links
+  ALTER COLUMN tenancy_start_period SET NOT NULL;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -853,6 +867,18 @@ BEGIN
     ALTER TABLE rent_invoice_share_links
       ADD CONSTRAINT rent_invoice_share_links_user_invoice_id_unique
       UNIQUE (user_id, invoice_id, id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rent_invoice_share_links_tenancy_period_valid'
+  ) THEN
+    ALTER TABLE rent_invoice_share_links
+      ADD CONSTRAINT rent_invoice_share_links_tenancy_period_valid
+      CHECK (tenancy_start_period ~ '^[0-9]{4}-(0[1-9]|1[0-2])$');
   END IF;
 END $$;
 

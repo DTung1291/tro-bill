@@ -3329,11 +3329,23 @@ body.modal-open {
   font-weight: 700;
   color: var(--muted, #64748b);
 }
-.admin-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-action-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .admin-table-wrap { width: 100%; overflow-x: auto; }
 .admin-cccd-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
-.admin-users-table { min-width: 1050px; }
-.admin-subscription-cell { min-width: 150px; line-height: 1.45; }
+.admin-users-table { min-width: 0; table-layout: fixed; }
+.admin-users-table[hidden] { display: none; }
+.admin-users-table th:nth-child(1), .admin-users-table td:nth-child(1) { width: 4%; }
+.admin-users-table th:nth-child(2), .admin-users-table td:nth-child(2) { width: 20%; }
+.admin-users-table th:nth-child(3), .admin-users-table td:nth-child(3) { width: 16%; }
+.admin-users-table th:nth-child(4), .admin-users-table td:nth-child(4) { width: 7%; }
+.admin-users-table th:nth-child(5), .admin-users-table td:nth-child(5) { width: 7%; }
+.admin-users-table th:nth-child(6), .admin-users-table td:nth-child(6) { width: 7%; }
+.admin-users-table th:nth-child(7), .admin-users-table td:nth-child(7) { width: 11%; }
+.admin-users-table th:nth-child(8), .admin-users-table td:nth-child(8) { width: 28%; }
+.admin-user-email { overflow-wrap: anywhere; }
+.admin-user-created-at { overflow-wrap: anywhere; }
+.admin-subscription-cell { min-width: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.admin-action-list button { white-space: nowrap; }
 .admin-subscription-status {
   display: inline-flex;
   margin: 3px 0;
@@ -3511,6 +3523,58 @@ body.modal-open {
   .admin-subscription-reason,
   .admin-subscription-form > p,
   .admin-subscription-form-actions { grid-column: 1; }
+}
+
+@media (max-width: 800px) {
+  #admin-users-section .admin-table-wrap { overflow: visible; }
+  .admin-users-table,
+  .admin-users-table tbody { display: block; width: 100%; }
+  .admin-users-table thead { display: none; }
+  .admin-users-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .admin-users-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+    padding: 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    background: var(--bg, #f8fafc);
+  }
+  .admin-users-table td,
+  .admin-users-table td:nth-child(n) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--border, #e2e8f0);
+  }
+  .admin-users-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted, #64748b);
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .admin-users-table td:nth-child(2),
+  .admin-users-table td:nth-child(3),
+  .admin-users-table td:nth-child(8) { grid-column: 1 / -1; }
+  .admin-users-table td:nth-last-child(2) { border-bottom: 0; }
+  .admin-users-table .admin-actions {
+    padding-top: 12px;
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-users-table tr { grid-template-columns: 1fr; }
+  .admin-users-table td:nth-child(n) { grid-column: 1; }
+  .admin-users-table td:nth-last-child(2) { border-bottom: 1px dashed var(--border, #e2e8f0); }
 }
 
 .admin-modal {

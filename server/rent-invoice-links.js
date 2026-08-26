@@ -94,10 +94,20 @@ async function createInvoiceLink(req, res) {
   const hash = tokenHash(token);
   const { rows } = await db.query(
     `INSERT INTO rent_invoice_share_links
-       (user_id, invoice_id, token_hash, token_last4, expires_at)
-     SELECT invoice.user_id, invoice.id, $3, $4,
+       (user_id, invoice_id, tenancy_start_period,
+        token_hash, token_last4, expires_at)
+     SELECT invoice.user_id, invoice.id,
+            CASE
+              WHEN room.rent_start_date ~ '^[0-9]{4}-(0[1-9]|1[0-2])-[0-9]{2}$'
+                AND left(room.rent_start_date, 7) <= invoice.period
+              THEN left(room.rent_start_date, 7)
+              ELSE invoice.period
+            END,
+            $3, $4,
             now() + ($5::int * interval '1 hour')
      FROM rent_invoices invoice
+     LEFT JOIN rooms room
+       ON room.user_id=invoice.user_id AND room.id=invoice.room_id
      WHERE invoice.user_id=$1 AND invoice.id=$2
      RETURNING *`,
     [req.userId, invoiceId, hash, token.slice(-4), hours]
@@ -226,6 +236,30 @@ function publicInvoiceJson(row) {
       paymentMethod: receipt.payment_method,
       occurredAt: receipt.occurred_at
     })),
+    history: {
+      scopeStartPeriod: row.tenancy_start_period || row.period,
+      scopeEndPeriod: row.period,
+      invoices: (Array.isArray(row.history_invoices) ? row.history_invoices : []).map(invoice => {
+        const invoiceTotalVnd = Number(invoice.issued_total_vnd) || 0;
+        const paidAmountVnd = Math.max(0, Number(invoice.paid_amount_vnd) || 0);
+        const remainingVnd = Math.max(0, invoiceTotalVnd - paidAmountVnd);
+        return {
+          period: invoice.period,
+          invoiceTotalVnd,
+          paidAmountVnd,
+          remainingVnd,
+          status: remainingVnd === 0 ? 'paid' : (paidAmountVnd > 0 ? 'partial' : 'unpaid')
+        };
+      }),
+      payments: (Array.isArray(row.history_payments) ? row.history_payments : []).map(paymentRow => ({
+        period: paymentRow.period,
+        entryType: paymentRow.entry_type,
+        amountVnd: Number(paymentRow.amount_vnd) || 0,
+        paymentMethod: paymentRow.payment_method,
+        receiptCode: paymentRow.receipt_code || null,
+        occurredAt: paymentRow.occurred_at
+      }))
+    },
     link: {
       expiresAt: row.expires_at,
       paymentProof: row.payment_proof || null
@@ -242,7 +276,7 @@ async function resolvePublicInvoiceLink(req, res) {
   try {
     await client.query('BEGIN');
     const linkResult = await client.query(
-      `SELECT id, user_id, invoice_id, expires_at, revoked_at
+      `SELECT id, user_id, invoice_id, tenancy_start_period, expires_at, revoked_at
        FROM rent_invoice_share_links
        WHERE token_hash=$1
        FOR UPDATE`,
@@ -275,6 +309,7 @@ async function resolvePublicInvoiceLink(req, res) {
     if (!invoice) {
       throw new RentInvoiceLinkError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn');
     }
+    const tenancyStartPeriod = String(link.tenancy_start_period || invoice.period);
     const meterPhotoResult = await client.query(
       `SELECT meter_type, mime_type, encode(image_data, 'base64') AS image_base64
        FROM rent_meter_photos
@@ -308,11 +343,41 @@ async function resolvePublicInvoiceLink(req, res) {
        LIMIT 20`,
       [link.user_id, link.invoice_id]
     );
+    const historyInvoiceResult = await client.query(
+      `SELECT history.id, history.period, history.issued_total_vnd,
+              COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
+       FROM rent_invoices history
+       LEFT JOIN rent_payment_transactions tx
+         ON tx.user_id=history.user_id AND tx.invoice_id=history.id
+       WHERE history.user_id=$1 AND history.room_id=$2
+         AND history.period BETWEEN $3 AND $4
+       GROUP BY history.id
+       ORDER BY history.period DESC, history.id DESC
+       LIMIT 24`,
+      [link.user_id, invoice.room_id, tenancyStartPeriod, invoice.period]
+    );
+    const historyPaymentResult = await client.query(
+      `SELECT history.period, tx.entry_type, tx.amount_vnd,
+              tx.payment_method, tx.occurred_at, receipt.receipt_code
+       FROM rent_payment_transactions tx
+       JOIN rent_invoices history
+         ON history.user_id=tx.user_id AND history.id=tx.invoice_id
+       LEFT JOIN rent_payment_receipts receipt
+         ON receipt.user_id=tx.user_id AND receipt.id=tx.receipt_id
+       WHERE history.user_id=$1 AND history.room_id=$2
+         AND history.period BETWEEN $3 AND $4
+       ORDER BY tx.occurred_at DESC, tx.id DESC
+       LIMIT 100`,
+      [link.user_id, invoice.room_id, tenancyStartPeriod, invoice.period]
+    );
     const row = {
       ...invoice,
       expires_at: link.expires_at,
       meter_photos: meterPhotoResult.rows,
       receipts: receiptResult.rows,
+      tenancy_start_period: tenancyStartPeriod,
+      history_invoices: historyInvoiceResult.rows,
+      history_payments: historyPaymentResult.rows,
       payment_proof: proofResult.rows[0]
         ? {
             status: proofResult.rows[0].status,

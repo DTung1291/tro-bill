@@ -261,6 +261,90 @@
     }
   }
 
+  function historyStatusLabel(status) {
+    return ({
+      unpaid: 'Chưa thanh toán',
+      partial: 'Thanh toán một phần',
+      paid: 'Đã thanh toán'
+    })[String(status || '')] || 'Chưa thanh toán';
+  }
+
+  function historyEntryLabel(entryType) {
+    return ({
+      payment: 'Đã thanh toán',
+      reversal: 'Hoàn tác thanh toán',
+      adjustment: 'Điều chỉnh thanh toán'
+    })[String(entryType || '')] || 'Giao dịch thanh toán';
+  }
+
+  function renderHistory(history) {
+    const section = document.getElementById('invoice-history');
+    const invoiceList = document.getElementById('invoice-history-invoice-list');
+    const paymentSection = document.getElementById('invoice-history-payments');
+    const paymentList = document.getElementById('invoice-history-payment-list');
+    invoiceList.replaceChildren();
+    paymentList.replaceChildren();
+
+    const invoices = (Array.isArray(history?.invoices) ? history.invoices : []).filter(item => (
+      /^\d{4}-(0[1-9]|1[0-2])$/.test(String(item?.period || ''))
+      && Number(item?.invoiceTotalVnd) >= 0
+      && Number(item?.paidAmountVnd) >= 0
+      && Number(item?.remainingVnd) >= 0
+    ));
+    if (invoices.length === 0) {
+      section.hidden = true;
+      return;
+    }
+
+    const paidTotal = invoices.reduce((sum, item) => sum + Number(item.paidAmountVnd), 0);
+    const dueTotal = invoices.reduce((sum, item) => sum + Number(item.remainingVnd), 0);
+    text('invoice-history-scope', `${periodLabel(history.scopeStartPeriod)} → ${periodLabel(history.scopeEndPeriod)}`);
+    text('invoice-history-period-count', invoices.length);
+    text('invoice-history-paid-total', money.format(paidTotal));
+    text('invoice-history-due-total', money.format(dueTotal));
+
+    for (const invoice of invoices) {
+      const item = document.createElement('article');
+      item.className = 'public-invoice-history-item';
+      const main = document.createElement('div');
+      const title = document.createElement('strong');
+      const meta = document.createElement('span');
+      const status = document.createElement('span');
+      title.textContent = periodLabel(invoice.period);
+      meta.textContent = `Tổng ${money.format(Number(invoice.invoiceTotalVnd))} · Đã thu ${money.format(Number(invoice.paidAmountVnd))} · Còn ${money.format(Number(invoice.remainingVnd))}`;
+      status.className = 'public-invoice-history-status';
+      status.dataset.status = invoice.status || 'unpaid';
+      status.textContent = historyStatusLabel(invoice.status);
+      main.append(title, meta);
+      item.append(main, status);
+      invoiceList.appendChild(item);
+    }
+
+    const payments = (Array.isArray(history?.payments) ? history.payments : []).filter(item => (
+      /^\d{4}-(0[1-9]|1[0-2])$/.test(String(item?.period || ''))
+      && Number.isFinite(Number(item?.amountVnd))
+      && Number(item?.amountVnd) !== 0
+    ));
+    paymentSection.hidden = payments.length === 0;
+    for (const payment of payments) {
+      const item = document.createElement('article');
+      item.className = 'public-invoice-history-item public-invoice-history-payment-item';
+      const main = document.createElement('div');
+      const title = document.createElement('strong');
+      const meta = document.createElement('span');
+      const amount = document.createElement('strong');
+      const receipt = payment.receiptCode ? ` · ${payment.receiptCode}` : '';
+      title.textContent = `${historyEntryLabel(payment.entryType)} · ${periodLabel(payment.period)}`;
+      meta.textContent = `${paymentMethodLabel(payment.paymentMethod)} · ${dateTime(payment.occurredAt)}${receipt}`;
+      amount.className = Number(payment.amountVnd) < 0 ? 'is-negative' : 'is-positive';
+      amount.textContent = money.format(Number(payment.amountVnd));
+      main.append(title, meta);
+      item.append(main, amount);
+      paymentList.appendChild(item);
+    }
+    section.hidden = false;
+  }
+
   function proofByteSize(dataUrl) {
     const base64 = String(dataUrl || '').split(',')[1] || '';
     return Math.floor((base64.length * 3) / 4) - ((base64.match(/=*$/) || [''])[0].length);
@@ -407,6 +491,7 @@
     renderPayment(data.payment || null);
     renderPaymentProof(data.link?.paymentProof || null, invoice);
     renderReceipts(data.receipts || [], invoice);
+    renderHistory(data.history || {});
     loading.hidden = true;
     errorPanel.hidden = true;
     content.hidden = false;

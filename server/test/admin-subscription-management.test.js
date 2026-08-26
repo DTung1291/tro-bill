@@ -120,3 +120,18 @@ test('UI quản trị có form lý do, API thao tác và bảng audit gói', () 
   assert.match(adminSource, /API\.admin\.changeSubscription/);
   assert.match(apiSource, /\/api\/admin\/subscription\/manual-change-logs/);
 });
+
+test('bảng tài khoản giữ đủ cột trên desktop và chuyển thành card trên màn hình nhỏ', () => {
+  const root = path.join(__dirname, '..', '..');
+  const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
+  const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+
+  assert.match(html, /style\.css\?v=78/);
+  assert.match(adminSource, /data-label="Email" class="admin-user-email"/);
+  assert.match(adminSource, /data-label="Thao tác" class="admin-actions"><div class="admin-action-list"><\/div><\/td>/);
+  assert.match(styleSource, /\.admin-users-table \{ min-width: 0; table-layout: fixed; \}/);
+  assert.match(styleSource, /\.admin-action-list \{ display: flex; flex-wrap: wrap;/);
+  assert.match(styleSource, /@media \(max-width: 800px\)[\s\S]*\.admin-users-table tr \{[\s\S]*display: grid;/);
+  assert.match(styleSource, /\.admin-users-table td::before \{[\s\S]*content: attr\(data-label\);/);
+});

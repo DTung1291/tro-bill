@@ -92,7 +92,7 @@ test('API công khai trả breakdown đã chuẩn hóa nhưng không thêm dữ 
   assert.match(result.payment.imageUrl, /addInfo=HD00000015/);
   assert.deepEqual(
     Object.keys(result).sort(),
-    ['details', 'invoice', 'link', 'meterPhotos', 'payment', 'receipts']
+    ['details', 'history', 'invoice', 'link', 'meterPhotos', 'payment', 'receipts']
   );
 });
 
@@ -118,7 +118,7 @@ test('migration backfill snapshot và trang khách thuê render phòng, điện,
   assert.match(appSource, /function currentInvoiceDetail/);
   assert.match(appSource, /function historicalInvoiceDetail/);
   assert.match(publicHtml, /id="invoice-detail-list"/);
-  assert.match(publicHtml, /invoice-public\.css\?v=6[\s\S]*invoice-public\.js\?v=6/);
+  assert.match(publicHtml, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
   assert.match(publicHtml, /id="invoice-payment"/);
   assert.match(publicHtml, /img-src 'self' data: https:\/\/img\.vietqr\.io/);
   assert.match(publicJs, /appendDetailRow\(list, 'Tiền phòng'/);

@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=6" />
+  <link rel="stylesheet" href="invoice-public.css?v=7" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -126,9 +126,30 @@
         <div class="public-invoice-receipt-list" id="invoice-receipt-list"></div>
         <p>Phiếu thu chỉ xuất hiện sau khi chủ trọ ghi nhận hoặc đối soát giao dịch. Tệp tải về là ảnh PNG để dễ lưu và chia sẻ.</p>
       </section>
+      <section class="public-invoice-history" id="invoice-history" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Lịch sử của đợt thuê</p>
+            <h2>Hóa đơn và thanh toán</h2>
+          </div>
+          <span id="invoice-history-scope">—</span>
+        </div>
+        <div class="public-invoice-history-summary">
+          <div><span>Số kỳ</span><strong id="invoice-history-period-count">0</strong></div>
+          <div><span>Tổng đã thu</span><strong id="invoice-history-paid-total">—</strong></div>
+          <div><span>Tổng còn lại</span><strong id="invoice-history-due-total">—</strong></div>
+        </div>
+        <h3>Hóa đơn theo tháng</h3>
+        <div class="public-invoice-history-list" id="invoice-history-invoice-list"></div>
+        <div id="invoice-history-payments" hidden>
+          <h3>Giao dịch gần đây</h3>
+          <div class="public-invoice-history-list" id="invoice-history-payment-list"></div>
+        </div>
+        <p>Lịch sử chỉ gồm các kỳ của phòng này trong đợt thuê hiện tại, tính đến hóa đơn đang mở.</p>
+      </section>
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=6"></script>
+  <script src="invoice-public.js?v=7"></script>
 </body>
 </html>

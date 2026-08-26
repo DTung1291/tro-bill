@@ -164,15 +164,15 @@
     for (const u of users) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${u.id}</td>
-        <td>${esc(u.email)}</td>
-        <td class="admin-subscription-cell">${subscriptionCell(u.subscription)}</td>
-        <td>${u.roomCount}</td>
-        <td>${u.historyCount}</td>
-        <td>${u.isAdmin ? '✔' : ''}</td>
-        <td>${esc(fmtDate(u.createdAt))}</td>
-        <td class="admin-actions"></td>`;
-      const cell = tr.querySelector('.admin-actions');
+        <td data-label="ID">${u.id}</td>
+        <td data-label="Email" class="admin-user-email">${esc(u.email)}</td>
+        <td data-label="Gói hiện tại" class="admin-subscription-cell">${subscriptionCell(u.subscription)}</td>
+        <td data-label="Phòng">${u.roomCount}</td>
+        <td data-label="Lịch sử">${u.historyCount}</td>
+        <td data-label="Admin">${u.isAdmin ? '✔' : ''}</td>
+        <td data-label="Tạo lúc" class="admin-user-created-at">${esc(fmtDate(u.createdAt))}</td>
+        <td data-label="Thao tác" class="admin-actions"><div class="admin-action-list"></div></td>`;
+      const cell = tr.querySelector('.admin-action-list');
       cell.appendChild(btn('Quản lý gói', 'admin-btn', () => openSubscriptionManager(u)));
       cell.appendChild(btn('Xem', 'admin-btn', () => viewUser(u)));
       cell.appendChild(btn('Đổi MK', 'admin-btn-ghost', () => resetPw(u)));
@@ -918,8 +918,8 @@
         <td>${fmtVND(request.requestedAmountVnd)}</td>
         <td><span class="admin-refund-status admin-refund-status--${esc(request.status)}">${esc(refundStatusLabels[request.status] || request.status)}</span></td>
         <td><div class="admin-refund-detail">${esc(request.reason)}</div>${request.adminNote ? `<div class="admin-cell-note">Admin: ${esc(request.adminNote)}</div>` : ''}${request.refundReference ? `<div class="admin-cell-note">Mã hoàn: <code>${esc(request.refundReference)}</code></div>` : ''}</td>
-        <td class="admin-actions"></td>`;
-      const actions = row.querySelector('.admin-actions');
+        <td class="admin-actions"><div class="admin-action-list"></div></td>`;
+      const actions = row.querySelector('.admin-action-list');
       if (request.status === 'pending') {
         actions.append(
           refundAction(request, 'Đang xem xét', 'reviewing'),

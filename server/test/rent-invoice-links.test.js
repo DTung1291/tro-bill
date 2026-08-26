@@ -180,7 +180,7 @@ test('schema, API và trang công khai không lưu token rõ hoặc lộ qua que
   assert.match(htmlSource, /style\.css\?v=91[\s\S]*api\.js\?v=92[\s\S]*app\.js\?v=92/);
   assert.match(publicHtml, /name="referrer" content="no-referrer"/);
   assert.match(publicHtml, /Content-Security-Policy/);
-  assert.match(publicHtml, /invoice-public\.css\?v=6[\s\S]*invoice-public\.js\?v=6/);
+  assert.match(publicHtml, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
   assert.match(publicJs, /location\.hash/);
   assert.match(publicJs, /history\.replaceState\(null, '', location\.pathname\)/);
   assert.match(publicJs, /credentials: 'omit'/);
