@@ -3749,6 +3749,83 @@ function closeBillPreview() {
   document.getElementById('bill-preview-modal').hidden = true;
 }
 
+function billMessageContext() {
+  if (!activeBillPreview) return null;
+  const { room, rec, bill, period } = activeBillPreview;
+  const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
+  return {
+    roomName: room.name,
+    periodLabel: periodLabel(period),
+    invoiceTotalVnd: payment.invoiceTotalVnd,
+    paidAmountVnd: payment.paidAmountVnd,
+    priorDebtVnd: payment.priorDebtVnd,
+    totalDueVnd: payment.totalDueVnd,
+    dueDate: payment.dueDate || billDueDate(period),
+    overdueDays: payment.overdueDays,
+    transferContent: getVietQrDescription(room, period),
+    bankRecipient: rentBankRecipientText()
+  };
+}
+
+function renderBillMessageTemplate() {
+  const context = billMessageContext();
+  const selector = document.getElementById('bill-message-template-type');
+  const content = document.getElementById('bill-message-content');
+  const copyButton = document.getElementById('bill-message-copy');
+  const shareButton = document.getElementById('bill-message-share');
+  if (!context || !selector || !content || !window.BillMessageTemplates) return '';
+  const template = selector.value === 'reminder'
+    ? window.BillMessageTemplates.reminder(context)
+    : window.BillMessageTemplates.invoice(context);
+  content.value = template;
+  if (copyButton) copyButton.disabled = !template;
+  if (shareButton) shareButton.disabled = !template;
+  return template;
+}
+
+function openBillMessageModal() {
+  const context = billMessageContext();
+  if (!context || !window.BillMessageTemplates) {
+    showToast('Chưa tải được mẫu tin nhắn. Vui lòng tải lại trang.', 'error');
+    return;
+  }
+  const modal = document.getElementById('bill-message-modal');
+  const selector = document.getElementById('bill-message-template-type');
+  const reminderOption = selector?.querySelector('option[value="reminder"]');
+  if (!modal || !selector) return;
+  if (reminderOption) reminderOption.disabled = context.totalDueVnd <= 0;
+  if (context.totalDueVnd <= 0 && selector.value === 'reminder') selector.value = 'invoice';
+  document.getElementById('bill-message-subtitle').textContent =
+    `${context.roomName} · ${context.periodLabel}`;
+  renderBillMessageTemplate();
+  closeBillPreview();
+  modal.hidden = false;
+  syncModalScrollLock();
+  document.getElementById('bill-message-content')?.focus();
+}
+
+function closeBillMessageModal() {
+  const modal = document.getElementById('bill-message-modal');
+  if (modal) modal.hidden = true;
+  syncModalScrollLock();
+}
+
+function copyBillMessageTemplate() {
+  const template = document.getElementById('bill-message-content')?.value || '';
+  return copySubscriptionOrderValue(template, 'Đã sao chép mẫu tin nhắn.');
+}
+
+function shareBillMessageTemplate() {
+  const template = document.getElementById('bill-message-content')?.value || '';
+  if (!template) return;
+  const context = billMessageContext();
+  shareBillNative(
+    `Hóa đơn ${context?.roomName || ''}`.trim(),
+    template,
+    copyBillMessageTemplate
+  );
+}
+
 async function waitForBillPreviewImages(container) {
   const images = Array.from(container.querySelectorAll('img'));
   await Promise.all(images.map(image => {
@@ -3959,6 +4036,15 @@ document.getElementById('bill-preview-close-header').addEventListener('click', c
 document.getElementById('bill-preview-close-footer').addEventListener('click', closeBillPreview);
 document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
 document.getElementById('bill-preview-share-link')?.addEventListener('click', openInvoiceShareModal);
+document.getElementById('bill-preview-message-template')?.addEventListener('click', openBillMessageModal);
+document.getElementById('bill-message-template-type')?.addEventListener('change', renderBillMessageTemplate);
+document.getElementById('bill-message-copy')?.addEventListener('click', copyBillMessageTemplate);
+document.getElementById('bill-message-share')?.addEventListener('click', shareBillMessageTemplate);
+document.getElementById('bill-message-close-header')?.addEventListener('click', closeBillMessageModal);
+document.getElementById('bill-message-close-footer')?.addEventListener('click', closeBillMessageModal);
+document.getElementById('bill-message-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeBillMessageModal();
+});
 document.getElementById('invoice-share-create')?.addEventListener('click', createInvoiceShareLink);
 document.getElementById('invoice-share-refresh')?.addEventListener('click', loadInvoiceShareData);
 document.getElementById('invoice-share-copy')?.addEventListener('click', () => {

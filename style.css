@@ -1709,6 +1709,45 @@ body.modal-open {
 }
 .bill-preview-footer #bill-preview-share-link { margin-right: auto; }
 
+/* Bill and debt reminder message templates */
+.modal.bill-message-modal {
+  max-width: 640px;
+  max-height: calc(100dvh - 40px);
+}
+.bill-message-modal .modal-header > div { min-width: 0; }
+.bill-message-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+.bill-message-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 22px;
+  overflow-y: auto;
+}
+.bill-message-body .form-input { width: 100%; }
+.bill-message-content {
+  min-height: 260px;
+  box-sizing: border-box;
+  line-height: 1.55;
+  resize: vertical;
+  white-space: pre-wrap;
+}
+.bill-message-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.45;
+}
+.bill-message-actions {
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border);
+}
+
 /* Secure tenant invoice links */
 .modal.invoice-share-modal { max-width: 680px; max-height: calc(100dvh - 40px); }
 .invoice-share-modal .modal-header > div { min-width: 0; }
@@ -2109,6 +2148,12 @@ body.modal-open {
   .bill-preview-qr-panel { padding: 14px; }
   .bill-preview-qr-empty { min-height: 200px; }
   .bill-preview-footer .btn { flex: 1; justify-content: center; }
+  .bill-message-body { padding: 16px; }
+  .bill-message-actions {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
+  .bill-message-actions .btn { flex: 1; justify-content: center; }
   .rent-payment-summary-grid { grid-template-columns: 1fr; }
   .rent-payment-summary-grid > div { flex-direction: row; justify-content: space-between; }
   .rent-payment-transaction { flex-direction: column; }
