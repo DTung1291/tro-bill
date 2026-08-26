@@ -1112,6 +1112,7 @@ module.exports = {
   invoiceInput,
   invoiceDetailInput,
   invoiceSyncEntries,
+  invoiceSummary,
   integerVnd,
   legacyEntries,
   listInvoiceSummaries,

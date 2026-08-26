@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=92" />
+  <link rel="stylesheet" href="style.css?v=93" />
 </head>
 
 <body>
@@ -921,12 +921,21 @@
           <option value="invoice">Thông báo hóa đơn</option>
           <option value="reminder">Nhắc thanh toán</option>
         </select>
+        <label class="form-label" for="bill-message-tenant">Khách nhận hóa đơn</label>
+        <select class="form-input" id="bill-message-tenant"></select>
+        <p class="bill-message-contact-note" id="bill-message-contact-note"></p>
         <textarea class="form-input bill-message-content" id="bill-message-content" rows="13" readonly></textarea>
-        <p class="bill-message-note">Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD. Có thể chỉnh nội dung sau khi dán vào ứng dụng nhắn tin.</p>
+        <div class="bill-message-link-result" id="bill-message-link-result" hidden>
+          <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
+          <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
+        </div>
+        <p class="bill-message-note">Zalo dùng bảng chia sẻ của điện thoại. Email được gửi qua dịch vụ đã cấu hình. Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</p>
       </div>
       <div class="modal-actions bill-message-actions">
         <button type="button" class="btn btn--ghost" id="bill-message-close-footer">Đóng</button>
-        <button type="button" class="btn btn--ghost" id="bill-message-share">📤 Chia sẻ</button>
+        <button type="button" class="btn btn--ghost" id="bill-message-create-link">🔗 Tạo link</button>
+        <button type="button" class="btn btn--ghost" id="bill-message-share">📤 Zalo / ứng dụng</button>
+        <button type="button" class="btn btn--ghost" id="bill-message-email">✉️ Gửi email</button>
         <button type="button" class="btn btn--primary" id="bill-message-copy">📋 Sao chép</button>
       </div>
     </div>
@@ -1227,6 +1236,13 @@
               <input class="form-input" type="tel" id="tenant-phone" placeholder="0901234567" />
             </div>
           </div>
+
+          <div class="form-row">
+            <div>
+              <label class="form-label">Email nhận hóa đơn</label>
+              <input class="form-input" type="email" id="tenant-email" placeholder="khachthue@example.com" autocomplete="email" maxlength="254" />
+            </div>
+          </div>
           
           <div class="form-row form-row--2col">
             <div>
@@ -1377,14 +1393,14 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=92"></script>
+  <script src="api.js?v=93"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="app.js?v=93"></script>
+  <script src="app.js?v=94"></script>
 </body>
 
 </html>

@@ -1152,6 +1152,7 @@ function loadState(savedObj) {
           id: t.id || uuid(),
           fullName: t.fullName || '',
           phone: t.phone || '',
+          email: t.email || '',
           cccd: t.cccd || '',
           issueDate: t.issueDate || '',
           dob: t.dob || '',
@@ -3749,6 +3750,42 @@ function closeBillPreview() {
   document.getElementById('bill-preview-modal').hidden = true;
 }
 
+let ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
+let BILL_MESSAGE_LINK_PROMISE = null;
+
+function selectedBillMessageTenant() {
+  if (!activeBillPreview) return null;
+  const tenantId = document.getElementById('bill-message-tenant')?.value || '';
+  return (activeBillPreview.room.tenants || []).find(tenant => tenant.id === tenantId) || null;
+}
+
+function populateBillMessageTenants() {
+  const selector = document.getElementById('bill-message-tenant');
+  if (!selector || !activeBillPreview) return;
+  selector.replaceChildren();
+  const tenants = Array.isArray(activeBillPreview.room.tenants)
+    ? activeBillPreview.room.tenants
+    : [];
+  if (tenants.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Chưa có khách thuê trong phòng';
+    selector.appendChild(option);
+    selector.disabled = true;
+    return;
+  }
+  selector.disabled = false;
+  for (const tenant of tenants) {
+    const option = document.createElement('option');
+    option.value = tenant.id;
+    const contact = tenant.email || tenant.phone || 'chưa có thông tin liên hệ';
+    option.textContent = `${tenant.fullName || 'Khách thuê'} · ${contact}`;
+    selector.appendChild(option);
+  }
+  const preferredTenant = tenants.find(tenant => tenant.email) || tenants[0];
+  selector.value = preferredTenant.id;
+}
+
 function billMessageContext() {
   if (!activeBillPreview) return null;
   const { room, rec, bill, period } = activeBillPreview;
@@ -3763,7 +3800,8 @@ function billMessageContext() {
     dueDate: payment.dueDate || billDueDate(period),
     overdueDays: payment.overdueDays,
     transferContent: getVietQrDescription(room, period),
-    bankRecipient: rentBankRecipientText()
+    bankRecipient: rentBankRecipientText(),
+    invoiceUrl: ACTIVE_BILL_MESSAGE_SHARE_LINK?.publicUrl || ''
   };
 }
 
@@ -3773,6 +3811,8 @@ function renderBillMessageTemplate() {
   const content = document.getElementById('bill-message-content');
   const copyButton = document.getElementById('bill-message-copy');
   const shareButton = document.getElementById('bill-message-share');
+  const emailButton = document.getElementById('bill-message-email');
+  const contactNote = document.getElementById('bill-message-contact-note');
   if (!context || !selector || !content || !window.BillMessageTemplates) return '';
   const template = selector.value === 'reminder'
     ? window.BillMessageTemplates.reminder(context)
@@ -3780,6 +3820,13 @@ function renderBillMessageTemplate() {
   content.value = template;
   if (copyButton) copyButton.disabled = !template;
   if (shareButton) shareButton.disabled = !template;
+  const tenant = selectedBillMessageTenant();
+  if (emailButton) emailButton.disabled = !template || !tenant?.email;
+  if (contactNote) {
+    if (!tenant) contactNote.textContent = 'Thêm khách thuê để chọn người nhận email.';
+    else if (tenant.email) contactNote.textContent = `Email sẽ gửi đến ${tenant.email}.`;
+    else contactNote.textContent = 'Khách này chưa có email. Có thể dùng Zalo/ứng dụng hoặc bổ sung email trong Quản lý phòng.';
+  }
   return template;
 }
 
@@ -3793,10 +3840,15 @@ function openBillMessageModal() {
   const selector = document.getElementById('bill-message-template-type');
   const reminderOption = selector?.querySelector('option[value="reminder"]');
   if (!modal || !selector) return;
+  ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
+  BILL_MESSAGE_LINK_PROMISE = null;
+  document.getElementById('bill-message-link-result').hidden = true;
+  document.getElementById('bill-message-link-url').value = '';
   if (reminderOption) reminderOption.disabled = context.totalDueVnd <= 0;
   if (context.totalDueVnd <= 0 && selector.value === 'reminder') selector.value = 'invoice';
   document.getElementById('bill-message-subtitle').textContent =
     `${context.roomName} · ${context.periodLabel}`;
+  populateBillMessageTenants();
   renderBillMessageTemplate();
   closeBillPreview();
   modal.hidden = false;
@@ -3807,6 +3859,8 @@ function openBillMessageModal() {
 function closeBillMessageModal() {
   const modal = document.getElementById('bill-message-modal');
   if (modal) modal.hidden = true;
+  ACTIVE_BILL_MESSAGE_SHARE_LINK = null;
+  BILL_MESSAGE_LINK_PROMISE = null;
   syncModalScrollLock();
 }
 
@@ -3815,15 +3869,107 @@ function copyBillMessageTemplate() {
   return copySubscriptionOrderValue(template, 'Đã sao chép mẫu tin nhắn.');
 }
 
-function shareBillMessageTemplate() {
-  const template = document.getElementById('bill-message-content')?.value || '';
-  if (!template) return;
-  const context = billMessageContext();
-  shareBillNative(
-    `Hóa đơn ${context?.roomName || ''}`.trim(),
-    template,
-    copyBillMessageTemplate
-  );
+async function activeBillMessageInvoiceId() {
+  if (!activeBillPreview) return null;
+  const { room, period } = activeBillPreview;
+  let invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+  if (!invoice?.invoiceId) {
+    await ensureRentInvoicesSynced();
+    invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+  }
+  return invoice?.invoiceId ? Number(invoice.invoiceId) : null;
+}
+
+async function ensureBillMessageSystemLink() {
+  if (ACTIVE_BILL_MESSAGE_SHARE_LINK?.publicUrl) return ACTIVE_BILL_MESSAGE_SHARE_LINK;
+  if (BILL_MESSAGE_LINK_PROMISE) return BILL_MESSAGE_LINK_PROMISE;
+  BILL_MESSAGE_LINK_PROMISE = (async () => {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn để chia sẻ');
+    const result = await API.createRentInvoiceShareLink(invoiceId, 72);
+    if (!result?.publicUrl) throw new Error('Máy chủ không trả về liên kết hóa đơn');
+    ACTIVE_BILL_MESSAGE_SHARE_LINK = result;
+    document.getElementById('bill-message-link-url').value = result.publicUrl;
+    document.getElementById('bill-message-link-result').hidden = false;
+    renderBillMessageTemplate();
+    return result;
+  })();
+  try {
+    return await BILL_MESSAGE_LINK_PROMISE;
+  } finally {
+    BILL_MESSAGE_LINK_PROMISE = null;
+  }
+}
+
+async function createBillMessageSystemLink(event) {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await ensureBillMessageSystemLink();
+    showToast('Đã tạo link hóa đơn bảo mật và chèn vào mẫu.', 'success', 3500);
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được link hóa đơn', 'error', 4000);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function shareBillMessageTemplate(event) {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await ensureBillMessageSystemLink();
+    const template = renderBillMessageTemplate();
+    if (!template) return;
+    const context = billMessageContext();
+    shareBillNative(
+      `Hóa đơn ${context?.roomName || ''}`.trim(),
+      template,
+      copyBillMessageTemplate
+    );
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không chia sẻ được hóa đơn', 'error', 4000);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function sendBillMessageEmail(event) {
+  const tenant = selectedBillMessageTenant();
+  if (!tenant?.email) {
+    showToast('Khách thuê chưa có email nhận hóa đơn.', 'error');
+    return;
+  }
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn để gửi');
+    const result = await API.deliverRentInvoiceEmail(invoiceId, {
+      tenantId: tenant.id,
+      templateType: document.getElementById('bill-message-template-type').value,
+      expiresInHours: 72,
+      deliveryKey: uuid()
+    });
+    if (result.publicUrl) {
+      ACTIVE_BILL_MESSAGE_SHARE_LINK = result;
+      document.getElementById('bill-message-link-url').value = result.publicUrl;
+      document.getElementById('bill-message-link-result').hidden = false;
+      renderBillMessageTemplate();
+    }
+    if (result.development) {
+      showToast('Môi trường local: đã tạo link nhưng chưa gửi email thật.', 'info', 4500);
+    } else {
+      showToast(`Đã gửi email hóa đơn đến ${result.recipient || tenant.email}.`, 'success', 4000);
+    }
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không gửi được email hóa đơn', 'error', 4500);
+  } finally {
+    button.disabled = !selectedBillMessageTenant()?.email;
+  }
 }
 
 async function waitForBillPreviewImages(container) {
@@ -4038,8 +4184,17 @@ document.getElementById('bill-preview-print').addEventListener('click', printBil
 document.getElementById('bill-preview-share-link')?.addEventListener('click', openInvoiceShareModal);
 document.getElementById('bill-preview-message-template')?.addEventListener('click', openBillMessageModal);
 document.getElementById('bill-message-template-type')?.addEventListener('change', renderBillMessageTemplate);
+document.getElementById('bill-message-tenant')?.addEventListener('change', renderBillMessageTemplate);
 document.getElementById('bill-message-copy')?.addEventListener('click', copyBillMessageTemplate);
 document.getElementById('bill-message-share')?.addEventListener('click', shareBillMessageTemplate);
+document.getElementById('bill-message-email')?.addEventListener('click', sendBillMessageEmail);
+document.getElementById('bill-message-create-link')?.addEventListener('click', createBillMessageSystemLink);
+document.getElementById('bill-message-link-copy')?.addEventListener('click', () => {
+  copySubscriptionOrderValue(
+    document.getElementById('bill-message-link-url')?.value,
+    'Đã sao chép link hóa đơn.'
+  );
+});
 document.getElementById('bill-message-close-header')?.addEventListener('click', closeBillMessageModal);
 document.getElementById('bill-message-close-footer')?.addEventListener('click', closeBillMessageModal);
 document.getElementById('bill-message-modal')?.addEventListener('click', event => {
@@ -5874,6 +6029,7 @@ function renderTenantsList(roomId) {
         </div>
         <div class="tenant-meta" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; display:flex; flex-direction:column; gap:2px;">
           <div>📞 SĐT: ${escapeHtml(t.phone || '—')}</div>
+          <div>✉️ Email: ${escapeHtml(t.email || '—')}</div>
           <div>🪪 CCCD: <span data-tenant-cccd-value="${escapeHtml(t.id)}">${escapeHtml(maskCccdForDisplay(t.cccd))}</span> (${escapeHtml(formatDate(t.issueDate))}) <button type="button" class="link-btn" data-reveal-tenant="${escapeHtml(t.id)}">Xem</button></div>
           <div>🎂 Sinh nhật: ${formatDate(t.dob)}</div>
           <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${escapeHtml(t.address || '—')}</div>
@@ -5944,6 +6100,7 @@ function openTenantForm(roomId, tenantId = null) {
     document.getElementById('tenant-id').value = t.id;
     document.getElementById('tenant-fullname').value = t.fullName;
     document.getElementById('tenant-phone').value = t.phone || '';
+    document.getElementById('tenant-email').value = t.email || '';
     cccdInput.value = maskCccdForDisplay(t.cccd);
     cccdInput.readOnly = true;
     revealButton.hidden = false;
@@ -6186,6 +6343,7 @@ function initTenantsEvents() {
     const id = document.getElementById('tenant-id').value;
     const fullName = document.getElementById('tenant-fullname').value.trim();
     const phone = document.getElementById('tenant-phone').value.trim();
+    const email = document.getElementById('tenant-email').value.trim().toLowerCase();
     const cccd = document.getElementById('tenant-cccd').value.trim();
     const issueDate = document.getElementById('tenant-issue-date').value;
     const dob = document.getElementById('tenant-dob').value;
@@ -6212,6 +6370,7 @@ function initTenantsEvents() {
       id: id || uuid(),
       fullName,
       phone,
+      email,
       cccd,
       issueDate,
       dob,

@@ -100,6 +100,28 @@ function subscriptionExpiryEmailHtml({ planName, daysRemaining, endsOn, appUrl }
     </div>`;
 }
 
+function rentInvoiceEmailHtml({ tenantName, roomName, period, message, invoiceUrl }) {
+  const safeTenantName = escapeHtml(tenantName || 'anh/chị');
+  const safeRoomName = escapeHtml(roomName || 'Phòng');
+  const safePeriod = escapeHtml(period || '');
+  const safeMessage = escapeHtml(message || '').replace(/\n/g, '<br>');
+  const safeInvoiceUrl = escapeHtml(invoiceUrl);
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033;max-width:620px;margin:0 auto">
+      <h1 style="font-size:24px;margin-bottom:6px">Hóa đơn ${safeRoomName}</h1>
+      <p style="margin-top:0;color:#667085">Kỳ ${safePeriod}</p>
+      <p>Chào ${safeTenantName},</p>
+      <div style="padding:16px;border:1px solid #d9e2f2;border-radius:12px;background:#f8fafc;white-space:normal">${safeMessage}</div>
+      <p style="margin:28px 0">
+        <a href="${safeInvoiceUrl}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#6c63ff;color:#fff;text-decoration:none;font-weight:700">
+          Xem hóa đơn bảo mật
+        </a>
+      </p>
+      <p style="font-size:12px;color:#667085">Liên kết có thời hạn và có thể được chủ trọ thu hồi.</p>
+      <p style="font-size:12px;color:#667085;word-break:break-all">${safeInvoiceUrl}</p>
+    </div>`;
+}
+
 function parseSender(value) {
   const sender = String(value || '').trim();
   const match = sender.match(/^(.*?)\s*<([^<>]+)>$/);
@@ -256,8 +278,41 @@ async function sendSubscriptionExpiryEmail({
   return { delivered: true, emailId: delivery && delivery.id };
 }
 
+async function sendRentInvoiceEmail({
+  email,
+  tenantName,
+  roomName,
+  period,
+  templateType,
+  message,
+  invoiceUrl,
+  idempotencyKey
+}) {
+  const configuration = assertEmailConfigured();
+  const apiKey = emailProviderApiKey(configuration.provider);
+  if (!apiKey) {
+    return { delivered: false, development: true };
+  }
+
+  const reminder = templateType === 'reminder';
+  const from = String(process.env.EMAIL_FROM || 'TrọBill <onboarding@resend.dev>').trim();
+  const delivery = await sendTransactionalEmail({
+    from,
+    to: email,
+    subject: reminder
+      ? `Nhắc thanh toán ${roomName} · ${period}`
+      : `Hóa đơn ${roomName} · ${period}`,
+    html: rentInvoiceEmailHtml({ tenantName, roomName, period, message, invoiceUrl }),
+    text: `${message}\n\nXem hóa đơn bảo mật: ${invoiceUrl}`,
+    idempotencyKey
+  });
+  return { delivered: true, emailId: delivery && delivery.id };
+}
+
 module.exports = {
   assertEmailConfigured,
+  rentInvoiceEmailHtml,
+  sendRentInvoiceEmail,
   sendSubscriptionExpiryEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,

@@ -1737,6 +1737,21 @@ body.modal-open {
   resize: vertical;
   white-space: pre-wrap;
 }
+.bill-message-contact-note {
+  min-height: 1.2em;
+  margin: -4px 0 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.4;
+}
+.bill-message-link-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.bill-message-link-result[hidden] { display: none; }
+.bill-message-link-result .inline-input { min-width: 0; width: 100%; }
 .bill-message-note {
   margin: 0;
   color: var(--text-muted);
@@ -1744,6 +1759,7 @@ body.modal-open {
   line-height: 1.45;
 }
 .bill-message-actions {
+  flex-wrap: wrap;
   padding: 14px 22px 18px;
   border-top: 1px solid var(--border);
 }
@@ -2154,6 +2170,8 @@ body.modal-open {
     padding: 14px 16px;
   }
   .bill-message-actions .btn { flex: 1; justify-content: center; }
+  .bill-message-link-result { grid-template-columns: minmax(0, 1fr); }
+  .bill-message-link-result .btn { justify-content: center; }
   .rent-payment-summary-grid { grid-template-columns: 1fr; }
   .rent-payment-summary-grid > div { flex-direction: row; justify-content: space-between; }
   .rent-payment-transaction { flex-direction: column; }

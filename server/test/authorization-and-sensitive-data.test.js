@@ -56,6 +56,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['GET', '/api/rent-payments/invoices/1/transactions'],
     ['POST', '/api/rent-payments/transactions/1/reverse'],
     ['POST', '/api/rent-invoices/1/share-links'],
+    ['POST', '/api/rent-invoices/1/deliver-email'],
     ['GET', '/api/rent-invoices/1/share-links'],
     ['GET', '/api/rent-invoices/1/payment-proofs'],
     ['POST', '/api/rent-invoice-share-links/1/revoke'],

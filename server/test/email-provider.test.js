@@ -9,7 +9,20 @@ const {
   inspectEmailConfiguration,
   resolveEmailProvider
 } = require('../email-config');
-const { sendVerificationEmail } = require('../email');
+const { rentInvoiceEmailHtml, sendVerificationEmail } = require('../email');
+
+test('email hóa đơn escape nội dung và chỉ hiển thị link bảo mật đã cấp', () => {
+  const html = rentInvoiceEmailHtml({
+    tenantName: '<script>tenant</script>',
+    roomName: 'P403',
+    period: 'Tháng 8/2026',
+    message: 'Tổng tiền <b>3.000.000đ</b>',
+    invoiceUrl: 'https://tro-bill.example/invoice.html#t=secure'
+  });
+  assert.doesNotMatch(html, /<script>|<b>/);
+  assert.match(html, /&lt;script&gt;tenant&lt;\/script&gt;/);
+  assert.match(html, /https:\/\/tro-bill\.example\/invoice\.html#t=secure/);
+});
 
 function restoreEnvironment(snapshot) {
   for (const [key, value] of Object.entries(snapshot)) {

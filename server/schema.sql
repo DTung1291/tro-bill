@@ -639,6 +639,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   full_name  TEXT NOT NULL DEFAULT '',
   phone      TEXT NOT NULL DEFAULT '',
+  email      TEXT NOT NULL DEFAULT '',
   cccd       TEXT NOT NULL DEFAULT '',
   issue_date TEXT NOT NULL DEFAULT '',
   dob        TEXT NOT NULL DEFAULT '',
@@ -646,10 +647,30 @@ CREATE TABLE IF NOT EXISTS tenants (
   address    TEXT NOT NULL DEFAULT '',
   data_notice_version TEXT NOT NULL DEFAULT '',
   data_notice_acknowledged_at TIMESTAMPTZ,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT tenants_email_valid CHECK (
+    email = '' OR (
+      char_length(email) <= 254
+      AND email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+    )
+  )
 );
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_version TEXT NOT NULL DEFAULT '';
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_acknowledged_at TIMESTAMPTZ;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='tenants_email_valid'
+  ) THEN
+    ALTER TABLE tenants ADD CONSTRAINT tenants_email_valid CHECK (
+      email = '' OR (
+        char_length(email) <= 254
+        AND email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+      )
+    );
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_tenants_room ON tenants(room_id);
 CREATE INDEX IF NOT EXISTS idx_tenants_user ON tenants(user_id);
 

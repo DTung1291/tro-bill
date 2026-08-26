@@ -47,6 +47,7 @@ const deposits = require('./deposits');
 const rentPaymentChannels = require('./rent-payment-channels');
 const rentBankReconciliation = require('./rent-bank-reconciliation');
 const rentInvoiceLinks = require('./rent-invoice-links');
+const rentInvoiceDelivery = require('./rent-invoice-delivery');
 const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
 
@@ -152,6 +153,11 @@ app.post(
   '/api/rent-invoices/:invoiceId/share-links',
   requireAuth,
   wrap(rentInvoiceLinks.createInvoiceLink)
+);
+app.post(
+  '/api/rent-invoices/:invoiceId/deliver-email',
+  requireAuth,
+  wrap(rentInvoiceDelivery.deliverInvoiceEmail)
 );
 app.get(
   '/api/rent-invoices/:invoiceId/share-links',

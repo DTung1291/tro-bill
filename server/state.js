@@ -15,6 +15,7 @@ const orEmpty = (v) => (v === null || v === undefined ? '' : Number(v));
 const orNull = (v) => (v === '' || v === undefined || v === null ? null : Number(v));
 const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : String(v));
 const INVOICE_ADJUSTMENT_FIELDS = ['discountAmount', 'surchargeAmount', 'lateFeeAmount'];
+const TENANT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function hasInvalidInvoiceAdjustment(source = {}) {
   return INVOICE_ADJUSTMENT_FIELDS.some((field) => {
@@ -39,6 +40,7 @@ function isMaskedCccd(value) {
 const TENANT_SENSITIVE_FIELDS = [
   ['fullName', 'full_name'],
   ['phone', 'phone'],
+  ['email', 'email'],
   ['cccd', 'cccd'],
   ['issueDate', 'issue_date'],
   ['dob', 'dob'],
@@ -96,6 +98,7 @@ async function buildState(uid, options = {}) {
       id: t.id,
       fullName: t.full_name,
       phone: t.phone,
+      email: t.email || '',
       cccd: options.maskCccd === false ? t.cccd : maskCccd(t.cccd),
       issueDate: t.issue_date,
       dob: t.dob,
@@ -259,6 +262,13 @@ async function putState(req, res) {
       if (!tenantId || tenantId.length > 200 || tenantIds.has(tenantId)) {
         return res.status(400).json({ error: 'Danh sách khách thuê chứa ID không hợp lệ hoặc bị trùng' });
       }
+      const tenantEmail = String(tenant && tenant.email || '').trim().toLowerCase();
+      if (tenantEmail && (tenantEmail.length > 254 || !TENANT_EMAIL_PATTERN.test(tenantEmail))) {
+        return res.status(400).json({
+          error: 'Email nhận hóa đơn của khách thuê không hợp lệ',
+          code: 'INVALID_TENANT_EMAIL'
+        });
+      }
       tenantIds.add(tenantId);
     }
   }
@@ -293,7 +303,7 @@ async function putState(req, res) {
     await enforceStateWrite(uid, rooms.length, client.query.bind(client));
 
     const existingTenantResult = await client.query(
-      `SELECT id, full_name, phone, cccd, issue_date, dob, gender, address,
+      `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
               data_notice_version, data_notice_acknowledged_at
        FROM tenants WHERE user_id=$1`,
       [uid]
@@ -447,11 +457,12 @@ async function putState(req, res) {
         const resolved = resolvedTenants.get(t.id);
         await client.query(
           `INSERT INTO tenants
-             (id, room_id, user_id, full_name, phone, cccd, issue_date, dob, gender,
+             (id, room_id, user_id, full_name, phone, email, cccd, issue_date, dob, gender,
               address, data_notice_version, data_notice_acknowledged_at, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
           [
-            t.id, r.id, uid, t.fullName || '', t.phone || '', resolved.cccd,
+            t.id, r.id, uid, t.fullName || '', t.phone || '',
+            String(t.email || '').trim().toLowerCase(), resolved.cccd,
             t.issueDate || '', t.dob || '', t.gender || 'Nam', t.address || '',
             resolved.dataNoticeVersion, resolved.dataNoticeAcknowledgedAt, tIdx++
           ]

@@ -193,7 +193,7 @@ Trạng thái ngày 24/08/2026:
 ### Gửi hóa đơn và nhắc nợ
 
 - [x] Có mẫu tin nhắn hóa đơn và mẫu nhắc nợ.
-- [ ] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống.
+- [x] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống.
 - [ ] Cho phép hẹn ngày gửi hóa đơn.
 - [ ] Tự động nhắc trước hạn và sau hạn theo cấu hình.
 - [ ] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ.

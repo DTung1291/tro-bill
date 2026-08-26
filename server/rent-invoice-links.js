@@ -81,18 +81,33 @@ function linkJson(row) {
 }
 
 async function createInvoiceLink(req, res) {
-  let invoiceId;
-  let hours;
   try {
-    invoiceId = positiveId(req.params.invoiceId);
-    hours = expiryHours(req.body?.expiresInHours);
+    const result = await issueInvoiceLink({
+      userId: req.userId,
+      invoiceId: req.params.invoiceId,
+      expiresInHours: req.body?.expiresInHours,
+      req
+    });
+    res.set('Cache-Control', 'no-store');
+    return res.status(201).json(result);
   } catch (error) {
     if (sendLinkError(res, error)) return res;
     throw error;
   }
+}
+
+async function issueInvoiceLink({
+  userId,
+  invoiceId: rawInvoiceId,
+  expiresInHours,
+  req,
+  query = db.query
+}) {
+  const invoiceId = positiveId(rawInvoiceId);
+  const hours = expiryHours(expiresInHours);
   const token = generateToken();
   const hash = tokenHash(token);
-  const { rows } = await db.query(
+  const { rows } = await query(
     `INSERT INTO rent_invoice_share_links
        (user_id, invoice_id, tenancy_start_period,
         token_hash, token_last4, expires_at)
@@ -110,16 +125,15 @@ async function createInvoiceLink(req, res) {
        ON room.user_id=invoice.user_id AND room.id=invoice.room_id
      WHERE invoice.user_id=$1 AND invoice.id=$2
      RETURNING *`,
-    [req.userId, invoiceId, hash, token.slice(-4), hours]
+    [userId, invoiceId, hash, token.slice(-4), hours]
   );
   if (!rows[0]) {
-    return res.status(404).json({ error: 'Không tìm thấy hóa đơn', code: 'INVOICE_NOT_FOUND' });
+    throw new RentInvoiceLinkError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn');
   }
-  res.set('Cache-Control', 'no-store');
-  return res.status(201).json({
+  return {
     link: linkJson(rows[0]),
     publicUrl: `${publicBaseUrl(req)}/invoice.html#t=${encodeURIComponent(token)}`
-  });
+  };
 }
 
 async function listInvoiceLinks(req, res) {
@@ -410,6 +424,7 @@ module.exports = {
   createInvoiceLink,
   expiryHours,
   generateToken,
+  issueInvoiceLink,
   linkJson,
   listInvoiceLinks,
   publicBaseUrl,

@@ -231,12 +231,13 @@ test('putState giữ CCCD gốc khi client gửi bản che và audit trường �
           }]
         };
       }
-      if (sql.includes('SELECT id, full_name, phone, cccd')) {
+      if (sql.includes('SELECT id, full_name, phone, email, cccd')) {
         return {
           rows: [{
             id: 'tenant-1',
             full_name: 'Nguyễn Văn A',
             phone: '0900000000',
+            email: 'tenant@example.com',
             cccd: '079099001234',
             issue_date: '2021-01-01',
             dob: '1999-01-01',
@@ -263,6 +264,7 @@ test('putState giữ CCCD gốc khi client gửi bản che và audit trường �
           id: 'tenant-1',
           fullName: 'Nguyễn Văn A',
           phone: '0911111111',
+          email: 'tenant@example.com',
           cccd: '••••••••1234',
           issueDate: '2021-01-01',
           dob: '1999-01-01',
@@ -276,7 +278,8 @@ test('putState giữ CCCD gốc khi client gửi bản che và audit trường �
 
   const tenantInsert = calls.find(call => call.sql.includes('INSERT INTO tenants'));
   const auditInsert = calls.find(call => call.sql.includes('INSERT INTO data_audit_logs'));
-  assert.equal(tenantInsert.params[5], '079099001234', 'không ghi dấu che vào database');
+  assert.equal(tenantInsert.params[5], 'tenant@example.com');
+  assert.equal(tenantInsert.params[6], '079099001234', 'không ghi dấu che vào database');
   assert.deepEqual(auditInsert.params[6], ['phone']);
   assert.equal(auditInsert.params.includes('079099001234'), false, 'audit không lưu dữ liệu nhạy cảm');
   assert.equal(response.record.body.ok, true);
@@ -296,7 +299,7 @@ test('khách thuê mới bắt buộc xác nhận đã thông báo mục đích 
           }]
         };
       }
-      if (sql.includes('SELECT id, full_name, phone, cccd')) return { rows: [] };
+      if (sql.includes('SELECT id, full_name, phone, email, cccd')) return { rows: [] };
       return { rows: [] };
     },
     release() {}
@@ -316,4 +319,18 @@ test('khách thuê mới bắt buộc xác nhận đã thông báo mục đích 
   assert.equal(response.record.statusCode, 400);
   assert.equal(response.record.body.code, 'TENANT_DATA_NOTICE_REQUIRED');
   assert.equal(calls.at(-1).sql, 'ROLLBACK');
+});
+
+test('putState từ chối email khách thuê sai trước khi ghi database', async () => {
+  const response = responseRecorder();
+  await putState(privacyRequest({
+    body: {
+      rooms: [{
+        id: 'room-1',
+        tenants: [{ id: 'tenant-1', email: 'email-khong-hop-le' }]
+      }]
+    }
+  }), response.res);
+  assert.equal(response.record.statusCode, 400);
+  assert.equal(response.record.body.code, 'INVALID_TENANT_EMAIL');
 });

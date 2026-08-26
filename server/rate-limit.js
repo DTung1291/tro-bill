@@ -20,6 +20,10 @@ const RULES = {
   sensitive: [
     { scope: 'ip', maxAttempts: 10, windowSeconds: 15 * 60 },
     { scope: 'account', maxAttempts: 5, windowSeconds: 15 * 60 }
+  ],
+  invoiceEmail: [
+    { scope: 'ip', maxAttempts: 250, windowSeconds: 24 * 60 * 60 },
+    { scope: 'account', maxAttempts: 120, windowSeconds: 24 * 60 * 60 }
   ]
 };
 let lastCleanupAt = 0;

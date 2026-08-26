@@ -281,6 +281,14 @@ const API = (() => {
     );
   }
 
+  function deliverRentInvoiceEmail(invoiceId, input) {
+    return request(
+      'POST',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/deliver-email`,
+      input
+    );
+  }
+
   function getRentInvoiceShareLinks(invoiceId) {
     return request(
       'GET',
@@ -447,6 +455,7 @@ const API = (() => {
     matchRentBankTransaction,
     ignoreRentBankTransaction,
     createRentInvoiceShareLink,
+    deliverRentInvoiceEmail,
     getRentInvoiceShareLinks,
     revokeRentInvoiceShareLink,
     getRentInvoicePaymentProofs,

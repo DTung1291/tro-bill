@@ -6,6 +6,7 @@ const { keyHash, requestIp } = require('./rate-limit');
 const ALLOWED_FIELDS = new Set([
   'fullName',
   'phone',
+  'email',
   'cccd',
   'issueDate',
   'dob',
