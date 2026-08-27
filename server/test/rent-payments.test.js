@@ -21,6 +21,7 @@ const {
   summaryJson,
   syncInvoices
 } = require('../rent-payments');
+const { publicInvoiceJson } = require('../rent-invoice-links');
 
 function responseRecorder() {
   const record = { statusCode: 200, body: null };
@@ -262,6 +263,136 @@ test('thanh toán một phần ghi đúng số tiền và cho phép nhiều giao
     'Đã nhận đủ qua chuyển khoản',
     'manual_partial'
   ]);
+});
+
+test('theo dõi xuyên suốt hóa đơn qua hai lần thu đến khi khách nhận đủ phiếu thu', async (t) => {
+  const originalGetClient = db.getClient;
+  const receipts = [];
+  let paidAmountVnd = 0;
+  let transactionCount = 0;
+  let nextReceiptId = 51;
+  let nextTransactionId = 91;
+  const invoiceTotalVnd = 3000000;
+  const occurredAt = '2026-08-25T01:00:00.000Z';
+  const client = {
+    async query(sql, params = []) {
+      if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rows: [] };
+      if (sql.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (sql.includes('SELECT * FROM rent_payment_receipts')) return { rows: [] };
+      if (sql.includes('WHERE t.user_id=$1 AND t.idempotency_key=$2')) return { rows: [] };
+      if (sql.includes('SELECT source.room_name')) return { rows: [{ room_name: 'P101' }] };
+      if (sql.includes('INSERT INTO rent_invoices')) {
+        return { rows: [{ id: 41, issued_total_vnd: String(invoiceTotalVnd) }] };
+      }
+      if (sql.includes('SELECT COALESCE(SUM(amount_vnd)')) {
+        return {
+          rows: [{
+            paid_amount_vnd: String(paidAmountVnd),
+            transaction_count: transactionCount
+          }]
+        };
+      }
+      if (sql.includes('SELECT id FROM rent_invoices')) return { rows: [{ id: 41 }] };
+      if (sql.includes('SELECT i.id, i.period, i.issued_total_vnd')) {
+        return {
+          rows: [{
+            id: 41,
+            period: '2026-08',
+            issued_total_vnd: String(invoiceTotalVnd),
+            paid_amount_vnd: String(paidAmountVnd),
+            remaining_vnd: String(invoiceTotalVnd - paidAmountVnd),
+            current_tenancy_start_period: '2026-08'
+          }]
+        };
+      }
+      if (sql.includes("nextval('rent_payment_receipts_id_seq')")) {
+        return { rows: [{ id: nextReceiptId++ }] };
+      }
+      if (sql.includes('INSERT INTO rent_payment_receipts')) {
+        const receipt = {
+          id: params[0],
+          room_id: params[2],
+          target_period: params[3],
+          receipt_code: params[4],
+          amount_vnd: String(params[5]),
+          payment_method: params[6],
+          note: params[7],
+          source: params[8],
+          occurred_at: params[10],
+          created_at: params[10]
+        };
+        receipts.push(receipt);
+        return { rows: [receipt] };
+      }
+      if (sql.includes('INSERT INTO rent_payment_transactions')) {
+        paidAmountVnd += Number(params[3]);
+        transactionCount += 1;
+        return { rows: [{ id: nextTransactionId++, occurred_at: params[7] }] };
+      }
+      if (sql.includes('SELECT i.id')) {
+        return {
+          rows: [summaryRow({
+            paid_amount_vnd: String(paidAmountVnd),
+            transaction_count: transactionCount,
+            last_payment_at: occurredAt
+          })]
+        };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  db.getClient = async () => client;
+  t.after(() => { db.getClient = originalGetClient; });
+
+  const first = responseRecorder();
+  await settleInvoice(request({
+    amountVnd: 1000000,
+    paymentMethod: 'bank_transfer',
+    idempotencyKey: 'payment-lifecycle-part-1'
+  }), first.res);
+  assert.equal(first.record.statusCode, 201);
+  assert.equal(first.record.body.invoice.status, 'partial');
+  assert.equal(first.record.body.invoice.remainingVnd, 2000000);
+
+  const second = responseRecorder();
+  await settleInvoice(request({
+    amountVnd: 2000000,
+    paymentMethod: 'bank_transfer',
+    idempotencyKey: 'payment-lifecycle-part-2'
+  }), second.res);
+  assert.equal(second.record.statusCode, 201);
+  assert.equal(second.record.body.invoice.status, 'paid');
+  assert.equal(second.record.body.invoice.remainingVnd, 0);
+  assert.deepEqual(receipts.map((receipt) => receipt.receipt_code), [
+    'PT-202608-00001F',
+    'PT-202608-00001G'
+  ]);
+
+  const tenantView = publicInvoiceJson({
+    invoice_id: 41,
+    room_name_snapshot: 'P101',
+    period: '2026-08',
+    issued_total_vnd: String(invoiceTotalVnd),
+    paid_amount_vnd: String(paidAmountVnd),
+    detail_snapshot: {},
+    expires_at: '2026-08-31T16:59:59.000Z',
+    receipts: receipts.map((receipt) => ({
+      receipt_code: receipt.receipt_code,
+      receipt_total_vnd: receipt.amount_vnd,
+      allocated_amount_vnd: receipt.amount_vnd,
+      payment_method: receipt.payment_method,
+      occurred_at: receipt.occurred_at
+    }))
+  });
+  assert.equal(tenantView.invoice.status, 'paid');
+  assert.equal(tenantView.invoice.paidAmountVnd, invoiceTotalVnd);
+  assert.equal(tenantView.payment, null);
+  assert.equal(tenantView.receipts.length, 2);
+  assert.equal(
+    tenantView.receipts.reduce((sum, receipt) => sum + receipt.allocatedAmountVnd, 0),
+    invoiceTotalVnd
+  );
 });
 
 test('thu gồm nợ cũ được phân bổ từ hóa đơn cũ nhất và dùng chung một phiếu thu', async (t) => {

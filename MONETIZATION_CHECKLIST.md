@@ -208,7 +208,11 @@ Trạng thái ngày 24/08/2026:
 
 ### Hoàn thành giai đoạn khi
 
-- [ ] Có thể theo dõi đầy đủ một hóa đơn từ lúc phát hành đến khi thanh toán nhiều lần và nhận phiếu thu.
+- [x] Có thể theo dõi đầy đủ một hóa đơn từ lúc phát hành đến khi thanh toán nhiều lần và nhận phiếu thu.
+
+  Kiểm thử vòng đời tạo hóa đơn 3.000.000đ, thu hai lần 1.000.000đ và
+  2.000.000đ, xác nhận trạng thái chuyển từ thanh toán một phần sang đã thanh
+  toán, QR dừng hiển thị khi hết nợ và cổng khách thuê trả đủ hai phiếu thu.
 
 ## Giai đoạn 4 — Hợp đồng và vận hành nhiều khu trọ
 
