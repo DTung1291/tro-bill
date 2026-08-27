@@ -176,6 +176,11 @@ app.post(
   requireAuth,
   wrap(rentInvoiceSchedules.cancelInvoiceSchedule)
 );
+app.post(
+  '/api/rent-invoice-delivery-schedules/:id/retry',
+  requireAuth,
+  wrap(rentInvoiceSchedules.retryInvoiceSchedule)
+);
 app.get(
   '/api/rent-invoices/:invoiceId/share-links',
   requireAuth,

@@ -12,6 +12,7 @@ const {
   createInvoiceSchedule,
   invoiceScheduleCron,
   processDueInvoiceSchedules,
+  retryInvoiceSchedule,
   scheduleInput,
   vietnamDate
 } = require('../rent-invoice-schedules');
@@ -179,6 +180,97 @@ test('lỗi email tạm thời được lưu trạng thái failed để cron sau
   assert.equal(updates[0].params.some((value) => String(value).includes('provider detail')), false);
 });
 
+test('chủ tài khoản gửi lại lịch lỗi ngay lập tức và vẫn dùng idempotency key cũ', async () => {
+  const calls = [];
+  let deliveryInput;
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    if (sql.includes("SET status='sending'")) {
+      return { rows: [scheduleRow({ status: 'sending', attempt_count: 2 })] };
+    }
+    if (sql.includes("SET status='sent'")) {
+      return {
+        rows: [scheduleRow({
+          status: 'sent',
+          attempt_count: 2,
+          provider_message_id: 'brevo-retry-51',
+          sent_at: '2026-08-27T00:00:00.000Z'
+        })]
+      };
+    }
+    throw new Error(`Truy vấn không mong đợi: ${sql}`);
+  };
+  const response = responseRecorder();
+  await retryInvoiceSchedule({
+    userId: 7,
+    params: { id: '51' },
+    protocol: 'https',
+    get() { return 'tro-bill.example'; }
+  }, response.res, {
+    query,
+    async executeInvoiceEmailDelivery(input) {
+      deliveryInput = input;
+      return { delivery: { delivered: true, emailId: 'brevo-retry-51' } };
+    }
+  });
+  assert.equal(response.record.statusCode, 200);
+  assert.equal(response.record.body.delivered, true);
+  assert.equal(response.record.body.schedule.status, 'sent');
+  assert.deepEqual(calls[0].params, [7, 51, 5]);
+  assert.match(calls[0].sql, /status='failed' AND attempt_count < \$3/);
+  assert.equal(deliveryInput.idempotencyKey, 'rent-invoice-schedule-51');
+  assert.equal(deliveryInput.req.get('host'), 'tro-bill.example');
+  assert.equal(response.record.headers['Cache-Control'], 'no-store');
+});
+
+test('gửi lại thất bại tiếp tục lưu mã lỗi an toàn để thử lại lần sau', async () => {
+  const query = async (sql) => {
+    if (sql.includes("SET status='sending'")) {
+      return { rows: [scheduleRow({ status: 'sending', attempt_count: 2 })] };
+    }
+    if (sql.includes('SET status=$2')) {
+      return {
+        rows: [scheduleRow({
+          status: 'failed',
+          attempt_count: 2,
+          last_error_code: 'EMAIL_SEND_FAILED'
+        })]
+      };
+    }
+    throw new Error(`Truy vấn không mong đợi: ${sql}`);
+  };
+  const response = responseRecorder();
+  await retryInvoiceSchedule({ userId: 7, params: { id: '51' } }, response.res, {
+    query,
+    async executeInvoiceEmailDelivery() {
+      const error = new Error('provider secret detail');
+      error.code = 'EMAIL_SEND_FAILED';
+      throw error;
+    }
+  });
+  assert.equal(response.record.statusCode, 502);
+  assert.equal(response.record.body.delivered, false);
+  assert.equal(response.record.body.schedule.status, 'failed');
+  assert.equal(response.record.body.code, 'EMAIL_SEND_FAILED');
+  assert.doesNotMatch(response.record.body.error, /provider|secret/i);
+});
+
+test('không gửi lại lịch tài khoản khác hoặc lịch đã đủ năm lần thử', async () => {
+  const calls = [];
+  const response = responseRecorder();
+  await retryInvoiceSchedule({ userId: 7, params: { id: '51' } }, response.res, {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      if (sql.includes("SET status='sending'")) return { rows: [] };
+      return { rows: [{ status: 'failed', attempt_count: 5 }] };
+    }
+  });
+  assert.equal(response.record.statusCode, 409);
+  assert.equal(response.record.body.code, 'SCHEDULE_RETRY_LIMIT_REACHED');
+  assert.deepEqual(calls[0].params, [7, 51, 5]);
+  assert.deepEqual(calls[1].params, [7, 51]);
+});
+
 test('endpoint cron bắt buộc Bearer secret', async () => {
   const previous = process.env.CRON_SECRET;
   process.env.CRON_SECRET = 'cron-secret-that-is-long-enough-for-tests';
@@ -215,9 +307,13 @@ test('schema, migration, API, UI và cron hỗ trợ hẹn ngày gửi hóa đơ
   );
   assert.match(migration, /privilege_type IN \('DELETE','TRUNCATE'\)/);
   assert.match(serverSource, /\/api\/rent-invoices\/:invoiceId\/delivery-schedules/);
+  assert.match(serverSource, /\/api\/rent-invoice-delivery-schedules\/:id\/retry/);
   assert.match(serverSource, /\/api\/cron\/rent-invoice-deliveries/);
   assert.match(apiSource, /function scheduleRentInvoiceEmail/);
+  assert.match(apiSource, /function retryRentInvoiceDeliverySchedule/);
   assert.match(appSource, /function scheduleBillMessageEmail/);
+  assert.match(appSource, /function retryBillMessageSchedule/);
+  assert.match(appSource, /dataset\.retryInvoiceSchedule/);
   assert.match(html, /id="bill-message-schedule-date"/);
   assert.match(html, /id="bill-message-schedule-list"/);
   assert.deepEqual(
@@ -225,4 +321,5 @@ test('schema, migration, API, UI và cron hỗ trợ hẹn ngày gửi hóa đơ
     { path: '/api/cron/rent-invoice-deliveries', schedule: '15 0 * * *' }
   );
   assert.match(checklist, /\[x\] Cho phép hẹn ngày gửi hóa đơn\./);
+  assert.match(checklist, /\[x\] Lưu trạng thái gửi thành công\/thất bại và cho phép gửi lại\./);
 });

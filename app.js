@@ -4103,14 +4103,25 @@ function renderBillMessageSchedules({ loading = false } = {}) {
     meta.textContent = `${billMessageScheduleStatusLabel(schedule.status)} · ${billMessageScheduleTriggerLabel(schedule)} · ${schedule.recipient || 'email khách thuê'}`;
     info.append(title, meta);
     item.appendChild(info);
+    const actions = document.createElement('div');
+    actions.className = 'bill-message-schedule-actions';
+    if (schedule.status === 'failed' && Number(schedule.attemptCount) < 5) {
+      const retryButton = document.createElement('button');
+      retryButton.type = 'button';
+      retryButton.className = 'btn btn--primary btn--sm';
+      retryButton.dataset.retryInvoiceSchedule = String(schedule.id);
+      retryButton.textContent = 'Gửi lại';
+      actions.appendChild(retryButton);
+    }
     if (['scheduled', 'failed'].includes(schedule.status)) {
       const cancelButton = document.createElement('button');
       cancelButton.type = 'button';
       cancelButton.className = 'btn btn--ghost btn--sm';
       cancelButton.dataset.cancelInvoiceSchedule = String(schedule.id);
       cancelButton.textContent = 'Hủy lịch';
-      item.appendChild(cancelButton);
+      actions.appendChild(cancelButton);
     }
+    if (actions.childElementCount > 0) item.appendChild(actions);
     container.appendChild(item);
   }
 }
@@ -4174,6 +4185,21 @@ async function cancelBillMessageSchedule(scheduleId, button) {
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
     showToast(error.message || 'Không hủy được lịch gửi', 'error', 4000);
+    button.disabled = false;
+  }
+}
+
+async function retryBillMessageSchedule(scheduleId, button) {
+  if (!Number.isSafeInteger(scheduleId) || scheduleId < 1) return;
+  button.disabled = true;
+  try {
+    await API.retryRentInvoiceDeliverySchedule(scheduleId);
+    showToast('Đã gửi lại email hóa đơn ✓', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không gửi lại được email hóa đơn', 'error', 4500);
+  } finally {
+    await loadBillMessageSchedules();
     button.disabled = false;
   }
 }
@@ -4408,6 +4434,11 @@ document.getElementById('bill-message-modal')?.addEventListener('click', event =
   if (event.target === event.currentTarget) closeBillMessageModal();
 });
 document.getElementById('bill-message-schedule-list')?.addEventListener('click', event => {
+  const retryButton = event.target?.closest?.('[data-retry-invoice-schedule]');
+  if (retryButton) {
+    void retryBillMessageSchedule(Number(retryButton.dataset.retryInvoiceSchedule), retryButton);
+    return;
+  }
   const button = event.target?.closest?.('[data-cancel-invoice-schedule]');
   if (!button) return;
   void cancelBillMessageSchedule(Number(button.dataset.cancelInvoiceSchedule), button);

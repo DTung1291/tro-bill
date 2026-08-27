@@ -369,9 +369,58 @@ async function enqueueAutomaticInvoiceReminders(dependencies = {}) {
   };
 }
 
-async function processDueInvoiceSchedules(dependencies = {}) {
+async function deliverClaimedInvoiceSchedule(schedule, dependencies = {}) {
   const query = dependencies.query || db.query;
   const executeDelivery = dependencies.executeInvoiceEmailDelivery || executeInvoiceEmailDelivery;
+  let delivery;
+  try {
+    delivery = await executeDelivery({
+      userId: Number(schedule.user_id),
+      invoiceId: Number(schedule.invoice_id),
+      tenantId: schedule.tenant_id,
+      templateType: schedule.template_type,
+      expiresInHours: 72,
+      idempotencyKey: `rent-invoice-schedule-${schedule.id}`,
+      req: dependencies.req || cronRequestContext()
+    }, { query });
+  } catch (error) {
+    const code = safeErrorCode(error);
+    const outcome = SKIPPED_ERROR_CODES.has(code) ? 'skipped' : 'failed';
+    const { rows } = await query(
+      `UPDATE rent_invoice_deliveries
+       SET status=$2, last_error_code=$3, updated_at=now()
+       WHERE id=$1 AND status='sending'
+       RETURNING *`,
+      [schedule.id, outcome, code]
+    );
+    return {
+      outcome,
+      code,
+      row: rows[0] || { ...schedule, status: outcome, last_error_code: code }
+    };
+  }
+  const { rows } = await query(
+    `UPDATE rent_invoice_deliveries
+     SET status='sent', provider_message_id=$2, sent_at=now(), updated_at=now()
+     WHERE id=$1 AND status='sending'
+     RETURNING *`,
+    [schedule.id, delivery.delivery?.emailId || null]
+  );
+  return {
+    outcome: 'sent',
+    code: null,
+    delivery,
+    row: rows[0] || {
+      ...schedule,
+      status: 'sent',
+      provider_message_id: delivery.delivery?.emailId || null,
+      sent_at: new Date().toISOString()
+    }
+  };
+}
+
+async function processDueInvoiceSchedules(dependencies = {}) {
+  const query = dependencies.query || db.query;
   const { rows } = await query(
     `WITH due AS (
        SELECT id
@@ -396,36 +445,80 @@ async function processDueInvoiceSchedules(dependencies = {}) {
   );
   const result = { candidates: rows.length, sent: 0, failed: 0, skipped: 0 };
   for (const schedule of rows) {
-    try {
-      const delivery = await executeDelivery({
-        userId: Number(schedule.user_id),
-        invoiceId: Number(schedule.invoice_id),
-        tenantId: schedule.tenant_id,
-        templateType: schedule.template_type,
-        expiresInHours: 72,
-        idempotencyKey: `rent-invoice-schedule-${schedule.id}`,
-        req: cronRequestContext()
-      }, { query });
-      await query(
-        `UPDATE rent_invoice_deliveries
-         SET status='sent', provider_message_id=$2, sent_at=now(), updated_at=now()
-         WHERE id=$1 AND status='sending'`,
-        [schedule.id, delivery.delivery?.emailId || null]
-      );
-      result.sent += 1;
-    } catch (error) {
-      const code = safeErrorCode(error);
-      const skipped = SKIPPED_ERROR_CODES.has(code);
-      await query(
-        `UPDATE rent_invoice_deliveries
-         SET status=$2, last_error_code=$3, updated_at=now()
-         WHERE id=$1 AND status='sending'`,
-        [schedule.id, skipped ? 'skipped' : 'failed', code]
-      );
-      result[skipped ? 'skipped' : 'failed'] += 1;
-    }
+    const delivered = await deliverClaimedInvoiceSchedule(schedule, { ...dependencies, query });
+    result[delivered.outcome] += 1;
   }
   return result;
+}
+
+function retryFailureMessage(code) {
+  return ({
+    EMAIL_NOT_CONFIGURED: 'Dịch vụ email chưa được cấu hình.',
+    EMAIL_SEND_FAILED: 'Không gửi được email hóa đơn. Lỗi đã được lưu để bạn thử lại.',
+    INVOICE_ALREADY_PAID: 'Hóa đơn đã thanh toán đủ nên không gửi lại.',
+    INVOICE_NOT_FOUND: 'Hóa đơn không còn tồn tại.',
+    INVOICE_RECIPIENT_NOT_FOUND: 'Khách thuê không còn thuộc phòng của hóa đơn.',
+    TENANT_EMAIL_MISSING: 'Khách thuê chưa có email nhận hóa đơn.',
+    TENANT_EMAIL_INVALID: 'Email khách thuê không hợp lệ.'
+  })[code] || 'Không gửi lại được email hóa đơn.';
+}
+
+async function retryInvoiceSchedule(req, res, dependencies = {}) {
+  const query = dependencies.query || db.query;
+  let scheduleId;
+  try {
+    scheduleId = positiveId(req.params?.id, 'Lịch gửi');
+  } catch (error) {
+    if (sendScheduleError(res, error)) return res;
+    throw error;
+  }
+  const claimed = await query(
+    `UPDATE rent_invoice_deliveries
+     SET status='sending', attempt_count=attempt_count + 1,
+         last_error_code=NULL, updated_at=now()
+     WHERE user_id=$1 AND id=$2 AND status='failed' AND attempt_count < $3
+     RETURNING *`,
+    [req.userId, scheduleId, RETRY_LIMIT]
+  );
+  if (!claimed.rows[0]) {
+    const existing = await query(
+      'SELECT status, attempt_count FROM rent_invoice_deliveries WHERE user_id=$1 AND id=$2',
+      [req.userId, scheduleId]
+    );
+    if (!existing.rows[0]) {
+      return res.status(404).json({ error: 'Không tìm thấy lịch gửi', code: 'SCHEDULE_NOT_FOUND' });
+    }
+    if (existing.rows[0].status === 'failed'
+        && Number(existing.rows[0].attempt_count) >= RETRY_LIMIT) {
+      return res.status(409).json({
+        error: `Lịch gửi đã đủ ${RETRY_LIMIT} lần thử`,
+        code: 'SCHEDULE_RETRY_LIMIT_REACHED'
+      });
+    }
+    return res.status(409).json({
+      error: 'Chỉ có thể gửi lại lịch đang ở trạng thái lỗi',
+      code: 'SCHEDULE_NOT_RETRYABLE'
+    });
+  }
+  const result = await deliverClaimedInvoiceSchedule(claimed.rows[0], {
+    ...dependencies,
+    query,
+    req
+  });
+  res.set('Cache-Control', 'no-store');
+  const body = {
+    delivered: result.outcome === 'sent',
+    schedule: scheduleJson(result.row)
+  };
+  if (result.outcome === 'sent') return res.json(body);
+  const statusCode = result.code === 'EMAIL_NOT_CONFIGURED'
+    ? 503
+    : (result.outcome === 'skipped' ? 409 : 502);
+  return res.status(statusCode).json({
+    ...body,
+    error: retryFailureMessage(result.code),
+    code: result.code
+  });
 }
 
 async function invoiceScheduleCron(req, res, dependencies = {}) {
@@ -454,10 +547,12 @@ module.exports = {
   addUtcDays,
   cancelInvoiceSchedule,
   createInvoiceSchedule,
+  deliverClaimedInvoiceSchedule,
   enqueueAutomaticInvoiceReminders,
   invoiceScheduleCron,
   listInvoiceSchedules,
   processDueInvoiceSchedules,
+  retryInvoiceSchedule,
   scheduleInput,
   scheduleJson,
   vietnamDate

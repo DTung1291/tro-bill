@@ -79,7 +79,7 @@ test('giao diện tải bộ mẫu trước app và có thao tác sao chép, chi
 
   assert.match(html, /id="bill-preview-message-template"/);
   assert.match(html, /id="bill-message-modal"/);
-  assert.match(html, /bill-message-templates\.js\?v=1[\s\S]*app\.js\?v=96/);
+  assert.match(html, /bill-message-templates\.js\?v=1[\s\S]*app\.js\?v=97/);
   assert.match(app, /function billMessageContext\(/);
   assert.match(app, /BillMessageTemplates\.invoice\(context\)/);
   assert.match(app, /BillMessageTemplates\.reminder\(context\)/);

@@ -60,6 +60,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['POST', '/api/rent-invoices/1/delivery-schedules'],
     ['GET', '/api/rent-invoices/1/delivery-schedules'],
     ['POST', '/api/rent-invoice-delivery-schedules/1/cancel'],
+    ['POST', '/api/rent-invoice-delivery-schedules/1/retry'],
     ['GET', '/api/rent-invoices/1/share-links'],
     ['GET', '/api/rent-invoices/1/payment-proofs'],
     ['POST', '/api/rent-invoice-share-links/1/revoke'],

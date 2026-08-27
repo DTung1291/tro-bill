@@ -311,6 +311,13 @@ const API = (() => {
     );
   }
 
+  function retryRentInvoiceDeliverySchedule(scheduleId) {
+    return request(
+      'POST',
+      `/api/rent-invoice-delivery-schedules/${encodeURIComponent(scheduleId)}/retry`
+    );
+  }
+
   function getRentInvoiceShareLinks(invoiceId) {
     return request(
       'GET',
@@ -481,6 +488,7 @@ const API = (() => {
     scheduleRentInvoiceEmail,
     getRentInvoiceDeliverySchedules,
     cancelRentInvoiceDeliverySchedule,
+    retryRentInvoiceDeliverySchedule,
     getRentInvoiceShareLinks,
     revokeRentInvoiceShareLink,
     getRentInvoicePaymentProofs,
