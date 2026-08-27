@@ -142,8 +142,9 @@ test('HTTPS production có HSTS và các security header', () => {
 test('health check công khai xác minh kết nối database và không cache', async (t) => {
   const originalQuery = db.query;
   db.query = async sql => {
-    assert.equal(sql, 'SELECT 1 AS ready');
-    return { rows: [{ ready: 1 }] };
+    assert.match(sql, /tenancy_start_period/);
+    assert.match(sql, /invoice_reminder_enabled/);
+    return { rows: [{ schema_ready: true }] };
   };
   const server = await listen(app);
   t.after(async () => {
@@ -165,8 +166,29 @@ test('health check công khai xác minh kết nối database và không cache', 
   assert.deepEqual((await readyResponse.json()).checks, {
     configuration: 'ok',
     configurationWarnings: [],
-    database: 'ok'
+    database: 'ok',
+    schema: 'ok'
   });
+});
+
+test('readiness trả migration-required khi database kết nối được nhưng schema bị thiếu', async (t) => {
+  const originalQuery = db.query;
+  const originalConsoleError = console.error;
+  db.query = async () => ({ rows: [{ schema_ready: false }] });
+  console.error = () => {};
+  const server = await listen(app);
+  t.after(async () => {
+    console.error = originalConsoleError;
+    db.query = originalQuery;
+    await close(server);
+  });
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/health/ready`);
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.checks.database, 'ok');
+  assert.equal(body.checks.schema, 'migration-required');
+  assert.match(body.incidentId, /^inc_[0-9a-f-]+$/);
 });
 
 test('database lỗi trả incidentId nhưng log không làm lộ thông báo lỗi gốc', async (t) => {
@@ -189,6 +211,7 @@ test('database lỗi trả incidentId nhưng log không làm lộ thông báo l�
   const response = await fetch(`http://127.0.0.1:${server.address().port}/api/health/ready`);
   const body = await response.json();
   assert.equal(response.status, 503);
+  assert.equal(body.checks.schema, 'not-checked');
   assert.match(body.incidentId, /^inc_[0-9a-f-]+$/);
   assert.equal(logs.some(line => line.includes('super-secret-value')), false);
   assert.equal(logs.some(line => line.includes('database_health_check_failed')), true);
