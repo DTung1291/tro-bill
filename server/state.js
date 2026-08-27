@@ -6,6 +6,7 @@ const { recordDataAudit, requestAuditContext } = require('./data-audit');
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
+const { restoreContractRateMilestones } = require('./rental-contracts');
 const {
   DEFAULT_AFTER_DAYS,
   DEFAULT_BEFORE_DAYS,
@@ -266,6 +267,7 @@ async function putState(req, res) {
 
   const roomIds = new Set();
   const tenantIds = new Set();
+  const tenantRoomIds = new Map();
   for (const room of rooms) {
     const roomId = String(room && room.id || '').trim();
     if (!roomId || roomId.length > 200 || roomIds.has(roomId)) {
@@ -285,6 +287,7 @@ async function putState(req, res) {
         });
       }
       tenantIds.add(tenantId);
+      tenantRoomIds.set(tenantId, roomId);
     }
   }
   for (const period of Object.keys(billingData)) {
@@ -316,6 +319,31 @@ async function putState(req, res) {
     // Server quyết định quyền ghi và giới hạn phòng từ subscription trong DB.
     // Kiểm tra client chỉ để UX; không thể dùng client để tự mở khóa gói.
     await enforceStateWrite(uid, rooms.length, client.query.bind(client));
+
+    // PUT /state thay lại toàn bộ rooms/tenants. Khóa chúng cùng hợp đồng active
+    // để create/amend contract không thể chen giữa lúc dữ liệu đang được thay.
+    await client.query('SELECT id FROM rooms WHERE user_id=$1 FOR UPDATE', [uid]);
+    const activeContracts = await client.query(
+      `SELECT id, contract_code, room_id, tenant_id
+       FROM rental_contracts
+       WHERE user_id=$1 AND status='active'
+       FOR UPDATE`,
+      [uid]
+    );
+    const detachedContract = activeContracts.rows.find(contract => (
+      !roomIds.has(contract.room_id)
+      || tenantRoomIds.get(contract.tenant_id) !== contract.room_id
+    ));
+    if (detachedContract) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Hợp đồng ${detachedContract.contract_code} đang hoạt động. Hãy kết thúc hoặc hủy hợp đồng trước khi xóa phòng, xóa khách hoặc chuyển khách sang phòng khác.`,
+        code: 'ACTIVE_CONTRACT_TENANCY_REQUIRED',
+        contractId: Number(detachedContract.id),
+        roomId: detachedContract.room_id,
+        tenantId: detachedContract.tenant_id
+      });
+    }
 
     const existingTenantResult = await client.query(
       `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
@@ -497,6 +525,10 @@ async function putState(req, res) {
         );
       }
     }
+
+    // Client có thể là một tab cũ. Luôn ghép lại giá hợp đồng/phụ lục từ hồ sơ
+    // append-only để PUT /state không thể làm mất mốc giá đã phát hành.
+    await restoreContractRateMilestones(client.query.bind(client), uid);
 
     // billing_entries
     for (const period of Object.keys(billingData)) {

@@ -702,6 +702,131 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_tenants_room ON tenants(room_id);
 CREATE INDEX IF NOT EXISTS idx_tenants_user ON tenants(user_id);
 
+-- Hợp đồng giữ snapshot phòng/khách để không mất hồ sơ lịch sử khi autosave
+-- thay thế lại rooms/tenants. Không FK trực tiếp tới hai bảng snapshot này;
+-- mọi API vẫn khóa quyền sở hữu bằng user_id trước khi ghi.
+CREATE TABLE IF NOT EXISTS rental_contracts (
+  id                    BIGSERIAL PRIMARY KEY,
+  user_id               BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contract_code         TEXT NOT NULL,
+  room_id               TEXT NOT NULL,
+  room_name_snapshot    TEXT NOT NULL,
+  tenant_id             TEXT NOT NULL,
+  tenant_name_snapshot  TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'draft',
+  starts_on             DATE NOT NULL,
+  ends_on               DATE,
+  monthly_rent_vnd      BIGINT NOT NULL,
+  deposit_vnd           BIGINT NOT NULL DEFAULT 0,
+  terms                 TEXT NOT NULL DEFAULT '',
+  status_reason         TEXT NOT NULL DEFAULT '',
+  activated_at          TIMESTAMPTZ,
+  ended_at              TIMESTAMPTZ,
+  cancelled_at          TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT rental_contracts_user_id_id_unique UNIQUE (user_id, id),
+  CONSTRAINT rental_contracts_code_unique UNIQUE (user_id, contract_code),
+  CONSTRAINT rental_contracts_code_valid
+    CHECK (contract_code ~ '^HD-[0-9]{4}-[A-Z0-9]{6}$'),
+  CONSTRAINT rental_contracts_status_valid
+    CHECK (status IN ('draft','active','ended','cancelled')),
+  CONSTRAINT rental_contracts_dates_valid CHECK (ends_on IS NULL OR ends_on >= starts_on),
+  CONSTRAINT rental_contracts_amounts_valid CHECK (
+    monthly_rent_vnd BETWEEN 0 AND 999999999999
+    AND deposit_vnd BETWEEN 0 AND 999999999999
+  ),
+  CONSTRAINT rental_contracts_snapshot_valid CHECK (
+    room_id <> '' AND char_length(room_id) <= 200
+    AND tenant_id <> '' AND char_length(tenant_id) <= 200
+    AND room_name_snapshot <> '' AND char_length(room_name_snapshot) <= 200
+    AND tenant_name_snapshot <> '' AND char_length(tenant_name_snapshot) <= 200
+    AND char_length(terms) <= 5000
+    AND char_length(status_reason) <= 500
+  ),
+  CONSTRAINT rental_contracts_status_time_valid CHECK (
+    (status='draft' AND activated_at IS NULL AND ended_at IS NULL AND cancelled_at IS NULL)
+    OR (status='active' AND activated_at IS NOT NULL AND ended_at IS NULL AND cancelled_at IS NULL)
+    OR (status='ended' AND activated_at IS NOT NULL AND ended_at IS NOT NULL AND cancelled_at IS NULL)
+    OR (status='cancelled' AND cancelled_at IS NOT NULL AND ended_at IS NULL)
+  )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rental_contracts_one_active_room
+  ON rental_contracts(user_id, room_id) WHERE status='active';
+CREATE INDEX IF NOT EXISTS idx_rental_contracts_user_room
+  ON rental_contracts(user_id, room_id, created_at DESC);
+
+-- Phụ lục thay đổi giá là append-only. Mỗi phụ lục đồng thời tạo đúng một mốc
+-- room_rate_history để công thức hóa đơn tiếp tục dùng một nguồn giá duy nhất.
+CREATE TABLE IF NOT EXISTS rental_contract_amendments (
+  id                         BIGSERIAL PRIMARY KEY,
+  user_id                    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contract_id                BIGINT NOT NULL,
+  amendment_code             TEXT NOT NULL,
+  effective_from             TEXT NOT NULL,
+  previous_monthly_rent_vnd  BIGINT NOT NULL,
+  new_monthly_rent_vnd       BIGINT NOT NULL,
+  reason                     TEXT NOT NULL,
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT rental_contract_amendments_contract_owner_fk
+    FOREIGN KEY (user_id, contract_id)
+    REFERENCES rental_contracts(user_id, id) ON DELETE CASCADE,
+  CONSTRAINT rental_contract_amendments_period_unique
+    UNIQUE (user_id, contract_id, effective_from),
+  CONSTRAINT rental_contract_amendments_code_unique UNIQUE (user_id, amendment_code),
+  CONSTRAINT rental_contract_amendments_code_valid
+    CHECK (amendment_code ~ '^PL-[0-9]{6}-[A-Z0-9]{6}$'),
+  CONSTRAINT rental_contract_amendments_period_valid
+    CHECK (effective_from ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  CONSTRAINT rental_contract_amendments_amounts_valid CHECK (
+    previous_monthly_rent_vnd BETWEEN 0 AND 999999999999
+    AND new_monthly_rent_vnd BETWEEN 0 AND 999999999999
+    AND previous_monthly_rent_vnd <> new_monthly_rent_vnd
+  ),
+  CONSTRAINT rental_contract_amendments_reason_valid
+    CHECK (char_length(reason) BETWEEN 10 AND 500)
+);
+CREATE INDEX IF NOT EXISTS idx_rental_contract_amendments_contract
+  ON rental_contract_amendments(user_id, contract_id, effective_from, id);
+
+DO $$
+DECLARE
+  runtime_role TEXT;
+BEGIN
+  FOREACH runtime_role IN ARRAY ARRAY['tro_bill_runtime', 'tro_bill_app'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=runtime_role) THEN
+      EXECUTE format(
+        'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rental_contracts FROM %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT SELECT, INSERT ON rental_contracts TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT UPDATE (status, status_reason, activated_at, ended_at, cancelled_at, updated_at) ON rental_contracts TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT USAGE, SELECT ON SEQUENCE rental_contracts_id_seq TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rental_contract_amendments FROM %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT SELECT, INSERT ON rental_contract_amendments TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT USAGE, SELECT ON SEQUENCE rental_contract_amendments_id_seq TO %I',
+        runtime_role
+      );
+    END IF;
+  END LOOP;
+END $$;
+
 -- Số điện/nước nhập theo tháng cho từng phòng
 -- electric_new / water_new / water_units: NULL = chưa nhập ('' phía client)
 CREATE TABLE IF NOT EXISTS billing_entries (
@@ -1570,3 +1695,117 @@ CREATE INDEX IF NOT EXISTS idx_data_audit_subject_created
   ON data_audit_logs(subject_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_data_audit_created
   ON data_audit_logs(created_at DESC);
+
+-- Đồng bộ quyền trực tiếp từ role chuẩn cũ sang login runtime SQL. Role đích
+-- không kế thừa role quản trị; mỗi lần init-db sẽ thu hồi quyền dư trước khi
+-- cấp lại đúng quyền bảng/cột/sequence đang có ở tro_bill_runtime.
+DO $$
+DECLARE
+  source_role CONSTANT text := 'tro_bill_runtime';
+  target_role CONSTANT text := 'tro_bill_runtime_sql';
+  object_row record;
+  column_row record;
+  sequence_row record;
+  privilege_name text;
+  privileges text[];
+  qualified_name text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=source_role)
+     OR NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=target_role) THEN
+    RETURN;
+  END IF;
+
+  EXECUTE format('REVOKE ALL PRIVILEGES ON DATABASE %I FROM %I', current_database(), target_role);
+  EXECUTE format('REVOKE ALL PRIVILEGES ON SCHEMA public FROM %I', target_role);
+  EXECUTE format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %I', target_role);
+  EXECUTE format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I', target_role);
+
+  FOR column_row IN
+    SELECT table_schema, table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema='public'
+  LOOP
+    EXECUTE format(
+      'REVOKE ALL PRIVILEGES (%I) ON TABLE %I.%I FROM %I',
+      column_row.column_name,
+      column_row.table_schema,
+      column_row.table_name,
+      target_role
+    );
+  END LOOP;
+
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), target_role);
+  EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', target_role);
+
+  FOR object_row IN
+    SELECT table_schema, table_name
+    FROM information_schema.tables
+    WHERE table_schema='public' AND table_type='BASE TABLE'
+    ORDER BY table_name
+  LOOP
+    qualified_name := format('%I.%I', object_row.table_schema, object_row.table_name);
+    privileges := ARRAY[]::text[];
+    FOREACH privilege_name IN ARRAY ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'] LOOP
+      IF has_table_privilege(source_role, qualified_name, privilege_name) THEN
+        privileges := array_append(privileges, privilege_name);
+      END IF;
+    END LOOP;
+    IF cardinality(privileges) > 0 THEN
+      EXECUTE format(
+        'GRANT %s ON TABLE %s TO %I',
+        array_to_string(privileges, ', '),
+        qualified_name,
+        target_role
+      );
+    END IF;
+  END LOOP;
+
+  FOR column_row IN
+    SELECT table_schema, table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema='public'
+  LOOP
+    qualified_name := format('%I.%I', column_row.table_schema, column_row.table_name);
+    privileges := ARRAY[]::text[];
+    FOREACH privilege_name IN ARRAY ARRAY['SELECT','INSERT','UPDATE','REFERENCES'] LOOP
+      IF has_column_privilege(source_role, qualified_name, column_row.column_name, privilege_name)
+         AND NOT has_table_privilege(source_role, qualified_name, privilege_name) THEN
+        privileges := array_append(
+          privileges,
+          format('%s (%I)', privilege_name, column_row.column_name)
+        );
+      END IF;
+    END LOOP;
+    IF cardinality(privileges) > 0 THEN
+      EXECUTE format(
+        'GRANT %s ON TABLE %s TO %I',
+        array_to_string(privileges, ', '),
+        qualified_name,
+        target_role
+      );
+    END IF;
+  END LOOP;
+
+  FOR sequence_row IN
+    SELECT class.oid, namespace.nspname AS schema_name, class.relname AS sequence_name
+    FROM pg_class class
+    JOIN pg_namespace namespace ON namespace.oid=class.relnamespace
+    WHERE namespace.nspname='public' AND class.relkind='S'
+  LOOP
+    privileges := ARRAY[]::text[];
+    FOREACH privilege_name IN ARRAY ARRAY['USAGE','SELECT','UPDATE'] LOOP
+      IF has_sequence_privilege(source_role, sequence_row.oid, privilege_name) THEN
+        privileges := array_append(privileges, privilege_name);
+      END IF;
+    END LOOP;
+    IF cardinality(privileges) > 0 THEN
+      EXECUTE format(
+        'GRANT %s ON SEQUENCE %I.%I TO %I',
+        array_to_string(privileges, ', '),
+        sequence_row.schema_name,
+        sequence_row.sequence_name,
+        target_role
+      );
+    END IF;
+  END LOOP;
+END $$;

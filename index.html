@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=96" />
+  <link rel="stylesheet" href="style.css?v=97" />
 </head>
 
 <body>
@@ -913,6 +913,72 @@
     </div>
   </div>
 
+  <!-- MODAL: Hợp đồng thuê và phụ lục giá -->
+  <div class="modal-overlay" id="rental-contract-modal" hidden>
+    <div class="modal rental-contract-modal" role="dialog" aria-modal="true" aria-labelledby="rental-contract-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="rental-contract-title">Hợp đồng thuê</h2>
+          <p class="rental-contract-room" id="rental-contract-room"></p>
+        </div>
+        <button type="button" class="modal-close" id="rental-contract-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="rental-contract-body">
+        <form class="rental-contract-create" id="rental-contract-form">
+          <div class="rental-contract-section-head">
+            <div>
+              <h3>Tạo hợp đồng</h3>
+              <p>Hợp đồng đang hoạt động sẽ đồng bộ ngày bắt đầu và giá thuê vào biểu phí của phòng.</p>
+            </div>
+          </div>
+          <div class="rental-contract-form-grid">
+            <label class="form-label">Khách thuê *
+              <select class="form-input" id="rental-contract-tenant" required></select>
+            </label>
+            <label class="form-label">Trạng thái ban đầu *
+              <select class="form-input" id="rental-contract-status" required>
+                <option value="active">Đang hoạt động</option>
+                <option value="draft">Bản nháp</option>
+              </select>
+            </label>
+            <label class="form-label">Ngày bắt đầu *
+              <input class="form-input" type="date" id="rental-contract-start" required />
+            </label>
+            <label class="form-label">Ngày kết thúc
+              <input class="form-input" type="date" id="rental-contract-end" />
+            </label>
+            <label class="form-label">Tiền thuê (đ/tháng) *
+              <input class="form-input" type="number" id="rental-contract-rent" min="0" step="1" required />
+            </label>
+            <label class="form-label">Tiền cọc (đ)
+              <input class="form-input" type="number" id="rental-contract-deposit" min="0" step="1" value="0" />
+            </label>
+          </div>
+          <label class="form-label">Điều khoản / ghi chú
+            <textarea class="form-input rental-contract-terms" id="rental-contract-terms" maxlength="5000" rows="3" placeholder="Các thỏa thuận chính của hợp đồng…"></textarea>
+          </label>
+          <div class="rental-contract-create-actions">
+            <button type="submit" class="btn btn--primary" id="rental-contract-submit">Tạo hợp đồng</button>
+          </div>
+        </form>
+        <section class="rental-contract-list-section" aria-labelledby="rental-contract-list-title">
+          <div class="rental-contract-section-head">
+            <div>
+              <h3 id="rental-contract-list-title">Hồ sơ hợp đồng</h3>
+              <p>Phụ lục giá đã tạo không thể sửa hoặc xóa; hãy tạo mốc mới nếu cần thay đổi tiếp.</p>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="rental-contract-refresh">Làm mới</button>
+          </div>
+          <p class="rental-contract-empty" id="rental-contract-empty">Chưa có hợp đồng cho phòng này.</p>
+          <div class="rental-contract-list" id="rental-contract-list" aria-live="polite"></div>
+        </section>
+      </div>
+      <div class="rental-contract-footer">
+        <button type="button" class="btn btn--ghost" id="rental-contract-close-footer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Confirm Action -->
   <div class="modal-overlay" id="confirm-modal" hidden>
     <div class="modal modal--confirm">
@@ -1444,14 +1510,14 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=95"></script>
+  <script src="api.js?v=96"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="app.js?v=97"></script>
+  <script src="app.js?v=98"></script>
 </body>
 
 </html>

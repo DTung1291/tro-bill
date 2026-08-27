@@ -963,7 +963,13 @@ body.modal-open {
 .room-detail-chip {
   background: var(--bg3); border-radius: 6px; padding: 3px 9px; font-size: .82rem; font-weight: 500;
 }
-.room-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.room-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 /* ===========================
    BILLING TABLE
@@ -2501,6 +2507,223 @@ body.modal-open {
   color: var(--primary);
   border-color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.modal.rental-contract-modal {
+  max-width: 920px;
+  max-height: calc(100dvh - 32px);
+}
+.rental-contract-modal .modal-header > div { min-width: 0; }
+.rental-contract-room {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+.rental-contract-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+}
+.rental-contract-create,
+.rental-contract-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rental-contract-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rental-contract-section-head h3 { margin: 0; font-size: .95rem; }
+.rental-contract-section-head p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  line-height: 1.45;
+}
+.rental-contract-form-grid,
+.rental-contract-amendment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.rental-contract-form-grid label,
+.rental-contract-amendment-grid label,
+.rental-contract-create > label,
+.rental-contract-amendment-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.rental-contract-terms { resize: vertical; }
+.rental-contract-create-actions,
+.rental-contract-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rental-contract-list { display: flex; flex-direction: column; gap: 12px; }
+.rental-contract-empty {
+  margin: 0;
+  padding: 18px 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.rental-contract-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-muted);
+  border-radius: 11px;
+  background: var(--bg2);
+}
+.rental-contract-card--active { border-left-color: var(--green); }
+.rental-contract-card--draft { border-left-color: var(--primary); }
+.rental-contract-card--cancelled { border-left-color: var(--red); }
+.rental-contract-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rental-contract-card-head > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.rental-contract-card-head strong,
+.rental-contract-card-head span { overflow-wrap: anywhere; }
+.rental-contract-card-head > div > span { color: var(--text-muted); font-size: .78rem; }
+.rental-contract-status {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg3);
+  color: var(--text-muted);
+  font-size: .7rem;
+  font-weight: 800;
+}
+.rental-contract-status--active { background: rgba(16, 185, 129, .14); color: var(--green); }
+.rental-contract-status--draft { background: rgba(79, 110, 247, .14); color: var(--primary); }
+.rental-contract-status--cancelled { background: rgba(239, 68, 68, .12); color: var(--red); }
+.rental-contract-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.rental-contract-meta > div {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--bg3);
+}
+.rental-contract-meta dt { color: var(--text-muted); font-size: .68rem; }
+.rental-contract-meta dd {
+  margin: 3px 0 0;
+  font-size: .78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.rental-contract-terms-view,
+.rental-contract-status-reason {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rental-contract-amendments {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.rental-contract-amendments > strong,
+.rental-contract-amendment-form > strong { font-size: .8rem; }
+.rental-contract-amendments ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rental-contract-amendments li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: .74rem;
+}
+.rental-contract-amendments li small {
+  grid-column: 2;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.rental-contract-amendments .rental-contract-amendment-empty {
+  display: block;
+  color: var(--text-muted);
+}
+.rental-contract-amendment-form,
+.rental-contract-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg3);
+}
+.rental-contract-amendment-form > .btn { align-self: flex-end; }
+.rental-contract-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+@media (max-width: 760px) {
+  #rental-contract-modal { padding: 8px; }
+  .modal.rental-contract-modal { max-height: calc(100dvh - 16px); }
+  .rental-contract-body { padding: 14px; }
+  .rental-contract-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .rental-contract-form-grid,
+  .rental-contract-amendment-grid,
+  .rental-contract-meta { grid-template-columns: minmax(0, 1fr); }
+  .rental-contract-section-head { align-items: stretch; flex-direction: column; }
+  .rental-contract-section-head .btn,
+  .rental-contract-create-actions .btn,
+  .rental-contract-amendment-form > .btn,
+  .rental-contract-card-actions .btn { width: 100%; justify-content: center; }
+  .rental-contract-card-head { align-items: stretch; flex-direction: column; }
+  .rental-contract-status { align-self: flex-start; }
+  .rental-contract-amendments li { grid-template-columns: minmax(0, 1fr); }
+  .rental-contract-amendments li small { grid-column: auto; }
 }
 
 /* ===========================

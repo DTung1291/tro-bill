@@ -51,6 +51,7 @@ const rentInvoiceDelivery = require('./rent-invoice-delivery');
 const rentInvoiceSchedules = require('./rent-invoice-schedules');
 const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
+const rentalContracts = require('./rental-contracts');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -267,6 +268,18 @@ app.post(
   '/api/deposits/transactions/:id/reverse',
   requireAuth,
   wrap(deposits.reverseDepositTransaction)
+);
+app.get('/api/rental-contracts', requireAuth, wrap(rentalContracts.listContracts));
+app.post('/api/rental-contracts', requireAuth, wrap(rentalContracts.createContract));
+app.post(
+  '/api/rental-contracts/:id/status',
+  requireAuth,
+  wrap(rentalContracts.changeContractStatus)
+);
+app.post(
+  '/api/rental-contracts/:id/amendments',
+  requireAuth,
+  wrap(rentalContracts.createAmendment)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

@@ -194,3 +194,51 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
   assert.equal(calls[0].sql, 'BEGIN');
   assert.equal(calls.at(-1).sql, 'COMMIT');
 });
+
+test('putState không cho tách phòng hoặc khách khỏi hợp đồng đang hoạt động', async (t) => {
+  const originalGetClient = db.getClient;
+  const calls = [];
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM subscriptions s')) {
+        return {
+          rows: [{
+            subscription_id: 10, status: 'active', starts_at: new Date(), ends_at: null,
+            plan_id: 1, plan_code: 'free', plan_name: 'Free', room_limit: 10, staff_limit: 0
+          }]
+        };
+      }
+      if (sql.includes("FROM rental_contracts") && sql.includes("status='active'")) {
+        return { rows: [{
+          id: 36,
+          contract_code: 'HD-2026-000010',
+          room_id: 'room-1',
+          tenant_id: 'tenant-1'
+        }] };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  db.getClient = async () => client;
+  t.after(() => { db.getClient = originalGetClient; });
+
+  const response = { statusCode: 200, body: null };
+  const res = {
+    status(code) { response.statusCode = code; return res; },
+    json(body) { response.body = body; return res; }
+  };
+  await putState({
+    userId: 7,
+    body: {
+      rooms: [{ id: 'room-1', name: 'P101', tenants: [] }]
+    }
+  }, res);
+
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.body.code, 'ACTIVE_CONTRACT_TENANCY_REQUIRED');
+  assert.equal(response.body.contractId, 36);
+  assert.equal(calls.some(call => call.sql === 'ROLLBACK'), true);
+  assert.equal(calls.some(call => call.sql.startsWith('DELETE FROM rooms')), false);
+});

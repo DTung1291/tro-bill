@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const db = require('../db');
 const app = require('../index');
 const { inspectRuntimeEnvironment, resolveAppEnvironment } = require('../environment');
+const { runtimeRoleReady } = require('../health');
 const { enforceHttps, securityHeaders } = require('../security');
 
 function listen(serverApp) {
@@ -142,9 +143,17 @@ test('HTTPS production có HSTS và các security header', () => {
 test('health check công khai xác minh kết nối database và không cache', async (t) => {
   const originalQuery = db.query;
   db.query = async sql => {
+    assert.match(sql, /current_user AS runtime_role/);
+    assert.match(sql, /inherits_neon_superuser/);
     assert.match(sql, /tenancy_start_period/);
     assert.match(sql, /invoice_reminder_enabled/);
-    return { rows: [{ schema_ready: true }] };
+    assert.match(sql, /rental_contracts/);
+    assert.match(sql, /rental_contract_amendments_contract_owner_fk/);
+    return { rows: [{
+      runtime_role: 'development_owner',
+      inherits_neon_superuser: true,
+      schema_ready: true
+    }] };
   };
   const server = await listen(app);
   t.after(async () => {
@@ -167,8 +176,24 @@ test('health check công khai xác minh kết nối database và không cache', 
     configuration: 'ok',
     configurationWarnings: [],
     database: 'ok',
+    runtimeRole: 'restricted',
     schema: 'ok'
   });
+});
+
+test('staging và production chỉ ready với role SQL không kế thừa neon_superuser', () => {
+  assert.equal(runtimeRoleReady('development', {
+    runtime_role: 'development_owner',
+    inherits_neon_superuser: true
+  }), true);
+  assert.equal(runtimeRoleReady('production', {
+    runtime_role: 'tro_bill_app',
+    inherits_neon_superuser: true
+  }), false);
+  assert.equal(runtimeRoleReady('staging', {
+    runtime_role: 'tro_bill_runtime_sql',
+    inherits_neon_superuser: false
+  }), true);
 });
 
 test('readiness trả migration-required khi database kết nối được nhưng schema bị thiếu', async (t) => {
@@ -187,6 +212,7 @@ test('readiness trả migration-required khi database kết nối được nhưn
   const body = await response.json();
   assert.equal(response.status, 503);
   assert.equal(body.checks.database, 'ok');
+  assert.equal(body.checks.runtimeRole, 'restricted');
   assert.equal(body.checks.schema, 'migration-required');
   assert.match(body.incidentId, /^inc_[0-9a-f-]+$/);
 });
@@ -211,6 +237,7 @@ test('database lỗi trả incidentId nhưng log không làm lộ thông báo l�
   const response = await fetch(`http://127.0.0.1:${server.address().port}/api/health/ready`);
   const body = await response.json();
   assert.equal(response.status, 503);
+  assert.equal(body.checks.runtimeRole, 'not-checked');
   assert.equal(body.checks.schema, 'not-checked');
   assert.match(body.incidentId, /^inc_[0-9a-f-]+$/);
   assert.equal(logs.some(line => line.includes('super-secret-value')), false);

@@ -2804,6 +2804,250 @@ function deleteExpense(id) {
 // ============================================================
 //  ROOMS
 // ============================================================
+let rentalContractRoomId = '';
+let rentalContracts = [];
+
+function rentalContractStatusLabel(status) {
+  return ({
+    draft: 'Bản nháp',
+    active: 'Đang hoạt động',
+    ended: 'Đã kết thúc',
+    cancelled: 'Đã hủy'
+  })[status] || status;
+}
+
+function applyContractRateToRoom(rate) {
+  if (!rate || !rate.roomId || !RoomRates.isPeriod(rate.effectiveFrom)) return;
+  const room = STATE.rooms.find(item => item.id === rate.roomId);
+  if (!room) return;
+  const entry = {
+    effectiveFrom: rate.effectiveFrom,
+    rentPrice: Number(rate.rentPrice) || 0,
+    electricRate: Number(rate.electricRate) || 0,
+    waterRate: Number(rate.waterRate) || 0,
+    trashFee: Number(rate.trashFee) || 0,
+    wifiFee: Number(rate.wifiFee) || 0,
+    manageFee: Number(rate.manageFee) || 0
+  };
+  const history = RoomRates.normalizeHistory(room).filter(
+    item => item.effectiveFrom !== entry.effectiveFrom
+  );
+  history.push(entry);
+  room.rateHistory = RoomRates.normalizeHistory({ ...room, rateHistory: history });
+  Object.assign(room, RoomRates.snapshot(RoomRates.latest(room)));
+  if (rate.rentStartDate) room.rentStartDate = rate.rentStartDate;
+}
+
+function rentalContractDateRange(contract) {
+  const start = dateLabel(contract.startsOn) || contract.startsOn;
+  const end = contract.endsOn ? (dateLabel(contract.endsOn) || contract.endsOn) : 'Không thời hạn';
+  return `${start} → ${end}`;
+}
+
+function renderRentalContracts() {
+  const list = document.getElementById('rental-contract-list');
+  const empty = document.getElementById('rental-contract-empty');
+  list.innerHTML = '';
+  empty.hidden = rentalContracts.length > 0;
+  const hasActive = rentalContracts.some(contract => contract.status === 'active');
+  const statusInput = document.getElementById('rental-contract-status');
+  if (statusInput && hasActive && statusInput.value === 'active') statusInput.value = 'draft';
+
+  for (const contract of rentalContracts) {
+    const card = document.createElement('article');
+    card.className = `rental-contract-card rental-contract-card--${contract.status}`;
+    card.dataset.contractId = String(contract.id);
+    const amendments = Array.isArray(contract.amendments) ? contract.amendments : [];
+    const amendmentItems = amendments.length > 0
+      ? amendments.map(amendment => `
+          <li>
+            <strong>${escapeHtml(amendment.code)}</strong>
+            <span>${escapeHtml(periodLabel(amendment.effectiveFrom))}: ${fmt(amendment.previousMonthlyRentVnd)} → ${fmt(amendment.newMonthlyRentVnd)}</span>
+            <small>${escapeHtml(amendment.reason)}</small>
+          </li>`).join('')
+      : '<li class="rental-contract-amendment-empty">Chưa có phụ lục giá.</li>';
+    const statusActions = contract.status === 'draft'
+      ? `
+          <button type="button" class="btn btn--primary btn--sm" data-contract-status="active">Kích hoạt</button>
+          <button type="button" class="btn btn--danger btn--sm" data-contract-status="cancelled">Hủy hợp đồng</button>`
+      : contract.status === 'active'
+        ? `
+          <button type="button" class="btn btn--ghost btn--sm" data-contract-status="ended">Kết thúc</button>
+          <button type="button" class="btn btn--danger btn--sm" data-contract-status="cancelled">Hủy hợp đồng</button>`
+        : '';
+    const statusPanel = statusActions
+      ? `
+        <div class="rental-contract-status-panel">
+          <input class="form-input" type="text" maxlength="500" data-contract-status-reason placeholder="Lý do từ 10 ký tự khi kết thúc hoặc hủy" />
+          <div class="rental-contract-card-actions">${statusActions}</div>
+        </div>`
+      : '';
+    const amendmentForm = contract.status === 'active'
+      ? `
+        <form class="rental-contract-amendment-form" data-contract-amendment-form="${contract.id}">
+          <strong>Tạo phụ lục thay đổi giá</strong>
+          <div class="rental-contract-amendment-grid">
+            <label class="form-label">Áp dụng từ tháng *
+              <input class="form-input" type="month" name="effectiveFrom" min="${escapeHtml(contract.startsOn.slice(0, 7))}" ${contract.endsOn ? `max="${escapeHtml(contract.endsOn.slice(0, 7))}"` : ''} required />
+            </label>
+            <label class="form-label">Giá thuê mới *
+              <input class="form-input" type="number" name="newMonthlyRentVnd" min="0" step="1" value="${Number(contract.currentMonthlyRentVnd) || 0}" required />
+            </label>
+          </div>
+          <label class="form-label">Lý do phụ lục *
+            <input class="form-input" type="text" name="reason" minlength="10" maxlength="500" placeholder="Ví dụ: Điều chỉnh giá theo thỏa thuận ngày…" required />
+          </label>
+          <button type="submit" class="btn btn--primary btn--sm">Tạo phụ lục</button>
+        </form>`
+      : '';
+    card.innerHTML = `
+      <div class="rental-contract-card-head">
+        <div>
+          <strong>${escapeHtml(contract.code)}</strong>
+          <span>${escapeHtml(contract.tenantName)}</span>
+        </div>
+        <span class="rental-contract-status rental-contract-status--${escapeHtml(contract.status)}">${escapeHtml(rentalContractStatusLabel(contract.status))}</span>
+      </div>
+      <dl class="rental-contract-meta">
+        <div><dt>Thời hạn</dt><dd>${escapeHtml(rentalContractDateRange(contract))}</dd></div>
+        <div><dt>Giá ban đầu</dt><dd>${fmt(contract.monthlyRentVnd)}/tháng</dd></div>
+        <div><dt>Giá mới nhất</dt><dd>${fmt(contract.currentMonthlyRentVnd)}/tháng</dd></div>
+        <div><dt>Tiền cọc</dt><dd>${fmt(contract.depositVnd)}</dd></div>
+      </dl>
+      ${contract.terms ? `<p class="rental-contract-terms-view">${escapeHtml(contract.terms)}</p>` : ''}
+      ${contract.statusReason ? `<p class="rental-contract-status-reason"><strong>Lý do:</strong> ${escapeHtml(contract.statusReason)}</p>` : ''}
+      <div class="rental-contract-amendments">
+        <strong>Phụ lục giá</strong>
+        <ul>${amendmentItems}</ul>
+      </div>
+      ${amendmentForm}
+      ${statusPanel}`;
+    list.appendChild(card);
+  }
+}
+
+async function loadRentalContracts() {
+  if (!rentalContractRoomId) return;
+  const list = document.getElementById('rental-contract-list');
+  document.getElementById('rental-contract-empty').hidden = true;
+  list.innerHTML = '<p class="rental-contract-empty">Đang tải hợp đồng…</p>';
+  try {
+    const data = await API.getRentalContracts(rentalContractRoomId);
+    rentalContracts = Array.isArray(data.contracts) ? data.contracts : [];
+    renderRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    list.innerHTML = `<p class="rental-contract-empty">${escapeHtml(error.message || 'Không tải được hợp đồng')}</p>`;
+  }
+}
+
+function openRentalContractModal(roomId) {
+  const room = STATE.rooms.find(item => item.id === roomId);
+  if (!room) return;
+  if (!Array.isArray(room.tenants) || room.tenants.length === 0) {
+    showToast('Hãy thêm khách thuê trước khi tạo hợp đồng', 'error', 3500);
+    return;
+  }
+  rentalContractRoomId = roomId;
+  rentalContracts = [];
+  const form = document.getElementById('rental-contract-form');
+  form.reset();
+  document.getElementById('rental-contract-room').textContent = room.name;
+  const tenantSelect = document.getElementById('rental-contract-tenant');
+  tenantSelect.innerHTML = '';
+  for (const tenant of room.tenants) {
+    const option = document.createElement('option');
+    option.value = tenant.id;
+    option.textContent = tenant.fullName || 'Khách chưa đặt tên';
+    tenantSelect.appendChild(option);
+  }
+  document.getElementById('rental-contract-status').value = 'active';
+  document.getElementById('rental-contract-start').value = room.rentStartDate || vietnamCalendarDate();
+  document.getElementById('rental-contract-rent').value = getRoomRates(room, STATE.currentPeriod).rentPrice;
+  document.getElementById('rental-contract-deposit').value = 0;
+  document.getElementById('rental-contract-modal').hidden = false;
+  void loadRentalContracts();
+}
+
+function closeRentalContractModal() {
+  rentalContractRoomId = '';
+  rentalContracts = [];
+  document.getElementById('rental-contract-modal').hidden = true;
+}
+
+async function submitRentalContract(event) {
+  event.preventDefault();
+  const room = STATE.rooms.find(item => item.id === rentalContractRoomId);
+  if (!room) return;
+  const button = document.getElementById('rental-contract-submit');
+  button.disabled = true;
+  try {
+    const result = await API.createRentalContract({
+      roomId: room.id,
+      tenantId: document.getElementById('rental-contract-tenant').value,
+      status: document.getElementById('rental-contract-status').value,
+      startsOn: document.getElementById('rental-contract-start').value,
+      endsOn: document.getElementById('rental-contract-end').value,
+      monthlyRentVnd: Number(document.getElementById('rental-contract-rent').value),
+      depositVnd: Number(document.getElementById('rental-contract-deposit').value || 0),
+      terms: document.getElementById('rental-contract-terms').value
+    });
+    applyContractRateToRoom(result.rate);
+    renderRooms();
+    showToast(`Đã tạo hợp đồng ${result.contract.code} ✓`, 'success');
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được hợp đồng', 'error', 4500);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function changeRentalContractStatus(contractId, status, button) {
+  const card = button.closest('.rental-contract-card');
+  const reason = card?.querySelector('[data-contract-status-reason]')?.value.trim() || '';
+  if (['ended', 'cancelled'].includes(status) && reason.length < 10) {
+    showToast('Vui lòng nhập lý do ít nhất 10 ký tự', 'error');
+    return;
+  }
+  button.disabled = true;
+  try {
+    const result = await API.changeRentalContractStatus(contractId, { status, reason });
+    applyContractRateToRoom(result.rate);
+    renderRooms();
+    showToast(`Đã chuyển hợp đồng sang “${rentalContractStatusLabel(status)}”`, 'success');
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không cập nhật được hợp đồng', 'error', 4500);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitRentalContractAmendment(form) {
+  const contractId = Number(form.dataset.contractAmendmentForm);
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await API.createRentalContractAmendment(contractId, {
+      effectiveFrom: form.elements.effectiveFrom.value,
+      newMonthlyRentVnd: Number(form.elements.newMonthlyRentVnd.value),
+      reason: form.elements.reason.value
+    });
+    applyContractRateToRoom(result.rate);
+    renderRooms();
+    showToast(`Đã tạo phụ lục ${result.amendment.code} ✓`, 'success');
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được phụ lục', 'error', 4500);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderRooms() {
   const listEl = document.getElementById('rooms-list');
   listEl.innerHTML = '';
@@ -2857,14 +3101,17 @@ function renderRooms() {
       </div>
       <div class="room-card-actions">
         <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
+        <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
         <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
         <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
       </div>
     `;
     const tenantsBtn = card.querySelector('[data-tenants]');
+    const contractsBtn = card.querySelector('[data-contracts]');
     const editBtn = card.querySelector('[data-edit]');
     const deleteBtn = card.querySelector('[data-delete]');
     if (tenantsBtn) tenantsBtn.addEventListener('click', (e) => { e.stopPropagation(); openTenantsModal(room.id); });
+    if (contractsBtn) contractsBtn.addEventListener('click', (e) => { e.stopPropagation(); openRentalContractModal(room.id); });
     if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); openRoomModal(room.id); });
     if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteRoom(room.id); });
     listEl.appendChild(card);
@@ -3131,6 +3378,32 @@ document.getElementById('room-water-type').addEventListener('change', (e) => {
   const peopleContainer = document.getElementById('room-people-count-container');
   if (prevContainer)   prevContainer.style.display   = isKhối ? 'flex' : 'none';
   if (peopleContainer) peopleContainer.style.display = isKhối ? 'none' : 'flex';
+});
+
+document.getElementById('rental-contract-form').addEventListener('submit', event => {
+  void submitRentalContract(event);
+});
+document.getElementById('rental-contract-close').addEventListener('click', closeRentalContractModal);
+document.getElementById('rental-contract-close-footer').addEventListener('click', closeRentalContractModal);
+document.getElementById('rental-contract-refresh').addEventListener('click', () => {
+  void loadRentalContracts();
+});
+document.getElementById('rental-contract-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentalContractModal();
+});
+document.getElementById('rental-contract-list').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-contract-status]');
+  if (!button) return;
+  const card = button.closest('.rental-contract-card');
+  const contract = rentalContracts.find(item => Number(item.id) === Number(card?.dataset.contractId));
+  if (!contract) return;
+  void changeRentalContractStatus(contract.id, button.dataset.contractStatus, button);
+});
+document.getElementById('rental-contract-list').addEventListener('submit', event => {
+  const form = event.target.closest('[data-contract-amendment-form]');
+  if (!form) return;
+  event.preventDefault();
+  void submitRentalContractAmendment(form);
 });
 
 // ============================================================

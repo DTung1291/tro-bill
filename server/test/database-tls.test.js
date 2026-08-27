@@ -5,7 +5,7 @@ process.env.NODE_ENV = 'test';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeDatabaseUrl } = require('../db');
+const { databaseConnectionString, normalizeDatabaseUrl } = require('../db');
 const { databaseCredential } = require('../../scripts/secret-scan');
 
 test('chuẩn hóa các SSL mode cũ sang verify-full', () => {
@@ -28,6 +28,23 @@ test('không làm thay đổi URL đã dùng mode an toàn hoặc không có ssl
   const local = 'postgresql://user:secret@localhost/db';
   assert.equal(normalizeDatabaseUrl(secure), secure);
   assert.equal(normalizeDatabaseUrl(local), local);
+});
+
+test('override role database chỉ đổi username và vẫn giữ password/query an toàn', () => {
+  assert.equal(
+    databaseConnectionString(
+      'postgresql://legacy:secret@db.example.invalid/app?sslmode=require',
+      { roleOverride: 'tro_bill_runtime_sql' }
+    ),
+    'postgresql://tro_bill_runtime_sql:secret@db.example.invalid/app?sslmode=verify-full'
+  );
+  assert.throws(
+    () => databaseConnectionString(
+      'postgresql://legacy:secret@db.example.invalid/app',
+      { roleOverride: 'runtime role; DROP ROLE legacy' }
+    ),
+    /DATABASE_ROLE_OVERRIDE/
+  );
 });
 
 test('secret scanner chỉ miễn URL database placeholder rõ ràng', () => {

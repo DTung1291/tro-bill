@@ -199,6 +199,6 @@ test('migration và UI có hàng chờ xử lý thủ công, không cấp quyề
   assert.match(apiSource, /function ignoreRentBankTransaction/);
   assert.match(appSource, /function renderRentBankReconciliation/);
   assert.match(htmlSource, /id="bank-reconciliation"/);
-  assert.match(htmlSource, /api\.js\?v=95[\s\S]*app\.js\?v=97/);
+  assert.match(htmlSource, /api\.js\?v=96[\s\S]*app\.js\?v=98/);
   assert.match(styleSource, /\.bank-reconciliation-controls/);
 });

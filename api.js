@@ -362,6 +362,31 @@ const API = (() => {
     );
   }
 
+  function getRentalContracts(roomId = '') {
+    const query = roomId ? `?roomId=${encodeURIComponent(roomId)}` : '';
+    return request('GET', `/api/rental-contracts${query}`);
+  }
+
+  function createRentalContract(input) {
+    return request('POST', '/api/rental-contracts', input);
+  }
+
+  function changeRentalContractStatus(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/status`,
+      input
+    );
+  }
+
+  function createRentalContractAmendment(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/amendments`,
+      input
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -496,6 +521,10 @@ const API = (() => {
     getTenantDeposit,
     createDepositTransaction,
     reverseDepositTransaction,
+    getRentalContracts,
+    createRentalContract,
+    changeRentalContractStatus,
+    createRentalContractAmendment,
     privacy,
     getConfig,
     admin

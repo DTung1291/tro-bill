@@ -103,6 +103,10 @@ Trạng thái ngày 24/08/2026:
   `EMAIL_PROVIDER`, `BREVO_API_KEY`, `EMAIL_FROM` đã được đặt cho cả Production
   lẫn Preview trên Vercel. Production readiness trả `200` với cấu hình và database
   đều `ok`; người dùng đã tự kiểm tra gửi email thật thành công.
+- Đã tạo role SQL `tro_bill_runtime_sql` không kế thừa `neon_superuser`, đồng bộ
+  đúng quyền CRUD cần thiết trên staging/production và cập nhật `DATABASE_URL`
+  của Vercel. Chỉ thu hồi role cũ `tro_bill_app` sau khi deployment mới được xác
+  nhận chạy bằng role hạn chế quyền để tránh làm gián đoạn production.
 
 ### Hoàn thành giai đoạn khi
 
@@ -218,7 +222,7 @@ Trạng thái ngày 24/08/2026:
 
 ### Vòng đời thuê phòng
 
-- [ ] Quản lý hợp đồng thuê và các phụ lục thay đổi giá.
+- [x] Quản lý hợp đồng thuê và các phụ lục thay đổi giá.
 - [ ] Tạo hợp đồng từ mẫu và xuất PDF.
 - [ ] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
 - [ ] Nhắc hợp đồng sắp hết hạn.
@@ -226,6 +230,18 @@ Trạng thái ngày 24/08/2026:
 - [ ] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [ ] Chốt bill cuối cùng khi khách trả phòng.
 - [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
+
+Trạng thái ngày 27/08/2026:
+
+- Hợp đồng lưu bản chụp phòng/khách thuê, có trạng thái nháp, hiệu lực, kết thúc
+  và hủy; mỗi phòng chỉ có một hợp đồng đang hiệu lực trong một tài khoản.
+- Phụ lục thay đổi giá là lịch sử chỉ được thêm mới, có mã và tháng áp dụng;
+  khi kích hoạt hợp đồng hoặc thêm phụ lục, giá được đồng bộ vào lịch sử giá
+  phòng để hóa đơn cũ không bị thay đổi.
+- Không cho xóa/chuyển phòng hoặc khách thuê đang có hợp đồng hiệu lực. Một tab
+  cũ lưu state cũng không thể xóa các mốc giá đã phát sinh từ hợp đồng.
+- Migration đã chạy và kiểm tra quyền trên Neon staging/production; bộ test đầy
+  đủ và kiểm tra giao diện desktop tại local đều thành công.
 
 ### Nhiều khu và phân quyền
 
