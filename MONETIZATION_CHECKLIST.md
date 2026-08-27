@@ -199,7 +199,12 @@ Trạng thái ngày 24/08/2026:
 - [x] Tự động nhắc trước hạn và sau hạn theo cấu hình.
 - [x] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ.
 - [x] Lưu trạng thái gửi thành công/thất bại và cho phép gửi lại.
-- [ ] Tách phí SMS/Zalo khỏi giá subscription nếu phát sinh theo lượt.
+- [x] Tách phí SMS/Zalo khỏi giá subscription nếu phát sinh theo lượt.
+
+  TrọBill hiện ưu tiên kênh miễn phí: Zalo/ứng dụng dùng Web Share trên thiết bị
+  và email dùng quota provider đã cấu hình. SMS/Zalo API trả phí chưa được bật;
+  nếu tích hợp sau này phải là add-on theo lượt, hiển thị đơn giá và được chủ tài
+  khoản xác nhận trước, không tự động gộp vào giá subscription.
 
 ### Hoàn thành giai đoạn khi
 

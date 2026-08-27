@@ -186,6 +186,7 @@ test('schema, API và giao diện hỗ trợ email, Zalo/ứng dụng và link h
   const apiSource = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
   const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
   const checklist = fs.readFileSync(path.join(root, 'MONETIZATION_CHECKLIST.md'), 'utf8');
 
   assert.match(schema, /tenants[\s\S]*email\s+TEXT NOT NULL DEFAULT ''/);
@@ -200,5 +201,9 @@ test('schema, API và giao diện hỗ trợ email, Zalo/ứng dụng và link h
   assert.match(html, /id="bill-message-create-link"/);
   assert.match(html, /id="bill-message-share">📤 Zalo \/ ứng dụng/);
   assert.match(html, /id="bill-message-email">✉️ Gửi email/);
+  assert.match(html, /không cộng phí theo lượt vào gói subscription/);
+  assert.match(readme, /SMS và Zalo API trả phí chưa được kích hoạt/);
+  assert.match(readme, /add-on theo lượt riêng/);
   assert.match(checklist, /\[x\] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống\./);
+  assert.match(checklist, /\[x\] Tách phí SMS\/Zalo khỏi giá subscription nếu phát sinh theo lượt\./);
 });

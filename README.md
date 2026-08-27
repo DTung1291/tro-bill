@@ -206,3 +206,13 @@ restore được mô tả trong [OPERATIONS.md](OPERATIONS.md).
 
 Hợp đồng HMAC, payload tối thiểu và quy tắc idempotency của webhook thanh toán
 subscription được mô tả trong [PAYMENT_WEBHOOK.md](PAYMENT_WEBHOOK.md).
+
+## Chính sách chi phí kênh gửi
+
+- Chia sẻ Zalo/ứng dụng hiện dùng Web Share trên thiết bị của người dùng nên
+  TrọBill không phát sinh hoặc thu phí theo lượt.
+- Email dùng nhà cung cấp được cấu hình phía server và hiện ưu tiên quota miễn
+  phí. Phần chi phí này không làm thay đổi giá subscription đã công bố.
+- SMS và Zalo API trả phí chưa được kích hoạt. Nếu tích hợp sau này, chúng phải
+  là add-on theo lượt riêng, hiển thị đơn giá và yêu cầu chủ tài khoản xác nhận
+  trước; không được tự động gộp vào giá subscription.
