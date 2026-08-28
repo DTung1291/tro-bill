@@ -2,6 +2,7 @@
 
 const db = require('./db');
 const subscription = require('./subscription');
+const { recordDataAudit, requestAuditContext } = require('./data-audit');
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
@@ -139,6 +140,18 @@ function statusInput(body = {}) {
   return { status, reason };
 }
 
+function documentPurposeInput(body = {}) {
+  const purpose = String(body.purpose || '').trim();
+  if (purpose.length < 10 || purpose.length > 500) {
+    throw new RentalContractError(
+      400,
+      'INVALID_CONTRACT_DOCUMENT_PURPOSE',
+      'Lý do tạo bản hợp đồng phải từ 10 đến 500 ký tự'
+    );
+  }
+  return purpose;
+}
+
 function dateJson(value) {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -184,6 +197,26 @@ function contractJson(row, amendments = []) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     amendments: normalizedAmendments
+  };
+}
+
+function contractDocumentJson(row, amendments = []) {
+  return {
+    template: {
+      id: 'HopDongThuePhongNew',
+      version: '2026-08-16',
+      source: 'document/HopDongThuePhongNew.docx'
+    },
+    contract: contractJson(row, amendments),
+    tenant: {
+      fullName: row.tenant_name_snapshot || '',
+      phone: row.tenant_phone_snapshot || '',
+      cccd: row.tenant_cccd_snapshot || '',
+      issueDate: row.tenant_issue_date_snapshot || '',
+      dob: row.tenant_dob_snapshot || '',
+      gender: row.tenant_gender_snapshot || '',
+      address: row.tenant_address_snapshot || ''
+    }
   };
 }
 
@@ -332,7 +365,11 @@ async function listContracts(req, res, dependencies = {}) {
     throw error;
   }
   const contractResult = await query(
-    `SELECT * FROM rental_contracts
+    `SELECT id, user_id, contract_code, room_id, room_name_snapshot,
+            tenant_id, tenant_name_snapshot, status, starts_on, ends_on,
+            monthly_rent_vnd, deposit_vnd, terms, status_reason,
+            activated_at, ended_at, cancelled_at, created_at, updated_at
+     FROM rental_contracts
      WHERE user_id=$1 AND ($2::text IS NULL OR room_id=$2)
      ORDER BY starts_on DESC, id DESC`,
     [req.userId, roomId]
@@ -373,7 +410,10 @@ async function createContract(req, res, dependencies = {}) {
     await ensureWritable(client.query.bind(client), req.userId, dependencies);
     const owner = await client.query(
       `SELECT room.id AS room_id, room.name AS room_name,
-              tenant.id AS tenant_id, tenant.full_name AS tenant_name
+              tenant.id AS tenant_id, tenant.full_name AS tenant_name,
+              tenant.phone AS tenant_phone, tenant.cccd AS tenant_cccd,
+              tenant.issue_date AS tenant_issue_date, tenant.dob AS tenant_dob,
+              tenant.gender AS tenant_gender, tenant.address AS tenant_address
        FROM rooms room
        JOIN tenants tenant
          ON tenant.user_id=room.user_id AND tenant.room_id=room.id AND tenant.id=$3
@@ -394,10 +434,12 @@ async function createContract(req, res, dependencies = {}) {
     const insert = await client.query(
       `INSERT INTO rental_contracts
          (id, user_id, contract_code, room_id, room_name_snapshot,
-          tenant_id, tenant_name_snapshot, status, starts_on, ends_on,
-          monthly_rent_vnd, deposit_vnd, terms, activated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-               CASE WHEN $8='active' THEN now() ELSE NULL END)
+          tenant_id, tenant_name_snapshot, tenant_phone_snapshot,
+          tenant_cccd_snapshot, tenant_issue_date_snapshot, tenant_dob_snapshot,
+          tenant_gender_snapshot, tenant_address_snapshot,
+          status, starts_on, ends_on, monthly_rent_vnd, deposit_vnd, terms, activated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+               CASE WHEN $14='active' THEN now() ELSE NULL END)
        RETURNING *`,
       [
         id,
@@ -407,6 +449,12 @@ async function createContract(req, res, dependencies = {}) {
         String(owner.rows[0].room_name || '').trim() || 'Phòng chưa đặt tên',
         input.tenantId,
         String(owner.rows[0].tenant_name || '').trim() || 'Khách chưa đặt tên',
+        String(owner.rows[0].tenant_phone || '').trim(),
+        String(owner.rows[0].tenant_cccd || '').trim(),
+        String(owner.rows[0].tenant_issue_date || '').trim(),
+        String(owner.rows[0].tenant_dob || '').trim(),
+        String(owner.rows[0].tenant_gender || '').trim(),
+        String(owner.rows[0].tenant_address || '').trim(),
         input.status,
         input.startsOn,
         input.endsOn,
@@ -440,6 +488,51 @@ async function createContract(req, res, dependencies = {}) {
   } finally {
     client.release();
   }
+}
+
+async function getContractDocument(req, res, dependencies = {}) {
+  let contractId;
+  let purpose;
+  try {
+    contractId = positiveId(req.params?.id, 'Hợp đồng');
+    purpose = documentPurposeInput(req.body);
+  } catch (error) {
+    if (sendRentalContractError(res, error)) return res;
+    throw error;
+  }
+  const query = dependencies.query || db.query;
+  const contractResult = await query(
+    `SELECT * FROM rental_contracts
+     WHERE user_id=$1 AND id=$2`,
+    [req.userId, contractId]
+  );
+  const contract = contractResult.rows[0];
+  if (!contract) {
+    return res.status(404).json({ error: 'Không tìm thấy hợp đồng', code: 'CONTRACT_NOT_FOUND' });
+  }
+  const amendments = await query(
+    `SELECT * FROM rental_contract_amendments
+     WHERE user_id=$1 AND contract_id=$2
+     ORDER BY effective_from, id`,
+    [req.userId, contractId]
+  );
+  await recordDataAudit(query, {
+    actorUserId: req.userId,
+    actorEmail: req.userEmail,
+    subjectUserId: req.userId,
+    action: 'rental_contract_document_export',
+    resourceType: 'rental_contract',
+    resourceId: String(contractId),
+    changedFields: ['fullName', 'phone', 'cccd', 'issueDate', 'dob', 'gender', 'address'],
+    purpose,
+    ...requestAuditContext(req)
+  });
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
+  return res.json({
+    ...contractDocumentJson(contract, amendments.rows),
+    audited: true
+  });
 }
 
 async function changeContractStatus(req, res, dependencies = {}) {
@@ -620,10 +713,13 @@ module.exports = {
   amendmentInput,
   changeContractStatus,
   contractCode,
+  contractDocumentJson,
   contractInput,
   contractJson,
   createAmendment,
   createContract,
+  documentPurposeInput,
+  getContractDocument,
   listContracts,
   restoreContractRateMilestones,
   statusInput,

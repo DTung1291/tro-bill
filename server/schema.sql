@@ -713,6 +713,12 @@ CREATE TABLE IF NOT EXISTS rental_contracts (
   room_name_snapshot    TEXT NOT NULL,
   tenant_id             TEXT NOT NULL,
   tenant_name_snapshot  TEXT NOT NULL,
+  tenant_phone_snapshot TEXT NOT NULL DEFAULT '',
+  tenant_cccd_snapshot  TEXT NOT NULL DEFAULT '',
+  tenant_issue_date_snapshot TEXT NOT NULL DEFAULT '',
+  tenant_dob_snapshot   TEXT NOT NULL DEFAULT '',
+  tenant_gender_snapshot TEXT NOT NULL DEFAULT '',
+  tenant_address_snapshot TEXT NOT NULL DEFAULT '',
   status                TEXT NOT NULL DEFAULT 'draft',
   starts_on             DATE NOT NULL,
   ends_on               DATE,
@@ -751,6 +757,50 @@ CREATE TABLE IF NOT EXISTS rental_contracts (
     OR (status='cancelled' AND cancelled_at IS NOT NULL AND ended_at IS NULL)
   )
 );
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_phone_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_cccd_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_issue_date_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_dob_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_gender_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS tenant_address_snapshot TEXT NOT NULL DEFAULT '';
+UPDATE rental_contracts contract
+SET tenant_phone_snapshot=CASE
+      WHEN contract.tenant_phone_snapshot='' THEN tenant.phone ELSE contract.tenant_phone_snapshot END,
+    tenant_cccd_snapshot=CASE
+      WHEN contract.tenant_cccd_snapshot='' THEN tenant.cccd ELSE contract.tenant_cccd_snapshot END,
+    tenant_issue_date_snapshot=CASE
+      WHEN contract.tenant_issue_date_snapshot='' THEN tenant.issue_date ELSE contract.tenant_issue_date_snapshot END,
+    tenant_dob_snapshot=CASE
+      WHEN contract.tenant_dob_snapshot='' THEN tenant.dob ELSE contract.tenant_dob_snapshot END,
+    tenant_gender_snapshot=CASE
+      WHEN contract.tenant_gender_snapshot='' THEN tenant.gender ELSE contract.tenant_gender_snapshot END,
+    tenant_address_snapshot=CASE
+      WHEN contract.tenant_address_snapshot='' THEN tenant.address ELSE contract.tenant_address_snapshot END
+FROM tenants tenant
+WHERE tenant.user_id=contract.user_id AND tenant.id=contract.tenant_id;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rental_contracts_tenant_document_snapshot_valid'
+  ) THEN
+    ALTER TABLE rental_contracts
+      ADD CONSTRAINT rental_contracts_tenant_document_snapshot_valid CHECK (
+        char_length(tenant_phone_snapshot) <= 50
+        AND char_length(tenant_cccd_snapshot) <= 50
+        AND char_length(tenant_issue_date_snapshot) <= 20
+        AND char_length(tenant_dob_snapshot) <= 20
+        AND char_length(tenant_gender_snapshot) <= 20
+        AND char_length(tenant_address_snapshot) <= 1000
+      );
+  END IF;
+END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rental_contracts_one_active_room
   ON rental_contracts(user_id, room_id) WHERE status='active';
 CREATE INDEX IF NOT EXISTS idx_rental_contracts_user_room

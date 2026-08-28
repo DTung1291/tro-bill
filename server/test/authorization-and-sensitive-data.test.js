@@ -76,6 +76,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['POST', '/api/rental-contracts'],
     ['POST', '/api/rental-contracts/1/status'],
     ['POST', '/api/rental-contracts/1/amendments'],
+    ['POST', '/api/rental-contracts/1/document'],
     ['GET', '/api/state'],
     ['PUT', '/api/state'],
     ['GET', '/api/config'],

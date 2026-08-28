@@ -281,6 +281,11 @@ app.post(
   requireAuth,
   wrap(rentalContracts.createAmendment)
 );
+app.post(
+  '/api/rental-contracts/:id/document',
+  requireAuth,
+  wrap(rentalContracts.getContractDocument)
+);
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));

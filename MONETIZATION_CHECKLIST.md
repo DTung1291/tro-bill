@@ -223,7 +223,7 @@ Trạng thái ngày 24/08/2026:
 ### Vòng đời thuê phòng
 
 - [x] Quản lý hợp đồng thuê và các phụ lục thay đổi giá.
-- [ ] Tạo hợp đồng từ mẫu và xuất PDF.
+- [x] Tạo hợp đồng từ mẫu và xuất PDF.
 - [ ] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
 - [ ] Nhắc hợp đồng sắp hết hạn.
 - [ ] Quản lý đặt cọc và biên bản bàn giao tài sản.
@@ -242,6 +242,13 @@ Trạng thái ngày 27/08/2026:
   cũ lưu state cũng không thể xóa các mốc giá đã phát sinh từ hợp đồng.
 - Migration đã chạy và kiểm tra quyền trên Neon staging/production; bộ test đầy
   đủ và kiểm tra giao diện desktop tại local đều thành công.
+- Mẫu `document/HopDongThuePhongNew.docx` đã được đưa vào luồng **Xem / In hợp
+  đồng**. Bản in Letter giữ thứ tự 8 điều, phụ lục giá, bảng trang thiết bị và
+  chữ ký; đã kiểm tra trực quan đủ 5 trang trước khi phát hành.
+- Thông tin khách thuê được chụp tại thời điểm tạo hợp đồng để hồ sơ đã ký không
+  đổi theo hồ sơ hiện tại. Việc mở bản đầy đủ bắt buộc có lý do, không cache và
+  được ghi audit; migration snapshot đã chạy trên Neon staging/production ngày
+  28/08/2026.
 
 ### Nhiều khu và phân quyền
 

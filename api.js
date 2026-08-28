@@ -387,6 +387,14 @@ const API = (() => {
     );
   }
 
+  function getRentalContractDocument(contractId, purpose) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/document`,
+      { purpose }
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -525,6 +533,7 @@ const API = (() => {
     createRentalContract,
     changeRentalContractStatus,
     createRentalContractAmendment,
+    getRentalContractDocument,
     privacy,
     getConfig,
     admin

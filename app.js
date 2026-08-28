@@ -2806,6 +2806,8 @@ function deleteExpense(id) {
 // ============================================================
 let rentalContractRoomId = '';
 let rentalContracts = [];
+let activeRentalContractDocumentId = null;
+let activeRentalContractDocumentData = null;
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -2920,9 +2922,172 @@ function renderRentalContracts() {
         <strong>Phụ lục giá</strong>
         <ul>${amendmentItems}</ul>
       </div>
+      <div class="rental-contract-card-actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
+      </div>
       ${amendmentForm}
       ${statusPanel}`;
     list.appendChild(card);
+  }
+}
+
+function rentalContractEquipmentText() {
+  return ContractTemplate.DEFAULT_EQUIPMENT
+    .map(([name, quantity, condition]) => [name, quantity, condition].join(' | '))
+    .join('\n');
+}
+
+function parseRentalContractEquipmentInput(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .slice(0, 10)
+    .map(line => {
+      const [name = '', quantity = '', ...conditionParts] = line.split('|');
+      return [name.trim(), quantity.trim(), conditionParts.join('|').trim()];
+    });
+}
+
+function rentalContractBankPaymentText() {
+  return [STATE.settings.bankOwnerName, STATE.settings.bankId, STATE.settings.bankAccount]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function clearRentalContractDocumentSensitiveData() {
+  activeRentalContractDocumentId = null;
+  activeRentalContractDocumentData = null;
+  const sensitiveInputIds = [
+    'rental-contract-document-purpose',
+    'contract-lessor-name',
+    'contract-lessor-cccd',
+    'contract-lessor-issue-date',
+    'contract-lessor-issue-place',
+    'contract-lessor-phone',
+    'contract-lessor-address'
+  ];
+  for (const id of sensitiveInputIds) {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  }
+  const paper = document.getElementById('rental-contract-document-paper');
+  if (paper) paper.replaceChildren();
+  const printArea = document.getElementById('print-area');
+  if (printArea?.querySelector('[data-contract-document]')) printArea.replaceChildren();
+  printArea?.classList.remove('print-area--rental-contract');
+}
+
+function closeRentalContractDocumentModal() {
+  document.getElementById('rental-contract-document-modal').hidden = true;
+  document.getElementById('rental-contract-document-preview').hidden = true;
+  document.getElementById('rental-contract-document-form').hidden = false;
+  document.getElementById('rental-contract-document-error').hidden = true;
+  clearRentalContractDocumentSensitiveData();
+}
+
+function openRentalContractDocumentModal(contract) {
+  if (!contract || !ContractTemplate) return;
+  const room = STATE.rooms.find(item => item.id === contract.roomId);
+  if (!room) {
+    showToast('Không tìm thấy phòng của hợp đồng', 'error');
+    return;
+  }
+  clearRentalContractDocumentSensitiveData();
+  activeRentalContractDocumentId = Number(contract.id);
+  const form = document.getElementById('rental-contract-document-form');
+  form.reset();
+  form.hidden = false;
+  document.getElementById('rental-contract-document-preview').hidden = true;
+  document.getElementById('rental-contract-document-code').textContent = `${contract.code} · ${contract.tenantName}`;
+  document.getElementById('contract-property-address').value = '40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng';
+  document.getElementById('contract-rental-purpose').value = 'Để ở';
+  document.getElementById('contract-maximum-occupants').value = Math.max(
+    1,
+    Number(room.peopleCount) || room.tenants?.length || 1
+  );
+  document.getElementById('contract-bank-payment').value = rentalContractBankPaymentText();
+  document.getElementById('contract-equipment').value = rentalContractEquipmentText();
+  document.getElementById('rental-contract-document-modal').hidden = false;
+  document.getElementById('rental-contract-document-purpose').focus();
+}
+
+function rentalContractDocumentOptions(contract) {
+  const room = STATE.rooms.find(item => item.id === contract.roomId);
+  const rates = room
+    ? getRoomRates(room, String(contract.startsOn || STATE.currentPeriod).slice(0, 7))
+    : {};
+  return {
+    lessor: {
+      fullName: document.getElementById('contract-lessor-name').value,
+      cccd: document.getElementById('contract-lessor-cccd').value,
+      issueDate: document.getElementById('contract-lessor-issue-date').value,
+      issuePlace: document.getElementById('contract-lessor-issue-place').value,
+      phone: document.getElementById('contract-lessor-phone').value,
+      address: document.getElementById('contract-lessor-address').value
+    },
+    propertyAddress: document.getElementById('contract-property-address').value,
+    floor: document.getElementById('contract-room-floor').value,
+    rentalPurpose: document.getElementById('contract-rental-purpose').value,
+    maximumOccupants: document.getElementById('contract-maximum-occupants').value,
+    bankPayment: document.getElementById('contract-bank-payment').value,
+    equipment: parseRentalContractEquipmentInput(document.getElementById('contract-equipment').value),
+    electricRate: Number(rates.electricRate) || 0,
+    waterRate: Number(rates.waterRate) || 0,
+    waterUnit: room?.waterType === 'người' ? 'người/tháng' : 'm³',
+    wifiFee: Number(rates.wifiFee) || 0
+  };
+}
+
+async function submitRentalContractDocument(event) {
+  event.preventDefault();
+  const contract = rentalContracts.find(item => Number(item.id) === activeRentalContractDocumentId);
+  if (!contract) return closeRentalContractDocumentModal();
+  const purpose = document.getElementById('rental-contract-document-purpose').value.trim();
+  const button = document.getElementById('rental-contract-document-generate');
+  const errorElement = document.getElementById('rental-contract-document-error');
+  button.disabled = true;
+  errorElement.hidden = true;
+  try {
+    if (!activeRentalContractDocumentData) {
+      activeRentalContractDocumentData = await API.getRentalContractDocument(contract.id, purpose);
+    }
+    const html = ContractTemplate.build(
+      activeRentalContractDocumentData,
+      rentalContractDocumentOptions(contract)
+    );
+    document.getElementById('rental-contract-document-paper').innerHTML = html;
+    document.getElementById('rental-contract-document-form').hidden = true;
+    document.getElementById('rental-contract-document-preview').hidden = false;
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không tạo được bản hợp đồng';
+    errorElement.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function backToRentalContractDocumentForm() {
+  document.getElementById('rental-contract-document-preview').hidden = true;
+  document.getElementById('rental-contract-document-form').hidden = false;
+}
+
+function printRentalContractDocument() {
+  const paper = document.getElementById('rental-contract-document-paper');
+  const printArea = document.getElementById('print-area');
+  const contract = activeRentalContractDocumentData?.contract;
+  if (!paper.firstElementChild || !contract) return;
+  printArea.innerHTML = paper.innerHTML;
+  printArea.classList.add('print-area--rental-contract');
+  const safeCode = removeVietnameseTones(contract.code || 'hop-dong')
+    .replace(/[^a-zA-Z0-9-]+/g, '-')
+    .toLowerCase();
+  try {
+    triggerPrint(`${safeCode}.pdf`);
+  } finally {
+    window.setTimeout(closeRentalContractDocumentModal, 0);
   }
 }
 
@@ -3392,12 +3557,31 @@ document.getElementById('rental-contract-modal').addEventListener('click', event
   if (event.target === event.currentTarget) closeRentalContractModal();
 });
 document.getElementById('rental-contract-list').addEventListener('click', event => {
+  const documentButton = event.target?.closest?.('[data-contract-document]');
+  if (documentButton) {
+    const documentCard = documentButton.closest('.rental-contract-card');
+    const documentContract = rentalContracts.find(
+      item => Number(item.id) === Number(documentCard?.dataset.contractId)
+    );
+    if (documentContract) openRentalContractDocumentModal(documentContract);
+    return;
+  }
   const button = event.target?.closest?.('[data-contract-status]');
   if (!button) return;
   const card = button.closest('.rental-contract-card');
   const contract = rentalContracts.find(item => Number(item.id) === Number(card?.dataset.contractId));
   if (!contract) return;
   void changeRentalContractStatus(contract.id, button.dataset.contractStatus, button);
+});
+document.getElementById('rental-contract-document-form').addEventListener('submit', event => {
+  void submitRentalContractDocument(event);
+});
+document.getElementById('rental-contract-document-close').addEventListener('click', closeRentalContractDocumentModal);
+document.getElementById('rental-contract-document-cancel').addEventListener('click', closeRentalContractDocumentModal);
+document.getElementById('rental-contract-document-back').addEventListener('click', backToRentalContractDocumentForm);
+document.getElementById('rental-contract-document-print').addEventListener('click', printRentalContractDocument);
+document.getElementById('rental-contract-document-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentalContractDocumentModal();
 });
 document.getElementById('rental-contract-list').addEventListener('submit', event => {
   const form = event.target.closest('[data-contract-amendment-form]');

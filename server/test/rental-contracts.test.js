@@ -13,9 +13,12 @@ const {
   amendmentInput,
   changeContractStatus,
   contractCode,
+  contractDocumentJson,
   contractInput,
   createAmendment,
   createContract,
+  documentPurposeInput,
+  getContractDocument,
   listContracts,
   restoreContractRateMilestones,
   statusInput
@@ -24,11 +27,11 @@ const {
 const root = path.join(__dirname, '..', '..');
 
 function responseRecorder() {
-  const record = { statusCode: 200, body: null };
+  const record = { statusCode: 200, body: null, headers: {} };
   const res = {
     status(code) { record.statusCode = code; return res; },
     json(body) { record.body = body; return res; },
-    set() { return res; }
+    set(name, value) { record.headers[String(name).toLowerCase()] = value; return res; }
   };
   return { record, res };
 }
@@ -42,6 +45,12 @@ function contractRow(overrides = {}) {
     room_name_snapshot: 'P101',
     tenant_id: 'tenant-1',
     tenant_name_snapshot: 'Nguyễn Văn A',
+    tenant_phone_snapshot: '0901234567',
+    tenant_cccd_snapshot: '048098001234',
+    tenant_issue_date_snapshot: '2021-05-10',
+    tenant_dob_snapshot: '1998-03-24',
+    tenant_gender_snapshot: 'Nam',
+    tenant_address_snapshot: 'Hải Châu, Đà Nẵng',
     status: 'active',
     starts_on: '2026-08-10',
     ends_on: '2027-08-09',
@@ -96,6 +105,7 @@ test('input hợp đồng, phụ lục và chuyển trạng thái được giớ
   assert.equal(contractInput(activeContractRequest().body).monthlyRentVnd, 3000000);
   assert.equal(contractCode(36, '2026-08-10'), 'HD-2026-000010');
   assert.equal(amendmentCode(37, '2026-10'), 'PL-202610-000011');
+  assert.equal(documentPurposeInput({ purpose: 'In hợp đồng để hai bên ký' }), 'In hợp đồng để hai bên ký');
   assert.throws(
     () => contractInput(activeContractRequest({ startsOn: '2026-02-30' }).body),
     (error) => error.code === 'INVALID_CONTRACT_DATE'
@@ -112,6 +122,10 @@ test('input hợp đồng, phụ lục và chuyển trạng thái được giớ
     () => statusInput({ status: 'ended', reason: 'ngắn' }),
     (error) => error.code === 'INVALID_CONTRACT_STATUS_REASON'
   );
+  assert.throws(
+    () => documentPurposeInput({ purpose: 'in' }),
+    (error) => error.code === 'INVALID_CONTRACT_DOCUMENT_PURPOSE'
+  );
 });
 
 test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ mốc giá trong một transaction', async () => {
@@ -120,7 +134,18 @@ test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ m�
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (sql.includes('FROM rooms room') && sql.includes('JOIN tenants tenant')) {
-        return { rows: [{ room_id: 'room-1', room_name: 'P101', tenant_id: 'tenant-1', tenant_name: 'Nguyễn Văn A' }] };
+        return { rows: [{
+          room_id: 'room-1',
+          room_name: 'P101',
+          tenant_id: 'tenant-1',
+          tenant_name: 'Nguyễn Văn A',
+          tenant_phone: '0901234567',
+          tenant_cccd: '048098001234',
+          tenant_issue_date: '2021-05-10',
+          tenant_dob: '1998-03-24',
+          tenant_gender: 'Nam',
+          tenant_address: 'Hải Châu, Đà Nẵng'
+        }] };
       }
       if (sql.includes("nextval('rental_contracts_id_seq')")) return { rows: [{ id: 36 }] };
       if (sql.includes('INSERT INTO rental_contracts')) return { rows: [contractRow()] };
@@ -144,6 +169,15 @@ test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ m�
   assert.deepEqual(owner.params, [7, 'room-1', 'tenant-1']);
   assert.match(owner.sql, /room\.user_id=\$1/);
   assert.match(owner.sql, /tenant\.user_id=room\.user_id/);
+  const contractInsert = calls.find(call => call.sql.includes('INSERT INTO rental_contracts'));
+  assert.deepEqual(contractInsert.params.slice(7, 13), [
+    '0901234567',
+    '048098001234',
+    '2021-05-10',
+    '1998-03-24',
+    'Nam',
+    'Hải Châu, Đà Nẵng'
+  ]);
   const rateInsert = calls.find(call => call.sql.includes('INSERT INTO room_rate_history'));
   assert.equal(rateInsert.params[2], '2026-08');
   assert.equal(rateInsert.params[3], 3000000);
@@ -271,8 +305,65 @@ test('danh sách hợp đồng chỉ lấy dữ liệu thuộc user và ghép ph
   assert.equal(response.record.body.contracts[0].currentMonthlyRentVnd, 3200000);
   assert.equal(response.record.body.contracts[0].amendments.length, 1);
   assert.match(calls[0].sql, /WHERE user_id=\$1/);
+  assert.doesNotMatch(calls[0].sql, /tenant_cccd_snapshot/);
+  assert.equal('tenant' in response.record.body.contracts[0], false);
   assert.deepEqual(calls[0].params, [7, 'room-1']);
   assert.match(calls[1].sql, /WHERE user_id=\$1 AND contract_id=ANY/);
+});
+
+test('bản hợp đồng chỉ mở snapshot CCCD sau lý do hợp lệ và ghi audit không chứa CCCD', async () => {
+  const calls = [];
+  const response = responseRecorder();
+  await getContractDocument({
+    userId: 7,
+    userEmail: 'owner@example.com',
+    params: { id: '36' },
+    body: { purpose: 'In hai bản để chủ trọ và khách thuê ký' },
+    headers: { 'user-agent': 'node-test' },
+    get(name) { return this.headers[String(name).toLowerCase()] || ''; },
+    ip: '127.0.0.1'
+  }, response.res, {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM rental_contracts')) return { rows: [contractRow()] };
+      if (sql.includes('FROM rental_contract_amendments')) return { rows: [] };
+      return { rows: [] };
+    }
+  });
+
+  assert.equal(response.record.statusCode, 200);
+  assert.equal(response.record.body.tenant.cccd, '048098001234');
+  assert.equal(response.record.body.contract.code, 'HD-2026-000010');
+  assert.equal(response.record.body.audited, true);
+  assert.equal(response.record.headers['cache-control'], 'no-store');
+  assert.equal(response.record.headers.pragma, 'no-cache');
+  const audit = calls.find(call => call.sql.includes('INSERT INTO data_audit_logs'));
+  assert.equal(audit.params[3], 'rental_contract_document_export');
+  assert.equal(audit.params[4], 'rental_contract');
+  assert.equal(audit.params[5], '36');
+  assert.equal(audit.params[7], 'In hai bản để chủ trọ và khách thuê ký');
+  assert.equal(audit.params.includes('048098001234'), false);
+});
+
+test('bản hợp đồng không cho user đọc hợp đồng của tài khoản khác', async () => {
+  const response = responseRecorder();
+  await getContractDocument({
+    userId: 8,
+    userEmail: 'other@example.com',
+    params: { id: '36' },
+    body: { purpose: 'Kiểm tra bản hợp đồng trước khi ký' }
+  }, response.res, { query: async () => ({ rows: [] }) });
+  assert.equal(response.record.statusCode, 404);
+  assert.equal(response.record.body.code, 'CONTRACT_NOT_FOUND');
+});
+
+test('JSON bản hợp đồng dùng snapshot bất biến và không làm biến đổi hợp đồng công khai', () => {
+  const row = contractRow();
+  const documentResult = contractDocumentJson(row, []);
+  assert.equal(documentResult.tenant.fullName, 'Nguyễn Văn A');
+  assert.equal(documentResult.tenant.cccd, '048098001234');
+  assert.equal(documentResult.contract.tenantName, 'Nguyễn Văn A');
+  assert.equal('tenantCccd' in documentResult.contract, false);
 });
 
 test('lưu state cũ vẫn phục hồi đủ mốc giá bất biến từ hợp đồng và phụ lục', async () => {
@@ -334,6 +425,11 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
   const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const documentMigration = fs.readFileSync(
+    path.join(root, 'server', 'migrations', '20260827_contract_document_templates.sql'),
+    'utf8'
+  );
+  const contractTemplate = fs.readFileSync(path.join(root, 'contract-template.js'), 'utf8');
 
   for (const source of [schema, migration]) {
     assert.match(source, /CREATE TABLE IF NOT EXISTS rental_contracts/);
@@ -348,11 +444,22 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
   }
   assert.doesNotMatch(schema, /room_id\s+TEXT NOT NULL REFERENCES rooms/);
   assert.match(serverSource, /\/api\/rental-contracts\/\:id\/amendments/);
+  assert.match(serverSource, /\/api\/rental-contracts\/\:id\/document/);
   assert.match(apiSource, /function createRentalContractAmendment/);
+  assert.match(apiSource, /function getRentalContractDocument/);
   assert.match(appSource, /function openRentalContractModal/);
   assert.match(appSource, /function applyContractRateToRoom/);
   assert.match(html, /id="rental-contract-modal"/);
   assert.match(html, /id="rental-contract-form"/);
+  assert.match(html, /id="rental-contract-document-modal"/);
+  assert.match(html, /contract-template\.js\?v=1/);
   assert.match(css, /\.modal\.rental-contract-modal/);
+  assert.match(css, /\.rental-contract-document/);
+  assert.match(css, /@page rentalContract/);
   assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.rental-contract-form-grid/);
+  assert.match(documentMigration, /tenant_cccd_snapshot/);
+  assert.match(documentMigration, /rental_contracts_tenant_document_snapshot_valid/);
+  assert.match(contractTemplate, /HỢP ĐỒNG THUÊ VÀ CHO THUÊ PHÒNG Ở/);
+  assert.match(contractTemplate, /ĐIỀU 8: THỎA THUẬN CHUNG/);
+  assert.match(contractTemplate, /Trang thiết bị kèm theo phòng/);
 });

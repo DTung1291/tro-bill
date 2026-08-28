@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=97" />
+  <link rel="stylesheet" href="style.css?v=98" />
 </head>
 
 <body>
@@ -979,6 +979,78 @@
     </div>
   </div>
 
+  <!-- MODAL: Bản hợp đồng theo document/HopDongThuePhongNew.docx -->
+  <div class="modal-overlay" id="rental-contract-document-modal" hidden>
+    <div class="modal rental-contract-document-modal" role="dialog" aria-modal="true" aria-labelledby="rental-contract-document-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="rental-contract-document-title">Xem / In hợp đồng</h2>
+          <p class="rental-contract-room" id="rental-contract-document-code"></p>
+        </div>
+        <button type="button" class="modal-close" id="rental-contract-document-close" aria-label="Đóng">✕</button>
+      </div>
+      <form class="rental-contract-document-form" id="rental-contract-document-form">
+        <div class="rental-contract-document-notice">
+          <strong>Bảo vệ dữ liệu:</strong> CCCD khách thuê chỉ được mở sau khi nhập lý do và thao tác được ghi nhật ký. CCCD Bên A chỉ tồn tại trong bản xem hiện tại, không được lưu lên máy chủ.
+          <br /><strong>Lưu ý pháp lý:</strong> Nội dung được giữ theo mẫu bạn cung cấp; nên rà soát lại với người có chuyên môn trước khi hai bên ký.
+        </div>
+        <label class="form-label rental-contract-document-purpose">Lý do tạo/xem bản hợp đồng
+          <textarea class="form-input" id="rental-contract-document-purpose" minlength="10" maxlength="500" rows="2" placeholder="Ví dụ: In 02 bản để hai bên ký hợp đồng thuê phòng" required></textarea>
+        </label>
+        <div class="rental-contract-document-grid">
+          <label class="form-label">Họ tên Bên A
+            <input class="form-input" id="contract-lessor-name" type="text" maxlength="200" required />
+          </label>
+          <label class="form-label">CCCD/CMTND Bên A
+            <input class="form-input" id="contract-lessor-cccd" type="text" maxlength="50" autocomplete="off" required />
+          </label>
+          <label class="form-label">Ngày cấp
+            <input class="form-input" id="contract-lessor-issue-date" type="date" />
+          </label>
+          <label class="form-label">Nơi cấp
+            <input class="form-input" id="contract-lessor-issue-place" type="text" maxlength="200" />
+          </label>
+          <label class="form-label">Điện thoại Bên A
+            <input class="form-input" id="contract-lessor-phone" type="tel" maxlength="50" />
+          </label>
+          <label class="form-label rental-contract-document-wide">HKTT Bên A
+            <input class="form-input" id="contract-lessor-address" type="text" maxlength="1000" />
+          </label>
+          <label class="form-label rental-contract-document-wide">Địa chỉ nhà cho thuê
+            <input class="form-input" id="contract-property-address" type="text" maxlength="1000" value="40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng" required />
+          </label>
+          <label class="form-label">Tầng
+            <input class="form-input" id="contract-room-floor" type="text" maxlength="50" />
+          </label>
+          <label class="form-label">Mục đích thuê
+            <input class="form-input" id="contract-rental-purpose" type="text" maxlength="200" value="Để ở" required />
+          </label>
+          <label class="form-label">Số người tối đa
+            <input class="form-input" id="contract-maximum-occupants" type="number" min="1" max="100" value="1" required />
+          </label>
+          <label class="form-label rental-contract-document-wide">Thông tin chuyển khoản
+            <input class="form-input" id="contract-bank-payment" type="text" maxlength="500" placeholder="Ngân hàng · Số tài khoản · Chủ tài khoản" />
+          </label>
+          <label class="form-label rental-contract-document-wide">Trang thiết bị — mỗi dòng: Tên | Số lượng | Tình trạng
+            <textarea class="form-input rental-contract-equipment-input" id="contract-equipment" rows="8" maxlength="3000"></textarea>
+          </label>
+        </div>
+        <p class="rental-contract-document-error" id="rental-contract-document-error" hidden></p>
+        <div class="rental-contract-document-actions">
+          <button type="button" class="btn btn--ghost" id="rental-contract-document-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="rental-contract-document-generate">Xem bản hợp đồng</button>
+        </div>
+      </form>
+      <div class="rental-contract-document-preview" id="rental-contract-document-preview" hidden>
+        <div class="rental-contract-document-preview-toolbar">
+          <button type="button" class="btn btn--ghost" id="rental-contract-document-back">Sửa thông tin</button>
+          <button type="button" class="btn btn--primary" id="rental-contract-document-print">In / Lưu PDF</button>
+        </div>
+        <div class="rental-contract-document-paper" id="rental-contract-document-paper"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Confirm Action -->
   <div class="modal-overlay" id="confirm-modal" hidden>
     <div class="modal modal--confirm">
@@ -1510,14 +1582,15 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=96"></script>
+  <script src="api.js?v=97"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="app.js?v=98"></script>
+  <script src="contract-template.js?v=1"></script>
+  <script src="app.js?v=99"></script>
 </body>
 
 </html>

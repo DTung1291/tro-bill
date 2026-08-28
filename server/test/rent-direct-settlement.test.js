@@ -52,7 +52,7 @@ test('server ràng buộc webhook với settings và UI công khai cơ chế kh�
   assert.match(channelSource, /supplied !== settings\.accountNumber/);
   assert.match(htmlSource, /Tiền thuê chuyển thẳng vào tài khoản của bạn/);
   assert.match(htmlSource, /TrọBill chỉ nhận thông báo giao dịch để đối soát/);
-  assert.match(htmlSource, /style\.css\?v=97[\s\S]*api\.js\?v=96[\s\S]*app\.js\?v=98/);
+  assert.match(htmlSource, /style\.css\?v=98[\s\S]*api\.js\?v=97[\s\S]*app\.js\?v=99/);
   assert.match(appSource, /function rentBankRecipientText/);
   assert.match(appSource, /Tiền vào thẳng tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê/);
   assert.match(styleSource, /\.bill-preview-direct-settlement/);
