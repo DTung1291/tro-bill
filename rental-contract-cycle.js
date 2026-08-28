@@ -34,6 +34,12 @@
     return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
+  function dayNumber(value) {
+    const parts = dateParts(value);
+    if (!parts) return null;
+    return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / 86400000);
+  }
+
   function cycleMonths(value) {
     const normalized = Number(value);
     return ALLOWED_CYCLE_MONTHS.includes(normalized) ? normalized : 1;
@@ -82,12 +88,43 @@
     return CYCLE_LABELS[cycleMonths(value)];
   }
 
+  function daysUntilEnd(contract = {}, options = {}) {
+    if (!contract.endsOn) return null;
+    const end = dayNumber(contract.endsOn);
+    const from = dayNumber(options.fromDate);
+    if (end === null || from === null) return null;
+    return end - from;
+  }
+
+  function expiryStatus(contract = {}, options = {}) {
+    const daysRemaining = daysUntilEnd(contract, options);
+    if (String(contract.status || '') !== 'active' || daysRemaining === null) {
+      return { level: 'none', label: 'Không áp dụng', daysRemaining };
+    }
+    if (daysRemaining < 0) {
+      return {
+        level: 'danger',
+        label: `Quá hạn ${Math.abs(daysRemaining)} ngày`,
+        daysRemaining
+      };
+    }
+    if (daysRemaining === 0) {
+      return { level: 'danger', label: 'Hết hạn hôm nay', daysRemaining };
+    }
+    if (daysRemaining <= 30) {
+      return { level: 'warning', label: `Còn ${daysRemaining} ngày`, daysRemaining };
+    }
+    return { level: 'normal', label: `Còn ${daysRemaining} ngày`, daysRemaining };
+  }
+
   return {
     ALLOWED_CYCLE_MONTHS,
     CYCLE_LABELS,
     cycleLabel,
     cycleMonths,
+    daysUntilEnd,
     dueDay,
+    expiryStatus,
     nextPaymentDueOn,
     paymentDates
   };

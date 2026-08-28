@@ -63,6 +63,15 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_contracts_payment_schedule_valid'
+    )
+    AND to_regclass('public.rental_contract_notifications') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_contract_notifications_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_contract_notifications_unique'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

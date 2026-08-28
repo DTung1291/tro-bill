@@ -53,3 +53,22 @@ test('giá trị lịch không hợp lệ rơi về mặc định an toàn', () 
   assert.equal(cycle.dueDay(31), 5);
   assert.deepEqual(cycle.paymentDates({ startsOn: 'không-hợp-lệ' }), []);
 });
+
+test('cảnh báo hết hạn dùng ngày lịch và phân loại đúng 30 ngày, hôm nay, quá hạn', () => {
+  const contract = { status: 'active', endsOn: '2026-09-27' };
+  assert.deepEqual(cycle.expiryStatus(contract, { fromDate: '2026-08-28' }), {
+    level: 'warning', label: 'Còn 30 ngày', daysRemaining: 30
+  });
+  assert.equal(
+    cycle.expiryStatus({ ...contract, endsOn: '2026-08-28' }, { fromDate: '2026-08-28' }).label,
+    'Hết hạn hôm nay'
+  );
+  assert.equal(
+    cycle.expiryStatus({ ...contract, endsOn: '2026-08-27' }, { fromDate: '2026-08-28' }).label,
+    'Quá hạn 1 ngày'
+  );
+  assert.equal(
+    cycle.expiryStatus({ ...contract, status: 'ended' }, { fromDate: '2026-08-28' }).level,
+    'none'
+  );
+});

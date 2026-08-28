@@ -475,7 +475,7 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
   assert.match(html, /id="rental-contract-modal"/);
   assert.match(html, /id="rental-contract-form"/);
   assert.match(html, /id="rental-contract-document-modal"/);
-  assert.match(html, /rental-contract-cycle\.js\?v=1/);
+  assert.match(html, /rental-contract-cycle\.js\?v=2/);
   assert.match(html, /contract-template\.js\?v=2/);
   assert.match(css, /\.modal\.rental-contract-modal/);
   assert.match(css, /\.rental-contract-document/);

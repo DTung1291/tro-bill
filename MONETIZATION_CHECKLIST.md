@@ -225,7 +225,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Quản lý hợp đồng thuê và các phụ lục thay đổi giá.
 - [x] Tạo hợp đồng từ mẫu và xuất PDF.
 - [x] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
-- [ ] Nhắc hợp đồng sắp hết hạn.
+- [x] Nhắc hợp đồng sắp hết hạn.
 - [ ] Quản lý đặt cọc và biên bản bàn giao tài sản.
 - [ ] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [ ] Chốt bill cuối cùng khi khách trả phòng.
@@ -255,6 +255,12 @@ Trạng thái đến ngày 28/08/2026:
   tiền mỗi kỳ. Migration đã đạt đủ 3 kiểm tra trên Neon staging/production ngày
   28/08/2026; 274/274 test tự động thành công. Hóa đơn vận hành vẫn được lập
   theo tháng; chu kỳ trên là lịch thanh toán được hai bên ghi trong hợp đồng.
+- Hợp đồng đang hiệu lực có ngày kết thúc được cảnh báo trên giao diện và gửi
+  email cho chủ tài khoản ở các mốc 30, 14, 7, 3 và 1 ngày. Cron dùng ngày lịch
+  Việt Nam, giới hạn 20 email mỗi lượt, chống gửi trùng theo hợp đồng/mốc/ngày
+  kết thúc và tự thử lại lỗi tạm thời mà không lưu nội dung lỗi nhạy cảm. Bảng
+  nhật ký chỉ cấp quyền tối thiểu, đã đạt đủ 4 kiểm tra trên Neon
+  staging/production ngày 28/08/2026; 281/281 test tự động thành công.
 
 ### Nhiều khu và phân quyền
 

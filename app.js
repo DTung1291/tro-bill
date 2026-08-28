@@ -2857,6 +2857,12 @@ function rentalContractNextPaymentLabel(contract) {
   return nextDue ? (dateLabel(nextDue) || nextDue) : 'Không còn kỳ thanh toán';
 }
 
+function rentalContractExpiryStatus(contract) {
+  return RentalContractCycle.expiryStatus(contract, {
+    fromDate: vietnamCalendarDate()
+  });
+}
+
 function renderRentalContracts() {
   const list = document.getElementById('rental-contract-list');
   const empty = document.getElementById('rental-contract-empty');
@@ -2871,6 +2877,7 @@ function renderRentalContracts() {
     card.className = `rental-contract-card rental-contract-card--${contract.status}`;
     card.dataset.contractId = String(contract.id);
     const amendments = Array.isArray(contract.amendments) ? contract.amendments : [];
+    const expiry = rentalContractExpiryStatus(contract);
     const amendmentItems = amendments.length > 0
       ? amendments.map(amendment => `
           <li>
@@ -2928,6 +2935,7 @@ function renderRentalContracts() {
         <div><dt>Tiền cọc</dt><dd>${fmt(contract.depositVnd)}</dd></div>
         <div><dt>Chu kỳ thanh toán</dt><dd>${escapeHtml(rentalContractCycleSummary(contract))}</dd></div>
         <div><dt>Kỳ đến hạn tiếp theo</dt><dd>${escapeHtml(rentalContractNextPaymentLabel(contract))}</dd></div>
+        <div><dt>Nhắc hết hạn</dt><dd class="rental-contract-expiry rental-contract-expiry--${escapeHtml(expiry.level)}">${escapeHtml(expiry.label)}</dd></div>
       </dl>
       ${contract.terms ? `<p class="rental-contract-terms-view">${escapeHtml(contract.terms)}</p>` : ''}
       ${contract.statusReason ? `<p class="rental-contract-status-reason"><strong>Lý do:</strong> ${escapeHtml(contract.statusReason)}</p>` : ''}

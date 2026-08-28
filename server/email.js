@@ -100,6 +100,35 @@ function subscriptionExpiryEmailHtml({ planName, daysRemaining, endsOn, appUrl }
     </div>`;
 }
 
+function rentalContractExpiryEmailHtml({
+  contractCode,
+  roomName,
+  tenantName,
+  daysRemaining,
+  endsOn,
+  appUrl
+}) {
+  const safeCode = escapeHtml(contractCode);
+  const safeRoom = escapeHtml(roomName);
+  const safeTenant = escapeHtml(tenantName);
+  const safeEndsOn = escapeHtml(endsOn);
+  const safeAppUrl = escapeHtml(appUrl);
+  const timing = Number(daysRemaining) === 0
+    ? 'hết hạn hôm nay'
+    : `còn ${Math.max(0, Number(daysRemaining) || 0)} ngày`;
+  return `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#172033;max-width:560px;margin:0 auto">
+      <h1 style="font-size:24px;margin-bottom:12px">Hợp đồng thuê sắp hết hạn</h1>
+      <p>Hợp đồng <strong>${safeCode}</strong> của <strong>${safeRoom}</strong> (${safeTenant}) ${timing} và có ngày kết thúc là <strong>${safeEndsOn}</strong>.</p>
+      <p>Hãy liên hệ khách thuê để gia hạn, tạo hợp đồng mới hoặc chuẩn bị quy trình trả phòng. Email này chỉ gửi cho chủ tài khoản và không chứa CCCD.</p>
+      <p style="margin:28px 0">
+        <a href="${safeAppUrl}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#6c63ff;color:#fff;text-decoration:none;font-weight:700">
+          Mở TrọBill
+        </a>
+      </p>
+    </div>`;
+}
+
 function rentInvoiceEmailHtml({ tenantName, roomName, period, message, invoiceUrl }) {
   const safeTenantName = escapeHtml(tenantName || 'anh/chị');
   const safeRoomName = escapeHtml(roomName || 'Phòng');
@@ -278,6 +307,42 @@ async function sendSubscriptionExpiryEmail({
   return { delivered: true, emailId: delivery && delivery.id };
 }
 
+async function sendRentalContractExpiryEmail({
+  email,
+  contractCode,
+  roomName,
+  tenantName,
+  daysRemaining,
+  endsOn,
+  notificationId
+}) {
+  const appUrl = String(process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  const configuration = assertEmailConfigured();
+  const apiKey = emailProviderApiKey(configuration.provider);
+  if (!apiKey) return { delivered: false, development: true };
+
+  const from = String(process.env.EMAIL_FROM || 'TrọBill <onboarding@resend.dev>').trim();
+  const timing = Number(daysRemaining) === 0
+    ? 'hết hạn hôm nay'
+    : `còn ${Math.max(0, Number(daysRemaining) || 0)} ngày`;
+  const delivery = await sendTransactionalEmail({
+    from,
+    to: email,
+    subject: `Hợp đồng ${contractCode} ${timing}`,
+    html: rentalContractExpiryEmailHtml({
+      contractCode,
+      roomName,
+      tenantName,
+      daysRemaining,
+      endsOn,
+      appUrl
+    }),
+    text: `Hợp đồng ${contractCode} của ${roomName} (${tenantName}) ${timing}, kết thúc ngày ${endsOn}. Mở TrọBill: ${appUrl}`,
+    idempotencyKey: `rental-contract-expiry-${notificationId}`
+  });
+  return { delivered: true, emailId: delivery && delivery.id };
+}
+
 async function sendRentInvoiceEmail({
   email,
   tenantName,
@@ -311,8 +376,10 @@ async function sendRentInvoiceEmail({
 
 module.exports = {
   assertEmailConfigured,
+  rentalContractExpiryEmailHtml,
   rentInvoiceEmailHtml,
   sendRentInvoiceEmail,
+  sendRentalContractExpiryEmail,
   sendSubscriptionExpiryEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,

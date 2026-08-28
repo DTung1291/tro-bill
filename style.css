@@ -2640,6 +2640,8 @@ body.modal-open {
   font-weight: 700;
   overflow-wrap: anywhere;
 }
+.rental-contract-expiry--warning { color: #b45309; }
+.rental-contract-expiry--danger { color: var(--red); }
 .rental-contract-terms-view,
 .rental-contract-status-reason {
   margin: 0;

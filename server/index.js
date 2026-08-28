@@ -52,6 +52,7 @@ const rentInvoiceSchedules = require('./rent-invoice-schedules');
 const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
 const rentalContracts = require('./rental-contracts');
+const rentalContractNotifications = require('./rental-contract-notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -104,6 +105,10 @@ app.get('/api/health/live', live);
 app.get('/api/health/ready', wrap(ready));
 app.get('/api/cron/subscription-expiry', wrap(expiryReminderCron));
 app.get('/api/cron/rent-invoice-deliveries', wrap(rentInvoiceSchedules.invoiceScheduleCron));
+app.get(
+  '/api/cron/rental-contract-expiry',
+  wrap(rentalContractNotifications.rentalContractExpiryReminderCron)
+);
 app.post('/api/webhooks/subscription-payments/bank-transfer', wrap(paymentWebhook));
 app.post('/api/auth/register', wrap(register));
 app.post('/api/auth/login', wrap(login));
