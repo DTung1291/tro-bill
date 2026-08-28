@@ -2846,6 +2846,17 @@ function rentalContractDateRange(contract) {
   return `${start} → ${end}`;
 }
 
+function rentalContractCycleSummary(contract) {
+  return `${RentalContractCycle.cycleLabel(contract.billingCycleMonths)} · hạn ngày ${Number(contract.paymentDueDay) || 5}`;
+}
+
+function rentalContractNextPaymentLabel(contract) {
+  const nextDue = RentalContractCycle.nextPaymentDueOn(contract, {
+    fromDate: vietnamCalendarDate()
+  });
+  return nextDue ? (dateLabel(nextDue) || nextDue) : 'Không còn kỳ thanh toán';
+}
+
 function renderRentalContracts() {
   const list = document.getElementById('rental-contract-list');
   const empty = document.getElementById('rental-contract-empty');
@@ -2915,6 +2926,8 @@ function renderRentalContracts() {
         <div><dt>Giá ban đầu</dt><dd>${fmt(contract.monthlyRentVnd)}/tháng</dd></div>
         <div><dt>Giá mới nhất</dt><dd>${fmt(contract.currentMonthlyRentVnd)}/tháng</dd></div>
         <div><dt>Tiền cọc</dt><dd>${fmt(contract.depositVnd)}</dd></div>
+        <div><dt>Chu kỳ thanh toán</dt><dd>${escapeHtml(rentalContractCycleSummary(contract))}</dd></div>
+        <div><dt>Kỳ đến hạn tiếp theo</dt><dd>${escapeHtml(rentalContractNextPaymentLabel(contract))}</dd></div>
       </dl>
       ${contract.terms ? `<p class="rental-contract-terms-view">${escapeHtml(contract.terms)}</p>` : ''}
       ${contract.statusReason ? `<p class="rental-contract-status-reason"><strong>Lý do:</strong> ${escapeHtml(contract.statusReason)}</p>` : ''}
@@ -3128,6 +3141,8 @@ function openRentalContractModal(roomId) {
   }
   document.getElementById('rental-contract-status').value = 'active';
   document.getElementById('rental-contract-start').value = room.rentStartDate || vietnamCalendarDate();
+  document.getElementById('rental-contract-billing-cycle').value = '1';
+  document.getElementById('rental-contract-payment-due-day').value = '5';
   document.getElementById('rental-contract-rent').value = getRoomRates(room, STATE.currentPeriod).rentPrice;
   document.getElementById('rental-contract-deposit').value = 0;
   document.getElementById('rental-contract-modal').hidden = false;
@@ -3153,6 +3168,8 @@ async function submitRentalContract(event) {
       status: document.getElementById('rental-contract-status').value,
       startsOn: document.getElementById('rental-contract-start').value,
       endsOn: document.getElementById('rental-contract-end').value,
+      billingCycleMonths: Number(document.getElementById('rental-contract-billing-cycle').value),
+      paymentDueDay: Number(document.getElementById('rental-contract-payment-due-day').value),
       monthlyRentVnd: Number(document.getElementById('rental-contract-rent').value),
       depositVnd: Number(document.getElementById('rental-contract-deposit').value || 0),
       terms: document.getElementById('rental-contract-terms').value

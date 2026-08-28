@@ -149,6 +149,9 @@ test('health check công khai xác minh kết nối database và không cache', 
     assert.match(sql, /invoice_reminder_enabled/);
     assert.match(sql, /rental_contracts/);
     assert.match(sql, /rental_contract_amendments_contract_owner_fk/);
+    assert.match(sql, /billing_cycle_months/);
+    assert.match(sql, /payment_due_day/);
+    assert.match(sql, /rental_contracts_payment_schedule_valid/);
     return { rows: [{
       runtime_role: 'development_owner',
       inherits_neon_superuser: true,

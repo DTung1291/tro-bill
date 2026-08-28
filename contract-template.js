@@ -147,6 +147,12 @@ const ContractTemplate = (() => {
     const startsOn = fullDate(contract.startsOn);
     const endsOn = fullDate(contract.endsOn);
     const rentWords = moneyInWords(contract.monthlyRentVnd);
+    const billingCycleMonths = [1, 3, 6, 12].includes(Number(contract.billingCycleMonths))
+      ? Number(contract.billingCycleMonths)
+      : 1;
+    const paymentDueDay = Math.min(28, Math.max(1, Number(contract.paymentDueDay) || 5));
+    const cycleRentVnd = Math.max(0, Number(contract.monthlyRentVnd) || 0) * billingCycleMonths;
+    const cycleRentWords = moneyInWords(cycleRentVnd);
     const depositWords = moneyInWords(contract.depositVnd);
     const terms = String(contract.terms || '').trim();
     const bankPayment = String(options.bankPayment || '').trim();
@@ -219,7 +225,7 @@ const ContractTemplate = (() => {
         <section>
           <h2>ĐIỀU 4: GIÁ THUÊ VÀ PHƯƠNG THỨC THANH TOÁN</h2>
           <p>1. Giá thuê phòng nêu tại Điều 1 của Hợp đồng này là: <strong>${numberVnd(contract.monthlyRentVnd)}/tháng</strong> (bằng chữ: <strong>${rentWords}</strong>). Tiền thuê không bao gồm chi phí điện, nước, điện thoại, internet, phí vệ sinh...</p>
-          <p>Thời hạn thanh toán: Bên B có trách nhiệm thanh toán tiền thuê mỗi tháng 1 lần vào đầu tháng từ ngày mùng 1 đến ngày mùng 5. Nếu quá thời hạn trên, bên B không thanh toán tiền thuê mà không được sự chấp thuận gia hạn thanh toán của bên A, bên A có quyền xử lý theo thỏa thuận và quy định pháp luật.</p>
+          <p>Chu kỳ thanh toán: Bên B thanh toán trước <strong>${billingCycleMonths} tháng/lần</strong>, tương ứng <strong>${numberVnd(cycleRentVnd)}/kỳ</strong> (bằng chữ: <strong>${cycleRentWords}</strong>). Hạn thanh toán chậm nhất là <strong>ngày ${paymentDueDay}</strong> của tháng đầu mỗi chu kỳ; riêng kỳ đầu, nếu ngày này trước ngày bắt đầu thuê thì hạn thanh toán là ngày bắt đầu thuê. Nếu quá thời hạn trên mà không được Bên A chấp thuận gia hạn, hai bên xử lý theo thỏa thuận và quy định pháp luật.</p>
           <p>Đơn vị thanh toán: Tiền đồng Việt Nam.</p>
           <p>Phương thức thanh toán: Bên B có thể thanh toán bằng tiền mặt hoặc chuyển khoản vào tài khoản sau của bên A: <strong>${text(bankPayment)}</strong>.</p>
         </section>

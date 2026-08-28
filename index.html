@@ -947,6 +947,17 @@
             <label class="form-label">Ngày kết thúc
               <input class="form-input" type="date" id="rental-contract-end" />
             </label>
+            <label class="form-label">Chu kỳ thanh toán *
+              <select class="form-input" id="rental-contract-billing-cycle" required>
+                <option value="1">Hàng tháng</option>
+                <option value="3">3 tháng/lần</option>
+                <option value="6">6 tháng/lần</option>
+                <option value="12">12 tháng/lần</option>
+              </select>
+            </label>
+            <label class="form-label">Ngày đến hạn mỗi kỳ (1–28) *
+              <input class="form-input" type="number" id="rental-contract-payment-due-day" min="1" max="28" step="1" value="5" required />
+            </label>
             <label class="form-label">Tiền thuê (đ/tháng) *
               <input class="form-input" type="number" id="rental-contract-rent" min="0" step="1" required />
             </label>
@@ -1589,8 +1600,9 @@
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
-  <script src="contract-template.js?v=1"></script>
-  <script src="app.js?v=99"></script>
+  <script src="rental-contract-cycle.js?v=1"></script>
+  <script src="contract-template.js?v=2"></script>
+  <script src="app.js?v=100"></script>
 </body>
 
 </html>

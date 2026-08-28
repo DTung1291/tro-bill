@@ -3,6 +3,7 @@
 const db = require('./db');
 const subscription = require('./subscription');
 const { recordDataAudit, requestAuditContext } = require('./data-audit');
+const RentalContractCycle = require('../rental-contract-cycle');
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
@@ -88,11 +89,29 @@ function contractInput(body = {}) {
   if (terms.length > 5000) {
     throw new RentalContractError(400, 'INVALID_CONTRACT_TERMS', 'Điều khoản tối đa 5.000 ký tự');
   }
+  const billingCycleMonths = Number(body.billingCycleMonths ?? 1);
+  if (!RentalContractCycle.ALLOWED_CYCLE_MONTHS.includes(billingCycleMonths)) {
+    throw new RentalContractError(
+      400,
+      'INVALID_CONTRACT_BILLING_CYCLE',
+      'Chu kỳ thanh toán phải là 1, 3, 6 hoặc 12 tháng'
+    );
+  }
+  const paymentDueDay = Number(body.paymentDueDay ?? 5);
+  if (!Number.isInteger(paymentDueDay) || paymentDueDay < 1 || paymentDueDay > 28) {
+    throw new RentalContractError(
+      400,
+      'INVALID_CONTRACT_PAYMENT_DUE_DAY',
+      'Ngày hạn thanh toán phải từ ngày 1 đến 28'
+    );
+  }
   return {
     roomId,
     tenantId,
     startsOn,
     endsOn,
+    billingCycleMonths,
+    paymentDueDay,
     monthlyRentVnd: moneyVnd(body.monthlyRentVnd, 'Tiền thuê'),
     depositVnd: moneyVnd(body.depositVnd || 0, 'Tiền cọc'),
     terms,
@@ -184,6 +203,8 @@ function contractJson(row, amendments = []) {
     status: row.status,
     startsOn: dateJson(row.starts_on),
     endsOn: dateJson(row.ends_on),
+    billingCycleMonths: Number(row.billing_cycle_months) || 1,
+    paymentDueDay: Number(row.payment_due_day) || 5,
     monthlyRentVnd: Number(row.monthly_rent_vnd) || 0,
     currentMonthlyRentVnd: latest
       ? latest.newMonthlyRentVnd
@@ -367,6 +388,7 @@ async function listContracts(req, res, dependencies = {}) {
   const contractResult = await query(
     `SELECT id, user_id, contract_code, room_id, room_name_snapshot,
             tenant_id, tenant_name_snapshot, status, starts_on, ends_on,
+            billing_cycle_months, payment_due_day,
             monthly_rent_vnd, deposit_vnd, terms, status_reason,
             activated_at, ended_at, cancelled_at, created_at, updated_at
      FROM rental_contracts
@@ -437,8 +459,9 @@ async function createContract(req, res, dependencies = {}) {
           tenant_id, tenant_name_snapshot, tenant_phone_snapshot,
           tenant_cccd_snapshot, tenant_issue_date_snapshot, tenant_dob_snapshot,
           tenant_gender_snapshot, tenant_address_snapshot,
-          status, starts_on, ends_on, monthly_rent_vnd, deposit_vnd, terms, activated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+          status, starts_on, ends_on, billing_cycle_months, payment_due_day,
+          monthly_rent_vnd, deposit_vnd, terms, activated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,
                CASE WHEN $14='active' THEN now() ELSE NULL END)
        RETURNING *`,
       [
@@ -458,6 +481,8 @@ async function createContract(req, res, dependencies = {}) {
         input.status,
         input.startsOn,
         input.endsOn,
+        input.billingCycleMonths,
+        input.paymentDueDay,
         input.monthlyRentVnd,
         input.depositVnd,
         input.terms

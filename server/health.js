@@ -47,6 +47,22 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_contracts_tenant_document_snapshot_valid'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='rental_contracts'
+        AND column_name='billing_cycle_months' AND is_nullable='NO'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='rental_contracts'
+        AND column_name='payment_due_day' AND is_nullable='NO'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_contracts_payment_schedule_valid'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

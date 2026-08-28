@@ -722,6 +722,8 @@ CREATE TABLE IF NOT EXISTS rental_contracts (
   status                TEXT NOT NULL DEFAULT 'draft',
   starts_on             DATE NOT NULL,
   ends_on               DATE,
+  billing_cycle_months  SMALLINT NOT NULL DEFAULT 1,
+  payment_due_day       SMALLINT NOT NULL DEFAULT 5,
   monthly_rent_vnd      BIGINT NOT NULL,
   deposit_vnd           BIGINT NOT NULL DEFAULT 0,
   terms                 TEXT NOT NULL DEFAULT '',
@@ -738,6 +740,10 @@ CREATE TABLE IF NOT EXISTS rental_contracts (
   CONSTRAINT rental_contracts_status_valid
     CHECK (status IN ('draft','active','ended','cancelled')),
   CONSTRAINT rental_contracts_dates_valid CHECK (ends_on IS NULL OR ends_on >= starts_on),
+  CONSTRAINT rental_contracts_payment_schedule_valid CHECK (
+    billing_cycle_months IN (1, 3, 6, 12)
+    AND payment_due_day BETWEEN 1 AND 28
+  ),
   CONSTRAINT rental_contracts_amounts_valid CHECK (
     monthly_rent_vnd BETWEEN 0 AND 999999999999
     AND deposit_vnd BETWEEN 0 AND 999999999999
@@ -769,6 +775,10 @@ ALTER TABLE rental_contracts
   ADD COLUMN IF NOT EXISTS tenant_gender_snapshot TEXT NOT NULL DEFAULT '';
 ALTER TABLE rental_contracts
   ADD COLUMN IF NOT EXISTS tenant_address_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS billing_cycle_months SMALLINT NOT NULL DEFAULT 1;
+ALTER TABLE rental_contracts
+  ADD COLUMN IF NOT EXISTS payment_due_day SMALLINT NOT NULL DEFAULT 5;
 UPDATE rental_contracts contract
 SET tenant_phone_snapshot=CASE
       WHEN contract.tenant_phone_snapshot='' THEN tenant.phone ELSE contract.tenant_phone_snapshot END,
@@ -798,6 +808,19 @@ BEGIN
         AND char_length(tenant_dob_snapshot) <= 20
         AND char_length(tenant_gender_snapshot) <= 20
         AND char_length(tenant_address_snapshot) <= 1000
+      );
+  END IF;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='rental_contracts_payment_schedule_valid'
+  ) THEN
+    ALTER TABLE rental_contracts
+      ADD CONSTRAINT rental_contracts_payment_schedule_valid CHECK (
+        billing_cycle_months IN (1, 3, 6, 12)
+        AND payment_due_day BETWEEN 1 AND 28
       );
   END IF;
 END $$;

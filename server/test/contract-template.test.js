@@ -17,6 +17,8 @@ function sampleDocument() {
       roomName: 'P101',
       startsOn: '2026-08-10',
       endsOn: '2027-08-09',
+      billingCycleMonths: 3,
+      paymentDueDay: 10,
       monthlyRentVnd: 3000000,
       depositVnd: 3000000,
       terms: 'Không nuôi thú cưng',
@@ -61,6 +63,9 @@ test('mẫu hợp đồng điền đúng dữ liệu, đủ 8 điều và phụ 
   assert.match(html, /HD-2026-000010/);
   assert.match(html, /048098001234/);
   assert.match(html, /Ba triệu đồng/);
+  assert.match(html, /3 tháng\/lần/);
+  assert.match(html, /9\.000\.000 đồng\/kỳ/);
+  assert.match(html, /ngày 10/);
   assert.match(html, /PL-202610-000011/);
   for (let article = 1; article <= 8; article += 1) {
     assert.match(html, new RegExp(`ĐIỀU ${article}:`));

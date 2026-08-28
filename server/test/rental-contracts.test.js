@@ -54,6 +54,8 @@ function contractRow(overrides = {}) {
     status: 'active',
     starts_on: '2026-08-10',
     ends_on: '2027-08-09',
+    billing_cycle_months: 3,
+    payment_due_day: 10,
     monthly_rent_vnd: '3000000',
     deposit_vnd: '3000000',
     terms: 'Thanh toán trước ngày 5 hàng tháng',
@@ -93,6 +95,8 @@ function activeContractRequest(body = {}) {
       status: 'active',
       startsOn: '2026-08-10',
       endsOn: '2027-08-09',
+      billingCycleMonths: 3,
+      paymentDueDay: 10,
       monthlyRentVnd: 3000000,
       depositVnd: 3000000,
       terms: 'Thanh toán trước ngày 5 hàng tháng',
@@ -102,7 +106,10 @@ function activeContractRequest(body = {}) {
 }
 
 test('input hợp đồng, phụ lục và chuyển trạng thái được giới hạn chặt', () => {
-  assert.equal(contractInput(activeContractRequest().body).monthlyRentVnd, 3000000);
+  const parsedContract = contractInput(activeContractRequest().body);
+  assert.equal(parsedContract.monthlyRentVnd, 3000000);
+  assert.equal(parsedContract.billingCycleMonths, 3);
+  assert.equal(parsedContract.paymentDueDay, 10);
   assert.equal(contractCode(36, '2026-08-10'), 'HD-2026-000010');
   assert.equal(amendmentCode(37, '2026-10'), 'PL-202610-000011');
   assert.equal(documentPurposeInput({ purpose: 'In hợp đồng để hai bên ký' }), 'In hợp đồng để hai bên ký');
@@ -113,6 +120,14 @@ test('input hợp đồng, phụ lục và chuyển trạng thái được giớ
   assert.throws(
     () => contractInput(activeContractRequest({ endsOn: '2026-08-01' }).body),
     (error) => error.code === 'INVALID_CONTRACT_DATE_RANGE'
+  );
+  assert.throws(
+    () => contractInput(activeContractRequest({ billingCycleMonths: 2 }).body),
+    (error) => error.code === 'INVALID_CONTRACT_BILLING_CYCLE'
+  );
+  assert.throws(
+    () => contractInput(activeContractRequest({ paymentDueDay: 29 }).body),
+    (error) => error.code === 'INVALID_CONTRACT_PAYMENT_DUE_DAY'
   );
   assert.throws(
     () => amendmentInput({ effectiveFrom: '2026-13', newMonthlyRentVnd: 3200000, reason: 'Đủ mười ký tự' }),
@@ -164,6 +179,8 @@ test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ m�
   assert.equal(response.record.statusCode, 201);
   assert.equal(response.record.body.contract.code, 'HD-2026-000010');
   assert.equal(response.record.body.contract.status, 'active');
+  assert.equal(response.record.body.contract.billingCycleMonths, 3);
+  assert.equal(response.record.body.contract.paymentDueDay, 10);
   assert.equal(response.record.body.rate.rentPrice, 3000000);
   const owner = calls.find(call => call.sql.includes('JOIN tenants tenant'));
   assert.deepEqual(owner.params, [7, 'room-1', 'tenant-1']);
@@ -178,6 +195,7 @@ test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ m�
     'Nam',
     'Hải Châu, Đà Nẵng'
   ]);
+  assert.deepEqual(contractInsert.params.slice(16, 18), [3, 10]);
   const rateInsert = calls.find(call => call.sql.includes('INSERT INTO room_rate_history'));
   assert.equal(rateInsert.params[2], '2026-08');
   assert.equal(rateInsert.params[3], 3000000);
@@ -429,6 +447,11 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
     path.join(root, 'server', 'migrations', '20260827_contract_document_templates.sql'),
     'utf8'
   );
+  const paymentCycleMigration = fs.readFileSync(
+    path.join(root, 'server', 'migrations', '20260828_contract_payment_cycles.sql'),
+    'utf8'
+  );
+  const cycleSource = fs.readFileSync(path.join(root, 'rental-contract-cycle.js'), 'utf8');
   const contractTemplate = fs.readFileSync(path.join(root, 'contract-template.js'), 'utf8');
 
   for (const source of [schema, migration]) {
@@ -452,13 +475,20 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
   assert.match(html, /id="rental-contract-modal"/);
   assert.match(html, /id="rental-contract-form"/);
   assert.match(html, /id="rental-contract-document-modal"/);
-  assert.match(html, /contract-template\.js\?v=1/);
+  assert.match(html, /rental-contract-cycle\.js\?v=1/);
+  assert.match(html, /contract-template\.js\?v=2/);
   assert.match(css, /\.modal\.rental-contract-modal/);
   assert.match(css, /\.rental-contract-document/);
   assert.match(css, /@page rentalContract/);
   assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.rental-contract-form-grid/);
   assert.match(documentMigration, /tenant_cccd_snapshot/);
   assert.match(documentMigration, /rental_contracts_tenant_document_snapshot_valid/);
+  assert.match(paymentCycleMigration, /billing_cycle_months/);
+  assert.match(paymentCycleMigration, /rental_contracts_payment_schedule_valid/);
+  assert.match(cycleSource, /nextPaymentDueOn/);
+  assert.match(appSource, /rentalContractNextPaymentLabel/);
+  assert.match(html, /id="rental-contract-billing-cycle"/);
+  assert.match(html, /id="rental-contract-payment-due-day"/);
   assert.match(contractTemplate, /HỢP ĐỒNG THUÊ VÀ CHO THUÊ PHÒNG Ở/);
   assert.match(contractTemplate, /ĐIỀU 8: THỎA THUẬN CHUNG/);
   assert.match(contractTemplate, /Trang thiết bị kèm theo phòng/);

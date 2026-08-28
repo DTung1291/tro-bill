@@ -224,14 +224,14 @@ Trạng thái ngày 24/08/2026:
 
 - [x] Quản lý hợp đồng thuê và các phụ lục thay đổi giá.
 - [x] Tạo hợp đồng từ mẫu và xuất PDF.
-- [ ] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
+- [x] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
 - [ ] Nhắc hợp đồng sắp hết hạn.
 - [ ] Quản lý đặt cọc và biên bản bàn giao tài sản.
 - [ ] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [ ] Chốt bill cuối cùng khi khách trả phòng.
 - [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
 
-Trạng thái ngày 27/08/2026:
+Trạng thái đến ngày 28/08/2026:
 
 - Hợp đồng lưu bản chụp phòng/khách thuê, có trạng thái nháp, hiệu lực, kết thúc
   và hủy; mỗi phòng chỉ có một hợp đồng đang hiệu lực trong một tài khoản.
@@ -249,6 +249,12 @@ Trạng thái ngày 27/08/2026:
   đổi theo hồ sơ hiện tại. Việc mở bản đầy đủ bắt buộc có lý do, không cache và
   được ghi audit; migration snapshot đã chạy trên Neon staging/production ngày
   28/08/2026.
+- Hợp đồng lưu chu kỳ thanh toán 1, 3, 6 hoặc 12 tháng và ngày đến hạn từ 1–28;
+  kỳ đầu không thể đến hạn trước ngày bắt đầu, kỳ sau dừng tại ngày kết thúc.
+  Giao diện hiển thị kỳ đến hạn tiếp theo và Điều 4 trong bản in tính đúng tổng
+  tiền mỗi kỳ. Migration đã đạt đủ 3 kiểm tra trên Neon staging/production ngày
+  28/08/2026; 274/274 test tự động thành công. Hóa đơn vận hành vẫn được lập
+  theo tháng; chu kỳ trên là lịch thanh toán được hai bên ghi trong hợp đồng.
 
 ### Nhiều khu và phân quyền
 
