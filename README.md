@@ -125,10 +125,17 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | GET    | `/api/privacy/audit-logs` | Nhật ký xem/sửa/xuất/xóa dữ liệu |
 | POST   | `/api/privacy/export` | Xuất toàn bộ dữ liệu, yêu cầu mật khẩu |
 | DELETE | `/api/account`       | Tự xóa tài khoản, yêu cầu mật khẩu + cụm xác nhận |
+| GET    | `/api/rental-contracts/:id/handovers` | Danh sách biên bản nhận/trả phòng của hợp đồng |
+| POST   | `/api/rental-contracts/:id/handovers` | Xác nhận và khóa biên bản bàn giao tài sản |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
 website khác bị server từ chối để giảm rủi ro CSRF.
+
+Biên bản bàn giao chỉ được tạo cho hợp đồng thuộc tài khoản đang đăng nhập. Mỗi
+hợp đồng có tối đa một biên bản nhận phòng và một biên bản trả phòng; bản ghi
+không sửa/xóa sau xác nhận. Số dư cọc trên biên bản là snapshot từ sổ giao dịch
+cọc hiện có, không phải một nguồn số dư thứ hai. Bản in không chứa CCCD.
 
 Tài khoản đăng ký mới chỉ được đăng nhập sau khi xác minh email. Token xác minh
 có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không lưu token gốc.

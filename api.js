@@ -395,6 +395,21 @@ const API = (() => {
     );
   }
 
+  function getRentalHandovers(contractId) {
+    return request(
+      'GET',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/handovers`
+    );
+  }
+
+  function createRentalHandover(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/handovers`,
+      input
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -534,6 +549,8 @@ const API = (() => {
     changeRentalContractStatus,
     createRentalContractAmendment,
     getRentalContractDocument,
+    getRentalHandovers,
+    createRentalHandover,
     privacy,
     getConfig,
     admin

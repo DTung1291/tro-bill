@@ -226,12 +226,12 @@ Trạng thái ngày 24/08/2026:
 - [x] Tạo hợp đồng từ mẫu và xuất PDF.
 - [x] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
 - [x] Nhắc hợp đồng sắp hết hạn.
-- [ ] Quản lý đặt cọc và biên bản bàn giao tài sản.
+- [x] Quản lý đặt cọc và biên bản bàn giao tài sản.
 - [ ] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [ ] Chốt bill cuối cùng khi khách trả phòng.
 - [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
 
-Trạng thái đến ngày 28/08/2026:
+Trạng thái đến ngày 29/08/2026:
 
 - Hợp đồng lưu bản chụp phòng/khách thuê, có trạng thái nháp, hiệu lực, kết thúc
   và hủy; mỗi phòng chỉ có một hợp đồng đang hiệu lực trong một tài khoản.
@@ -261,6 +261,16 @@ Trạng thái đến ngày 28/08/2026:
   kết thúc và tự thử lại lỗi tạm thời mà không lưu nội dung lỗi nhạy cảm. Bảng
   nhật ký chỉ cấp quyền tối thiểu, đã đạt đủ 4 kiểm tra trên Neon
   staging/production ngày 28/08/2026; 281/281 test tự động thành công.
+- Mỗi hợp đồng có tối đa một biên bản nhận phòng và một biên bản trả phòng bất
+  biến, ghi ngày bàn giao, chỉ số điện/nước, chìa khóa, hiện trạng và tối đa 50
+  tài sản. Số dư cọc được chụp trực tiếp từ sổ giao dịch cọc hiện có tại thời
+  điểm xác nhận; không tạo ledger hoặc cột số dư cạnh tranh. Bản in A4 không có
+  CCCD và đã được kiểm tra trực quan đủ 3 trang với 32 tài sản. Popup không tràn
+  viewport và khóa scroll nền ở desktop/mobile. Migration
+  `20260829_rental_handover_records.sql` đạt đủ 6 kiểm tra bảng, ownership,
+  một-bản-mỗi-loại và append-only trên Neon `staging-privacy` lẫn production;
+  credential `tro_bill_runtime_sql` production có INSERT nhưng không có
+  UPDATE/DELETE. Toàn bộ 288/288 test tự động thành công.
 
 ### Nhiều khu và phân quyền
 

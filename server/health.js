@@ -72,6 +72,20 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_contract_notifications_unique'
+    )
+    AND to_regclass('public.rental_handover_records') IS NOT NULL
+    AND to_regclass('public.rental_handover_items') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_handover_records_contract_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_handover_records_deposit_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_handover_records_type_unique'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

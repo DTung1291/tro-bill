@@ -15,6 +15,7 @@ const {
 const { buildState } = require('./state');
 const { loadRentPaymentExport } = require('./rent-payments');
 const { loadDepositExport } = require('./deposits');
+const { loadRentalHandoverExport } = require('./rental-handovers');
 const {
   checkAuthRateLimit,
   clearAccountRateLimit,
@@ -157,7 +158,14 @@ async function listAuditLogs(req, res) {
 
 async function exportAccountData(req, res) {
   if (!(await requireCurrentPassword(req, res))) return;
-  const [{ rows }, state, dataAuditLogs, rentPaymentLedger, tenantDepositLedger] = await Promise.all([
+  const [
+    { rows },
+    state,
+    dataAuditLogs,
+    rentPaymentLedger,
+    tenantDepositLedger,
+    rentalHandovers
+  ] = await Promise.all([
     db.query(
       `SELECT email, created_at, privacy_policy_version, privacy_accepted_at,
               terms_version, terms_accepted_at
@@ -167,7 +175,8 @@ async function exportAccountData(req, res) {
     buildState(req.userId, { maskCccd: false }),
     loadAccountAuditLogs(req.userId),
     loadRentPaymentExport(req.userId),
-    loadDepositExport(req.userId)
+    loadDepositExport(req.userId),
+    loadRentalHandoverExport(req.userId)
   ]);
   if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
   await recordDataAudit(db.query, auditEntry(req, 'account_data_export', 'account'));
@@ -178,6 +187,7 @@ async function exportAccountData(req, res) {
     dataAuditLogs,
     rentPaymentLedger,
     tenantDepositLedger,
+    rentalHandovers,
     exportMetadata: {
       exportedAt: new Date().toISOString(),
       account: {

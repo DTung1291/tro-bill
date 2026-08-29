@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=100" />
+  <link rel="stylesheet" href="style.css?v=101" />
 </head>
 
 <body>
@@ -1062,6 +1062,81 @@
     </div>
   </div>
 
+  <!-- MODAL: Biên bản nhận/trả phòng và bàn giao tài sản -->
+  <div class="modal-overlay" id="rental-handover-modal" hidden>
+    <div class="modal rental-handover-modal" role="dialog" aria-modal="true" aria-labelledby="rental-handover-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="rental-handover-title">Biên bản bàn giao tài sản</h2>
+          <p class="rental-contract-room" id="rental-handover-contract-code"></p>
+        </div>
+        <button type="button" class="modal-close" id="rental-handover-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="rental-handover-body" id="rental-handover-editor">
+        <div class="rental-contract-document-notice">
+          <strong>Bản ghi bất biến:</strong> sau khi bấm “Xác nhận &amp; khóa”, nội dung biên bản và số dư cọc chụp từ sổ giao dịch sẽ không thể sửa hoặc xóa. Hãy kiểm tra kỹ trước khi lưu.
+        </div>
+        <form class="rental-handover-form" id="rental-handover-form">
+          <div class="rental-handover-grid">
+            <label class="form-label">Loại biên bản
+              <select class="form-input" id="rental-handover-type" required>
+                <option value="check_in">Nhận phòng</option>
+                <option value="check_out">Trả phòng</option>
+              </select>
+            </label>
+            <label class="form-label">Ngày bàn giao
+              <input class="form-input" type="date" id="rental-handover-date" required />
+            </label>
+            <label class="form-label">Họ tên bên cho thuê
+              <input class="form-input" type="text" id="rental-handover-lessor" maxlength="200" required />
+            </label>
+            <label class="form-label rental-handover-wide">Địa chỉ nhà cho thuê
+              <input class="form-input" type="text" id="rental-handover-address" maxlength="1000" value="40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng" required />
+            </label>
+            <label class="form-label">Chỉ số điện
+              <input class="form-input" type="number" id="rental-handover-electricity" min="0" step="0.001" inputmode="decimal" />
+            </label>
+            <label class="form-label">Chỉ số nước
+              <input class="form-input" type="number" id="rental-handover-water" min="0" step="0.001" inputmode="decimal" />
+            </label>
+            <label class="form-label">Số chìa khóa
+              <input class="form-input" type="number" id="rental-handover-keys" min="0" max="1000" step="1" value="1" required />
+            </label>
+            <label class="form-label rental-handover-wide">Tình trạng chung
+              <textarea class="form-input" id="rental-handover-condition" minlength="3" maxlength="2000" rows="3" placeholder="Ví dụ: Phòng sạch, tường và thiết bị hoạt động bình thường" required></textarea>
+            </label>
+            <label class="form-label rental-handover-wide">Tài sản — mỗi dòng: Tên | Số lượng | Đơn vị | Tình trạng | Ghi chú
+              <textarea class="form-input rental-handover-items-input" id="rental-handover-items" maxlength="12000" rows="8" required></textarea>
+            </label>
+            <label class="form-label rental-handover-wide">Ghi chú khác
+              <textarea class="form-input" id="rental-handover-notes" maxlength="3000" rows="3"></textarea>
+            </label>
+          </div>
+          <p class="rental-contract-document-error" id="rental-handover-error" hidden></p>
+          <div class="rental-contract-document-actions">
+            <button type="submit" class="btn btn--primary" id="rental-handover-submit">Xác nhận &amp; khóa biên bản</button>
+          </div>
+        </form>
+
+        <section class="rental-handover-list-section">
+          <h3>Biên bản đã xác nhận</h3>
+          <p class="rental-contract-empty" id="rental-handover-empty">Chưa có biên bản bàn giao.</p>
+          <div class="rental-handover-list" id="rental-handover-list"></div>
+        </section>
+      </div>
+      <div class="rental-handover-preview" id="rental-handover-preview" hidden>
+        <div class="rental-contract-document-preview-toolbar">
+          <button type="button" class="btn btn--ghost" id="rental-handover-back">Quay lại</button>
+          <button type="button" class="btn btn--primary" id="rental-handover-print">In / Lưu PDF</button>
+        </div>
+        <div class="rental-handover-paper" id="rental-handover-paper"></div>
+      </div>
+      <div class="rental-contract-footer">
+        <button type="button" class="btn btn--ghost" id="rental-handover-close-footer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Confirm Action -->
   <div class="modal-overlay" id="confirm-modal" hidden>
     <div class="modal modal--confirm">
@@ -1593,7 +1668,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=97"></script>
+  <script src="api.js?v=98"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1602,7 +1677,8 @@
   <script src="bill-message-templates.js?v=1"></script>
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
-  <script src="app.js?v=101"></script>
+  <script src="handover-template.js?v=1"></script>
+  <script src="app.js?v=102"></script>
 </body>
 
 </html>

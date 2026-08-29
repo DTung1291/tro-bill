@@ -26,8 +26,11 @@ npm run check:environment -- production --strict
 `--strict` coi cả cảnh báo thiếu nhãn database hoặc webhook là lỗi.
 
 Staging hiện dùng alias `tro-bill-staging-dtung.vercel.app`, được bảo vệ bởi
-Vercel Authentication và kết nối một Neon branch schema-only riêng. Có thể kiểm
-tra deployment được bảo vệ bằng phiên Vercel CLI đang đăng nhập:
+Vercel Authentication và kết nối Neon branch schema-only `staging-privacy`.
+Branch cũ tên `staging` không có đủ schema hợp đồng và không phải database của
+Preview; luôn xác minh `rental_contracts` cùng `DATABASE_ENVIRONMENT=staging`
+trước khi chạy migration. Có thể kiểm tra deployment được bảo vệ bằng phiên
+Vercel CLI đang đăng nhập:
 
 ```bash
 vercel curl /api/health/ready --deployment https://tro-bill-staging-dtung.vercel.app

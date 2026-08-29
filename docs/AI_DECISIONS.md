@@ -102,3 +102,16 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   thấy; Git cho mọi agent cùng xem phiên bản, diff, review và rollback.
 - **Hệ quả:** Agent kết thúc tính năng phải cập nhật handoff trong commit cuối;
   không lưu chain-of-thought, secret hoặc dữ liệu khách hàng để “giữ context”.
+
+## D-011 — Biên bản bàn giao là snapshot bất biến của hợp đồng và sổ cọc
+
+- **Trạng thái:** Đang áp dụng từ 29/08/2026.
+- **Quyết định:** Mỗi hợp đồng có tối đa một biên bản nhận phòng và một biên bản
+  trả phòng. Biên bản lưu snapshot bên thuê/phòng, chỉ số, chìa khóa, hiện trạng,
+  tài sản, tiền cọc theo hợp đồng và số dư sổ cọc tại thời điểm xác nhận; runtime
+  chỉ được SELECT/INSERT, không được UPDATE/DELETE.
+- **Lý do:** Chứng từ đã ký phải phản ánh đúng thời điểm bàn giao, trong khi giao
+  dịch thu/khấu trừ/hoàn cọc có thể tiếp tục phát sinh độc lập sau đó.
+- **Hệ quả:** Không thêm cột số dư cọc mới và không sửa biên bản để khớp số dư
+  hiện tại. Mọi điều chỉnh tiền đi qua `tenant_deposit_transactions`; chuyển/trả
+  phòng sau này phải giữ nguyên biên bản cũ và tạo nghiệp vụ tiếp nối có audit.

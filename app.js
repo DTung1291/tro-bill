@@ -2808,6 +2808,9 @@ let rentalContractRoomId = '';
 let rentalContracts = [];
 let activeRentalContractDocumentId = null;
 let activeRentalContractDocumentData = null;
+let activeRentalHandoverContractId = null;
+let activeRentalHandover = null;
+let rentalHandovers = [];
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -2944,6 +2947,8 @@ function renderRentalContracts() {
         <ul>${amendmentItems}</ul>
       </div>
       <div class="rental-contract-card-actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
+        ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
         <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
       </div>
       ${amendmentForm}
@@ -3109,6 +3114,221 @@ function printRentalContractDocument() {
     triggerPrint(`${safeCode}.pdf`);
   } finally {
     window.setTimeout(closeRentalContractDocumentModal, 0);
+  }
+}
+
+function rentalHandoverTypeLabel(type) {
+  return type === 'check_out' ? 'Trả phòng' : 'Nhận phòng';
+}
+
+function rentalHandoverItemsText() {
+  return ContractTemplate.DEFAULT_EQUIPMENT
+    .map(([name, quantity, condition]) => [name, quantity, 'cái', condition || 'Tốt', ''].join(' | '))
+    .join('\n');
+}
+
+function parseRentalHandoverItems(value) {
+  const lines = String(value || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (lines.length < 1 || lines.length > 50) {
+    throw new Error('Biên bản phải có từ 1 đến 50 dòng tài sản.');
+  }
+  return lines.map((line, index) => {
+    const [name = '', quantity = '', unit = '', condition = '', ...noteParts] = line.split('|');
+    const amount = Number(quantity.trim());
+    if (!name.trim() || !Number.isFinite(amount) || amount <= 0 || !unit.trim() || !condition.trim()) {
+      throw new Error(`Dòng tài sản ${index + 1} phải đủ Tên | Số lượng | Đơn vị | Tình trạng.`);
+    }
+    return {
+      name: name.trim(),
+      quantity: amount,
+      unit: unit.trim(),
+      condition: condition.trim(),
+      note: noteParts.join('|').trim()
+    };
+  });
+}
+
+function renderRentalHandovers() {
+  const list = document.getElementById('rental-handover-list');
+  const empty = document.getElementById('rental-handover-empty');
+  const form = document.getElementById('rental-handover-form');
+  const typeInput = document.getElementById('rental-handover-type');
+  if (!list || !empty || !form || !typeInput) return;
+  list.innerHTML = '';
+  empty.hidden = rentalHandovers.length > 0;
+  const usedTypes = new Set(rentalHandovers.map(item => item.handoverType));
+  for (const option of typeInput.options) option.disabled = usedTypes.has(option.value);
+  const available = ['check_in', 'check_out'].find(type => !usedTypes.has(type));
+  form.hidden = !available;
+  if (available) {
+    typeInput.value = available;
+    updateRentalHandoverDate();
+  }
+
+  for (const handover of rentalHandovers) {
+    const matchesDeposit = Number(handover.expectedDepositVnd) === Number(handover.depositBalanceSnapshotVnd);
+    const card = document.createElement('article');
+    card.className = 'rental-handover-card';
+    card.dataset.handoverId = String(handover.id);
+    card.innerHTML = `
+      <div>
+        <strong>${escapeHtml(handover.code)} · ${escapeHtml(rentalHandoverTypeLabel(handover.handoverType))}</strong>
+        <span>${escapeHtml(dateLabel(handover.occurredOn) || handover.occurredOn)} · ${handover.items.length} tài sản · ${handover.keyCount} chìa khóa</span>
+        <span class="${matchesDeposit ? '' : 'rental-handover-deposit-warning'}">Cọc hợp đồng ${fmt(handover.expectedDepositVnd)} · Sổ cọc ${fmt(handover.depositBalanceSnapshotVnd)}</span>
+      </div>
+      <button type="button" class="btn btn--ghost btn--sm" data-handover-preview>Xem / In biên bản</button>`;
+    list.appendChild(card);
+  }
+}
+
+function updateRentalHandoverDate() {
+  const contract = rentalContracts.find(item => Number(item.id) === activeRentalHandoverContractId);
+  const type = document.getElementById('rental-handover-type')?.value;
+  const input = document.getElementById('rental-handover-date');
+  if (!contract || !input) return;
+  input.min = contract.startsOn;
+  if (type === 'check_in') {
+    input.max = contract.endsOn || '';
+    input.value = contract.startsOn;
+  } else {
+    input.removeAttribute('max');
+    input.value = contract.endsOn || vietnamCalendarDate();
+  }
+}
+
+function closeRentalHandoverModal() {
+  document.getElementById('rental-handover-modal').hidden = true;
+  document.getElementById('rental-handover-preview').hidden = true;
+  document.getElementById('rental-handover-editor').hidden = false;
+  document.getElementById('rental-handover-paper').replaceChildren();
+  const printArea = document.getElementById('print-area');
+  if (printArea?.querySelector('[data-handover-document]')) printArea.replaceChildren();
+  printArea?.classList.remove('print-area--rental-handover');
+  activeRentalHandoverContractId = null;
+  activeRentalHandover = null;
+  rentalHandovers = [];
+}
+
+async function openRentalHandoverModal(contract) {
+  if (!contract || !RentalHandoverTemplate) return;
+  activeRentalHandoverContractId = Number(contract.id);
+  activeRentalHandover = null;
+  rentalHandovers = [];
+  const form = document.getElementById('rental-handover-form');
+  form.reset();
+  form.hidden = false;
+  document.getElementById('rental-handover-contract-code').textContent = `${contract.code} · ${contract.roomName} · ${contract.tenantName}`;
+  document.getElementById('rental-handover-address').value = '40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng';
+  document.getElementById('rental-handover-items').value = rentalHandoverItemsText();
+  document.getElementById('rental-handover-condition').value = 'Phòng sạch, tường và các thiết bị hoạt động bình thường.';
+  document.getElementById('rental-handover-type').value = 'check_in';
+  document.getElementById('rental-handover-keys').value = '1';
+  updateRentalHandoverDate();
+  document.getElementById('rental-handover-error').hidden = true;
+  document.getElementById('rental-handover-list').innerHTML = '<p class="rental-contract-empty">Đang tải biên bản…</p>';
+  document.getElementById('rental-handover-empty').hidden = true;
+  document.getElementById('rental-handover-editor').hidden = false;
+  document.getElementById('rental-handover-preview').hidden = true;
+  document.getElementById('rental-handover-modal').hidden = false;
+  try {
+    const result = await API.getRentalHandovers(contract.id);
+    if (activeRentalHandoverContractId !== Number(contract.id)) return;
+    rentalHandovers = Array.isArray(result.handovers) ? result.handovers : [];
+    renderRentalHandovers();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    document.getElementById('rental-handover-list').innerHTML = `<p class="rental-contract-empty rental-contract-document-error">${escapeHtml(error.message || 'Không tải được biên bản')}</p>`;
+  }
+}
+
+function nullableHandoverReading(id) {
+  const value = document.getElementById(id).value.trim();
+  return value === '' ? null : Number(value);
+}
+
+async function createRentalHandoverFromForm() {
+  const contractId = activeRentalHandoverContractId;
+  const contract = rentalContracts.find(item => Number(item.id) === contractId);
+  if (!contract) return;
+  const errorElement = document.getElementById('rental-handover-error');
+  const button = document.getElementById('rental-handover-submit');
+  errorElement.hidden = true;
+  button.disabled = true;
+  try {
+    const result = await API.createRentalHandover(contractId, {
+      handoverType: document.getElementById('rental-handover-type').value,
+      occurredOn: document.getElementById('rental-handover-date').value,
+      lessorName: document.getElementById('rental-handover-lessor').value,
+      propertyAddress: document.getElementById('rental-handover-address').value,
+      electricityReading: nullableHandoverReading('rental-handover-electricity'),
+      waterReading: nullableHandoverReading('rental-handover-water'),
+      keyCount: Number(document.getElementById('rental-handover-keys').value),
+      generalCondition: document.getElementById('rental-handover-condition').value,
+      notes: document.getElementById('rental-handover-notes').value,
+      items: parseRentalHandoverItems(document.getElementById('rental-handover-items').value)
+    });
+    rentalHandovers.push(result.handover);
+    rentalHandovers.sort((a, b) => a.occurredOn.localeCompare(b.occurredOn) || a.id - b.id);
+    renderRentalHandovers();
+    showToast(`Đã khóa biên bản ${result.handover.code} ✓`, 'success');
+    openRentalHandoverPreview(result.handover);
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không tạo được biên bản bàn giao';
+    errorElement.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function submitRentalHandover(event) {
+  event.preventDefault();
+  try {
+    parseRentalHandoverItems(document.getElementById('rental-handover-items').value);
+  } catch (error) {
+    const errorElement = document.getElementById('rental-handover-error');
+    errorElement.textContent = error.message;
+    errorElement.hidden = false;
+    return;
+  }
+  showConfirm(
+    'Xác nhận lưu và khóa biên bản? Sau thao tác này nội dung không thể sửa hoặc xóa.',
+    () => { void createRentalHandoverFromForm(); },
+    null,
+    'Xác nhận & khóa'
+  );
+}
+
+function openRentalHandoverPreview(handover) {
+  activeRentalHandover = handover;
+  document.getElementById('rental-handover-paper').innerHTML = RentalHandoverTemplate.build(handover);
+  document.getElementById('rental-handover-editor').hidden = true;
+  document.getElementById('rental-handover-preview').hidden = false;
+}
+
+function closeRentalHandoverPreview() {
+  activeRentalHandover = null;
+  document.getElementById('rental-handover-paper').replaceChildren();
+  document.getElementById('rental-handover-preview').hidden = true;
+  document.getElementById('rental-handover-editor').hidden = false;
+}
+
+function printRentalHandover() {
+  const paper = document.getElementById('rental-handover-paper');
+  const printArea = document.getElementById('print-area');
+  if (!paper.firstElementChild || !activeRentalHandover) return;
+  printArea.innerHTML = paper.innerHTML;
+  printArea.classList.add('print-area--rental-handover');
+  const safeCode = removeVietnameseTones(activeRentalHandover.code || 'bien-ban-ban-giao')
+    .replace(/[^a-zA-Z0-9-]+/g, '-')
+    .toLowerCase();
+  try {
+    triggerPrint(`${safeCode}.pdf`);
+  } finally {
+    window.setTimeout(closeRentalHandoverModal, 0);
   }
 }
 
@@ -3582,6 +3802,24 @@ document.getElementById('rental-contract-modal').addEventListener('click', event
   if (event.target === event.currentTarget) closeRentalContractModal();
 });
 document.getElementById('rental-contract-list').addEventListener('click', event => {
+  const depositButton = event.target?.closest?.('[data-contract-deposit]');
+  if (depositButton) {
+    const depositCard = depositButton.closest('.rental-contract-card');
+    const depositContract = rentalContracts.find(
+      item => Number(item.id) === Number(depositCard?.dataset.contractId)
+    );
+    if (depositContract) openTenantDeposit(depositContract.tenantId);
+    return;
+  }
+  const handoverButton = event.target?.closest?.('[data-contract-handover]');
+  if (handoverButton) {
+    const handoverCard = handoverButton.closest('.rental-contract-card');
+    const handoverContract = rentalContracts.find(
+      item => Number(item.id) === Number(handoverCard?.dataset.contractId)
+    );
+    if (handoverContract) void openRentalHandoverModal(handoverContract);
+    return;
+  }
   const documentButton = event.target?.closest?.('[data-contract-document]');
   if (documentButton) {
     const documentCard = documentButton.closest('.rental-contract-card');
@@ -3613,6 +3851,22 @@ document.getElementById('rental-contract-list').addEventListener('submit', event
   if (!form) return;
   event.preventDefault();
   void submitRentalContractAmendment(form);
+});
+document.getElementById('rental-handover-form').addEventListener('submit', submitRentalHandover);
+document.getElementById('rental-handover-type').addEventListener('change', updateRentalHandoverDate);
+document.getElementById('rental-handover-close').addEventListener('click', closeRentalHandoverModal);
+document.getElementById('rental-handover-close-footer').addEventListener('click', closeRentalHandoverModal);
+document.getElementById('rental-handover-back').addEventListener('click', closeRentalHandoverPreview);
+document.getElementById('rental-handover-print').addEventListener('click', printRentalHandover);
+document.getElementById('rental-handover-list').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-handover-preview]');
+  if (!button) return;
+  const card = button.closest('.rental-handover-card');
+  const handover = rentalHandovers.find(item => Number(item.id) === Number(card?.dataset.handoverId));
+  if (handover) openRentalHandoverPreview(handover);
+});
+document.getElementById('rental-handover-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentalHandoverModal();
 });
 
 // ============================================================

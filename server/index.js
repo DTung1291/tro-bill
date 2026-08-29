@@ -53,6 +53,7 @@ const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
 const rentalContracts = require('./rental-contracts');
 const rentalContractNotifications = require('./rental-contract-notifications');
+const rentalHandovers = require('./rental-handovers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -290,6 +291,16 @@ app.post(
   '/api/rental-contracts/:id/document',
   requireAuth,
   wrap(rentalContracts.getContractDocument)
+);
+app.get(
+  '/api/rental-contracts/:id/handovers',
+  requireAuth,
+  wrap(rentalHandovers.listRentalHandovers)
+);
+app.post(
+  '/api/rental-contracts/:id/handovers',
+  requireAuth,
+  wrap(rentalHandovers.createRentalHandover)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

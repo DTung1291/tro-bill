@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao |
+| Trạng thái | Đang phát hành — biên bản bàn giao tài sản |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
 | Phần ứng dụng phát hành gần nhất | `842e246` — sửa in hợp đồng thành nhiều trang |
-| Việc code tiếp theo | Giai đoạn 4: quản lý đặt cọc gắn với hợp đồng và biên bản bàn giao tài sản |
+| Việc code tiếp theo | Giai đoạn 4: hỗ trợ giữ chỗ, chuyển phòng và trả phòng |
 | Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -22,11 +22,10 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 ## Mục tiêu đang theo đuổi
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
-cho người dùng kiểm tra. Ưu tiên hiện tại là phần **Vòng đời thuê phòng** của Giai
-đoạn 4. Hạng mục kế tiếp phải tái sử dụng sổ cọc hiện có
-`tenant_deposit_ledger`/`server/deposits.js`; không tạo nguồn số dư cọc thứ hai.
-Trước khi thiết kế, đọc migration/test cọc và luồng hợp đồng để xác định phần còn
-thiếu cho biên bản bàn giao, danh sách tài sản và chữ ký/xác nhận.
+cho người dùng kiểm tra. Ưu tiên tiếp theo là phần **Vòng đời thuê phòng** của
+Giai đoạn 4: giữ chỗ, chuyển phòng và trả phòng. Luồng mới phải phối hợp trạng
+thái hợp đồng, tenant và phòng trong một transaction; không được làm mất biên
+bản bàn giao hoặc bút toán sổ cọc đã khóa.
 
 ## Bản đồ hệ thống ngắn
 
@@ -58,6 +57,15 @@ thiếu cho biên bản bàn giao, danh sách tài sản và chữ ký/xác nh�
   readiness trả `200`. Agent mới phải chạy lại test sau thay đổi của mình.
 - Sau khi tạo bộ tài liệu bàn giao ngày 29/08/2026, `npm test` tiếp tục đạt
   282/282, `npm run check:secrets` sạch và `git diff --check` không có lỗi.
+- Biên bản nhận/trả phòng lưu snapshot bất biến, giới hạn một bản mỗi loại trên
+  mỗi hợp đồng và dùng số dư từ `tenant_deposit_transactions`. Migration
+  `20260829_rental_handover_records.sql` đã chạy thành công trên Neon branch
+  `staging-privacy` và production ngày 29/08/2026; cả 6 cờ xác minh đều `true`.
+  Branch cũ tên `staging` thiếu `rental_contracts`, lần chạy thử đã rollback và
+  không phải database Preview; không dùng branch đó cho migration tiếp theo.
+- Bộ test đầy đủ đạt 288/288, secret scan sạch, popup đã kiểm tra ở 1440×900 và
+  390×844. PDF A4 thử nghiệm 32 tài sản có đủ 3 trang; đã nhìn cả trang đầu,
+  giữa và cuối, không mất phần đối chiếu cọc hoặc chữ ký.
 
 ## Việc chưa được xem là hoàn tất
 

@@ -2880,6 +2880,142 @@ body.modal-open {
   margin-top: 55pt;
 }
 
+#rental-handover-modal { z-index: 1270; }
+.modal.rental-handover-modal {
+  max-width: 1080px;
+  max-height: calc(100dvh - 24px);
+}
+.rental-handover-body,
+.rental-handover-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 22px;
+}
+.rental-handover-body[hidden],
+.rental-handover-preview[hidden] {
+  display: none !important;
+}
+.rental-handover-form,
+.rental-handover-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rental-handover-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.rental-handover-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.rental-handover-wide { grid-column: 1 / -1; }
+.rental-handover-items-input {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.rental-handover-list-section h3 { margin: 0; font-size: .95rem; }
+.rental-handover-list { display: flex; flex-direction: column; gap: 10px; }
+.rental-handover-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg2);
+}
+.rental-handover-card > div:first-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.rental-handover-card strong,
+.rental-handover-card span { overflow-wrap: anywhere; }
+.rental-handover-card span { color: var(--text-muted); font-size: .76rem; }
+.rental-handover-deposit-warning { color: var(--red) !important; }
+.rental-handover-paper {
+  width: min(100%, 794px);
+  margin: 0 auto;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, .18);
+}
+.rental-handover-document {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 16mm;
+  background: #fff;
+  color: #000;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.rental-handover-document p { margin: 0 0 7pt; }
+.rental-handover-document h1,
+.rental-handover-document h2 {
+  color: #000;
+  font-family: 'Times New Roman', Times, serif;
+  break-after: avoid-page;
+  page-break-after: avoid;
+}
+.handover-doc-national-header { text-align: center; }
+.handover-doc-national-header h1 { margin: 0; font-size: 14pt; }
+.handover-doc-national-header p { margin: 3pt 0 0; }
+.handover-doc-title { margin: 18pt 0 6pt; font-size: 15pt; text-align: center; }
+.handover-doc-code { text-align: right; font-size: 10pt; }
+.rental-handover-document h2 { margin: 12pt 0 6pt; font-size: 12.5pt; }
+.rental-handover-document table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 10pt;
+}
+.rental-handover-document th,
+.rental-handover-document td {
+  padding: 5pt;
+  border: 1px solid #000;
+  vertical-align: top;
+  text-align: left;
+}
+.rental-handover-document th { background: #f1f1f1; font-weight: 700; }
+.handover-doc-summary th { width: 27%; }
+.handover-doc-items th:nth-child(1),
+.handover-doc-items td:nth-child(1) { width: 7%; }
+.handover-doc-items th:nth-child(3),
+.handover-doc-items td:nth-child(3) { width: 8%; }
+.handover-doc-items th:nth-child(4),
+.handover-doc-items td:nth-child(4) { width: 10%; }
+.handover-doc-items th:nth-child(5),
+.handover-doc-items td:nth-child(5) { width: 24%; }
+.handover-doc-items th:nth-child(6),
+.handover-doc-items td:nth-child(6) { width: 22%; }
+.handover-doc-center { text-align: center !important; }
+.handover-doc-signatures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30pt;
+  min-height: 120pt;
+  margin-top: 22pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  text-align: center;
+}
+.handover-doc-signatures h2 { margin: 0; font-size: 12pt; }
+.handover-doc-signatures > div > strong { display: block; margin-top: 55pt; }
+
 @media (max-width: 760px) {
   #rental-contract-modal { padding: 8px; }
   .modal.rental-contract-modal { max-height: calc(100dvh - 16px); }
@@ -2889,6 +3025,11 @@ body.modal-open {
   .modal.rental-contract-document-modal { max-height: calc(100dvh - 16px); }
   .rental-contract-document-form,
   .rental-contract-document-preview { padding: 14px; }
+  #rental-handover-modal { padding: 8px; }
+  .modal.rental-handover-modal { max-height: calc(100dvh - 16px); }
+  .rental-handover-body,
+  .rental-handover-preview { padding: 14px; }
+  .rental-handover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
@@ -2910,6 +3051,12 @@ body.modal-open {
   .rental-contract-document-preview-toolbar .btn { width: 100%; justify-content: center; }
   .rental-contract-document-preview { overflow-x: auto; }
   .rental-contract-document-paper { width: 816px; margin: 0; }
+  .rental-handover-grid { grid-template-columns: minmax(0, 1fr); }
+  .rental-handover-wide { grid-column: auto; }
+  .rental-handover-card { align-items: stretch; flex-direction: column; }
+  .rental-handover-card .btn { width: 100%; justify-content: center; }
+  .rental-handover-preview { overflow-x: auto; }
+  .rental-handover-paper { width: 794px; margin: 0; }
 }
 
 /* ===========================
@@ -3088,6 +3235,7 @@ body.modal-open {
   }
 
   body:has(.print-area--rental-contract) { page: rentalContract; }
+  body:has(.print-area--rental-handover) { page: rentalHandover; }
 
   .print-area .rental-contract-document {
     display: block;
@@ -3102,6 +3250,23 @@ body.modal-open {
 
   .print-area .contract-doc-equipment tr,
   .print-area .contract-doc-signatures {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  .print-area .rental-handover-document {
+    display: block;
+    width: auto;
+    height: auto;
+    min-height: auto;
+    padding: 0;
+    overflow: visible;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+  }
+
+  .print-area .handover-doc-items tr,
+  .print-area .handover-doc-signatures {
     break-inside: avoid-page;
     page-break-inside: avoid;
   }
@@ -3240,6 +3405,11 @@ body.modal-open {
   @page rentalContract {
     size: Letter portrait;
     margin: .5in;
+  }
+
+  @page rentalHandover {
+    size: A4 portrait;
+    margin: 16mm;
   }
 }
 
