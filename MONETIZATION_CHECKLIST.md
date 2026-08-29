@@ -227,7 +227,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Quản lý ngày bắt đầu, ngày hết hạn và chu kỳ thanh toán.
 - [x] Nhắc hợp đồng sắp hết hạn.
 - [x] Quản lý đặt cọc và biên bản bàn giao tài sản.
-- [ ] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
+- [x] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [ ] Chốt bill cuối cùng khi khách trả phòng.
 - [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
 
@@ -242,6 +242,11 @@ Trạng thái đến ngày 29/08/2026:
   cũ lưu state cũng không thể xóa các mốc giá đã phát sinh từ hợp đồng.
 - Migration đã chạy và kiểm tra quyền trên Neon staging/production; bộ test đầy
   đủ và kiểm tra giao diện desktop tại local đều thành công.
+- Giữ chỗ có ngày nhận phòng, ngày hết hạn và tiền cọc dự kiến; mỗi phòng chỉ có
+  một lượt đang hoạt động. Tạo hợp đồng có thể chuyển lượt giữ chỗ thành hợp đồng
+  trong cùng transaction. Chuyển phòng kết thúc hợp đồng cũ, chuyển khách và tạo
+  hợp đồng mới nguyên tử; trả phòng bắt buộc có biên bản trả phòng. Mọi thay đổi
+  được ghi vào nhật ký vòng đời append-only.
 - Mẫu `document/HopDongThuePhongNew.docx` đã được đưa vào luồng **Xem / In hợp
   đồng**. Bản in Letter giữ thứ tự 8 điều, phụ lục giá, bảng trang thiết bị và
   chữ ký; đã kiểm tra trực quan đủ 5 trang trước khi phát hành.

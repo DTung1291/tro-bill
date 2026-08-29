@@ -410,6 +410,38 @@ const API = (() => {
     );
   }
 
+  function getRentalLifecycle(roomId) {
+    return request('GET', `/api/rental-lifecycle?roomId=${encodeURIComponent(roomId)}`);
+  }
+
+  function createRentalReservation(input) {
+    return request('POST', '/api/rental-reservations', input);
+  }
+
+  function cancelRentalReservation(reservationId, input) {
+    return request(
+      'POST',
+      `/api/rental-reservations/${encodeURIComponent(reservationId)}/cancel`,
+      input
+    );
+  }
+
+  function transferRentalContract(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/transfer`,
+      input
+    );
+  }
+
+  function checkoutRentalContract(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/checkout`,
+      input
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -551,6 +583,11 @@ const API = (() => {
     getRentalContractDocument,
     getRentalHandovers,
     createRentalHandover,
+    getRentalLifecycle,
+    createRentalReservation,
+    cancelRentalReservation,
+    transferRentalContract,
+    checkoutRentalContract,
     privacy,
     getConfig,
     admin

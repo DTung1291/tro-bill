@@ -105,6 +105,18 @@ function contractInput(body = {}) {
       'Ngày hạn thanh toán phải từ ngày 1 đến 28'
     );
   }
+  const reservationId = body.reservationId === null
+    || body.reservationId === undefined
+    || body.reservationId === ''
+    ? null
+    : positiveId(body.reservationId, 'Lượt giữ chỗ');
+  if (reservationId && status !== 'active') {
+    throw new RentalContractError(
+      400,
+      'RESERVATION_REQUIRES_ACTIVE_CONTRACT',
+      'Chuyển lượt giữ chỗ chỉ áp dụng khi tạo hợp đồng đang hoạt động'
+    );
+  }
   return {
     roomId,
     tenantId,
@@ -115,7 +127,8 @@ function contractInput(body = {}) {
     monthlyRentVnd: moneyVnd(body.monthlyRentVnd, 'Tiền thuê'),
     depositVnd: moneyVnd(body.depositVnd || 0, 'Tiền cọc'),
     terms,
-    status
+    status,
+    reservationId
   };
 }
 
@@ -247,6 +260,43 @@ function contractCode(id, startsOn) {
 
 function amendmentCode(id, effectiveFrom) {
   return `PL-${String(effectiveFrom).replace('-', '')}-${Number(id).toString(36).toUpperCase().padStart(6, '0')}`;
+}
+
+function lifecycleEventCode(id, occurredOn) {
+  return `VDT-${String(occurredOn).slice(0, 4)}-${Number(id).toString(36).toUpperCase().padStart(6, '0')}`;
+}
+
+async function convertReservation(query, userId, reservation, contract) {
+  await query(
+    `UPDATE rental_reservations
+     SET status='converted', status_reason=$4, converted_contract_id=$3,
+         converted_at=now(), updated_at=now()
+     WHERE user_id=$1 AND id=$2`,
+    [userId, Number(reservation.id), Number(contract.id), `Đã chuyển thành hợp đồng ${contract.contract_code}`]
+  );
+  const idResult = await query("SELECT nextval('rental_lifecycle_events_id_seq') AS id");
+  const eventId = Number(idResult.rows[0].id);
+  await query(
+    `INSERT INTO rental_lifecycle_events
+       (id, user_id, event_code, event_type, contract_id, reservation_id,
+        tenant_id_snapshot, tenant_name_snapshot, target_room_id_snapshot,
+        target_room_name_snapshot, occurred_on, reason, metadata)
+     VALUES ($1,$2,$3,'reservation_converted',$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`,
+    [
+      eventId,
+      userId,
+      lifecycleEventCode(eventId, dateJson(contract.starts_on)),
+      Number(contract.id),
+      Number(reservation.id),
+      contract.tenant_id,
+      contract.tenant_name_snapshot,
+      contract.room_id,
+      contract.room_name_snapshot,
+      dateJson(contract.starts_on),
+      `Chuyển lượt giữ chỗ ${reservation.reservation_code} thành hợp đồng`,
+      JSON.stringify({ reservationCode: reservation.reservation_code, contractCode: contract.contract_code })
+    ]
+  );
 }
 
 async function ensureWritable(query, userId, dependencies = {}) {
@@ -450,6 +500,36 @@ async function createContract(req, res, dependencies = {}) {
         'Không tìm thấy khách thuê thuộc phòng này'
       );
     }
+    await client.query(
+      `UPDATE rental_reservations
+       SET status='expired', expired_at=now(), updated_at=now(),
+           status_reason='Tự động hết hạn theo ngày giữ chỗ'
+       WHERE user_id=$1 AND room_id=$2 AND status='active' AND expires_on < CURRENT_DATE`,
+      [req.userId, input.roomId]
+    );
+    const activeReservationResult = await client.query(
+      `SELECT * FROM rental_reservations
+       WHERE user_id=$1 AND room_id=$2 AND status='active'
+       FOR UPDATE`,
+      [req.userId, input.roomId]
+    );
+    const activeReservation = activeReservationResult.rows[0] || null;
+    if (activeReservation && (
+      input.status !== 'active' || Number(activeReservation.id) !== input.reservationId
+    )) {
+      throw new RentalContractError(
+        409,
+        'ACTIVE_RESERVATION_REQUIRES_CONVERSION',
+        'Phòng đang được giữ chỗ; hãy chọn đúng lượt giữ chỗ khi tạo hợp đồng'
+      );
+    }
+    if (input.reservationId && !activeReservation) {
+      throw new RentalContractError(
+        409,
+        'RESERVATION_NOT_ACTIVE',
+        'Lượt giữ chỗ không còn hoạt động hoặc không thuộc phòng này'
+      );
+    }
     const idResult = await client.query("SELECT nextval('rental_contracts_id_seq') AS id");
     const id = Number(idResult.rows[0].id);
     const code = contractCode(id, input.startsOn);
@@ -498,6 +578,14 @@ async function createContract(req, res, dependencies = {}) {
         { rentStartDate: input.startsOn }
       )
       : null;
+    if (activeReservation && input.status === 'active') {
+      await convertReservation(
+        client.query.bind(client),
+        req.userId,
+        activeReservation,
+        insert.rows[0]
+      );
+    }
     await client.query('COMMIT');
     return res.status(201).json({ contract: contractJson(insert.rows[0]), rate });
   } catch (error) {
@@ -589,6 +677,29 @@ async function changeContractStatus(req, res, dependencies = {}) {
         'CONTRACT_STATUS_TRANSITION_INVALID',
         'Không thể chuyển hợp đồng sang trạng thái đã chọn'
       );
+    }
+    if (input.status === 'active') {
+      await client.query(
+        `UPDATE rental_reservations
+         SET status='expired', expired_at=now(), updated_at=now(),
+             status_reason='Tự động hết hạn theo ngày giữ chỗ'
+         WHERE user_id=$1 AND room_id=$2 AND status='active' AND expires_on < CURRENT_DATE`,
+        [req.userId, contract.room_id]
+      );
+      const reservation = await client.query(
+        `SELECT id FROM rental_reservations
+         WHERE user_id=$1 AND room_id=$2 AND status='active'
+         LIMIT 1
+         FOR UPDATE`,
+        [req.userId, contract.room_id]
+      );
+      if (reservation.rows[0]) {
+        throw new RentalContractError(
+          409,
+          'ACTIVE_RESERVATION_REQUIRES_CONVERSION',
+          'Phòng đang được giữ chỗ; hãy hủy bản nháp và tạo hợp đồng từ lượt giữ chỗ'
+        );
+      }
     }
     const updated = await client.query(
       `UPDATE rental_contracts

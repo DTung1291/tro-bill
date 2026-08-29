@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao; tiếp tục giữ chỗ, chuyển phòng và trả phòng |
+| Trạng thái | Đang phát hành — giữ chỗ, chuyển phòng và trả phòng |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
+| Worktree kỳ vọng | Có thay đổi vòng đời chưa commit trong lúc phát hành; agent mới phải kiểm tra Git và không ghi đè |
 | Phần ứng dụng phát hành gần nhất | `2ded7ef` — biên bản nhận/trả phòng và bàn giao tài sản bất biến |
-| Việc code tiếp theo | Giai đoạn 4: hỗ trợ giữ chỗ, chuyển phòng và trả phòng |
+| Việc code tiếp theo | Sau khi phát hành/xác minh phần đang dở: chốt bill cuối cùng khi khách trả phòng |
 | Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -22,10 +22,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 ## Mục tiêu đang theo đuổi
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
-cho người dùng kiểm tra. Ưu tiên tiếp theo là phần **Vòng đời thuê phòng** của
-Giai đoạn 4: giữ chỗ, chuyển phòng và trả phòng. Luồng mới phải phối hợp trạng
-thái hợp đồng, tenant và phòng trong một transaction; không được làm mất biên
-bản bàn giao hoặc bút toán sổ cọc đã khóa.
+cho người dùng kiểm tra. Phần **giữ chỗ, chuyển phòng và trả phòng** đã code/test,
+migration đã chạy trên staging/production và đang chờ commit, CI cùng xác minh
+deployment. Không bắt đầu bill cuối cùng trước khi mốc phát hành này sạch.
 
 ## Bản đồ hệ thống ngắn
 
@@ -68,6 +67,11 @@ bản bàn giao hoặc bút toán sổ cọc đã khóa.
   giữa và cuối, không mất phần đối chiếu cọc hoặc chữ ký.
 - GitHub Actions `33239622788` thành công; production readiness revision
   `2ded7ef3a030` trả HTTP 200 với database, runtime role và schema đều `ok`.
+- Giữ chỗ, chuyển phòng và trả phòng đã có API/UI/schema/test. Migration
+  `20260829_rental_lifecycle.sql` đã chạy trên `staging-privacy` và production
+  ngày 29/08/2026; cả 6 cờ bảng, ownership, unique active reservation và quyền
+  event append-only đều `true`. Test mục tiêu đạt 18/18, toàn bộ test đạt
+  295/295; giao diện đã kiểm tra tại 1440×900 và 390×844 không tràn viewport.
 
 ## Việc chưa được xem là hoàn tất
 

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=101" />
+  <link rel="stylesheet" href="style.css?v=102" />
 </head>
 
 <body>
@@ -924,6 +924,41 @@
         <button type="button" class="modal-close" id="rental-contract-close" aria-label="Đóng">✕</button>
       </div>
       <div class="rental-contract-body">
+        <section class="rental-reservation-section" aria-labelledby="rental-reservation-title">
+          <div class="rental-contract-section-head">
+            <div>
+              <h3 id="rental-reservation-title">Giữ chỗ</h3>
+              <p>Mỗi phòng chỉ có một lượt giữ chỗ đang hoạt động; lượt hết hạn sẽ tự giải phóng phòng.</p>
+            </div>
+          </div>
+          <form class="rental-reservation-form" id="rental-reservation-form">
+            <div class="rental-reservation-grid">
+              <label class="form-label">Người giữ chỗ *
+                <input class="form-input" id="rental-reservation-guest" type="text" maxlength="200" required />
+              </label>
+              <label class="form-label">Số điện thoại
+                <input class="form-input" id="rental-reservation-phone" type="tel" maxlength="50" />
+              </label>
+              <label class="form-label">Ngày giữ chỗ *
+                <input class="form-input" id="rental-reservation-date" type="date" required />
+              </label>
+              <label class="form-label">Dự kiến nhận phòng *
+                <input class="form-input" id="rental-reservation-move-in" type="date" required />
+              </label>
+              <label class="form-label">Giữ đến hết ngày *
+                <input class="form-input" id="rental-reservation-expiry" type="date" required />
+              </label>
+              <label class="form-label">Cọc dự kiến (đ)
+                <input class="form-input" id="rental-reservation-deposit" type="number" min="0" step="1" value="0" />
+              </label>
+              <label class="form-label rental-reservation-wide">Ghi chú
+                <input class="form-input" id="rental-reservation-note" type="text" maxlength="1000" />
+              </label>
+            </div>
+            <button type="submit" class="btn btn--primary btn--sm" id="rental-reservation-submit">Tạo giữ chỗ</button>
+          </form>
+          <div class="rental-reservation-list" id="rental-reservation-list"></div>
+        </section>
         <form class="rental-contract-create" id="rental-contract-form">
           <div class="rental-contract-section-head">
             <div>
@@ -940,6 +975,9 @@
                 <option value="active">Đang hoạt động</option>
                 <option value="draft">Bản nháp</option>
               </select>
+            </label>
+            <label class="form-label" id="rental-contract-reservation-row" hidden>Lượt giữ chỗ chuyển thành hợp đồng
+              <select class="form-input" id="rental-contract-reservation"></select>
             </label>
             <label class="form-label">Ngày bắt đầu *
               <input class="form-input" type="date" id="rental-contract-start" required />
@@ -987,6 +1025,55 @@
       <div class="rental-contract-footer">
         <button type="button" class="btn btn--ghost" id="rental-contract-close-footer">Đóng</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Chuyển phòng / trả phòng -->
+  <div class="modal-overlay" id="rental-lifecycle-modal" hidden>
+    <div class="modal rental-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="rental-lifecycle-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="rental-lifecycle-title">Xử lý vòng đời thuê</h2>
+          <p class="rental-contract-room" id="rental-lifecycle-contract"></p>
+        </div>
+        <button type="button" class="modal-close" id="rental-lifecycle-close" aria-label="Đóng">✕</button>
+      </div>
+      <form class="rental-lifecycle-form" id="rental-lifecycle-form">
+        <div class="rental-contract-document-notice">
+          Cần xác nhận <strong>biên bản trả phòng</strong> trước. Chuyển phòng sẽ kết thúc hợp đồng cũ, chuyển khách và tạo hợp đồng mới trong cùng một transaction.
+        </div>
+        <div class="rental-lifecycle-grid">
+          <label class="form-label">Nghiệp vụ
+            <select class="form-input" id="rental-lifecycle-type" required>
+              <option value="transfer">Chuyển phòng</option>
+              <option value="checkout">Trả phòng</option>
+            </select>
+          </label>
+          <label class="form-label">Ngày thực hiện *
+            <input class="form-input" type="date" id="rental-lifecycle-date" required />
+          </label>
+          <label class="form-label rental-lifecycle-transfer-field">Phòng chuyển đến *
+            <select class="form-input" id="rental-lifecycle-target-room"></select>
+          </label>
+          <label class="form-label rental-lifecycle-transfer-field">Tiền thuê phòng mới (đ/tháng) *
+            <input class="form-input" type="number" id="rental-lifecycle-rent" min="0" step="1" />
+          </label>
+          <label class="form-label rental-lifecycle-transfer-field">Tiền cọc hợp đồng mới (đ)
+            <input class="form-input" type="number" id="rental-lifecycle-deposit" min="0" step="1" />
+          </label>
+          <label class="form-label rental-lifecycle-transfer-field">Ngày kết thúc hợp đồng mới
+            <input class="form-input" type="date" id="rental-lifecycle-end" />
+          </label>
+          <label class="form-label rental-lifecycle-wide">Lý do *
+            <textarea class="form-input" id="rental-lifecycle-reason" minlength="10" maxlength="500" rows="3" required></textarea>
+          </label>
+        </div>
+        <p class="rental-contract-document-error" id="rental-lifecycle-error" hidden></p>
+        <div class="rental-contract-document-actions">
+          <button type="button" class="btn btn--ghost" id="rental-lifecycle-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="rental-lifecycle-submit">Xác nhận chuyển phòng</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1668,7 +1755,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=98"></script>
+  <script src="api.js?v=99"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1678,7 +1765,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=102"></script>
+  <script src="app.js?v=103"></script>
 </body>
 
 </html>

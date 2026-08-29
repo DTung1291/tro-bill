@@ -3016,6 +3016,73 @@ body.modal-open {
 .handover-doc-signatures h2 { margin: 0; font-size: 12pt; }
 .handover-doc-signatures > div > strong { display: block; margin-top: 55pt; }
 
+.rental-reservation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rental-reservation-form { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.rental-reservation-form[hidden],
+.rental-contract-create[hidden],
+#rental-contract-reservation-row[hidden],
+.rental-lifecycle-transfer-field[hidden] { display: none !important; }
+.rental-reservation-grid,
+.rental-lifecycle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+.rental-reservation-grid > label,
+.rental-lifecycle-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.rental-reservation-wide,
+.rental-lifecycle-wide { grid-column: 1 / -1; }
+.rental-reservation-list { display: flex; flex-direction: column; gap: 10px; }
+.rental-reservation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg2);
+}
+.rental-reservation-card > div:first-child,
+.rental-lifecycle-history {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rental-reservation-card span,
+.rental-lifecycle-history span { color: var(--text-muted); font-size: .76rem; overflow-wrap: anywhere; }
+.rental-reservation-card--active { border-color: rgba(245, 158, 11, .55); }
+.rental-reservation-cancel { display: flex; align-items: center; gap: 8px; min-width: min(100%, 360px); }
+.rental-lifecycle-history {
+  padding: 10px 12px;
+  border-left: 3px solid var(--primary);
+  background: var(--bg2);
+}
+#rental-lifecycle-modal { z-index: 1280; }
+.modal.rental-lifecycle-modal { max-width: 880px; max-height: calc(100dvh - 24px); }
+.rental-lifecycle-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 22px;
+  overflow-y: auto;
+}
+
 @media (max-width: 760px) {
   #rental-contract-modal { padding: 8px; }
   .modal.rental-contract-modal { max-height: calc(100dvh - 16px); }
@@ -3030,6 +3097,10 @@ body.modal-open {
   .rental-handover-body,
   .rental-handover-preview { padding: 14px; }
   .rental-handover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rental-reservation-grid,
+  .rental-lifecycle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #rental-lifecycle-modal { padding: 8px; }
+  .modal.rental-lifecycle-modal { max-height: calc(100dvh - 16px); }
 }
 
 @media (max-width: 480px) {
@@ -3057,6 +3128,14 @@ body.modal-open {
   .rental-handover-card .btn { width: 100%; justify-content: center; }
   .rental-handover-preview { overflow-x: auto; }
   .rental-handover-paper { width: 794px; margin: 0; }
+  .rental-reservation-grid,
+  .rental-lifecycle-grid { grid-template-columns: minmax(0, 1fr); }
+  .rental-reservation-wide,
+  .rental-lifecycle-wide { grid-column: auto; }
+  .rental-reservation-card,
+  .rental-reservation-cancel { align-items: stretch; flex-direction: column; }
+  .rental-reservation-cancel { min-width: 0; width: 100%; }
+  .rental-reservation-cancel .btn { width: 100%; justify-content: center; }
 }
 
 /* ===========================

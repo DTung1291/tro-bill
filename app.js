@@ -2811,6 +2811,9 @@ let activeRentalContractDocumentData = null;
 let activeRentalHandoverContractId = null;
 let activeRentalHandover = null;
 let rentalHandovers = [];
+let rentalReservations = [];
+let rentalLifecycleEvents = [];
+let activeRentalLifecycleContract = null;
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -2819,6 +2822,131 @@ function rentalContractStatusLabel(status) {
     ended: 'Đã kết thúc',
     cancelled: 'Đã hủy'
   })[status] || status;
+}
+
+function rentalReservationStatusLabel(status) {
+  return ({
+    active: 'Đang giữ chỗ',
+    converted: 'Đã thành hợp đồng',
+    cancelled: 'Đã hủy',
+    expired: 'Đã hết hạn'
+  })[status] || status;
+}
+
+function rentalLifecycleEventLabel(type) {
+  return ({
+    reservation_created: 'Tạo giữ chỗ',
+    reservation_cancelled: 'Hủy giữ chỗ',
+    reservation_converted: 'Chuyển thành hợp đồng',
+    room_transferred: 'Chuyển phòng',
+    checked_out: 'Trả phòng'
+  })[type] || type;
+}
+
+function isoDateAfter(date, days) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function renderRentalReservations() {
+  const list = document.getElementById('rental-reservation-list');
+  const form = document.getElementById('rental-reservation-form');
+  const reservationRow = document.getElementById('rental-contract-reservation-row');
+  const reservationSelect = document.getElementById('rental-contract-reservation');
+  if (!list || !form || !reservationRow || !reservationSelect) return;
+  const activeReservation = rentalReservations.find(item => item.status === 'active') || null;
+  const activeContract = rentalContracts.some(item => item.status === 'active');
+  const contractStatus = document.getElementById('rental-contract-status');
+  const draftOption = contractStatus?.querySelector('option[value="draft"]');
+  if (draftOption) draftOption.disabled = !!activeReservation;
+  if (activeReservation && contractStatus) contractStatus.value = 'active';
+  form.hidden = !!activeReservation || activeContract;
+  list.innerHTML = '';
+  if (rentalReservations.length === 0 && rentalLifecycleEvents.length === 0) {
+    list.innerHTML = '<p class="rental-contract-empty">Chưa có lượt giữ chỗ hoặc sự kiện vòng đời.</p>';
+  }
+  for (const reservation of rentalReservations) {
+    const item = document.createElement('article');
+    item.className = `rental-reservation-card rental-reservation-card--${reservation.status}`;
+    item.dataset.reservationId = String(reservation.id);
+    item.innerHTML = `
+      <div>
+        <strong>${escapeHtml(reservation.code)} · ${escapeHtml(reservation.guestName)}</strong>
+        <span>${escapeHtml(rentalReservationStatusLabel(reservation.status))} · nhận phòng ${escapeHtml(dateLabel(reservation.expectedMoveInOn) || reservation.expectedMoveInOn)} · hết hạn ${escapeHtml(dateLabel(reservation.expiresOn) || reservation.expiresOn)}</span>
+        <span>Cọc dự kiến ${fmt(reservation.expectedDepositVnd)}${reservation.guestPhone ? ` · ${escapeHtml(reservation.guestPhone)}` : ''}</span>
+      </div>
+      ${reservation.status === 'active' ? `
+        <div class="rental-reservation-cancel">
+          <input class="form-input" type="text" minlength="10" maxlength="500" data-reservation-cancel-reason placeholder="Lý do hủy từ 10 ký tự" />
+          <button type="button" class="btn btn--danger btn--sm" data-reservation-cancel>Hủy giữ chỗ</button>
+        </div>` : ''}`;
+    list.appendChild(item);
+  }
+  const recentEvents = rentalLifecycleEvents.slice(0, 5);
+  if (recentEvents.length > 0) {
+    const history = document.createElement('div');
+    history.className = 'rental-lifecycle-history';
+    history.innerHTML = `<strong>Lịch sử gần đây</strong>${recentEvents.map(event => `
+      <span>${escapeHtml(dateLabel(event.occurredOn) || event.occurredOn)} · ${escapeHtml(rentalLifecycleEventLabel(event.eventType))} · ${escapeHtml(event.code)}</span>`).join('')}`;
+    list.appendChild(history);
+  }
+  reservationRow.hidden = !activeReservation;
+  reservationSelect.replaceChildren();
+  if (activeReservation) {
+    const option = document.createElement('option');
+    option.value = String(activeReservation.id);
+    option.textContent = `${activeReservation.code} · ${activeReservation.guestName}`;
+    reservationSelect.appendChild(option);
+  }
+}
+
+async function submitRentalReservation(event) {
+  event.preventDefault();
+  const button = document.getElementById('rental-reservation-submit');
+  button.disabled = true;
+  try {
+    await API.createRentalReservation({
+      roomId: rentalContractRoomId,
+      guestName: document.getElementById('rental-reservation-guest').value,
+      guestPhone: document.getElementById('rental-reservation-phone').value,
+      reservedOn: document.getElementById('rental-reservation-date').value,
+      expectedMoveInOn: document.getElementById('rental-reservation-move-in').value,
+      expiresOn: document.getElementById('rental-reservation-expiry').value,
+      expectedDepositVnd: Number(document.getElementById('rental-reservation-deposit').value || 0),
+      note: document.getElementById('rental-reservation-note').value
+    });
+    showToast('Đã tạo giữ chỗ ✓', 'success');
+    document.getElementById('rental-reservation-form').reset();
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tạo được lượt giữ chỗ', 'error', 4500);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function cancelRentalReservation(card, button) {
+  const reason = card.querySelector('[data-reservation-cancel-reason]')?.value.trim() || '';
+  if (reason.length < 10) {
+    showToast('Vui lòng nhập lý do hủy ít nhất 10 ký tự', 'error');
+    return;
+  }
+  button.disabled = true;
+  try {
+    await API.cancelRentalReservation(Number(card.dataset.reservationId), {
+      reason,
+      occurredOn: vietnamCalendarDate()
+    });
+    showToast('Đã hủy lượt giữ chỗ', 'success');
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không hủy được lượt giữ chỗ', 'error', 4500);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function applyContractRateToRoom(rate) {
@@ -2894,9 +3022,7 @@ function renderRentalContracts() {
           <button type="button" class="btn btn--primary btn--sm" data-contract-status="active">Kích hoạt</button>
           <button type="button" class="btn btn--danger btn--sm" data-contract-status="cancelled">Hủy hợp đồng</button>`
       : contract.status === 'active'
-        ? `
-          <button type="button" class="btn btn--ghost btn--sm" data-contract-status="ended">Kết thúc</button>
-          <button type="button" class="btn btn--danger btn--sm" data-contract-status="cancelled">Hủy hợp đồng</button>`
+        ? '<button type="button" class="btn btn--danger btn--sm" data-contract-status="cancelled">Hủy hợp đồng</button>'
         : '';
     const statusPanel = statusActions
       ? `
@@ -2949,6 +3075,7 @@ function renderRentalContracts() {
       <div class="rental-contract-card-actions">
         <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
         ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
+        ${contract.status === 'active' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="transfer">🔁 Chuyển phòng</button><button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="checkout">🚪 Trả phòng</button>' : ''}
         <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
       </div>
       ${amendmentForm}
@@ -3332,15 +3459,124 @@ function printRentalHandover() {
   }
 }
 
+function updateRentalLifecycleForm() {
+  const type = document.getElementById('rental-lifecycle-type').value;
+  const isTransfer = type === 'transfer';
+  document.querySelectorAll('.rental-lifecycle-transfer-field').forEach(element => {
+    element.hidden = !isTransfer;
+  });
+  document.getElementById('rental-lifecycle-target-room').required = isTransfer;
+  document.getElementById('rental-lifecycle-rent').required = isTransfer;
+  document.getElementById('rental-lifecycle-submit').textContent = isTransfer
+    ? 'Xác nhận chuyển phòng'
+    : 'Xác nhận trả phòng';
+}
+
+function updateRentalLifecycleTargetRate() {
+  const roomId = document.getElementById('rental-lifecycle-target-room').value;
+  const room = STATE.rooms.find(item => item.id === roomId);
+  if (!room) return;
+  const date = document.getElementById('rental-lifecycle-date').value;
+  const period = date && date.length >= 7 ? date.slice(0, 7) : STATE.currentPeriod;
+  document.getElementById('rental-lifecycle-rent').value = getRoomRates(room, period).rentPrice;
+}
+
+function openRentalLifecycleModal(contract, type = 'transfer') {
+  activeRentalLifecycleContract = contract;
+  const form = document.getElementById('rental-lifecycle-form');
+  form.reset();
+  document.getElementById('rental-lifecycle-contract').textContent = `${contract.code} · ${contract.roomName} · ${contract.tenantName}`;
+  document.getElementById('rental-lifecycle-type').value = type;
+  document.getElementById('rental-lifecycle-date').value = vietnamCalendarDate();
+  document.getElementById('rental-lifecycle-deposit').value = Number(contract.depositVnd) || 0;
+  document.getElementById('rental-lifecycle-end').value = contract.endsOn || '';
+  document.getElementById('rental-lifecycle-reason').value = type === 'checkout'
+    ? 'Khách hoàn tất trả phòng theo thỏa thuận.'
+    : 'Khách chuyển sang phòng khác theo thỏa thuận.';
+  const target = document.getElementById('rental-lifecycle-target-room');
+  target.replaceChildren();
+  for (const room of STATE.rooms.filter(item => item.id !== contract.roomId)) {
+    const option = document.createElement('option');
+    option.value = room.id;
+    option.textContent = room.name;
+    target.appendChild(option);
+  }
+  document.getElementById('rental-lifecycle-error').hidden = true;
+  updateRentalLifecycleForm();
+  updateRentalLifecycleTargetRate();
+  document.getElementById('rental-lifecycle-modal').hidden = false;
+}
+
+function closeRentalLifecycleModal() {
+  activeRentalLifecycleContract = null;
+  document.getElementById('rental-lifecycle-modal').hidden = true;
+}
+
+async function refreshRentalStateAfterLifecycle() {
+  const serverState = await API.getState();
+  loadState(serverState);
+  renderRooms();
+  renderDashboard();
+}
+
+async function submitRentalLifecycle(event) {
+  event.preventDefault();
+  const contract = activeRentalLifecycleContract;
+  if (!contract) return;
+  const type = document.getElementById('rental-lifecycle-type').value;
+  const errorElement = document.getElementById('rental-lifecycle-error');
+  const button = document.getElementById('rental-lifecycle-submit');
+  errorElement.hidden = true;
+  button.disabled = true;
+  try {
+    if (type === 'transfer') {
+      const targetRoomId = document.getElementById('rental-lifecycle-target-room').value;
+      if (!targetRoomId) throw new Error('Không còn phòng khác để chuyển đến.');
+      await API.transferRentalContract(contract.id, {
+        targetRoomId,
+        occurredOn: document.getElementById('rental-lifecycle-date').value,
+        endsOn: document.getElementById('rental-lifecycle-end').value,
+        monthlyRentVnd: Number(document.getElementById('rental-lifecycle-rent').value),
+        depositVnd: Number(document.getElementById('rental-lifecycle-deposit').value || 0),
+        reason: document.getElementById('rental-lifecycle-reason').value
+      });
+      await refreshRentalStateAfterLifecycle();
+      closeRentalLifecycleModal();
+      closeRentalContractModal();
+      showToast('Đã chuyển phòng và tạo hợp đồng mới ✓', 'success');
+      return;
+    }
+    await API.checkoutRentalContract(contract.id, {
+      occurredOn: document.getElementById('rental-lifecycle-date').value,
+      reason: document.getElementById('rental-lifecycle-reason').value
+    });
+    closeRentalLifecycleModal();
+    showToast('Đã ghi nhận trả phòng ✓', 'success');
+    await loadRentalContracts();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không xử lý được vòng đời thuê';
+    errorElement.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function loadRentalContracts() {
   if (!rentalContractRoomId) return;
   const list = document.getElementById('rental-contract-list');
   document.getElementById('rental-contract-empty').hidden = true;
   list.innerHTML = '<p class="rental-contract-empty">Đang tải hợp đồng…</p>';
   try {
-    const data = await API.getRentalContracts(rentalContractRoomId);
+    const [data, lifecycle] = await Promise.all([
+      API.getRentalContracts(rentalContractRoomId),
+      API.getRentalLifecycle(rentalContractRoomId)
+    ]);
     rentalContracts = Array.isArray(data.contracts) ? data.contracts : [];
+    rentalReservations = Array.isArray(lifecycle.reservations) ? lifecycle.reservations : [];
+    rentalLifecycleEvents = Array.isArray(lifecycle.events) ? lifecycle.events : [];
     renderRentalContracts();
+    renderRentalReservations();
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
     list.innerHTML = `<p class="rental-contract-empty">${escapeHtml(error.message || 'Không tải được hợp đồng')}</p>`;
@@ -3350,23 +3586,29 @@ async function loadRentalContracts() {
 function openRentalContractModal(roomId) {
   const room = STATE.rooms.find(item => item.id === roomId);
   if (!room) return;
-  if (!Array.isArray(room.tenants) || room.tenants.length === 0) {
-    showToast('Hãy thêm khách thuê trước khi tạo hợp đồng', 'error', 3500);
-    return;
-  }
   rentalContractRoomId = roomId;
   rentalContracts = [];
+  rentalReservations = [];
+  rentalLifecycleEvents = [];
   const form = document.getElementById('rental-contract-form');
   form.reset();
   document.getElementById('rental-contract-room').textContent = room.name;
   const tenantSelect = document.getElementById('rental-contract-tenant');
   tenantSelect.innerHTML = '';
-  for (const tenant of room.tenants) {
+  for (const tenant of room.tenants || []) {
     const option = document.createElement('option');
     option.value = tenant.id;
     option.textContent = tenant.fullName || 'Khách chưa đặt tên';
     tenantSelect.appendChild(option);
   }
+  form.hidden = tenantSelect.options.length === 0;
+  if (tenantSelect.options.length === 0) {
+    showToast('Bạn vẫn có thể giữ chỗ; hãy thêm khách trước khi tạo hợp đồng', 'info', 3500);
+  }
+  const today = vietnamCalendarDate();
+  document.getElementById('rental-reservation-date').value = today;
+  document.getElementById('rental-reservation-move-in').value = isoDateAfter(today, 7);
+  document.getElementById('rental-reservation-expiry').value = isoDateAfter(today, 7);
   document.getElementById('rental-contract-status').value = 'active';
   document.getElementById('rental-contract-start').value = room.rentStartDate || vietnamCalendarDate();
   document.getElementById('rental-contract-billing-cycle').value = '1';
@@ -3380,6 +3622,8 @@ function openRentalContractModal(roomId) {
 function closeRentalContractModal() {
   rentalContractRoomId = '';
   rentalContracts = [];
+  rentalReservations = [];
+  rentalLifecycleEvents = [];
   document.getElementById('rental-contract-modal').hidden = true;
 }
 
@@ -3400,7 +3644,10 @@ async function submitRentalContract(event) {
       paymentDueDay: Number(document.getElementById('rental-contract-payment-due-day').value),
       monthlyRentVnd: Number(document.getElementById('rental-contract-rent').value),
       depositVnd: Number(document.getElementById('rental-contract-deposit').value || 0),
-      terms: document.getElementById('rental-contract-terms').value
+      terms: document.getElementById('rental-contract-terms').value,
+      reservationId: document.getElementById('rental-contract-reservation-row').hidden
+        ? null
+        : Number(document.getElementById('rental-contract-reservation').value)
     });
     applyContractRateToRoom(result.rate);
     renderRooms();
@@ -3533,9 +3780,18 @@ function deleteRoom(id) {
   if (!room) return;
   showConfirm(
     `Xóa phòng “${room.name}”? Dữ liệu tháng liên quan sẽ không bị xóa.`,
-    () => {
+    async () => {
+      const previousRooms = STATE.rooms;
       STATE.rooms = STATE.rooms.filter(r => r.id !== id);
-      saveState();
+      try {
+        saveState();
+        await flushState({ throwOnError: true });
+      } catch (_) {
+        STATE.rooms = previousRooms;
+        renderRooms();
+        renderDashboard();
+        return;
+      }
       renderRooms();
       renderDashboard();
       showToast(`Đã xóa phòng ${room.name}`, 'info');
@@ -3793,6 +4049,15 @@ document.getElementById('room-water-type').addEventListener('change', (e) => {
 document.getElementById('rental-contract-form').addEventListener('submit', event => {
   void submitRentalContract(event);
 });
+document.getElementById('rental-reservation-form').addEventListener('submit', event => {
+  void submitRentalReservation(event);
+});
+document.getElementById('rental-reservation-list').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-reservation-cancel]');
+  if (!button) return;
+  const card = button.closest('.rental-reservation-card');
+  if (card) void cancelRentalReservation(card, button);
+});
 document.getElementById('rental-contract-close').addEventListener('click', closeRentalContractModal);
 document.getElementById('rental-contract-close-footer').addEventListener('click', closeRentalContractModal);
 document.getElementById('rental-contract-refresh').addEventListener('click', () => {
@@ -3820,6 +4085,17 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
     if (handoverContract) void openRentalHandoverModal(handoverContract);
     return;
   }
+  const lifecycleButton = event.target?.closest?.('[data-contract-lifecycle]');
+  if (lifecycleButton) {
+    const lifecycleCard = lifecycleButton.closest('.rental-contract-card');
+    const lifecycleContract = rentalContracts.find(
+      item => Number(item.id) === Number(lifecycleCard?.dataset.contractId)
+    );
+    if (lifecycleContract) {
+      openRentalLifecycleModal(lifecycleContract, lifecycleButton.dataset.contractLifecycle);
+    }
+    return;
+  }
   const documentButton = event.target?.closest?.('[data-contract-document]');
   if (documentButton) {
     const documentCard = documentButton.closest('.rental-contract-card');
@@ -3835,6 +4111,17 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
   const contract = rentalContracts.find(item => Number(item.id) === Number(card?.dataset.contractId));
   if (!contract) return;
   void changeRentalContractStatus(contract.id, button.dataset.contractStatus, button);
+});
+document.getElementById('rental-lifecycle-form').addEventListener('submit', event => {
+  void submitRentalLifecycle(event);
+});
+document.getElementById('rental-lifecycle-type').addEventListener('change', updateRentalLifecycleForm);
+document.getElementById('rental-lifecycle-target-room').addEventListener('change', updateRentalLifecycleTargetRate);
+document.getElementById('rental-lifecycle-date').addEventListener('change', updateRentalLifecycleTargetRate);
+document.getElementById('rental-lifecycle-close').addEventListener('click', closeRentalLifecycleModal);
+document.getElementById('rental-lifecycle-cancel').addEventListener('click', closeRentalLifecycleModal);
+document.getElementById('rental-lifecycle-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentalLifecycleModal();
 });
 document.getElementById('rental-contract-document-form').addEventListener('submit', event => {
   void submitRentalContractDocument(event);

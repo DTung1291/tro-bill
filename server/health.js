@@ -86,6 +86,20 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_handover_records_type_unique'
+    )
+    AND to_regclass('public.rental_reservations') IS NOT NULL
+    AND to_regclass('public.rental_lifecycle_events') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_indexes
+      WHERE schemaname='public' AND indexname='idx_rental_reservations_one_active_room'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_reservations_converted_contract_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_lifecycle_events_contract_owner_fk'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

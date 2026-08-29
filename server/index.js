@@ -54,6 +54,7 @@ const rentPaymentProofs = require('./rent-payment-proofs');
 const rentalContracts = require('./rental-contracts');
 const rentalContractNotifications = require('./rental-contract-notifications');
 const rentalHandovers = require('./rental-handovers');
+const rentalLifecycle = require('./rental-lifecycle');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -301,6 +302,23 @@ app.post(
   '/api/rental-contracts/:id/handovers',
   requireAuth,
   wrap(rentalHandovers.createRentalHandover)
+);
+app.get('/api/rental-lifecycle', requireAuth, wrap(rentalLifecycle.listLifecycle));
+app.post('/api/rental-reservations', requireAuth, wrap(rentalLifecycle.createReservation));
+app.post(
+  '/api/rental-reservations/:id/cancel',
+  requireAuth,
+  wrap(rentalLifecycle.cancelReservation)
+);
+app.post(
+  '/api/rental-contracts/:id/transfer',
+  requireAuth,
+  wrap(rentalLifecycle.transferContract)
+);
+app.post(
+  '/api/rental-contracts/:id/checkout',
+  requireAuth,
+  wrap(rentalLifecycle.checkoutContract)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

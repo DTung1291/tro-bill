@@ -127,6 +127,11 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | DELETE | `/api/account`       | Tự xóa tài khoản, yêu cầu mật khẩu + cụm xác nhận |
 | GET    | `/api/rental-contracts/:id/handovers` | Danh sách biên bản nhận/trả phòng của hợp đồng |
 | POST   | `/api/rental-contracts/:id/handovers` | Xác nhận và khóa biên bản bàn giao tài sản |
+| GET    | `/api/rental-lifecycle?roomId=...` | Danh sách giữ chỗ và nhật ký vòng đời của phòng |
+| POST   | `/api/rental-reservations` | Tạo một lượt giữ chỗ cho phòng trống |
+| POST   | `/api/rental-reservations/:id/cancel` | Hủy lượt giữ chỗ đang hoạt động có lý do |
+| POST   | `/api/rental-contracts/:id/transfer` | Chuyển phòng và tạo hợp đồng mới nguyên tử |
+| POST   | `/api/rental-contracts/:id/checkout` | Trả phòng sau khi có biên bản trả phòng |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -136,6 +141,12 @@ Biên bản bàn giao chỉ được tạo cho hợp đồng thuộc tài khoả
 hợp đồng có tối đa một biên bản nhận phòng và một biên bản trả phòng; bản ghi
 không sửa/xóa sau xác nhận. Số dư cọc trên biên bản là snapshot từ sổ giao dịch
 cọc hiện có, không phải một nguồn số dư thứ hai. Bản in không chứa CCCD.
+
+Mỗi phòng chỉ có một lượt giữ chỗ đang hoạt động và lượt quá hạn được tự chuyển
+sang hết hạn. Khi tạo hợp đồng, đúng lượt giữ chỗ đã chọn được chuyển trạng thái
+cùng transaction. Chuyển phòng giữ nguyên hợp đồng/biên bản cũ, kết thúc hợp đồng
+cũ rồi tạo hợp đồng mới; trả phòng không cho thực hiện nếu chưa có biên bản trả
+phòng. Nhật ký vòng đời chỉ được thêm mới để không mất dấu vết vận hành.
 
 Tài khoản đăng ký mới chỉ được đăng nhập sau khi xác minh email. Token xác minh
 có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không lưu token gốc.

@@ -115,3 +115,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hệ quả:** Không thêm cột số dư cọc mới và không sửa biên bản để khớp số dư
   hiện tại. Mọi điều chỉnh tiền đi qua `tenant_deposit_transactions`; chuyển/trả
   phòng sau này phải giữ nguyên biên bản cũ và tạo nghiệp vụ tiếp nối có audit.
+
+## D-012 — Chuyển phòng tạo hợp đồng mới và vòng đời có nhật ký bất biến
+
+- **Trạng thái:** Đang áp dụng từ 29/08/2026.
+- **Quyết định:** Mỗi phòng chỉ có một lượt giữ chỗ active. Chuyển phòng kết thúc
+  hợp đồng cũ, chuyển tenant sang phòng đích và tạo hợp đồng active mới trong một
+  transaction; không sửa `room_id` của hợp đồng cũ. Trả/chuyển phòng yêu cầu biên
+  bản `check_out`. Các mốc giữ chỗ, chuyển và trả được ghi vào event append-only.
+- **Lý do:** Sửa phòng trực tiếp trên hợp đồng làm sai snapshot pháp lý, lịch sử
+  giá và liên kết chứng từ; thao tác rời rạc có thể để khách/hợp đồng ở trạng thái
+  nửa chừng khi một bước thất bại.
+- **Hệ quả:** Phòng đích phải không có hợp đồng hoặc giữ chỗ active. Giữ chỗ chỉ
+  được chuyển thành hợp đồng khi client gửi đúng `reservationId`; bill cuối cùng
+  và trạng thái phòng sẽ dựa trên event/hợp đồng thay vì xóa lịch sử cũ.

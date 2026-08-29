@@ -344,6 +344,25 @@ async function putState(req, res) {
         tenantId: detachedContract.tenant_id
       });
     }
+    const activeReservations = await client.query(
+      `SELECT id, reservation_code, room_id
+       FROM rental_reservations
+       WHERE user_id=$1 AND status='active' AND expires_on >= CURRENT_DATE
+       FOR UPDATE`,
+      [uid]
+    );
+    const detachedReservation = activeReservations.rows.find(
+      reservation => !roomIds.has(reservation.room_id)
+    );
+    if (detachedReservation) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Phòng đang có lượt giữ chỗ ${detachedReservation.reservation_code}. Hãy hủy lượt giữ chỗ trước khi xóa phòng.`,
+        code: 'ACTIVE_RESERVATION_ROOM_REQUIRED',
+        reservationId: Number(detachedReservation.id),
+        roomId: detachedReservation.room_id
+      });
+    }
 
     const existingTenantResult = await client.query(
       `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
