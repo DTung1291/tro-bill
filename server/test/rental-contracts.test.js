@@ -493,3 +493,15 @@ test('schema, migration, API và UI có hợp đồng cùng phụ lục giá b�
   assert.match(contractTemplate, /ĐIỀU 8: THỎA THUẬN CHUNG/);
   assert.match(contractTemplate, /Trang thiết bị kèm theo phòng/);
 });
+
+test('bản in hợp đồng bỏ khóa cuộn popup để Chromium phân trang đầy đủ', () => {
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+  assert.match(css, /@media print[\s\S]*html,\s*body\s*\{[\s\S]*position: static !important;[\s\S]*overflow: visible !important;/);
+  assert.match(css, /@media print[\s\S]*body\.modal-open\s*\{[\s\S]*top: auto !important;/);
+  assert.match(css, /\.print-area\s*\{[\s\S]*height: auto !important;[\s\S]*overflow: visible !important;/);
+  assert.match(css, /\.print-area \.rental-contract-document\s*\{[\s\S]*height: auto;[\s\S]*overflow: visible;/);
+  assert.match(css, /@page rentalContract\s*\{[\s\S]*size: Letter portrait;/);
+  assert.match(html, /style\.css\?v=100/);
+});

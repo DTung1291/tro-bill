@@ -3051,10 +3051,24 @@ body.modal-open {
 @media print {
   html,
   body {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
     min-height: 0;
     margin: 0;
     padding: 0;
+    overflow: visible !important;
+    overscroll-behavior: auto;
     background: #fff;
+  }
+
+  /* Popup khóa body bằng position: fixed khi đang mở. Nếu không bỏ khóa trong
+     print media, Chromium chỉ in chiều cao của một viewport và cắt hợp đồng ở
+     trang 1. Inline top do syncModalScrollLock đặt cũng phải được vô hiệu hóa. */
+  body.modal-open {
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
   }
 
   /* Hide everything */
@@ -3063,6 +3077,10 @@ body.modal-open {
   /* Show only print area */
   .print-area {
     display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
     font-family: 'Inter', sans-serif;
     color: #111;
     background: #fff;
@@ -3072,11 +3090,20 @@ body.modal-open {
   body:has(.print-area--rental-contract) { page: rentalContract; }
 
   .print-area .rental-contract-document {
+    display: block;
     width: auto;
+    height: auto;
     min-height: auto;
     padding: 0;
+    overflow: visible;
     font-family: 'Times New Roman', Times, serif;
     font-size: 13pt;
+  }
+
+  .print-area .contract-doc-equipment tr,
+  .print-area .contract-doc-signatures {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
 
   .subscription-receipt-print {
