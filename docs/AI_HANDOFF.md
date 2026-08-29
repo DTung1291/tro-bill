@@ -9,10 +9,10 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang phát hành — biên bản bàn giao tài sản |
+| Trạng thái | Sẵn sàng bàn giao; tiếp tục giữ chỗ, chuyển phòng và trả phòng |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
-| Phần ứng dụng phát hành gần nhất | `842e246` — sửa in hợp đồng thành nhiều trang |
+| Phần ứng dụng phát hành gần nhất | `2ded7ef` — biên bản nhận/trả phòng và bàn giao tài sản bất biến |
 | Việc code tiếp theo | Giai đoạn 4: hỗ trợ giữ chỗ, chuyển phòng và trả phòng |
 | Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
 
@@ -66,6 +66,8 @@ bản bàn giao hoặc bút toán sổ cọc đã khóa.
 - Bộ test đầy đủ đạt 288/288, secret scan sạch, popup đã kiểm tra ở 1440×900 và
   390×844. PDF A4 thử nghiệm 32 tài sản có đủ 3 trang; đã nhìn cả trang đầu,
   giữa và cuối, không mất phần đối chiếu cọc hoặc chữ ký.
+- GitHub Actions `33239622788` thành công; production readiness revision
+  `2ded7ef3a030` trả HTTP 200 với database, runtime role và schema đều `ok`.
 
 ## Việc chưa được xem là hoàn tất
 
