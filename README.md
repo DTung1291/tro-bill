@@ -23,6 +23,21 @@ tro-bill/
     └── .env           # DATABASE_URL + JWT_SECRET (KHÔNG commit)
 ```
 
+## Tiếp quản bằng AI agent
+
+Repository lưu ngữ cảnh làm việc trong Git để Codex, Claude Code hoặc người mới
+có thể tiếp tục mà không cần lịch sử chat của phiên trước:
+
+- [AGENTS.md](AGENTS.md): quy tắc bắt buộc, kiểm thử và chống conflict;
+- [docs/AI_HANDOFF.md](docs/AI_HANDOFF.md): trạng thái hiện tại và bước tiếp theo;
+- [docs/AI_DECISIONS.md](docs/AI_DECISIONS.md): các quyết định nghiệp vụ/kỹ thuật
+  cùng lý do và hệ quả;
+- [CLAUDE.md](CLAUDE.md): nạp lại đúng các nguồn trên cho Claude Code.
+
+Agent mới phải bắt đầu bằng kiểm tra Git và kết thúc bằng cập nhật handoff. Không
+lưu transcript, chain-of-thought, secret hoặc dữ liệu khách thuê trong các tài
+liệu này.
+
 ## Chạy lần đầu
 
 ```bash
