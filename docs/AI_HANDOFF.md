@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 29/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang phát hành — giữ chỗ, chuyển phòng và trả phòng |
+| Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao — bắt đầu chốt bill cuối cùng khi khách trả phòng |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi vòng đời chưa commit trong lúc phát hành; agent mới phải kiểm tra Git và không ghi đè |
-| Phần ứng dụng phát hành gần nhất | `2ded7ef` — biên bản nhận/trả phòng và bàn giao tài sản bất biến |
-| Việc code tiếp theo | Sau khi phát hành/xác minh phần đang dở: chốt bill cuối cùng khi khách trả phòng |
+| Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
+| Phần ứng dụng phát hành gần nhất | `5375daa` — giữ chỗ, chuyển phòng và trả phòng có nhật ký bất biến |
+| Việc code tiếp theo | Giai đoạn 4: chốt bill cuối cùng khi khách trả phòng |
 | Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -22,9 +22,10 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 ## Mục tiêu đang theo đuổi
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
-cho người dùng kiểm tra. Phần **giữ chỗ, chuyển phòng và trả phòng** đã code/test,
-migration đã chạy trên staging/production và đang chờ commit, CI cùng xác minh
-deployment. Không bắt đầu bill cuối cùng trước khi mốc phát hành này sạch.
+cho người dùng kiểm tra. Phần **giữ chỗ, chuyển phòng và trả phòng** đã phát hành
+và xác minh production. Ưu tiên tiếp theo là chốt bill cuối cùng khi khách trả
+phòng; phải tái sử dụng invoice/payment/deposit ledger hiện có và không sửa hóa
+đơn hoặc biên bản đã khóa.
 
 ## Bản đồ hệ thống ngắn
 
@@ -72,6 +73,11 @@ deployment. Không bắt đầu bill cuối cùng trước khi mốc phát hành
   ngày 29/08/2026; cả 6 cờ bảng, ownership, unique active reservation và quyền
   event append-only đều `true`. Test mục tiêu đạt 18/18, toàn bộ test đạt
   295/295; giao diện đã kiểm tra tại 1440×900 và 390×844 không tràn viewport.
+- Commit `5375daa` đã push lên `main`; GitHub Actions `33240721704` thành công.
+  Deployment production `tro-bill-ph6am8l8m-dtung.vercel.app` ở trạng thái
+  `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
+  `5375daa1c872`, database/schema `ok` và runtime role `restricted` ngày
+  30/08/2026.
 
 ## Việc chưa được xem là hoàn tất
 
