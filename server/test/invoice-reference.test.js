@@ -34,7 +34,7 @@ test('giao diện dùng mã riêng cho VietQR, bill và thao tác sao chép', ()
   const htmlSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
-  assert.match(htmlSource, /invoice-reference\.js\?v=84[\s\S]*app\.js\?v=104/);
+  assert.match(htmlSource, /invoice-reference\.js\?v=84[\s\S]*app\.js\?v=105/);
   assert.match(htmlSource, /tự tạo mã chuyển khoản ngắn/);
   assert.doesNotMatch(htmlSource, /id="bank-pattern-input"/);
   assert.match(appSource, /InvoiceReference\.fromInvoiceId/);

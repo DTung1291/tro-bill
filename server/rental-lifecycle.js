@@ -172,6 +172,7 @@ function eventJson(row) {
     contractId: row.contract_id === null ? null : Number(row.contract_id),
     relatedContractId: row.related_contract_id === null ? null : Number(row.related_contract_id),
     reservationId: row.reservation_id === null ? null : Number(row.reservation_id),
+    maintenanceId: row.maintenance_id === null ? null : Number(row.maintenance_id),
     tenantId: row.tenant_id_snapshot || '',
     tenantName: row.tenant_name_snapshot || '',
     sourceRoomId: row.source_room_id_snapshot || '',
@@ -208,11 +209,11 @@ async function insertEvent(query, userId, input) {
   const inserted = await query(
     `INSERT INTO rental_lifecycle_events
        (id, user_id, event_code, event_type, contract_id, related_contract_id,
-        reservation_id, tenant_id_snapshot, tenant_name_snapshot,
+        reservation_id, maintenance_id, tenant_id_snapshot, tenant_name_snapshot,
         source_room_id_snapshot, source_room_name_snapshot,
         target_room_id_snapshot, target_room_name_snapshot, occurred_on,
         reason, metadata)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb)
      RETURNING *`,
     [
       id,
@@ -222,6 +223,7 @@ async function insertEvent(query, userId, input) {
       input.contractId || null,
       input.relatedContractId || null,
       input.reservationId || null,
+      input.maintenanceId || null,
       input.tenantId || '',
       input.tenantName || '',
       input.sourceRoomId || '',
@@ -305,6 +307,32 @@ async function createReservation(req, res, dependencies = {}) {
         409,
         'ROOM_ALREADY_OCCUPIED',
         'Phòng đang có hợp đồng hoạt động nên không thể giữ chỗ'
+      );
+    }
+    const maintenance = await client.query(
+      `SELECT id FROM room_maintenance_periods
+       WHERE user_id=$1 AND room_id=$2 AND status='active'
+       LIMIT 1`,
+      [req.userId, input.roomId]
+    );
+    if (maintenance.rows[0]) {
+      throw new RentalLifecycleError(
+        409,
+        'ROOM_UNDER_MAINTENANCE',
+        'Phòng đang sửa chữa nên không thể giữ chỗ'
+      );
+    }
+    const tenants = await client.query(
+      `SELECT id FROM tenants
+       WHERE user_id=$1 AND room_id=$2
+       LIMIT 1`,
+      [req.userId, input.roomId]
+    );
+    if (tenants.rows[0]) {
+      throw new RentalLifecycleError(
+        409,
+        'ROOM_ALREADY_OCCUPIED',
+        'Phòng đã có khách thuê nên không thể giữ chỗ'
       );
     }
     const idResult = await client.query("SELECT nextval('rental_reservations_id_seq') AS id");
@@ -518,14 +546,23 @@ async function transferContract(req, res, dependencies = {}) {
        EXISTS (
          SELECT 1 FROM rental_reservations
          WHERE user_id=$1 AND room_id=$2 AND status='active'
-       ) AS has_reservation`,
+       ) AS has_reservation,
+       EXISTS (
+         SELECT 1 FROM room_maintenance_periods
+         WHERE user_id=$1 AND room_id=$2 AND status='active'
+       ) AS has_maintenance,
+       EXISTS (
+         SELECT 1 FROM tenants
+         WHERE user_id=$1 AND room_id=$2
+       ) AS has_tenant`,
       [req.userId, input.targetRoomId]
     );
-    if (conflicts.rows[0]?.has_contract || conflicts.rows[0]?.has_reservation) {
+    if (conflicts.rows[0]?.has_contract || conflicts.rows[0]?.has_reservation
+        || conflicts.rows[0]?.has_maintenance || conflicts.rows[0]?.has_tenant) {
       throw new RentalLifecycleError(
         409,
         'TARGET_ROOM_UNAVAILABLE',
-        'Phòng chuyển đến đang được thuê hoặc đang được giữ chỗ'
+        'Phòng chuyển đến đang được thuê, giữ chỗ hoặc sửa chữa'
       );
     }
     const updatedOld = await client.query(

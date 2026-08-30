@@ -1898,23 +1898,37 @@ function cloneExpenseRecords(records, regenerateIds = false) {
   }));
 }
 
+let ROOM_MAINTENANCE_PERIODS = [];
+let ROOM_OPERATIONAL_STATUS_BY_ROOM = new Map();
+let ROOM_OPERATIONAL_STATUS_LOADED = false;
+let ACTIVE_ROOM_LIFECYCLE_ROOM_ID = '';
+
+function applyRoomOperationalStatusPayload(payload = {}) {
+  ROOM_MAINTENANCE_PERIODS = Array.isArray(payload.maintenancePeriods)
+    ? payload.maintenancePeriods
+    : [];
+  ROOM_OPERATIONAL_STATUS_LOADED = Array.isArray(payload.roomStatuses);
+  ROOM_OPERATIONAL_STATUS_BY_ROOM = new Map(
+    (Array.isArray(payload.roomStatuses) ? payload.roomStatuses : [])
+      .map(status => [status.roomId, status])
+  );
+}
+
 function getRoomOperationalStatus(roomId) {
-  const activeContract = STATE.rentalContracts?.find(
-    c => c.roomId === roomId && c.status === 'active'
-  );
-  if (activeContract) return { status: 'occupied', label: 'Đang thuê', color: '#10b981' };
-
-  const activeReservation = STATE.rentalReservations?.find(
-    r => r.roomId === roomId && r.status === 'active'
-  );
-  if (activeReservation) return { status: 'reserved', label: 'Giữ chỗ', color: '#f59e0b' };
-
-  const activeMaintenance = STATE.roomMaintenance?.find(
-    m => m.roomId === roomId && m.status === 'active'
-  );
-  if (activeMaintenance) return { status: 'maintenance', label: 'Đang sửa', color: '#ef4444' };
-
-  return { status: 'vacant', label: 'Trống', color: '#6b7280' };
+  const source = ROOM_OPERATIONAL_STATUS_BY_ROOM.get(roomId)
+    || { status: ROOM_OPERATIONAL_STATUS_LOADED ? 'vacant' : 'unknown' };
+  const labels = {
+    vacant: 'Trống',
+    reserved: 'Giữ chỗ',
+    occupied: 'Đang thuê',
+    maintenance: 'Đang sửa',
+    unknown: 'Chưa tải'
+  };
+  return {
+    ...source,
+    status: labels[source.status] ? source.status : 'unknown',
+    label: source.conflict ? 'Cần kiểm tra' : (labels[source.status] || labels.unknown)
+  };
 }
 
 function isUtilityOnlyRecord(record) {
@@ -2863,7 +2877,9 @@ function rentalLifecycleEventLabel(type) {
     reservation_cancelled: 'Hủy giữ chỗ',
     reservation_converted: 'Chuyển thành hợp đồng',
     room_transferred: 'Chuyển phòng',
-    checked_out: 'Trả phòng'
+    checked_out: 'Trả phòng',
+    maintenance_started: 'Bắt đầu sửa phòng',
+    maintenance_completed: 'Hoàn thành sửa phòng'
   })[type] || type;
 }
 
@@ -2940,6 +2956,7 @@ async function submitRentalReservation(event) {
       expectedDepositVnd: Number(document.getElementById('rental-reservation-deposit').value || 0),
       note: document.getElementById('rental-reservation-note').value
     });
+    await refreshRoomOperationalStatuses();
     showToast('Đã tạo giữ chỗ ✓', 'success');
     document.getElementById('rental-reservation-form').reset();
     await loadRentalContracts();
@@ -2963,6 +2980,7 @@ async function cancelRentalReservation(card, button) {
       reason,
       occurredOn: vietnamCalendarDate()
     });
+    await refreshRoomOperationalStatuses();
     showToast('Đã hủy lượt giữ chỗ', 'success');
     await loadRentalContracts();
   } catch (error) {
@@ -3752,6 +3770,7 @@ async function submitRentalLifecycle(event) {
         reason: document.getElementById('rental-lifecycle-reason').value
       });
       await refreshRentalStateAfterLifecycle();
+      await refreshRoomOperationalStatuses();
       closeRentalLifecycleModal();
       closeRentalContractModal();
       showToast('Đã chuyển phòng và tạo hợp đồng mới ✓', 'success');
@@ -3762,6 +3781,7 @@ async function submitRentalLifecycle(event) {
       occurredOn: document.getElementById('rental-lifecycle-date').value,
       reason: document.getElementById('rental-lifecycle-reason').value
     });
+    await refreshRoomOperationalStatuses();
     closeRentalLifecycleModal();
     showToast('Đã ghi nhận trả phòng ✓', 'success');
     await loadRentalContracts();
@@ -3864,7 +3884,7 @@ async function submitRentalContract(event) {
         : Number(document.getElementById('rental-contract-reservation').value)
     });
     applyContractRateToRoom(result.rate);
-    renderRooms();
+    await refreshRoomOperationalStatuses();
     showToast(`Đã tạo hợp đồng ${result.contract.code} ✓`, 'success');
     await loadRentalContracts();
   } catch (error) {
@@ -3886,7 +3906,7 @@ async function changeRentalContractStatus(contractId, status, button) {
   try {
     const result = await API.changeRentalContractStatus(contractId, { status, reason });
     applyContractRateToRoom(result.rate);
-    renderRooms();
+    await refreshRoomOperationalStatuses();
     showToast(`Đã chuyển hợp đồng sang “${rentalContractStatusLabel(status)}”`, 'success');
     await loadRentalContracts();
   } catch (error) {
@@ -3950,7 +3970,7 @@ function renderRooms() {
       : '';
 
     const roomStatus = getRoomOperationalStatus(room.id);
-    const statusBadge = `<span class="room-status-badge" style="background:${roomStatus.color};color:#fff;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600">${roomStatus.label}</span>`;
+    const statusBadge = `<span class="room-operational-status room-operational-status--${roomStatus.conflict ? 'conflict' : roomStatus.status}">${escapeHtml(roomStatus.label)}</span>`;
 
     card.innerHTML = `
       <div class="room-card-info">
@@ -3976,7 +3996,7 @@ function renderRooms() {
       <div class="room-card-actions">
         <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
         <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
-        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Vòng đời</button>
+        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Trạng thái</button>
         <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
         <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
       </div>
@@ -7527,156 +7547,154 @@ async function submitDepositTransaction(event) {
 async function openRoomLifecycleModal(roomId) {
   const room = STATE.rooms.find(r => r.id === roomId);
   if (!room) return;
-
-  const status = getRoomOperationalStatus(roomId);
-
-  // Create simple modal
+  ACTIVE_ROOM_LIFECYCLE_ROOM_ID = roomId;
   const modalHtml = `
-    <div class="modal-overlay" id="room-lifecycle-mgmt-modal" style="z-index:10000">
-      <div class="modal" style="max-width:600px">
+    <div class="modal-overlay" id="room-lifecycle-mgmt-modal">
+      <div class="modal room-lifecycle-mgmt-modal" role="dialog" aria-modal="true" aria-labelledby="room-lifecycle-mgmt-title">
         <div class="modal-header">
-          <h2>Quản lý vòng đời: ${escapeHtml(room.name)}</h2>
-          <button class="modal-close" onclick="closeRoomLifecycleMgmtModal()">✕</button>
-        </div>
-        <div class="modal-body" style="padding:20px">
-          <div style="margin-bottom:20px;padding:15px;background:${status.color}15;border-left:4px solid ${status.color};border-radius:4px">
-            <strong style="color:${status.color}">Trạng thái hiện tại: ${status.label}</strong>
+          <div>
+            <h2 class="modal-title" id="room-lifecycle-mgmt-title">Trạng thái phòng</h2>
+            <p class="rental-contract-room">${escapeHtml(room.name)}</p>
           </div>
-
+          <button type="button" class="modal-close" data-room-lifecycle-close aria-label="Đóng">✕</button>
+        </div>
+        <div class="room-lifecycle-mgmt-body">
+          <div class="room-lifecycle-current" id="room-lifecycle-current"></div>
           <div id="room-lifecycle-mgmt-content">
-            <p style="text-align:center;color:#666">Đang tải...</p>
+            <p class="rental-contract-empty">Đang tải trạng thái phòng…</p>
           </div>
         </div>
       </div>
     </div>
   `;
-
-  // Remove old modal if exists
   const oldModal = document.getElementById('room-lifecycle-mgmt-modal');
   if (oldModal) oldModal.remove();
-
-  // Add modal to body
   document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-  // Load maintenance data
+  const modal = document.getElementById('room-lifecycle-mgmt-modal');
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-room-lifecycle-close]')) {
+      closeRoomLifecycleMgmtModal();
+      return;
+    }
+    if (event.target.closest('[data-maintenance-start]')) {
+      openStartMaintenanceForm();
+      return;
+    }
+    const completeButton = event.target.closest('[data-maintenance-complete]');
+    if (completeButton) openCompleteMaintenanceForm(Number(completeButton.dataset.maintenanceComplete));
+  });
+  syncModalScrollLock();
   try {
     const result = await API.getRoomMaintenance();
-    const maintenancePeriods = result.maintenancePeriods || [];
-    const roomMaintenance = maintenancePeriods.filter(m => m.roomId === roomId);
-
-    renderRoomLifecycleContent(roomId, room, status, roomMaintenance);
+    applyRoomOperationalStatusPayload(result);
+    renderRooms();
+    renderRoomLifecycleContent();
   } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
     document.getElementById('room-lifecycle-mgmt-content').innerHTML =
-      `<p style="color:#ef4444">Lỗi: ${escapeHtml(error.message)}</p>`;
+      `<p class="rental-contract-document-error">${escapeHtml(error.message || 'Không tải được trạng thái phòng')}</p>`;
   }
 }
 
-function renderRoomLifecycleContent(roomId, room, status, maintenancePeriods) {
+function renderRoomLifecycleContent() {
   const content = document.getElementById('room-lifecycle-mgmt-content');
-  if (!content) return;
-
+  const statusElement = document.getElementById('room-lifecycle-current');
+  const room = STATE.rooms.find(item => item.id === ACTIVE_ROOM_LIFECYCLE_ROOM_ID);
+  if (!content || !statusElement || !room) return;
+  const status = getRoomOperationalStatus(room.id);
+  const maintenancePeriods = ROOM_MAINTENANCE_PERIODS.filter(item => item.roomId === room.id);
   const activeMaintenance = maintenancePeriods.find(m => m.status === 'active');
-
+  statusElement.className = `room-lifecycle-current room-lifecycle-current--${status.conflict ? 'conflict' : status.status}`;
+  statusElement.textContent = `Trạng thái hiện tại: ${status.label}`;
   let html = '';
-
-  // Show actions based on status
-  if (status.status === 'maintenance') {
+  if (status.conflict) {
     html += `
-      <div style="margin-bottom:20px">
-        <h3 style="margin:0 0 10px 0">Đợt sửa chữa đang hoạt động</h3>
-        <div style="padding:12px;background:#f9fafb;border-radius:4px;margin-bottom:10px">
+      <p class="rental-contract-document-error">
+        Phòng đang có nhiều nguồn trạng thái hoạt động cùng lúc. Hãy hoàn thành đợt sửa hoặc xử lý hợp đồng/giữ chỗ trước khi tiếp tục.
+      </p>`;
+  } else if (status.status === 'maintenance' && activeMaintenance) {
+    html += `
+      <section class="room-lifecycle-section">
+        <h3>Đợt sửa chữa đang hoạt động</h3>
+        <div class="room-maintenance-active">
           <div><strong>Mã:</strong> ${escapeHtml(activeMaintenance.code)}</div>
-          <div><strong>Bắt đầu:</strong> ${dateLabel(activeMaintenance.startsOn)}</div>
-          ${activeMaintenance.expectedEndsOn ? `<div><strong>Dự kiến hoàn thành:</strong> ${dateLabel(activeMaintenance.expectedEndsOn)}</div>` : ''}
+          <div><strong>Bắt đầu:</strong> ${escapeHtml(dateLabel(activeMaintenance.startsOn) || activeMaintenance.startsOn)}</div>
+          ${activeMaintenance.expectedEndsOn ? `<div><strong>Dự kiến hoàn thành:</strong> ${escapeHtml(dateLabel(activeMaintenance.expectedEndsOn) || activeMaintenance.expectedEndsOn)}</div>` : ''}
           <div><strong>Lý do:</strong> ${escapeHtml(activeMaintenance.reason)}</div>
         </div>
-        <button class="btn btn--primary" onclick="openCompleteMaintenanceForm(${activeMaintenance.id}, '${escapeHtml(room.name)}')">
+        <button type="button" class="btn btn--primary" data-maintenance-complete="${Number(activeMaintenance.id)}">
           ✓ Hoàn thành sửa chữa
         </button>
-      </div>
+      </section>
     `;
   } else if (status.status === 'vacant') {
     html += `
-      <div style="margin-bottom:20px">
+      <section class="room-lifecycle-section">
         <p>Phòng đang trống. Bạn có thể:</p>
-        <button class="btn btn--primary" onclick="openStartMaintenanceForm('${roomId}', '${escapeHtml(room.name)}')">
+        <button type="button" class="btn btn--primary" data-maintenance-start>
           🔧 Bắt đầu sửa chữa
         </button>
-      </div>
+      </section>
     `;
   } else {
     html += `
-      <div style="margin-bottom:20px">
-        <p style="color:#666">Phòng đang ${status.label.toLowerCase()}. Không thể bắt đầu sửa chữa.</p>
-      </div>
+      <section class="room-lifecycle-section">
+        <p class="rental-contract-helper">Phòng đang ${escapeHtml(status.label.toLowerCase())}. Chỉ phòng trống mới có thể bắt đầu sửa chữa.</p>
+      </section>
     `;
   }
-
-  // Show history
   if (maintenancePeriods.length > 0) {
     html += `
-      <div style="margin-top:20px;padding-top:20px;border-top:1px solid #e5e7eb">
-        <h3 style="margin:0 0 10px 0">Lịch sử bảo trì</h3>
+      <section class="room-lifecycle-section room-lifecycle-history">
+        <h3>Lịch sử sửa chữa</h3>
     `;
-
-    for (const m of maintenancePeriods.sort((a, b) => b.id - a.id).slice(0, 5)) {
-      const statusBadge = m.status === 'active'
-        ? '<span style="color:#10b981">● Đang hoạt động</span>'
-        : '<span style="color:#6b7280">● Đã hoàn thành</span>';
-
+    for (const m of [...maintenancePeriods].sort((a, b) => b.id - a.id).slice(0, 5)) {
       html += `
-        <div style="padding:10px;background:#f9fafb;border-radius:4px;margin-bottom:8px;font-size:0.9rem">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <article class="room-maintenance-history-card">
+          <div class="room-maintenance-history-head">
             <strong>${escapeHtml(m.code)}</strong>
-            ${statusBadge}
+            <span>${m.status === 'active' ? '● Đang sửa' : '● Đã hoàn thành'}</span>
           </div>
-          <div style="color:#666">
-            ${dateLabel(m.startsOn)} ${m.endedOn ? `→ ${dateLabel(m.endedOn)}` : ''}
+          <div class="rental-contract-helper">
+            ${escapeHtml(dateLabel(m.startsOn) || m.startsOn)} ${m.endedOn ? `→ ${escapeHtml(dateLabel(m.endedOn) || m.endedOn)}` : ''}
           </div>
-          <div style="color:#666;font-size:0.85rem">${escapeHtml(m.reason).substring(0, 100)}${m.reason.length > 100 ? '...' : ''}</div>
-        </div>
+          <div class="rental-contract-helper">${escapeHtml(m.reason.length > 100 ? `${m.reason.slice(0, 100)}…` : m.reason)}</div>
+        </article>
       `;
     }
-
-    html += '</div>';
+    html += '</section>';
   }
-
   content.innerHTML = html;
 }
 
-function openStartMaintenanceForm(roomId, roomName) {
+function openStartMaintenanceForm() {
   const content = document.getElementById('room-lifecycle-mgmt-content');
+  const roomId = ACTIVE_ROOM_LIFECYCLE_ROOM_ID;
+  if (!content || !roomId) return;
   content.innerHTML = `
-    <form id="start-maintenance-form" style="display:flex;flex-direction:column;gap:15px">
-      <div>
-        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày bắt đầu sửa *</label>
-        <input type="date" id="maintenance-start-date" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" value="${vietnamCalendarDate()}">
-      </div>
-
-      <div>
-        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày dự kiến hoàn thành</label>
-        <input type="date" id="maintenance-expected-end-date" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px">
-      </div>
-
-      <div>
-        <label style="display:block;margin-bottom:5px;font-weight:500">Lý do sửa chữa * (10-500 ký tự)</label>
-        <textarea id="maintenance-reason" required minlength="10" maxlength="500" rows="4" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" placeholder="Ví dụ: Sửa chữa điện nước, sơn tường, thay đổi nội thất..."></textarea>
-      </div>
-
-      <div id="maintenance-error" style="color:#ef4444;display:none"></div>
-
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button type="button" class="btn btn--ghost" onclick="closeRoomLifecycleMgmtModal()">Hủy</button>
+    <form class="room-maintenance-form" id="start-maintenance-form">
+      <label class="form-label">Ngày bắt đầu sửa *
+        <input class="form-input" type="date" id="maintenance-start-date" required value="${vietnamCalendarDate()}">
+      </label>
+      <label class="form-label">Ngày dự kiến hoàn thành
+        <input class="form-input" type="date" id="maintenance-expected-end-date">
+      </label>
+      <label class="form-label room-maintenance-wide">Lý do sửa chữa * (10–500 ký tự)
+        <textarea class="form-input" id="maintenance-reason" required minlength="10" maxlength="500" rows="4" placeholder="Ví dụ: sửa điện nước, sơn tường, thay nội thất…"></textarea>
+      </label>
+      <p class="rental-contract-document-error room-maintenance-wide" id="maintenance-error" hidden></p>
+      <div class="rental-contract-document-actions room-maintenance-wide">
+        <button type="button" class="btn btn--ghost" data-room-lifecycle-close>Hủy</button>
         <button type="submit" class="btn btn--primary">Bắt đầu sửa chữa</button>
       </div>
     </form>
   `;
-
   document.getElementById('start-maintenance-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('maintenance-error');
-    errorEl.style.display = 'none';
-
+    const submit = e.currentTarget.querySelector('[type="submit"]');
+    errorEl.hidden = true;
+    submit.disabled = true;
     try {
       const input = {
         roomId,
@@ -7684,66 +7702,74 @@ function openStartMaintenanceForm(roomId, roomName) {
         expectedEndsOn: document.getElementById('maintenance-expected-end-date').value || null,
         reason: document.getElementById('maintenance-reason').value.trim()
       };
-
       await API.createRoomMaintenance(input);
+      await refreshRoomOperationalStatuses();
       showToast('Đã bắt đầu sửa chữa phòng', 'success');
       closeRoomLifecycleMgmtModal();
-      renderRooms();
     } catch (error) {
+      if (error.code === 401) return handleAuthExpired();
       errorEl.textContent = error.message || 'Có lỗi xảy ra';
-      errorEl.style.display = 'block';
+      errorEl.hidden = false;
+    } finally {
+      submit.disabled = false;
     }
   });
 }
 
-function openCompleteMaintenanceForm(maintenanceId, roomName) {
+function openCompleteMaintenanceForm(maintenanceId) {
   const content = document.getElementById('room-lifecycle-mgmt-content');
+  if (!content || !Number.isSafeInteger(maintenanceId)) return;
   content.innerHTML = `
-    <form id="complete-maintenance-form" style="display:flex;flex-direction:column;gap:15px">
-      <div>
-        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày hoàn thành *</label>
-        <input type="date" id="maintenance-end-date" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" value="${vietnamCalendarDate()}">
-      </div>
-
-      <div>
-        <label style="display:block;margin-bottom:5px;font-weight:500">Ghi chú hoàn thành * (10-500 ký tự)</label>
-        <textarea id="maintenance-completion-note" required minlength="10" maxlength="500" rows="4" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" placeholder="Mô tả công việc đã hoàn thành, tình trạng phòng sau sửa chữa..."></textarea>
-      </div>
-
-      <div id="maintenance-error" style="color:#ef4444;display:none"></div>
-
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button type="button" class="btn btn--ghost" onclick="closeRoomLifecycleMgmtModal()">Hủy</button>
+    <form class="room-maintenance-form" id="complete-maintenance-form">
+      <label class="form-label">Ngày hoàn thành *
+        <input class="form-input" type="date" id="maintenance-end-date" required value="${vietnamCalendarDate()}">
+      </label>
+      <label class="form-label room-maintenance-wide">Ghi chú hoàn thành * (10–500 ký tự)
+        <textarea class="form-input" id="maintenance-completion-note" required minlength="10" maxlength="500" rows="4" placeholder="Mô tả công việc đã hoàn thành và tình trạng phòng…"></textarea>
+      </label>
+      <p class="rental-contract-document-error room-maintenance-wide" id="maintenance-error" hidden></p>
+      <div class="rental-contract-document-actions room-maintenance-wide">
+        <button type="button" class="btn btn--ghost" data-room-lifecycle-close>Hủy</button>
         <button type="submit" class="btn btn--primary">Hoàn thành</button>
       </div>
     </form>
   `;
-
   document.getElementById('complete-maintenance-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorEl = document.getElementById('maintenance-error');
-    errorEl.style.display = 'none';
-
+    const submit = e.currentTarget.querySelector('[type="submit"]');
+    errorEl.hidden = true;
+    submit.disabled = true;
     try {
       const input = {
         endedOn: document.getElementById('maintenance-end-date').value,
         completionNote: document.getElementById('maintenance-completion-note').value.trim()
       };
-
       await API.completeRoomMaintenance(maintenanceId, input);
+      await refreshRoomOperationalStatuses();
       showToast('Đã hoàn thành sửa chữa phòng', 'success');
       closeRoomLifecycleMgmtModal();
-      renderRooms();
     } catch (error) {
+      if (error.code === 401) return handleAuthExpired();
       errorEl.textContent = error.message || 'Có lỗi xảy ra';
-      errorEl.style.display = 'block';
+      errorEl.hidden = false;
+    } finally {
+      submit.disabled = false;
     }
   });
+}
+
+async function refreshRoomOperationalStatuses() {
+  const result = await API.getRoomMaintenance();
+  applyRoomOperationalStatusPayload(result);
+  renderRooms();
 }
 
 function closeRoomLifecycleMgmtModal() {
   const modal = document.getElementById('room-lifecycle-mgmt-modal');
   if (modal) modal.remove();
+  ACTIVE_ROOM_LIFECYCLE_ROOM_ID = '';
+  syncModalScrollLock();
 }
 
 function openTenantsModal(roomId) {
@@ -8457,9 +8483,7 @@ async function startApp() {
     ? paymentsResult.payments
     : [];
   loadState(serverState);
-  STATE.roomMaintenance = Array.isArray(maintenanceResult.maintenancePeriods)
-    ? maintenanceResult.maintenancePeriods
-    : [];
+  applyRoomOperationalStatusPayload(maintenanceResult);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)

@@ -134,6 +134,9 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | POST   | `/api/rental-contracts/:id/checkout` | Trả phòng sau khi có biên bản trả phòng |
 | GET    | `/api/rental-contracts/:id/final-settlement` | Xem trước hoặc đọc biên quyết toán cuối của hợp đồng |
 | POST   | `/api/rental-contracts/:id/final-settlement` | Chốt hóa đơn cuối, bù công nợ và hoàn cọc nguyên tử |
+| GET    | `/api/room-maintenance` | Lịch sử sửa chữa và trạng thái hiện tại của từng phòng |
+| POST   | `/api/room-maintenance` | Bắt đầu sửa chữa cho một phòng đang trống |
+| POST   | `/api/room-maintenance/:id/complete` | Hoàn thành một đợt sửa chữa đang hoạt động |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -149,6 +152,13 @@ sang hết hạn. Khi tạo hợp đồng, đúng lượt giữ chỗ đã chọ
 cùng transaction. Chuyển phòng giữ nguyên hợp đồng/biên bản cũ, kết thúc hợp đồng
 cũ rồi tạo hợp đồng mới; trả phòng không cho thực hiện nếu chưa có biên bản trả
 phòng. Nhật ký vòng đời chỉ được thêm mới để không mất dấu vết vận hành.
+
+Trạng thái phòng do server suy ra, không nhận trạng thái tự khai từ trình duyệt:
+phòng có khách hiện tại hoặc hợp đồng hiệu lực là **đang thuê**, lượt giữ chỗ
+hoạt động là **giữ chỗ**, đợt sửa chữa hoạt động là **đang sửa**, còn lại là
+**trống**. Mọi thao tác giữ chỗ, kích hoạt/chuyển hợp đồng và bắt đầu sửa chữa
+khóa phòng trong transaction để không tạo hai trạng thái đồng thời. Mốc bắt đầu
+và hoàn thành sửa chữa được ghi vào nhật ký vòng đời.
 
 Quyết toán cuối chỉ mở sau khi hợp đồng đã trả phòng và có biên bản trả phòng
 đúng ngày. Tiền phòng được tính theo số ngày thuê thực tế trong tháng, bao gồm

@@ -530,6 +530,21 @@ async function createContract(req, res, dependencies = {}) {
         'Lượt giữ chỗ không còn hoạt động hoặc không thuộc phòng này'
       );
     }
+    if (input.status === 'active') {
+      const maintenance = await client.query(
+        `SELECT id FROM room_maintenance_periods
+         WHERE user_id=$1 AND room_id=$2 AND status='active'
+         LIMIT 1`,
+        [req.userId, input.roomId]
+      );
+      if (maintenance.rows[0]) {
+        throw new RentalContractError(
+          409,
+          'ROOM_UNDER_MAINTENANCE',
+          'Phòng đang sửa chữa nên chưa thể kích hoạt hợp đồng'
+        );
+      }
+    }
     const idResult = await client.query("SELECT nextval('rental_contracts_id_seq') AS id");
     const id = Number(idResult.rows[0].id);
     const code = contractCode(id, input.startsOn);
@@ -679,6 +694,13 @@ async function changeContractStatus(req, res, dependencies = {}) {
       );
     }
     if (input.status === 'active') {
+      const room = await client.query(
+        'SELECT id FROM rooms WHERE user_id=$1 AND id=$2 FOR UPDATE',
+        [req.userId, contract.room_id]
+      );
+      if (!room.rows[0]) {
+        throw new RentalContractError(404, 'ROOM_NOT_FOUND', 'Không tìm thấy phòng của hợp đồng');
+      }
       await client.query(
         `UPDATE rental_reservations
          SET status='expired', expired_at=now(), updated_at=now(),
@@ -698,6 +720,19 @@ async function changeContractStatus(req, res, dependencies = {}) {
           409,
           'ACTIVE_RESERVATION_REQUIRES_CONVERSION',
           'Phòng đang được giữ chỗ; hãy hủy bản nháp và tạo hợp đồng từ lượt giữ chỗ'
+        );
+      }
+      const maintenance = await client.query(
+        `SELECT id FROM room_maintenance_periods
+         WHERE user_id=$1 AND room_id=$2 AND status='active'
+         LIMIT 1`,
+        [req.userId, contract.room_id]
+      );
+      if (maintenance.rows[0]) {
+        throw new RentalContractError(
+          409,
+          'ROOM_UNDER_MAINTENANCE',
+          'Phòng đang sửa chữa nên chưa thể kích hoạt hợp đồng'
         );
       }
     }

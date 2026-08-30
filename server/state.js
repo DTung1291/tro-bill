@@ -363,6 +363,37 @@ async function putState(req, res) {
         roomId: detachedReservation.room_id
       });
     }
+    const activeMaintenance = await client.query(
+      `SELECT id, maintenance_code, room_id
+       FROM room_maintenance_periods
+       WHERE user_id=$1 AND status='active'`,
+      [uid]
+    );
+    const detachedMaintenance = activeMaintenance.rows.find(
+      maintenance => !roomIds.has(maintenance.room_id)
+    );
+    if (detachedMaintenance) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Phòng đang có đợt sửa chữa ${detachedMaintenance.maintenance_code}. Hãy hoàn thành sửa chữa trước khi xóa phòng.`,
+        code: 'ACTIVE_MAINTENANCE_ROOM_REQUIRED',
+        maintenanceId: Number(detachedMaintenance.id),
+        roomId: detachedMaintenance.room_id
+      });
+    }
+    const occupiedRoomIds = new Set(tenantRoomIds.values());
+    const occupiedMaintenance = activeMaintenance.rows.find(
+      maintenance => occupiedRoomIds.has(maintenance.room_id)
+    );
+    if (occupiedMaintenance) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Phòng đang có đợt sửa chữa ${occupiedMaintenance.maintenance_code}. Hãy hoàn thành sửa chữa trước khi thêm hoặc chuyển khách vào phòng.`,
+        code: 'ACTIVE_MAINTENANCE_TENANT_CONFLICT',
+        maintenanceId: Number(occupiedMaintenance.id),
+        roomId: occupiedMaintenance.room_id
+      });
+    }
 
     const existingTenantResult = await client.query(
       `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,

@@ -970,6 +970,88 @@ body.modal-open {
   justify-content: flex-end;
   gap: 8px;
 }
+.room-operational-status {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.room-operational-status--vacant { background: #64748b; }
+.room-operational-status--unknown { background: #475569; }
+.room-operational-status--reserved { background: #d97706; }
+.room-operational-status--occupied { background: #059669; }
+.room-operational-status--maintenance,
+.room-operational-status--conflict { background: #dc2626; }
+
+#room-lifecycle-mgmt-modal { z-index: 1300; }
+.modal.room-lifecycle-mgmt-modal {
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 24px);
+}
+.room-lifecycle-mgmt-body {
+  padding: 18px 20px 22px;
+  overflow-y: auto;
+}
+.room-lifecycle-current {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  background: var(--bg3);
+  font-weight: 700;
+}
+.room-lifecycle-current--reserved { border-color: #d97706; }
+.room-lifecycle-current--occupied { border-color: #059669; }
+.room-lifecycle-current--maintenance,
+.room-lifecycle-current--conflict { border-color: #dc2626; }
+.room-lifecycle-section + .room-lifecycle-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.room-lifecycle-section h3 { margin: 0 0 10px; }
+.room-maintenance-active {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  overflow-wrap: anywhere;
+}
+.room-maintenance-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.room-maintenance-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.room-maintenance-wide { grid-column: 1 / -1; }
+.room-maintenance-history-card {
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+  overflow-wrap: anywhere;
+}
+.room-maintenance-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.room-maintenance-history-head span { color: var(--text-muted); font-size: .78rem; }
 
 /* ===========================
    BILLING TABLE
@@ -4089,6 +4171,16 @@ body.modal-open {
     justify-content: flex-end;
     margin-top: 6px;
     flex-wrap: wrap;
+  }
+  #room-lifecycle-mgmt-modal { padding: 8px; }
+  .modal.room-lifecycle-mgmt-modal { max-height: calc(100dvh - 16px); }
+  .room-lifecycle-mgmt-body { padding: 14px; }
+  .room-maintenance-form { grid-template-columns: minmax(0, 1fr); }
+  .room-maintenance-wide { grid-column: auto; }
+  .room-maintenance-history-head { align-items: flex-start; flex-direction: column; }
+  .room-maintenance-form .rental-contract-document-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
   .history-room-row { align-items: flex-start; gap: 10px; }
   .history-room-row > div:last-child { flex-wrap: wrap; justify-content: flex-end; }

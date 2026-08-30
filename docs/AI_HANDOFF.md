@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — bắt đầu quản lý trạng thái phòng |
+| Trạng thái | Sẵn sàng phát hành — review trạng thái phòng đã hoàn tất |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
-| Phần ứng dụng phát hành gần nhất | `bf07073` — quyết toán cuối khi khách trả phòng |
-| Việc code tiếp theo | Giai đoạn 4: trạng thái phòng trống, giữ chỗ, đang thuê, đang sửa |
-| Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
+| Worktree kỳ vọng | Sạch sau commit phát hành; agent mới vẫn phải tự kiểm tra |
+| Phần ứng dụng phát hành gần nhất | `776ea2e` — bản Claude quản lý trạng thái phòng, đang được sửa sau review |
+| Việc code tiếp theo | Commit/push bản review rồi xác minh CI và production revision mới |
+| Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -22,12 +22,12 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 ## Mục tiêu đang theo đuổi
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
-cho người dùng kiểm tra. Phần **giữ chỗ, chuyển phòng và trả phòng** đã phát hành
-và xác minh production. Phần **quyết toán cuối khi trả phòng** cũng đã phát hành,
-dùng lại invoice/payment/deposit ledger và khóa snapshot cuối. Ưu tiên tiếp theo
-là quản lý trạng thái phòng; trạng thái phải được suy ra an toàn từ hợp đồng/giữ
-chỗ hiện có và bổ sung luồng sửa phòng có lịch sử, không tạo một nguồn trạng thái
-mâu thuẫn với vòng đời thuê.
+cho người dùng kiểm tra. Bản Claude `776ea2e` đã đưa quản lý trạng thái phòng lên
+`main`, nhưng review phát hiện trạng thái client không có dữ liệu hợp đồng/giữ
+chỗ, thiếu chốt chặn transaction và modal có rủi ro injection/scroll. Bản sửa
+Codex hiện suy trạng thái ở server từ khách/hợp đồng/giữ chỗ/sửa chữa, khóa phòng
+trước thao tác, ghi event sửa chữa và cập nhật UI/cache an toàn. Migration đã
+được xác minh trên staging lẫn production; bản review sẵn sàng phát hành.
 
 ## Bản đồ hệ thống ngắn
 
@@ -95,6 +95,15 @@ mâu thuẫn với vòng đời thuê.
   `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
   `bf07073c69f2`, database/schema `ok` và runtime role `restricted` ngày
   30/08/2026.
+- Claude đã push `776ea2e` cho trạng thái phòng. Review Codex bổ sung nguồn khách
+  thuê cũ, server-authoritative status, chốt xung đột giữa hợp đồng/giữ chỗ/sửa,
+  event append-only, chặn xóa/thêm khách vào phòng đang sửa, làm mới UI sau mọi
+  thao tác, bỏ inline handler và khóa scroll modal. Test mới nâng bộ đầy đủ lên
+  311/311 test thành công; syntax check và `git diff --check` cũng sạch.
+- Migration `20260830_room_operational_statuses.sql` đã chạy trên Neon
+  `staging-privacy` ngày 30/08/2026; production được kiểm tra lại bằng cùng SELECT.
+  Cả hai môi trường đều đạt đủ 5 cờ bảng, unique active, liên kết lifecycle,
+  ownership FK và quyền runtime.
 
 ## Việc chưa được xem là hoàn tất
 

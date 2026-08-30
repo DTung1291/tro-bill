@@ -146,3 +146,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   idempotent theo hợp đồng và không thể chạy nếu chỉ số điện/nước khác biên bản.
   Hoàn tiền thuê do trả thừa được lưu riêng trong snapshot quyết toán; việc chi
   tiền thực tế vẫn là nghiệp vụ vận hành cần chủ trọ xác nhận ngoài hệ thống.
+
+## D-014 — Trạng thái phòng là dữ liệu suy ra ở server
+
+- **Trạng thái:** Đang áp dụng từ 30/08/2026.
+- **Quyết định:** Không lưu một cột trạng thái phòng cho cả bốn trạng thái.
+  **Đang thuê** được suy ra từ khách hiện có hoặc hợp đồng active (để tương thích
+  dữ liệu trước khi có hợp đồng điện tử), **giữ chỗ** từ reservation active,
+  **đang sửa** từ `room_maintenance_periods` active, còn lại là **trống**. Server
+  trả trạng thái tổng hợp và đánh dấu `conflict` nếu dữ liệu cũ có nhiều nguồn
+  cùng hoạt động.
+- **Lý do:** Một cột do client tự cập nhật có thể lệch hợp đồng, giữ chỗ hoặc
+  danh sách khách; thao tác đồng thời còn có thể ghi đè trạng thái đúng.
+- **Hệ quả:** Tạo giữ chỗ, kích hoạt/chuyển hợp đồng, bắt đầu sửa và thay state
+  đều phải khóa phòng rồi kiểm tra mọi nguồn xung đột trong cùng transaction.
+  Sửa chữa có lịch sử riêng; hai mốc bắt đầu/hoàn thành được ghi vào event
+  append-only. UI không được tự suy trạng thái từ các cache chưa tải.

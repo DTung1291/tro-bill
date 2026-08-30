@@ -310,6 +310,6 @@ test('frontend khai báo API quản lý kênh nhưng không có API đọc secre
   assert.match(appSource, /ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null/);
   assert.match(htmlSource, /id="sepay-channel-card"/);
   assert.match(htmlSource, /API key mới — chỉ hiển thị lần này/);
-  assert.match(htmlSource, /api\.js\?v=100[\s\S]*app\.js\?v=104/);
+  assert.match(htmlSource, /api\.js\?v=101[\s\S]*app\.js\?v=105/);
   assert.match(styleSource, /\.payment-channel-value-row[\s\S]*min-width: 0/);
 });
