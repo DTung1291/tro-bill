@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=104" />
+  <link rel="stylesheet" href="style.css?v=105" />
 </head>
 
 <body>
@@ -179,8 +179,18 @@
     <!-- PAGE: ROOMS -->
     <section class="page" id="page-rooms">
       <div class="page-header">
-        <h1 class="page-title">Quản lý phòng</h1>
-        <button class="btn btn--primary" id="btn-add-room">+ Thêm phòng</button>
+        <div>
+          <h1 class="page-title">Quản lý phòng</h1>
+          <p class="page-sub" id="rooms-property-summary">Tất cả khu</p>
+        </div>
+        <div class="rooms-toolbar">
+          <label class="sr-only" for="room-property-filter">Lọc phòng theo khu</label>
+          <select class="form-input rooms-property-filter" id="room-property-filter">
+            <option value="all">Tất cả khu</option>
+          </select>
+          <button class="btn btn--ghost" id="btn-manage-properties">Quản lý khu</button>
+          <button class="btn btn--primary" id="btn-add-room">+ Thêm phòng</button>
+        </div>
       </div>
       <div class="rooms-list" id="rooms-list">
         <div class="empty-state">
@@ -807,6 +817,10 @@
       </div>
       <form class="modal-form" id="room-form">
         <input type="hidden" id="room-id" />
+        <div class="form-row">
+          <label class="form-label" for="room-property">Khu / tòa nhà *</label>
+          <select class="form-input" id="room-property" required></select>
+        </div>
         <div class="form-row form-row--2col">
           <div>
             <label class="form-label">Tên phòng *</label>
@@ -910,6 +924,39 @@
           <button type="submit" class="btn btn--primary">Lưu phòng</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Quản lý khu / tòa nhà -->
+  <div class="modal-overlay" id="property-modal" hidden>
+    <div class="modal property-modal" role="dialog" aria-modal="true" aria-labelledby="property-modal-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="property-modal-title">Quản lý khu / tòa nhà</h2>
+          <p class="page-sub">Tạo nhiều khu và gắn từng phòng vào đúng khu.</p>
+        </div>
+        <button type="button" class="modal-close" id="property-modal-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="property-modal-body">
+        <div class="property-list" id="property-list"></div>
+        <form class="property-form" id="property-form">
+          <input type="hidden" id="property-id" />
+          <h3 id="property-form-title">Thêm khu mới</h3>
+          <label class="form-label">Tên khu *
+            <input class="form-input" id="property-name" type="text" maxlength="200" required placeholder="VD: Khu Nguyễn Văn Linh" />
+          </label>
+          <label class="form-label">Địa chỉ
+            <input class="form-input" id="property-address" type="text" maxlength="1000" placeholder="Số nhà, đường, phường/xã..." />
+          </label>
+          <label class="form-label">Ghi chú
+            <textarea class="form-input" id="property-note" maxlength="500" rows="2"></textarea>
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="btn btn--ghost btn--sm" id="property-form-cancel" hidden>Hủy sửa</button>
+            <button type="submit" class="btn btn--primary btn--sm" id="property-form-submit">Thêm khu</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -1809,7 +1856,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=101"></script>
+  <script src="api.js?v=102"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1819,7 +1866,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=106"></script>
+  <script src="app.js?v=107"></script>
 </body>
 
 </html>

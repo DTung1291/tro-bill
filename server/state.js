@@ -7,6 +7,7 @@ const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
 const { restoreContractRateMilestones } = require('./rental-contracts');
+const { ensureDefaultProperty, propertyJson } = require('./properties');
 const {
   DEFAULT_AFTER_DAYS,
   DEFAULT_BEFORE_DAYS,
@@ -69,7 +70,17 @@ function changedTenantFields(existing, tenant, resolvedCccd) {
 //  GET /api/state — lắp ráp toàn bộ state từ các bảng dữ liệu
 // ============================================================
 async function buildState(uid, options = {}) {
-  const [settingsR, roomsR, ratesR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
+  const [propertiesR, settingsR, roomsR, ratesR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
+    db.query(
+      `SELECT property.*, COUNT(room.id)::int AS room_count
+       FROM properties property
+       LEFT JOIN rooms room
+         ON room.user_id=property.user_id AND room.property_id=property.id
+       WHERE property.user_id=$1
+       GROUP BY property.id
+       ORDER BY property.is_default DESC, property.sort_order, property.name, property.id`,
+      [uid]
+    ),
     db.query('SELECT * FROM settings WHERE user_id=$1', [uid]),
     db.query('SELECT * FROM rooms WHERE user_id=$1 ORDER BY sort_order, name', [uid]),
     db.query('SELECT * FROM room_rate_history WHERE user_id=$1 ORDER BY room_id, effective_from', [uid]),
@@ -84,6 +95,8 @@ async function buildState(uid, options = {}) {
       [uid]
     )
   ]);
+
+  const properties = propertiesR.rows.map(propertyJson);
 
   const s = settingsR.rows[0] || {};
   const settings = {
@@ -140,6 +153,9 @@ async function buildState(uid, options = {}) {
   const rooms = roomsR.rows.map((r) => {
     const room = {
       id: r.id,
+      propertyId: r.property_id === null || r.property_id === undefined
+        ? null
+        : Number(r.property_id),
       name: r.name,
       rentStartDate: r.rent_start_date || '',
       rentPrice: num(r.rent_price),
@@ -232,7 +248,7 @@ async function buildState(uid, options = {}) {
     bills: billsBySnap[hs.id] || []
   }));
 
-  return { rooms, billingData, expenses, settings, history, theme };
+  return { properties, rooms, billingData, expenses, settings, history, theme };
 }
 
 async function getState(req, res) {
@@ -331,6 +347,41 @@ async function putState(req, res) {
     // Server quyết định quyền ghi và giới hạn phòng từ subscription trong DB.
     // Kiểm tra client chỉ để UX; không thể dùng client để tự mở khóa gói.
     await enforceStateWrite(uid, rooms.length, client.query.bind(client));
+
+    await ensureDefaultProperty(uid, client.query.bind(client));
+    const submittedPropertyIds = [...new Set(rooms
+      .map(room => room?.propertyId)
+      .filter(value => value !== undefined && value !== null && value !== '')
+      .map(Number))];
+    if (submittedPropertyIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Phòng chứa ID khu không hợp lệ',
+        code: 'INVALID_ROOM_PROPERTY'
+      });
+    }
+    let propertyIds = new Set();
+    if (submittedPropertyIds.length > 0) {
+      const propertyResult = await client.query(
+        'SELECT id FROM properties WHERE user_id=$1 AND id=ANY($2::bigint[])',
+        [uid, submittedPropertyIds]
+      );
+      propertyIds = new Set(propertyResult.rows.map(row => Number(row.id)));
+    }
+    const roomPropertyIds = new Map();
+    for (const room of rooms) {
+      const submittedId = room?.propertyId === undefined || room?.propertyId === null || room?.propertyId === ''
+        ? null
+        : Number(room.propertyId);
+      if (submittedId !== null && !propertyIds.has(submittedId)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Phòng chứa khu không thuộc tài khoản',
+          code: 'INVALID_ROOM_PROPERTY'
+        });
+      }
+      roomPropertyIds.set(String(room.id), submittedId);
+    }
 
     // PUT /state thay lại toàn bộ rooms/tenants. Khóa chúng cùng hợp đồng active
     // để create/amend contract không thể chen giữa lúc dữ liệu đang được thay.
@@ -547,12 +598,16 @@ async function putState(req, res) {
       const latestRates = rateHistory[rateHistory.length - 1];
       await client.query(
         `INSERT INTO rooms
-            (id, user_id, name, rent_start_date, rent_price, electric_rate, water_rate, water_type,
+            (id, user_id, property_id, name, rent_start_date, rent_price, electric_rate, water_rate, water_type,
             people_count, trash_fee, wifi_fee, manage_fee, electric_prev, water_prev,
             notes, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+         VALUES (
+           $1,$2,
+           COALESCE($3, (SELECT id FROM properties WHERE user_id=$2 AND is_default LIMIT 1)),
+           $4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+         )`,
         [
-          r.id, uid, r.name || 'Phòng không tên', r.rentStartDate || '', latestRates.rentPrice, latestRates.electricRate,
+          r.id, uid, roomPropertyIds.get(String(r.id)), r.name || 'Phòng không tên', r.rentStartDate || '', latestRates.rentPrice, latestRates.electricRate,
           latestRates.waterRate, r.waterType || 'người', num(r.peopleCount, 1),
           latestRates.trashFee, latestRates.wifiFee, latestRates.manageFee, num(r.electricPrev),
           num(r.waterPrev), r.notes || '', rIdx++

@@ -137,6 +137,17 @@ body.modal-open {
 }
 .page-title { font-size: 1.55rem; font-weight: 800; letter-spacing: -.5px; }
 .page-sub { font-size: .9rem; color: var(--text-muted); margin-top: 2px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .report-toolbar,
 .report-actions {
   display: flex;
@@ -950,6 +961,14 @@ body.modal-open {
    ROOMS LIST
    =========================== */
 .rooms-list { display: flex; flex-direction: column; gap: 10px; }
+.rooms-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rooms-property-filter { width: min(240px, 100%); }
 .room-card {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 16px 20px;
@@ -987,6 +1006,53 @@ body.modal-open {
 .room-operational-status--occupied { background: #059669; }
 .room-operational-status--maintenance,
 .room-operational-status--conflict { background: #dc2626; }
+.room-property-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--bg3);
+  font-size: .72rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.property-modal { max-width: 760px; }
+.property-modal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+  gap: 16px;
+  padding: 20px;
+}
+.property-list { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.property-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.property-card__name { font-weight: 700; overflow-wrap: anywhere; }
+.property-card__meta { margin-top: 3px; color: var(--text-muted); font-size: .78rem; line-height: 1.45; }
+.property-card__actions { display: flex; flex-shrink: 0; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.property-default-label { color: var(--green); font-weight: 700; }
+.property-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  align-self: start;
+}
+.property-form h3 { font-size: .95rem; }
+.property-form .form-label { display: flex; flex-direction: column; gap: 6px; }
 
 #room-lifecycle-mgmt-modal { z-index: 1300; }
 .modal.room-lifecycle-mgmt-modal {
@@ -3456,6 +3522,12 @@ body.modal-open {
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
   .rate-effective-panel { grid-template-columns: 1fr; align-items: stretch; }
   .page-header { flex-direction: column; }
+  .rooms-toolbar { width: 100%; justify-content: stretch; }
+  .rooms-toolbar > * { flex: 1 1 auto; }
+  .rooms-property-filter { width: 100%; flex-basis: 100%; }
+  .property-modal-body { grid-template-columns: 1fr; }
+  .property-card { flex-direction: column; }
+  .property-card__actions { width: 100%; justify-content: flex-start; }
   .period-switcher { align-self: flex-start; }
   .period-month-input { width: 132px; }
 }

@@ -199,6 +199,12 @@ async function register(req, res) {
     user = rows[0];
     await client.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
     await client.query(
+      `INSERT INTO properties (user_id, name, is_default, sort_order)
+       VALUES ($1, 'Khu trọ chính', true, 0)
+       ON CONFLICT DO NOTHING`,
+      [user.id]
+    );
+    await client.query(
       `INSERT INTO subscriptions (user_id, plan_id, status, starts_at)
        VALUES ($1, (SELECT id FROM plans WHERE code = 'free'), 'active', now())
        ON CONFLICT (user_id) DO NOTHING`,

@@ -26,6 +26,7 @@ const roomRow = {
   electric_prev: '10',
   water_prev: '0',
   notes: '',
+  property_id: 3,
   sort_order: 0
 };
 
@@ -34,6 +35,12 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   t.after(() => { db.query = originalQuery; });
 
   db.query = async (sql) => {
+    if (sql.includes('FROM properties property')) {
+      return { rows: [{
+        id: 3, user_id: 7, name: 'Khu A', address: '', note: '', is_default: true,
+        sort_order: 0, room_count: 1, created_at: new Date(), updated_at: new Date()
+      }] };
+    }
     if (sql.includes('FROM room_rate_history')) {
       return {
         rows: [
@@ -88,6 +95,8 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   assert.equal(state.rooms[0].rateHistory[1].effectiveFrom, '2026-04');
   assert.equal(state.rooms[0].rateHistory[1].rentPrice, 2500000);
   assert.equal(state.rooms[0].rentStartDate, '2026-08-10');
+  assert.equal(state.rooms[0].propertyId, 3);
+  assert.equal(state.properties[0].name, 'Khu A');
   assert.equal(state.billingData['2026-08']['room-1'].discountAmount, 100000);
   assert.equal(state.billingData['2026-08']['room-1'].surchargeAmount, 50000);
   assert.equal(state.billingData['2026-08']['room-1'].lateFeeAmount, 20000);
@@ -185,8 +194,9 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
   assert.deepEqual(rateInserts.map(call => call.params[2]), ['2026-01', '2026-04']);
   const historyBillInsert = calls.find(call => call.sql.includes('INSERT INTO history_bills'));
   const billingInsert = calls.find(call => call.sql.includes('INSERT INTO billing_entries'));
-  assert.equal(roomInsert.params[3], '2026-08-10');
-  assert.equal(roomInsert.params[4], 2500000, 'rooms.rent_price giữ giá mới nhất để tương thích bản cũ');
+  assert.equal(roomInsert.params[2], null, 'client cũ được tự gắn vào khu mặc định');
+  assert.equal(roomInsert.params[4], '2026-08-10');
+  assert.equal(roomInsert.params[5], 2500000, 'rooms.rent_price giữ giá mới nhất để tương thích bản cũ');
   assert.deepEqual(historyBillInsert.params.slice(3, 9), [2200000, 3100000, 22, 31, true, false]);
   assert.deepEqual(historyBillInsert.params.slice(24, 27), [100000, 50000, 20000]);
   assert.deepEqual(billingInsert.params.slice(10, 13), [100000, 50000, 20000]);

@@ -141,6 +141,22 @@ const API = (() => {
     return request('PUT', '/api/state', state);
   }
 
+  function getProperties() {
+    return request('GET', '/api/properties');
+  }
+
+  function createProperty(input) {
+    return request('POST', '/api/properties', input);
+  }
+
+  function updateProperty(id, input) {
+    return request('PATCH', `/api/properties/${encodeURIComponent(id)}`, input);
+  }
+
+  function deleteProperty(id) {
+    return request('DELETE', `/api/properties/${encodeURIComponent(id)}`);
+  }
+
   function me() {
     return request('GET', '/api/me');
   }
@@ -572,6 +588,10 @@ const API = (() => {
     logoutAll,
     getState,
     putState,
+    getProperties,
+    createProperty,
+    updateProperty,
+    deleteProperty,
     me,
     getSubscription,
     getPlans,

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — hotfix đã phát hành, chờ smoke test giao dịch cọc có chủ đích |
+| Trạng thái | Đang phát hành — nhiều khu/tòa nhà đã code và migrate, chờ push/deploy + smoke test UI |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
 | Phần ứng dụng phát hành gần nhất | `8b9c652` — hotfix ledger cọc và tuần tự hóa autosave toàn-state |
-| Việc code tiếp theo | Người dùng chạy lại đúng loại giao dịch cọc; sau đó Giai đoạn 4, một chủ quản lý nhiều khu/tòa nhà |
+| Việc code tiếp theo | Hoàn tất phát hành nhiều khu; sau đó vai trò chủ sở hữu/quản lý/kế toán/người ghi điện nước |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -27,8 +27,9 @@ trạng thái từ khách/hợp đồng/giữ chỗ/sửa chữa, khóa phòng t
 event sửa chữa và cập nhật UI/cache an toàn. Migration và production đã được xác
 minh. Hotfix đã phát hành để giao dịch cọc tương thích runtime least privilege và
 để các bản lưu toàn-state không chạy chồng/ghi đè ngược thứ tự. Sau khi người
-dùng smoke test đúng loại giao dịch cọc, chuyển sang phần **Nhiều khu và phân
-quyền**, bắt đầu bằng một chủ sở hữu quản lý nhiều khu/tòa nhà.
+dùng smoke test đúng loại giao dịch cọc, phần đầu **Nhiều khu và phân quyền** đã
+được triển khai: khu có CRUD riêng, phòng gắn ownership theo khu, có khu mặc định
+và import tương thích. Đang chờ phát hành ứng dụng và smoke test UI production.
 
 ## Bản đồ hệ thống ngắn
 
@@ -124,6 +125,15 @@ quyền**, bắt đầu bằng một chủ sở hữu quản lý nhiều khu/tò
   revision `8b9c6527a47b`, database/schema `ok`, runtime role `restricted` và
   quét Runtime Logs sau phát hành không có lỗi. Chưa tự gửi lại payload tài chính
   vì nội dung ghi chú nói hoàn tiền nhưng `entryType=collection` là thu tiền.
+- Chức năng nhiều khu/tòa nhà thêm bảng `properties`, `rooms.property_id`, CRUD
+  user-scoped và UI tạo/sửa/xóa/lọc/chọn khu. Khu mặc định giữ tương thích dữ liệu
+  cũ; trigger `rooms_assign_default_property` bảo vệ zero-downtime cho server cũ;
+  import backup ánh xạ khu theo tài khoản đích. Địa chỉ hợp đồng và biên bản bàn
+  giao được gợi ý từ khu của phòng thay vì chuỗi gắn cứng. Migration
+  `20260830_multi_properties.sql` đã chạy trên Neon `staging-privacy` và
+  production ngày 30/08/2026, đạt 6/6 cờ kiểm tra; production backfill 3 tài
+  khoản và 8 phòng. Preview `tro-bill-ich3ee367-dtung.vercel.app` READY; phiên
+  Preview chưa đăng nhập nên smoke test popup có dữ liệu chờ deployment production.
 
 ## Việc chưa được xem là hoàn tất
 

@@ -80,6 +80,10 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
         return { rows: [{ id: 9, email: 'new@example.com' }] };
       }
       if (sql.includes('INSERT INTO settings')) return { rows: [] };
+      if (sql.includes('INSERT INTO properties')) {
+        assert.deepEqual(params, [9]);
+        return { rows: [] };
+      }
       if (sql.includes('INSERT INTO subscriptions')) {
         freeSubscriptionUserId = params[0];
         assert.match(sql, /SELECT id FROM plans WHERE code = 'free'/);

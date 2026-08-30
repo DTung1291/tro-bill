@@ -608,10 +608,51 @@ CREATE INDEX IF NOT EXISTS idx_subscription_notifications_status_updated
 CREATE INDEX IF NOT EXISTS idx_subscription_notifications_user_created
   ON subscription_notifications(user_id, created_at DESC);
 
+-- Khu/tòa nhà. Mỗi tài khoản luôn có một khu mặc định để giữ tương thích với
+-- dữ liệu cũ và các bản import chưa có propertyId.
+CREATE TABLE IF NOT EXISTS properties (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  address     TEXT NOT NULL DEFAULT '',
+  note        TEXT NOT NULL DEFAULT '',
+  is_default  BOOLEAN NOT NULL DEFAULT false,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT properties_user_id_id_unique UNIQUE (user_id, id),
+  CONSTRAINT properties_content_valid CHECK (
+    char_length(name) BETWEEN 1 AND 200
+    AND char_length(address) <= 1000
+    AND char_length(note) <= 500
+  )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_one_default
+  ON properties(user_id) WHERE is_default;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_name_unique
+  ON properties(user_id, lower(name));
+CREATE INDEX IF NOT EXISTS idx_properties_user_sort
+  ON properties(user_id, sort_order, id);
+INSERT INTO properties (user_id, name, is_default, sort_order)
+SELECT users.id, 'Khu trọ chính', true, 0
+FROM users
+WHERE NOT EXISTS (
+  SELECT 1 FROM properties WHERE properties.user_id=users.id
+)
+ON CONFLICT DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='tro_bill_runtime') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON properties TO tro_bill_runtime';
+    EXECUTE 'GRANT USAGE, SELECT ON SEQUENCE properties_id_seq TO tro_bill_runtime';
+  END IF;
+END $$;
+
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,
   user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  property_id   BIGINT NOT NULL,
   name          TEXT    NOT NULL DEFAULT 'Phòng không tên',
   rent_start_date TEXT  NOT NULL DEFAULT '',
   rent_price    NUMERIC NOT NULL DEFAULT 0,
@@ -628,7 +669,40 @@ CREATE TABLE IF NOT EXISTS rooms (
   sort_order    INTEGER NOT NULL DEFAULT 0
 );
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS rent_start_date TEXT NOT NULL DEFAULT '';
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS property_id BIGINT;
+CREATE OR REPLACE FUNCTION assign_default_room_property()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.property_id IS NULL THEN
+    INSERT INTO properties (user_id, name, is_default, sort_order)
+    VALUES (NEW.user_id, 'Khu trọ chính', true, 0)
+    ON CONFLICT DO NOTHING;
+    SELECT id INTO NEW.property_id
+    FROM properties
+    WHERE user_id=NEW.user_id AND is_default
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS rooms_assign_default_property ON rooms;
+CREATE TRIGGER rooms_assign_default_property
+BEFORE INSERT ON rooms
+FOR EACH ROW EXECUTE FUNCTION assign_default_room_property();
+UPDATE rooms
+SET property_id=properties.id
+FROM properties
+WHERE properties.user_id=rooms.user_id
+  AND properties.is_default
+  AND rooms.property_id IS NULL;
+ALTER TABLE rooms ALTER COLUMN property_id SET NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_rooms_user ON rooms(user_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_user_property_sort
+  ON rooms(user_id, property_id, sort_order, id);
 
 -- Lịch sử biểu phí của phòng. Mỗi dòng bắt đầu có hiệu lực từ một tháng
 -- (YYYY-MM) và tiếp tục được dùng cho tới mốc thay đổi kế tiếp.
@@ -2310,6 +2384,11 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rooms_user_id_id_key') THEN
     ALTER TABLE rooms ADD CONSTRAINT rooms_user_id_id_key UNIQUE (user_id, id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rooms_property_owner_fk') THEN
+    ALTER TABLE rooms ADD CONSTRAINT rooms_property_owner_fk
+      FOREIGN KEY (user_id, property_id)
+      REFERENCES properties(user_id, id) ON DELETE RESTRICT;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenants_room_owner_fk') THEN
     ALTER TABLE tenants ADD CONSTRAINT tenants_room_owner_fk

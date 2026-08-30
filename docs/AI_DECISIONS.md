@@ -178,3 +178,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   ghi cọc mới phải dùng cùng khóa `deposit-balance:<user>:<account>` với trigger;
   mọi thay đổi cơ chế autosave phải giữ kiểm tra account context, revision và hai
   lớp tuần tự client/server.
+
+## D-016 — Khu/tòa nhà là thực thể ổn định ngoài snapshot state
+
+- **Trạng thái:** Đang áp dụng từ 30/08/2026.
+- **Quyết định:** Khu/tòa nhà nằm trong bảng `properties` có CRUD riêng; mỗi
+  phòng giữ `property_id` có ownership FK cùng `user_id`. `PUT /api/state` chỉ
+  thay dữ liệu phòng và tự dùng khu mặc định khi client/import cũ thiếu
+  `propertyId`, không xóa hoặc tạo lại danh sách khu.
+- **Lý do:** Khu là cấu hình dài hạn, trong khi state cũ xóa/ghi lại toàn bộ
+  phòng. Đưa khu vào snapshot ghi toàn phần sẽ cho tab cũ vô tình xóa khu hoặc
+  tạo tham chiếu chéo tài khoản.
+- **Hệ quả:** Mỗi tài khoản luôn có “Khu trọ chính”; khu mặc định không được xóa,
+  khu còn phòng phải chuyển hết phòng trước khi xóa. Migration có trigger gắn
+  khu mặc định cho server cũ để rollout schema trước code không làm gián đoạn
+  ghi dữ liệu. Backup nhiều khu phải ánh xạ ID theo tài khoản đích trước khi ghi
+  phòng; địa chỉ hợp đồng/biên bản lấy mặc định từ khu của phòng.

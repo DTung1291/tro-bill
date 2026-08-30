@@ -10,6 +10,7 @@
 //  STATE
 // ============================================================
 const STATE = {
+  properties: [],       // Khu / tòa nhà thuộc tài khoản
   rooms: [],            // Room[]
   billingData: {},      // paid chỉ còn là cờ legacy/import; ledger server là nguồn thật
   expenses: {},         // { "YYYY-MM": Expense[] } chi thực tế trả nhà cung cấp
@@ -95,6 +96,7 @@ let RENT_BANK_TRANSACTIONS = [];
 let ACTIVE_RENT_INVOICE_SHARE_ID = null;
 let RENT_INVOICE_SHARE_LINKS = [];
 let RENT_INVOICE_PAYMENT_PROOFS = [];
+let ACTIVE_PROPERTY_FILTER = 'all';
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -1132,6 +1134,7 @@ async function flushState(options = {}) {
 }
 
 function clearSensitiveStateFromMemory() {
+  STATE.properties = [];
   STATE.rooms = [];
   STATE.billingData = {};
   STATE.expenses = {};
@@ -1162,6 +1165,7 @@ function clearSensitiveStateFromMemory() {
   ACTIVE_RENT_INVOICE_SHARE_ID = null;
   RENT_INVOICE_SHARE_LINKS = [];
   RENT_INVOICE_PAYMENT_PROOFS = [];
+  ACTIVE_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
   SERVER_SUBSCRIPTION_PAYMENTS = [];
   CURRENT_SUBSCRIPTION_ORDER = null;
@@ -1201,10 +1205,29 @@ function loadState(savedObj) {
   }
   try {
 
+    if (Array.isArray(saved.properties)) {
+      STATE.properties = saved.properties.map(property => ({
+        id: Number(property.id),
+        name: String(property.name || 'Khu chưa đặt tên'),
+        address: String(property.address || ''),
+        note: String(property.note || ''),
+        isDefault: !!property.isDefault,
+        roomCount: Math.max(0, Number(property.roomCount) || 0),
+        createdAt: property.createdAt || null,
+        updatedAt: property.updatedAt || null
+      })).filter(property => Number.isSafeInteger(property.id) && property.id > 0);
+    }
+    const defaultProperty = STATE.properties.find(property => property.isDefault)
+      || STATE.properties[0]
+      || null;
+
     // Normalize rooms
     STATE.rooms = (saved.rooms || []).map(r => {
       const room = {
         id: r.id || uuid(),
+        propertyId: Number.isSafeInteger(Number(r.propertyId)) && Number(r.propertyId) > 0
+          ? Number(r.propertyId)
+          : (defaultProperty?.id || null),
         name: r.name || 'Phòng không tên',
         rentStartDate: r.rentStartDate || '',
         rentPrice: r.rentPrice !== undefined ? Number(r.rentPrice) : 0,
@@ -3182,6 +3205,11 @@ function rentalContractBankPaymentText() {
     .join(' · ');
 }
 
+function roomPropertyAddress(room) {
+  return STATE.properties.find(property => property.id === Number(room?.propertyId))?.address
+    || '';
+}
+
 function clearRentalContractDocumentSensitiveData() {
   activeRentalContractDocumentId = null;
   activeRentalContractDocumentData = null;
@@ -3227,7 +3255,7 @@ function openRentalContractDocumentModal(contract) {
   form.hidden = false;
   document.getElementById('rental-contract-document-preview').hidden = true;
   document.getElementById('rental-contract-document-code').textContent = `${contract.code} · ${contract.tenantName}`;
-  document.getElementById('contract-property-address').value = '40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng';
+  document.getElementById('contract-property-address').value = roomPropertyAddress(room);
   document.getElementById('contract-rental-purpose').value = 'Để ở';
   document.getElementById('contract-maximum-occupants').value = Math.max(
     1,
@@ -3421,7 +3449,8 @@ async function openRentalHandoverModal(contract) {
   form.reset();
   form.hidden = false;
   document.getElementById('rental-handover-contract-code').textContent = `${contract.code} · ${contract.roomName} · ${contract.tenantName}`;
-  document.getElementById('rental-handover-address').value = '40 Vũ Hữu, Quận Hải Châu, TP Đà Nẵng';
+  const room = STATE.rooms.find(item => item.id === contract.roomId);
+  document.getElementById('rental-handover-address').value = roomPropertyAddress(room);
   document.getElementById('rental-handover-items').value = rentalHandoverItemsText();
   document.getElementById('rental-handover-condition').value = 'Phòng sạch, tường và các thiết bị hoạt động bình thường.';
   document.getElementById('rental-handover-type').value = 'check_in';
@@ -3966,16 +3995,171 @@ async function submitRentalContractAmendment(form) {
   }
 }
 
+function defaultPropertyId() {
+  return STATE.properties.find(property => property.isDefault)?.id
+    || STATE.properties[0]?.id
+    || null;
+}
+
+function propertyRoomCount(propertyId) {
+  return STATE.rooms.filter(room => Number(room.propertyId) === Number(propertyId)).length;
+}
+
+function renderRoomPropertyOptions() {
+  const select = document.getElementById('room-property');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = STATE.properties.map(property => (
+    `<option value="${property.id}">${escapeHtml(property.name)}</option>`
+  )).join('');
+  const preferred = STATE.properties.some(property => String(property.id) === current)
+    ? current
+    : String(defaultPropertyId() || '');
+  select.value = preferred;
+}
+
+function renderPropertyControls() {
+  const filter = document.getElementById('room-property-filter');
+  const summary = document.getElementById('rooms-property-summary');
+  if (!filter || !summary) return;
+  if (ACTIVE_PROPERTY_FILTER !== 'all'
+      && !STATE.properties.some(property => String(property.id) === ACTIVE_PROPERTY_FILTER)) {
+    ACTIVE_PROPERTY_FILTER = 'all';
+  }
+  filter.innerHTML = '<option value="all">Tất cả khu</option>' + STATE.properties.map(property => (
+    `<option value="${property.id}">${escapeHtml(property.name)} (${propertyRoomCount(property.id)})</option>`
+  )).join('');
+  filter.value = ACTIVE_PROPERTY_FILTER;
+  const selected = STATE.properties.find(
+    property => String(property.id) === ACTIVE_PROPERTY_FILTER
+  );
+  summary.textContent = selected
+    ? `${selected.name} · ${propertyRoomCount(selected.id)} phòng`
+    : `${STATE.properties.length} khu · ${STATE.rooms.length} phòng`;
+  renderRoomPropertyOptions();
+}
+
+function resetPropertyForm() {
+  const form = document.getElementById('property-form');
+  form.reset();
+  document.getElementById('property-id').value = '';
+  document.getElementById('property-form-title').textContent = 'Thêm khu mới';
+  document.getElementById('property-form-submit').textContent = 'Thêm khu';
+  document.getElementById('property-form-cancel').hidden = true;
+}
+
+function renderPropertyList() {
+  const list = document.getElementById('property-list');
+  list.innerHTML = '';
+  for (const property of STATE.properties) {
+    const count = propertyRoomCount(property.id);
+    const item = document.createElement('div');
+    item.className = 'property-card';
+    item.innerHTML = `
+      <div>
+        <div class="property-card__name">${escapeHtml(property.name)}</div>
+        <div class="property-card__meta">
+          ${property.isDefault ? '<span class="property-default-label">Khu mặc định</span> · ' : ''}${count} phòng
+          ${property.address ? `<br>${escapeHtml(property.address)}` : ''}
+          ${property.note ? `<br>${escapeHtml(property.note)}` : ''}
+        </div>
+      </div>
+      <div class="property-card__actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-property-edit="${property.id}">Sửa</button>
+        ${property.isDefault ? '' : `<button type="button" class="btn btn--danger btn--sm" data-property-delete="${property.id}" ${count > 0 ? 'disabled title="Hãy chuyển hết phòng trước khi xóa"' : ''}>Xóa</button>`}
+      </div>
+    `;
+    list.appendChild(item);
+  }
+  list.querySelectorAll('[data-property-edit]').forEach(button => {
+    button.addEventListener('click', () => {
+      const property = STATE.properties.find(item => item.id === Number(button.dataset.propertyEdit));
+      if (!property) return;
+      document.getElementById('property-id').value = String(property.id);
+      document.getElementById('property-name').value = property.name;
+      document.getElementById('property-address').value = property.address;
+      document.getElementById('property-note').value = property.note;
+      document.getElementById('property-form-title').textContent = `Sửa ${property.name}`;
+      document.getElementById('property-form-submit').textContent = 'Lưu thay đổi';
+      document.getElementById('property-form-cancel').hidden = false;
+      document.getElementById('property-name').focus();
+    });
+  });
+  list.querySelectorAll('[data-property-delete]').forEach(button => {
+    button.addEventListener('click', () => {
+      const property = STATE.properties.find(item => item.id === Number(button.dataset.propertyDelete));
+      if (!property) return;
+      showConfirm(`Xóa khu “${property.name}”?`, async () => {
+        try {
+          await flushState({ throwOnError: true });
+          await API.deleteProperty(property.id);
+          STATE.properties = STATE.properties.filter(item => item.id !== property.id);
+          if (ACTIVE_PROPERTY_FILTER === String(property.id)) ACTIVE_PROPERTY_FILTER = 'all';
+          resetPropertyForm();
+          renderPropertyList();
+          renderRooms();
+          showToast(`Đã xóa khu ${property.name}`, 'info');
+        } catch (error) {
+          if (error.code === 401) return handleAuthExpired();
+          showToast(error.message || 'Không xóa được khu', 'error', 4000);
+        }
+      }, null, 'Xóa khu');
+    });
+  });
+}
+
+async function refreshProperties() {
+  const result = await API.getProperties();
+  STATE.properties = Array.isArray(result.properties) ? result.properties : [];
+  const fallbackId = defaultPropertyId();
+  STATE.rooms.forEach(room => {
+    if (!STATE.properties.some(property => property.id === Number(room.propertyId))) {
+      room.propertyId = fallbackId;
+    }
+  });
+  renderPropertyControls();
+  return STATE.properties;
+}
+
+async function openPropertyModal() {
+  if (!SERVER_ENTITLEMENTS.features.roomManagement.enabled) {
+    showToast('Gói hiện tại chỉ cho phép xem dữ liệu.', 'error', 3000);
+    return;
+  }
+  try {
+    await refreshProperties();
+    resetPropertyForm();
+    renderPropertyList();
+    document.getElementById('property-modal').hidden = false;
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tải được danh sách khu', 'error', 4000);
+  }
+}
+
+function closePropertyModal() {
+  document.getElementById('property-modal').hidden = true;
+  resetPropertyForm();
+}
+
 function renderRooms() {
   const listEl = document.getElementById('rooms-list');
   listEl.innerHTML = '';
+  renderPropertyControls();
 
-  if (STATE.rooms.length === 0) {
-    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏡</div><p>Chưa có phòng nào.</p></div>`;
+  const visibleRooms = ACTIVE_PROPERTY_FILTER === 'all'
+    ? STATE.rooms
+    : STATE.rooms.filter(room => String(room.propertyId) === ACTIVE_PROPERTY_FILTER);
+
+  if (visibleRooms.length === 0) {
+    const message = STATE.rooms.length === 0
+      ? 'Chưa có phòng nào.'
+      : 'Khu này chưa có phòng.';
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏡</div><p>${message}</p></div>`;
     return;
   }
 
-  for (const room of STATE.rooms) {
+  for (const room of visibleRooms) {
     const card = document.createElement('div');
     card.className = 'room-card';
     const rates = getRoomRates(room, STATE.currentPeriod);
@@ -3998,10 +4182,14 @@ function renderRooms() {
 
     const roomStatus = getRoomOperationalStatus(room.id);
     const statusBadge = `<span class="room-operational-status room-operational-status--${roomStatus.conflict ? 'conflict' : roomStatus.status}">${escapeHtml(roomStatus.label)}</span>`;
+    const property = STATE.properties.find(item => item.id === Number(room.propertyId));
+    const propertyBadge = property
+      ? `<span class="room-property-badge">🏢 ${escapeHtml(property.name)}</span>`
+      : '';
 
     card.innerHTML = `
       <div class="room-card-info">
-        <div class="room-card-name">${room.name} ${statusBadge}</div>
+        <div class="room-card-name">${propertyBadge}${escapeHtml(room.name)} ${statusBadge}</div>
         <div class="room-card-details">
           <span class="room-detail-chip room-detail-chip--rate-period">🗓️ ${ratePeriodLabel(rates.effectiveFrom)}</span>
           ${rentStartLabel ? `<span class="room-detail-chip">🔑 Bắt đầu thuê: ${rentStartLabel}</span>` : ''}
@@ -4167,6 +4355,7 @@ function openRoomModal(roomId = null) {
   form.reset();
   const effectiveFrom = STATE.currentPeriod || periodKey(new Date().getFullYear(), new Date().getMonth() + 1);
   document.getElementById('room-rate-effective-from').value = effectiveFrom;
+  renderRoomPropertyOptions();
 
   if (roomId) {
     const room = STATE.rooms.find(r => r.id === roomId);
@@ -4175,6 +4364,7 @@ function openRoomModal(roomId = null) {
     const activeRates = RoomRates.resolve(room, effectiveFrom);
     title.textContent = 'Sửa phòng';
     document.getElementById('room-id').value          = room.id;
+    document.getElementById('room-property').value    = String(room.propertyId || '');
     document.getElementById('room-name').value        = room.name;
     document.getElementById('room-rent-start-date').value = room.rentStartDate || '';
     fillRoomRateInputs(activeRates);
@@ -4191,6 +4381,10 @@ function openRoomModal(roomId = null) {
     roomRateHistoryDraft = [];
     title.textContent = 'Thêm phòng';
     document.getElementById('room-id').value = '';
+    const initialProperty = ACTIVE_PROPERTY_FILTER !== 'all'
+      ? ACTIVE_PROPERTY_FILTER
+      : String(STATE.properties.find(property => property.isDefault)?.id || STATE.properties[0]?.id || '');
+    document.getElementById('room-property').value = initialProperty;
     document.getElementById('room-rent-start-date').value = '';
     document.getElementById('room-elec-rate').value = 3200;
     document.getElementById('room-water-type').value = 'người';
@@ -4219,6 +4413,7 @@ document.getElementById('room-form').addEventListener('submit', e => {
   e.preventDefault();
   const id        = document.getElementById('room-id').value;
   const name      = document.getElementById('room-name').value.trim();
+  const propertyId = Number(document.getElementById('room-property').value);
   const rentStartDate = document.getElementById('room-rent-start-date').value;
   const effectiveFrom = document.getElementById('room-rate-effective-from').value;
   const rates = readRoomRateInputs();
@@ -4228,7 +4423,10 @@ document.getElementById('room-form').addEventListener('submit', e => {
   const waterPrev    = parseFloat(document.getElementById('room-water-prev').value) || 0;
   const notes        = document.getElementById('room-notes').value.trim();
 
-  if (!name || !RoomRates.isPeriod(effectiveFrom) || (rentStartDate && !RoomRates.isIsoDate(rentStartDate))) {
+  if (!name || !Number.isSafeInteger(propertyId)
+      || !STATE.properties.some(property => property.id === propertyId)
+      || !RoomRates.isPeriod(effectiveFrom)
+      || (rentStartDate && !RoomRates.isIsoDate(rentStartDate))) {
     showToast('Vui lòng điền đủ thông tin bắt buộc', 'error');
     return;
   }
@@ -4247,6 +4445,7 @@ document.getElementById('room-form').addEventListener('submit', e => {
 
   const roomData = {
     id: id || uuid(),
+    propertyId,
     name,
     rentStartDate,
     ...rates,
@@ -4303,6 +4502,47 @@ document.getElementById('btn-add-room').addEventListener('click', () => {
     return;
   }
   openRoomModal();
+});
+
+document.getElementById('room-property-filter').addEventListener('change', event => {
+  ACTIVE_PROPERTY_FILTER = event.target.value;
+  renderRooms();
+});
+document.getElementById('btn-manage-properties').addEventListener('click', () => {
+  void openPropertyModal();
+});
+document.getElementById('property-modal-close').addEventListener('click', closePropertyModal);
+document.getElementById('property-form-cancel').addEventListener('click', resetPropertyForm);
+document.getElementById('property-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closePropertyModal();
+});
+document.getElementById('property-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const id = Number(document.getElementById('property-id').value) || null;
+  const input = {
+    name: document.getElementById('property-name').value.trim(),
+    address: document.getElementById('property-address').value.trim(),
+    note: document.getElementById('property-note').value.trim()
+  };
+  const submit = document.getElementById('property-form-submit');
+  submit.disabled = true;
+  try {
+    const result = id
+      ? await API.updateProperty(id, input)
+      : await API.createProperty(input);
+    const index = STATE.properties.findIndex(property => property.id === result.property.id);
+    if (index >= 0) STATE.properties[index] = result.property;
+    else STATE.properties.push(result.property);
+    resetPropertyForm();
+    renderPropertyList();
+    renderRooms();
+    showToast(id ? 'Đã cập nhật khu ✓' : 'Đã thêm khu ✓', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không lưu được khu', 'error', 4000);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 document.getElementById('room-water-type').addEventListener('change', (e) => {
@@ -7222,11 +7462,54 @@ document.getElementById('btn-import-trigger').addEventListener('click', () => {
   document.getElementById('import-file-input').click();
 });
 
+async function reconcileImportedProperties(importedState) {
+  const currentResult = await API.getProperties();
+  const currentProperties = Array.isArray(currentResult.properties)
+    ? currentResult.properties
+    : [];
+  const currentDefault = currentProperties.find(property => property.isDefault)
+    || currentProperties[0];
+  if (!currentDefault) throw new Error('Không tìm thấy khu mặc định của tài khoản');
+
+  const importedProperties = Array.isArray(importedState.properties)
+    ? importedState.properties.filter(property => property && String(property.name || '').trim())
+    : [];
+  const propertyIdMap = new Map();
+  const resolvedProperties = [...currentProperties];
+  for (const importedProperty of importedProperties) {
+    const oldId = Number(importedProperty.id);
+    if (!Number.isSafeInteger(oldId) || oldId <= 0) continue;
+    if (importedProperty.isDefault) {
+      propertyIdMap.set(oldId, currentDefault.id);
+      continue;
+    }
+    const normalizedName = String(importedProperty.name).trim().toLocaleLowerCase('vi');
+    let target = resolvedProperties.find(
+      property => property.name.trim().toLocaleLowerCase('vi') === normalizedName
+    );
+    if (!target) {
+      const created = await API.createProperty({
+        name: String(importedProperty.name).trim(),
+        address: String(importedProperty.address || '').trim(),
+        note: String(importedProperty.note || '').trim()
+      });
+      target = created.property;
+      resolvedProperties.push(target);
+    }
+    propertyIdMap.set(oldId, target.id);
+  }
+
+  for (const room of importedState.rooms) {
+    room.propertyId = propertyIdMap.get(Number(room.propertyId)) || currentDefault.id;
+  }
+  importedState.properties = resolvedProperties;
+}
+
 document.getElementById('import-file-input').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (event) => {
+  reader.onload = async (event) => {
     try {
       const importedState = JSON.parse(event.target.result);
       if (importedState && importedState.rooms && Array.isArray(importedState.rooms)) {
@@ -7243,6 +7526,7 @@ document.getElementById('import-file-input').addEventListener('change', (e) => {
         importedState.rooms.forEach(room => {
           (room.tenants || []).forEach(tenant => { tenant.dataNoticeAcknowledged = true; });
         });
+        await reconcileImportedProperties(importedState);
         loadState(importedState);   // nạp trực tiếp từ object đã import
         saveState();                // đẩy lên Neon
         initTheme();
