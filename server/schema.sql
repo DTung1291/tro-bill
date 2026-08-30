@@ -1030,6 +1030,51 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rental_reservations_one_active_room
 CREATE INDEX IF NOT EXISTS idx_rental_reservations_user_room_created
   ON rental_reservations(user_id, room_id, created_at DESC);
 
+-- Chỉ trạng thái "đang sửa" cần lưu riêng. Trống/giữ chỗ/đang thuê được suy ra
+-- từ reservation và hợp đồng active để không tạo hai nguồn trạng thái cạnh tranh.
+-- Không FK trực tiếp tới rooms vì PUT /state thay lại bảng rooms; snapshot và
+-- chốt chặn ở state/API vẫn giữ lịch sử sau khi phòng được xóa hợp lệ.
+CREATE TABLE IF NOT EXISTS room_maintenance_periods (
+  id                    BIGSERIAL PRIMARY KEY,
+  user_id               BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  maintenance_code      TEXT NOT NULL,
+  room_id               TEXT NOT NULL,
+  room_name_snapshot    TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'active',
+  starts_on             DATE NOT NULL,
+  expected_ends_on      DATE,
+  ended_on              DATE,
+  reason                TEXT NOT NULL,
+  completion_note       TEXT NOT NULL DEFAULT '',
+  completed_at          TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT room_maintenance_periods_user_id_id_unique UNIQUE (user_id, id),
+  CONSTRAINT room_maintenance_periods_code_unique UNIQUE (user_id, maintenance_code),
+  CONSTRAINT room_maintenance_periods_code_valid
+    CHECK (maintenance_code ~ '^SUA-[0-9]{4}-[A-Z0-9]{6}$'),
+  CONSTRAINT room_maintenance_periods_status_valid
+    CHECK (status IN ('active','completed')),
+  CONSTRAINT room_maintenance_periods_dates_valid CHECK (
+    expected_ends_on IS NULL OR expected_ends_on >= starts_on
+  ),
+  CONSTRAINT room_maintenance_periods_status_time_valid CHECK (
+    (status='active' AND ended_on IS NULL AND completed_at IS NULL
+      AND completion_note='')
+    OR (status='completed' AND ended_on IS NOT NULL AND ended_on >= starts_on
+      AND completed_at IS NOT NULL AND char_length(completion_note) BETWEEN 10 AND 500)
+  ),
+  CONSTRAINT room_maintenance_periods_content_valid CHECK (
+    char_length(room_id) BETWEEN 1 AND 200
+    AND char_length(room_name_snapshot) BETWEEN 1 AND 200
+    AND char_length(reason) BETWEEN 10 AND 500
+  )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_room_maintenance_one_active_room
+  ON room_maintenance_periods(user_id, room_id) WHERE status='active';
+CREATE INDEX IF NOT EXISTS idx_room_maintenance_user_room_date
+  ON room_maintenance_periods(user_id, room_id, starts_on DESC, id DESC);
+
 -- Nhật ký lifecycle là append-only để chuyển/trả phòng không làm mất dấu vết.
 CREATE TABLE IF NOT EXISTS rental_lifecycle_events (
   id                         BIGSERIAL PRIMARY KEY,
@@ -1039,6 +1084,7 @@ CREATE TABLE IF NOT EXISTS rental_lifecycle_events (
   contract_id                BIGINT,
   related_contract_id        BIGINT,
   reservation_id             BIGINT,
+  maintenance_id             BIGINT,
   tenant_id_snapshot         TEXT NOT NULL DEFAULT '',
   tenant_name_snapshot       TEXT NOT NULL DEFAULT '',
   source_room_id_snapshot    TEXT NOT NULL DEFAULT '',
@@ -1056,7 +1102,8 @@ CREATE TABLE IF NOT EXISTS rental_lifecycle_events (
   CONSTRAINT rental_lifecycle_events_type_valid CHECK (
     event_type IN (
       'reservation_created','reservation_cancelled','reservation_converted',
-      'room_transferred','checked_out'
+      'room_transferred','checked_out',
+      'maintenance_started','maintenance_completed'
     )
   ),
   CONSTRAINT rental_lifecycle_events_contract_owner_fk
@@ -1068,6 +1115,9 @@ CREATE TABLE IF NOT EXISTS rental_lifecycle_events (
   CONSTRAINT rental_lifecycle_events_reservation_owner_fk
     FOREIGN KEY (user_id, reservation_id)
     REFERENCES rental_reservations(user_id, id) ON DELETE CASCADE,
+  CONSTRAINT rental_lifecycle_events_maintenance_owner_fk
+    FOREIGN KEY (user_id, maintenance_id)
+    REFERENCES room_maintenance_periods(user_id, id) ON DELETE CASCADE,
   CONSTRAINT rental_lifecycle_events_content_valid CHECK (
     char_length(tenant_id_snapshot) <= 200
     AND char_length(tenant_name_snapshot) <= 200
@@ -1092,6 +1142,19 @@ BEGIN
     'tro_bill_app'
   ] LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=runtime_role) THEN
+      EXECUTE format(
+        'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON room_maintenance_periods FROM %I',
+        runtime_role
+      );
+      EXECUTE format('GRANT SELECT, INSERT ON room_maintenance_periods TO %I', runtime_role);
+      EXECUTE format(
+        'GRANT UPDATE (status, ended_on, completion_note, completed_at, updated_at) ON room_maintenance_periods TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT USAGE, SELECT ON SEQUENCE room_maintenance_periods_id_seq TO %I',
+        runtime_role
+      );
       EXECUTE format(
         'REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON rental_reservations FROM %I',
         runtime_role

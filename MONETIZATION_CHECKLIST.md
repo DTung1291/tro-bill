@@ -229,7 +229,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Quản lý đặt cọc và biên bản bàn giao tài sản.
 - [x] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
 - [x] Chốt bill cuối cùng khi khách trả phòng.
-- [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
+- [x] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
 
 Trạng thái đến ngày 30/08/2026:
 
@@ -286,6 +286,17 @@ Trạng thái đến ngày 30/08/2026:
   Migration `20260830_rental_final_settlements.sql` đạt đủ 5 kiểm tra schema,
   ownership, snapshot bất biến và quyền append-only trên Neon `staging-privacy`
   lẫn production; toàn bộ 303/303 test tự động thành công.
+- Trạng thái phòng (trống/giữ chỗ/đang thuê/đang sửa) được suy ra tự động từ hợp
+  đồng hiệu lực, lượt giữ chỗ hoạt động và đợt sửa chữa hoạt động. Bảng
+  `room_maintenance_periods` lưu các đợt sửa phòng với mã dạng `SUA-YYYY-NNNNNN`,
+  snapshot tên phòng, ngày bắt đầu/dự kiến kết thúc/hoàn thành thực tế, lý do và
+  ghi chú hoàn thành. Mỗi phòng chỉ có tối đa một đợt sửa đang hoạt động; khi
+  hoàn thành cần nhập ngày và ghi chú 10–500 ký tự. API `/api/room-maintenance`
+  cho phép liệt kê, tạo mới và hoàn thành đợt sửa chữa. Giao diện hiển thị badge
+  trạng thái trên mỗi room card và nút "🔄 Vòng đời" mở modal quản lý bảo trì với
+  form bắt đầu/hoàn thành sửa chữa và lịch sử 5 đợt gần nhất. Migration
+  `20260830_room_operational_statuses.sql` đã sẵn sàng; dữ liệu maintenance được
+  load song song với state khi khởi động app và xuất trong `/api/privacy/export`.
 
 ### Nhiều khu và phân quyền
 

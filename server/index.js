@@ -56,6 +56,7 @@ const rentalContractNotifications = require('./rental-contract-notifications');
 const rentalHandovers = require('./rental-handovers');
 const rentalLifecycle = require('./rental-lifecycle');
 const rentalFinalSettlements = require('./rental-final-settlements');
+const roomMaintenance = require('./room-maintenance');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -330,6 +331,13 @@ app.post(
   '/api/rental-contracts/:id/final-settlement',
   requireAuth,
   wrap(rentalFinalSettlements.createFinalSettlement)
+);
+app.get('/api/room-maintenance', requireAuth, wrap(roomMaintenance.listMaintenance));
+app.post('/api/room-maintenance', requireAuth, wrap(roomMaintenance.createMaintenance));
+app.post(
+  '/api/room-maintenance/:id/complete',
+  requireAuth,
+  wrap(roomMaintenance.completeMaintenance)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

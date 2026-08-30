@@ -457,6 +457,22 @@ const API = (() => {
     );
   }
 
+  function getRoomMaintenance() {
+    return request('GET', '/api/room-maintenance');
+  }
+
+  function createRoomMaintenance(input) {
+    return request('POST', '/api/room-maintenance', input);
+  }
+
+  function completeRoomMaintenance(maintenanceId, input) {
+    return request(
+      'POST',
+      `/api/room-maintenance/${encodeURIComponent(maintenanceId)}/complete`,
+      input
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -605,6 +621,9 @@ const API = (() => {
     checkoutRentalContract,
     getRentalFinalSettlement,
     createRentalFinalSettlement,
+    getRoomMaintenance,
+    createRoomMaintenance,
+    completeRoomMaintenance,
     privacy,
     getConfig,
     admin

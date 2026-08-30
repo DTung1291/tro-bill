@@ -1898,6 +1898,25 @@ function cloneExpenseRecords(records, regenerateIds = false) {
   }));
 }
 
+function getRoomOperationalStatus(roomId) {
+  const activeContract = STATE.rentalContracts?.find(
+    c => c.roomId === roomId && c.status === 'active'
+  );
+  if (activeContract) return { status: 'occupied', label: 'Đang thuê', color: '#10b981' };
+
+  const activeReservation = STATE.rentalReservations?.find(
+    r => r.roomId === roomId && r.status === 'active'
+  );
+  if (activeReservation) return { status: 'reserved', label: 'Giữ chỗ', color: '#f59e0b' };
+
+  const activeMaintenance = STATE.roomMaintenance?.find(
+    m => m.roomId === roomId && m.status === 'active'
+  );
+  if (activeMaintenance) return { status: 'maintenance', label: 'Đang sửa', color: '#ef4444' };
+
+  return { status: 'vacant', label: 'Trống', color: '#6b7280' };
+}
+
 function isUtilityOnlyRecord(record) {
   return !!record?.utilityOnly;
 }
@@ -3917,7 +3936,7 @@ function renderRooms() {
     const rentStartLabel = dateLabel(room.rentStartDate);
     const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
     const latestPaid = getLatestPaidElectric(room);
-    const latestText = latestPaid !== null 
+    const latestText = latestPaid !== null
       ? `Số điện hiện tại (đã thu): <strong>${fmtNum(latestPaid)}</strong> <span style="font-size:0.7rem;color:var(--wifi)">*(Tự động)*</span>`
       : `Số điện hiện tại: <strong>${fmtNum(room.electricPrev || 0)}</strong>`;
 
@@ -3930,9 +3949,12 @@ function renderRooms() {
       ? `<div>Số nước khởi đầu: <strong>${fmtNum(room.waterPrev || 0)}</strong></div><div>${latestWaterText}</div>`
       : '';
 
+    const roomStatus = getRoomOperationalStatus(room.id);
+    const statusBadge = `<span class="room-status-badge" style="background:${roomStatus.color};color:#fff;padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:600">${roomStatus.label}</span>`;
+
     card.innerHTML = `
       <div class="room-card-info">
-        <div class="room-card-name">${room.name}</div>
+        <div class="room-card-name">${room.name} ${statusBadge}</div>
         <div class="room-card-details">
           <span class="room-detail-chip room-detail-chip--rate-period">🗓️ ${ratePeriodLabel(rates.effectiveFrom)}</span>
           ${rentStartLabel ? `<span class="room-detail-chip">🔑 Bắt đầu thuê: ${rentStartLabel}</span>` : ''}
@@ -3954,16 +3976,19 @@ function renderRooms() {
       <div class="room-card-actions">
         <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
         <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
+        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Vòng đời</button>
         <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
         <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
       </div>
     `;
     const tenantsBtn = card.querySelector('[data-tenants]');
     const contractsBtn = card.querySelector('[data-contracts]');
+    const lifecycleBtn = card.querySelector('[data-lifecycle]');
     const editBtn = card.querySelector('[data-edit]');
     const deleteBtn = card.querySelector('[data-delete]');
     if (tenantsBtn) tenantsBtn.addEventListener('click', (e) => { e.stopPropagation(); openTenantsModal(room.id); });
     if (contractsBtn) contractsBtn.addEventListener('click', (e) => { e.stopPropagation(); openRentalContractModal(room.id); });
+    if (lifecycleBtn) lifecycleBtn.addEventListener('click', (e) => { e.stopPropagation(); openRoomLifecycleModal(room.id); });
     if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); openRoomModal(room.id); });
     if (deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteRoom(room.id); });
     listEl.appendChild(card);
@@ -7495,6 +7520,232 @@ async function submitDepositTransaction(event) {
   }
 }
 
+// ============================================================
+//  ROOM LIFECYCLE MANAGEMENT MODAL
+// ============================================================
+
+async function openRoomLifecycleModal(roomId) {
+  const room = STATE.rooms.find(r => r.id === roomId);
+  if (!room) return;
+
+  const status = getRoomOperationalStatus(roomId);
+
+  // Create simple modal
+  const modalHtml = `
+    <div class="modal-overlay" id="room-lifecycle-mgmt-modal" style="z-index:10000">
+      <div class="modal" style="max-width:600px">
+        <div class="modal-header">
+          <h2>Quản lý vòng đời: ${escapeHtml(room.name)}</h2>
+          <button class="modal-close" onclick="closeRoomLifecycleMgmtModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:20px">
+          <div style="margin-bottom:20px;padding:15px;background:${status.color}15;border-left:4px solid ${status.color};border-radius:4px">
+            <strong style="color:${status.color}">Trạng thái hiện tại: ${status.label}</strong>
+          </div>
+
+          <div id="room-lifecycle-mgmt-content">
+            <p style="text-align:center;color:#666">Đang tải...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Remove old modal if exists
+  const oldModal = document.getElementById('room-lifecycle-mgmt-modal');
+  if (oldModal) oldModal.remove();
+
+  // Add modal to body
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // Load maintenance data
+  try {
+    const result = await API.getRoomMaintenance();
+    const maintenancePeriods = result.maintenancePeriods || [];
+    const roomMaintenance = maintenancePeriods.filter(m => m.roomId === roomId);
+
+    renderRoomLifecycleContent(roomId, room, status, roomMaintenance);
+  } catch (error) {
+    document.getElementById('room-lifecycle-mgmt-content').innerHTML =
+      `<p style="color:#ef4444">Lỗi: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderRoomLifecycleContent(roomId, room, status, maintenancePeriods) {
+  const content = document.getElementById('room-lifecycle-mgmt-content');
+  if (!content) return;
+
+  const activeMaintenance = maintenancePeriods.find(m => m.status === 'active');
+
+  let html = '';
+
+  // Show actions based on status
+  if (status.status === 'maintenance') {
+    html += `
+      <div style="margin-bottom:20px">
+        <h3 style="margin:0 0 10px 0">Đợt sửa chữa đang hoạt động</h3>
+        <div style="padding:12px;background:#f9fafb;border-radius:4px;margin-bottom:10px">
+          <div><strong>Mã:</strong> ${escapeHtml(activeMaintenance.code)}</div>
+          <div><strong>Bắt đầu:</strong> ${dateLabel(activeMaintenance.startsOn)}</div>
+          ${activeMaintenance.expectedEndsOn ? `<div><strong>Dự kiến hoàn thành:</strong> ${dateLabel(activeMaintenance.expectedEndsOn)}</div>` : ''}
+          <div><strong>Lý do:</strong> ${escapeHtml(activeMaintenance.reason)}</div>
+        </div>
+        <button class="btn btn--primary" onclick="openCompleteMaintenanceForm(${activeMaintenance.id}, '${escapeHtml(room.name)}')">
+          ✓ Hoàn thành sửa chữa
+        </button>
+      </div>
+    `;
+  } else if (status.status === 'vacant') {
+    html += `
+      <div style="margin-bottom:20px">
+        <p>Phòng đang trống. Bạn có thể:</p>
+        <button class="btn btn--primary" onclick="openStartMaintenanceForm('${roomId}', '${escapeHtml(room.name)}')">
+          🔧 Bắt đầu sửa chữa
+        </button>
+      </div>
+    `;
+  } else {
+    html += `
+      <div style="margin-bottom:20px">
+        <p style="color:#666">Phòng đang ${status.label.toLowerCase()}. Không thể bắt đầu sửa chữa.</p>
+      </div>
+    `;
+  }
+
+  // Show history
+  if (maintenancePeriods.length > 0) {
+    html += `
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid #e5e7eb">
+        <h3 style="margin:0 0 10px 0">Lịch sử bảo trì</h3>
+    `;
+
+    for (const m of maintenancePeriods.sort((a, b) => b.id - a.id).slice(0, 5)) {
+      const statusBadge = m.status === 'active'
+        ? '<span style="color:#10b981">● Đang hoạt động</span>'
+        : '<span style="color:#6b7280">● Đã hoàn thành</span>';
+
+      html += `
+        <div style="padding:10px;background:#f9fafb;border-radius:4px;margin-bottom:8px;font-size:0.9rem">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <strong>${escapeHtml(m.code)}</strong>
+            ${statusBadge}
+          </div>
+          <div style="color:#666">
+            ${dateLabel(m.startsOn)} ${m.endedOn ? `→ ${dateLabel(m.endedOn)}` : ''}
+          </div>
+          <div style="color:#666;font-size:0.85rem">${escapeHtml(m.reason).substring(0, 100)}${m.reason.length > 100 ? '...' : ''}</div>
+        </div>
+      `;
+    }
+
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function openStartMaintenanceForm(roomId, roomName) {
+  const content = document.getElementById('room-lifecycle-mgmt-content');
+  content.innerHTML = `
+    <form id="start-maintenance-form" style="display:flex;flex-direction:column;gap:15px">
+      <div>
+        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày bắt đầu sửa *</label>
+        <input type="date" id="maintenance-start-date" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" value="${vietnamCalendarDate()}">
+      </div>
+
+      <div>
+        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày dự kiến hoàn thành</label>
+        <input type="date" id="maintenance-expected-end-date" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px">
+      </div>
+
+      <div>
+        <label style="display:block;margin-bottom:5px;font-weight:500">Lý do sửa chữa * (10-500 ký tự)</label>
+        <textarea id="maintenance-reason" required minlength="10" maxlength="500" rows="4" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" placeholder="Ví dụ: Sửa chữa điện nước, sơn tường, thay đổi nội thất..."></textarea>
+      </div>
+
+      <div id="maintenance-error" style="color:#ef4444;display:none"></div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn btn--ghost" onclick="closeRoomLifecycleMgmtModal()">Hủy</button>
+        <button type="submit" class="btn btn--primary">Bắt đầu sửa chữa</button>
+      </div>
+    </form>
+  `;
+
+  document.getElementById('start-maintenance-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('maintenance-error');
+    errorEl.style.display = 'none';
+
+    try {
+      const input = {
+        roomId,
+        startsOn: document.getElementById('maintenance-start-date').value,
+        expectedEndsOn: document.getElementById('maintenance-expected-end-date').value || null,
+        reason: document.getElementById('maintenance-reason').value.trim()
+      };
+
+      await API.createRoomMaintenance(input);
+      showToast('Đã bắt đầu sửa chữa phòng', 'success');
+      closeRoomLifecycleMgmtModal();
+      renderRooms();
+    } catch (error) {
+      errorEl.textContent = error.message || 'Có lỗi xảy ra';
+      errorEl.style.display = 'block';
+    }
+  });
+}
+
+function openCompleteMaintenanceForm(maintenanceId, roomName) {
+  const content = document.getElementById('room-lifecycle-mgmt-content');
+  content.innerHTML = `
+    <form id="complete-maintenance-form" style="display:flex;flex-direction:column;gap:15px">
+      <div>
+        <label style="display:block;margin-bottom:5px;font-weight:500">Ngày hoàn thành *</label>
+        <input type="date" id="maintenance-end-date" required style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" value="${vietnamCalendarDate()}">
+      </div>
+
+      <div>
+        <label style="display:block;margin-bottom:5px;font-weight:500">Ghi chú hoàn thành * (10-500 ký tự)</label>
+        <textarea id="maintenance-completion-note" required minlength="10" maxlength="500" rows="4" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px" placeholder="Mô tả công việc đã hoàn thành, tình trạng phòng sau sửa chữa..."></textarea>
+      </div>
+
+      <div id="maintenance-error" style="color:#ef4444;display:none"></div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" class="btn btn--ghost" onclick="closeRoomLifecycleMgmtModal()">Hủy</button>
+        <button type="submit" class="btn btn--primary">Hoàn thành</button>
+      </div>
+    </form>
+  `;
+
+  document.getElementById('complete-maintenance-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('maintenance-error');
+    errorEl.style.display = 'none';
+
+    try {
+      const input = {
+        endedOn: document.getElementById('maintenance-end-date').value,
+        completionNote: document.getElementById('maintenance-completion-note').value.trim()
+      };
+
+      await API.completeRoomMaintenance(maintenanceId, input);
+      showToast('Đã hoàn thành sửa chữa phòng', 'success');
+      closeRoomLifecycleMgmtModal();
+      renderRooms();
+    } catch (error) {
+      errorEl.textContent = error.message || 'Có lỗi xảy ra';
+      errorEl.style.display = 'block';
+    }
+  });
+}
+
+function closeRoomLifecycleMgmtModal() {
+  const modal = document.getElementById('room-lifecycle-mgmt-modal');
+  if (modal) modal.remove();
+}
+
 function openTenantsModal(roomId) {
   checkServerEntitlement('quản lý khách trọ và CCCD', () => {
     activeTenantRoomId = roomId;
@@ -8176,7 +8427,7 @@ async function startApp() {
     throw error;
   }
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
     API.getPlans().catch(() => ({ plans: [] })),
@@ -8192,6 +8443,10 @@ async function startApp() {
     API.getRentBankTransactions('pending', 50).catch((error) => {
       console.warn('Không tải được giao dịch cần đối soát:', error.message);
       return { transactions: [] };
+    }),
+    API.getRoomMaintenance().catch((error) => {
+      console.warn('Không tải được lịch sử bảo trì:', error.message);
+      return { maintenancePeriods: [] };
     })
   ]);
   if (expectedGeneration !== _sessionGeneration ||
@@ -8202,6 +8457,9 @@ async function startApp() {
     ? paymentsResult.payments
     : [];
   loadState(serverState);
+  STATE.roomMaintenance = Array.isArray(maintenanceResult.maintenancePeriods)
+    ? maintenanceResult.maintenancePeriods
+    : [];
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
