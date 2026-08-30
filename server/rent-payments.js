@@ -216,6 +216,12 @@ function summaryJson(row, options = {}) {
     roomName: row.room_name_snapshot || '',
     period: row.period,
     invoiceTotalVnd: total,
+    issuedTotalVnd: Number(row.original_issued_total_vnd ?? row.issued_total_vnd) || 0,
+    finalizedAt: row.finalized_at || null,
+    finalizationContractId: row.finalization_contract_id === null
+      || row.finalization_contract_id === undefined
+      ? null
+      : Number(row.finalization_contract_id),
     paidAmountVnd: collected,
     remainingVnd: remaining,
     priorDebtVnd: priorDebt,
@@ -235,14 +241,16 @@ function summaryJson(row, options = {}) {
 }
 
 const SUMMARY_SELECT = `
-  SELECT i.id, i.room_id, i.room_name_snapshot, i.period, i.issued_total_vnd,
-         i.issued_at, i.updated_at,
+  SELECT i.id, i.room_id, i.room_name_snapshot, i.period,
+         COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd,
+         i.issued_total_vnd AS original_issued_total_vnd,
+         i.finalized_at, i.finalization_contract_id, i.issued_at, i.updated_at,
          COALESCE(SUM(t.amount_vnd), 0) AS paid_amount_vnd,
          COUNT(t.id)::int AS transaction_count,
          MAX(t.occurred_at) FILTER (WHERE t.amount_vnd > 0) AS last_payment_at,
          COALESCE((
            SELECT SUM(GREATEST(
-             older.issued_total_vnd - COALESCE((
+             COALESCE(older.final_total_vnd, older.issued_total_vnd) - COALESCE((
                SELECT SUM(older_tx.amount_vnd)
                FROM rent_payment_transactions older_tx
                WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
@@ -269,7 +277,7 @@ const SUMMARY_SELECT = `
               OR i.period < left(current_room.rent_start_date, 7)
               OR older.period >= left(current_room.rent_start_date, 7)
             )
-            AND older.issued_total_vnd > COALESCE((
+            AND COALESCE(older.final_total_vnd, older.issued_total_vnd) > COALESCE((
               SELECT SUM(older_tx.amount_vnd)
               FROM rent_payment_transactions older_tx
               WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
@@ -284,7 +292,7 @@ const SUMMARY_SELECT = `
               OR i.period < left(current_room.rent_start_date, 7)
               OR older.period >= left(current_room.rent_start_date, 7)
             )
-            AND older.issued_total_vnd > COALESCE((
+            AND COALESCE(older.final_total_vnd, older.issued_total_vnd) > COALESCE((
               SELECT SUM(older_tx.amount_vnd)
               FROM rent_payment_transactions older_tx
               WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
@@ -404,7 +412,8 @@ async function settleInvoice(req, res) {
         );
       }
       const targetResult = await client.query(
-        `SELECT id, issued_total_vnd FROM rent_invoices
+        `SELECT id, COALESCE(final_total_vnd, issued_total_vnd) AS issued_total_vnd
+         FROM rent_invoices
          WHERE user_id=$1 AND room_id=$2 AND period=$3`,
         [req.userId, input.roomId, input.period]
       );
@@ -449,7 +458,8 @@ async function settleInvoice(req, res) {
     // Tương thích với các request đã ghi trước khi có bảng phiếu thu.
     const replay = await client.query(
       `SELECT t.id, t.invoice_id, t.amount_vnd, t.payment_method,
-              i.room_id, i.period, i.issued_total_vnd
+              i.room_id, i.period,
+              COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd
        FROM rent_payment_transactions t
        JOIN rent_invoices i ON i.user_id=t.user_id AND i.id=t.invoice_id
        WHERE t.user_id=$1 AND t.idempotency_key=$2
@@ -487,9 +497,16 @@ async function settleInvoice(req, res) {
          (user_id, room_id, room_name_snapshot, period, issued_total_vnd)
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (user_id, room_id, period) DO UPDATE SET
-         room_name_snapshot=EXCLUDED.room_name_snapshot,
-         updated_at=now()
-       RETURNING id, issued_total_vnd`,
+         room_name_snapshot=CASE
+           WHEN rent_invoices.finalized_at IS NULL THEN EXCLUDED.room_name_snapshot
+           ELSE rent_invoices.room_name_snapshot
+         END,
+         updated_at=CASE
+           WHEN rent_invoices.finalized_at IS NULL THEN now()
+           ELSE rent_invoices.updated_at
+         END
+       RETURNING id, COALESCE(final_total_vnd, issued_total_vnd) AS issued_total_vnd,
+                 finalized_at`,
       [req.userId, input.roomId, roomName, input.period, input.totalVnd]
     );
     const invoiceId = invoiceResult.rows[0].id;
@@ -503,6 +520,13 @@ async function settleInvoice(req, res) {
     );
     const transactionCount = Number(collectedResult.rows[0].transaction_count) || 0;
     if (invoiceTotalVnd !== input.totalVnd) {
+      if (invoiceResult.rows[0].finalized_at) {
+        throw new RentPaymentError(
+          409,
+          'FINALIZED_INVOICE_TOTAL_MISMATCH',
+          'Hóa đơn đã được chốt khi trả phòng và không thể đổi tổng tiền'
+        );
+      }
       if (transactionCount > 0) {
         throw new RentPaymentError(
           409,
@@ -526,9 +550,11 @@ async function settleInvoice(req, res) {
       [req.userId, input.roomId, input.period]
     );
     const balanceResult = await client.query(
-      `SELECT i.id, i.period, i.issued_total_vnd,
+      `SELECT i.id, i.period, i.issued_total_vnd
+                + COALESCE(i.final_total_vnd - i.issued_total_vnd, 0) AS issued_total_vnd,
               COALESCE(SUM(t.amount_vnd), 0) AS paid_amount_vnd,
-              GREATEST(i.issued_total_vnd - COALESCE(SUM(t.amount_vnd), 0), 0)
+              GREATEST(COALESCE(i.final_total_vnd, i.issued_total_vnd)
+                - COALESCE(SUM(t.amount_vnd), 0), 0)
                 AS remaining_vnd,
               (SELECT NULLIF(left(r.rent_start_date, 7), '')
                FROM rooms r
@@ -539,7 +565,8 @@ async function settleInvoice(req, res) {
          ON t.user_id=i.user_id AND t.invoice_id=i.id
        WHERE i.user_id=$1 AND i.room_id=$2 AND i.period<=$3
        GROUP BY i.id
-       HAVING i.issued_total_vnd - COALESCE(SUM(t.amount_vnd), 0) > 0
+       HAVING COALESCE(i.final_total_vnd, i.issued_total_vnd)
+         - COALESCE(SUM(t.amount_vnd), 0) > 0
        ORDER BY i.period, i.id`,
       [req.userId, input.roomId, input.period]
     );
@@ -899,7 +926,7 @@ async function syncInvoices(req, res) {
         stats.created += 1;
       } else {
         const existing = await client.query(
-          `SELECT i.id, i.issued_total_vnd, i.detail_snapshot,
+          `SELECT i.id, i.issued_total_vnd, i.detail_snapshot, i.finalized_at,
                   (SELECT COUNT(*)::int FROM rent_payment_transactions t
                    WHERE t.user_id=i.user_id AND t.invoice_id=i.id) AS transaction_count
            FROM rent_invoices i
@@ -914,10 +941,11 @@ async function syncInvoices(req, res) {
         const totalChanged = Number(invoice?.issued_total_vnd) !== totalVnd;
         const detailChanged = hasEntryDetail
           && canonicalJson(currentDetail) !== canonicalJson(detail);
-        const canBackfillDetail = Object.keys(currentDetail).length === 0
+        const canBackfillDetail = !invoice?.finalized_at
+          && Object.keys(currentDetail).length === 0
           && hasEntryDetail
           && Number(invoice?.issued_total_vnd) === totalVnd;
-        const canUpdateUnpaidInvoice = invoice && transactionCount === 0
+        const canUpdateUnpaidInvoice = invoice && !invoice.finalized_at && transactionCount === 0
           && (totalChanged || detailChanged);
         if (canUpdateUnpaidInvoice || canBackfillDetail) {
           const nextDetail = hasEntryDetail || totalChanged ? detail : currentDetail;
@@ -1063,6 +1091,8 @@ async function loadRentPaymentExport(userId) {
   const [invoiceResult, receiptResult, transactionResult] = await Promise.all([
     db.query(
       `SELECT id, room_id, room_name_snapshot, period, issued_total_vnd,
+              final_total_vnd, final_detail_snapshot,
+              finalization_contract_id, finalized_at, detail_snapshot,
               issued_at, updated_at
        FROM rent_invoices WHERE user_id=$1 ORDER BY period, id`,
       [userId]
@@ -1092,7 +1122,13 @@ async function loadRentPaymentExport(userId) {
       roomId: row.room_id,
       roomName: row.room_name_snapshot,
       period: row.period,
-      invoiceTotalVnd: Number(row.issued_total_vnd) || 0,
+      invoiceTotalVnd: Number(row.final_total_vnd ?? row.issued_total_vnd) || 0,
+      issuedTotalVnd: Number(row.issued_total_vnd) || 0,
+      detail: row.final_detail_snapshot || row.detail_snapshot || {},
+      finalizationContractId: row.finalization_contract_id === null
+        ? null
+        : Number(row.finalization_contract_id),
+      finalizedAt: row.finalized_at,
       issuedAt: row.issued_at,
       updatedAt: row.updated_at
     })),

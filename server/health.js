@@ -100,6 +100,20 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_lifecycle_events_contract_owner_fk'
+    )
+    AND to_regclass('public.rental_final_settlements') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='rent_invoices'
+        AND column_name='final_total_vnd'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rental_final_settlements_contract_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname='rent_invoice_finalization_immutable_before_update'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

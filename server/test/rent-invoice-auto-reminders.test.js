@@ -77,7 +77,7 @@ test('cron chỉ xếp lịch cho hóa đơn còn nợ của kỳ thuê hiện t
   assert.deepEqual(received.params, ['2026-08-27']);
   assert.match(received.sql, /invoice_reminder_enabled=true/);
   assert.match(received.sql, /invoice\.period >= left\(room\.rent_start_date, 7\)/);
-  assert.match(received.sql, /invoice\.issued_total_vnd > COALESCE/);
+  assert.match(received.sql, /COALESCE\(invoice\.final_total_vnd, invoice\.issued_total_vnd\) > COALESCE/);
   assert.match(received.sql, /JOIN LATERAL[\s\S]*ORDER BY current_tenant\.sort_order/);
   assert.match(received.sql, /reminder_offset_days=ANY\(invoice_reminder_before_days\)/);
   assert.match(received.sql, /-reminder_offset_days=ANY\(invoice_reminder_after_days\)/);

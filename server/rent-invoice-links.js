@@ -237,6 +237,7 @@ function publicInvoiceJson(row) {
       invoiceTotalVnd: total,
       paidAmountVnd: paid,
       remainingVnd: remaining,
+      finalizedAt: row.finalized_at || null,
       dueDate: debtAge.dueDate,
       status: remaining === 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
     },
@@ -308,7 +309,12 @@ async function resolvePublicInvoiceLink(req, res) {
     }
     const invoiceResult = await client.query(
       `SELECT invoice.id AS invoice_id, invoice.room_id, invoice.room_name_snapshot,
-              invoice.period, invoice.issued_total_vnd, invoice.detail_snapshot,
+              invoice.period,
+              COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd)
+                AS issued_total_vnd,
+              COALESCE(invoice.final_detail_snapshot, invoice.detail_snapshot)
+                AS detail_snapshot,
+              invoice.finalized_at,
               settings.bank_id, settings.bank_account, settings.bank_owner_name,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices invoice
@@ -358,7 +364,9 @@ async function resolvePublicInvoiceLink(req, res) {
       [link.user_id, link.invoice_id]
     );
     const historyInvoiceResult = await client.query(
-      `SELECT history.id, history.period, history.issued_total_vnd,
+      `SELECT history.id, history.period,
+              COALESCE(history.final_total_vnd, history.issued_total_vnd)
+                AS issued_total_vnd,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices history
        LEFT JOIN rent_payment_transactions tx

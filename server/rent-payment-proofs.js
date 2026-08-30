@@ -107,7 +107,8 @@ async function submitPublicPaymentProof(req, res) {
     await client.query('BEGIN');
     const linkResult = await client.query(
       `SELECT link.id, link.user_id, link.invoice_id, link.expires_at, link.revoked_at,
-              invoice.issued_total_vnd
+              COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd)
+                AS issued_total_vnd
        FROM rent_invoice_share_links link
        JOIN rent_invoices invoice
          ON invoice.user_id=link.user_id AND invoice.id=link.invoice_id

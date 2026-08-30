@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=102" />
+  <link rel="stylesheet" href="style.css?v=103" />
 </head>
 
 <body>
@@ -1077,6 +1077,60 @@
     </div>
   </div>
 
+  <!-- MODAL: Quyết toán cuối khi trả phòng -->
+  <div class="modal-overlay" id="rental-final-settlement-modal" hidden>
+    <div class="modal rental-final-settlement-modal" role="dialog" aria-modal="true" aria-labelledby="rental-final-settlement-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="rental-final-settlement-title">Quyết toán trả phòng</h2>
+          <p class="rental-contract-room" id="rental-final-settlement-contract"></p>
+        </div>
+        <button type="button" class="modal-close" id="rental-final-settlement-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="rental-final-settlement-body">
+        <p class="rental-contract-empty" id="rental-final-settlement-loading">Đang đối chiếu hóa đơn, công nợ và tiền cọc…</p>
+        <form id="rental-final-settlement-form" hidden>
+          <div class="rental-contract-document-notice">
+            Tiền phòng được tính đến hết <strong>ngày trả phòng</strong> (có tính ngày đó). Sau khi xác nhận, hóa đơn và biên quyết toán không thể sửa.
+          </div>
+          <div class="rental-final-settlement-summary" id="rental-final-settlement-summary"></div>
+          <div class="rental-final-settlement-grid">
+            <label class="form-label">Cọc bù vào công nợ (đ)
+              <input class="form-input" id="rental-final-settlement-applied" type="number" min="0" step="1" required />
+            </label>
+            <label class="form-label">Cọc hoàn lại (đ)
+              <input class="form-input" id="rental-final-settlement-refunded" type="number" min="0" step="1" readonly />
+            </label>
+            <label class="form-label">Phương thức hoàn tiền
+              <select class="form-input" id="rental-final-settlement-method" required>
+                <option value="bank_transfer">Chuyển khoản</option>
+                <option value="cash">Tiền mặt</option>
+                <option value="manual">Ghi nhận thủ công</option>
+                <option value="other">Khác</option>
+              </select>
+            </label>
+            <label class="form-label rental-final-settlement-wide">Lý do / xác nhận đối chiếu *
+              <textarea class="form-input" id="rental-final-settlement-reason" minlength="10" maxlength="500" rows="3" required>Hai bên đã đối chiếu hóa đơn, công nợ và tiền cọc khi trả phòng.</textarea>
+            </label>
+          </div>
+          <p class="rental-final-settlement-balance" id="rental-final-settlement-balance"></p>
+          <p class="rental-contract-document-error" id="rental-final-settlement-error" hidden></p>
+          <div class="rental-contract-document-actions">
+            <button type="button" class="btn btn--ghost" id="rental-final-settlement-cancel">Hủy</button>
+            <button type="submit" class="btn btn--primary" id="rental-final-settlement-submit">Chốt quyết toán</button>
+          </div>
+        </form>
+        <section class="rental-final-settlement-result" id="rental-final-settlement-result" hidden>
+          <div class="rental-final-settlement-paper" id="rental-final-settlement-paper"></div>
+          <div class="rental-contract-document-actions">
+            <button type="button" class="btn btn--ghost" id="rental-final-settlement-close-footer">Đóng</button>
+            <button type="button" class="btn btn--primary" id="rental-final-settlement-print">In / Lưu PDF</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Bản hợp đồng theo document/HopDongThuePhongNew.docx -->
   <div class="modal-overlay" id="rental-contract-document-modal" hidden>
     <div class="modal rental-contract-document-modal" role="dialog" aria-modal="true" aria-labelledby="rental-contract-document-title">
@@ -1755,7 +1809,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=99"></script>
+  <script src="api.js?v=100"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1765,7 +1819,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=103"></script>
+  <script src="app.js?v=104"></script>
 </body>
 
 </html>

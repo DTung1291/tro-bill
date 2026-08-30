@@ -132,6 +132,8 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | POST   | `/api/rental-reservations/:id/cancel` | Hủy lượt giữ chỗ đang hoạt động có lý do |
 | POST   | `/api/rental-contracts/:id/transfer` | Chuyển phòng và tạo hợp đồng mới nguyên tử |
 | POST   | `/api/rental-contracts/:id/checkout` | Trả phòng sau khi có biên bản trả phòng |
+| GET    | `/api/rental-contracts/:id/final-settlement` | Xem trước hoặc đọc biên quyết toán cuối của hợp đồng |
+| POST   | `/api/rental-contracts/:id/final-settlement` | Chốt hóa đơn cuối, bù công nợ và hoàn cọc nguyên tử |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -147,6 +149,13 @@ sang hết hạn. Khi tạo hợp đồng, đúng lượt giữ chỗ đã chọ
 cùng transaction. Chuyển phòng giữ nguyên hợp đồng/biên bản cũ, kết thúc hợp đồng
 cũ rồi tạo hợp đồng mới; trả phòng không cho thực hiện nếu chưa có biên bản trả
 phòng. Nhật ký vòng đời chỉ được thêm mới để không mất dấu vết vận hành.
+
+Quyết toán cuối chỉ mở sau khi hợp đồng đã trả phòng và có biên bản trả phòng
+đúng ngày. Tiền phòng được tính theo số ngày thuê thực tế trong tháng, bao gồm
+cả ngày bắt đầu và ngày trả; chỉ số điện/nước phải khớp biên bản. Xác nhận quyết
+toán khóa snapshot hóa đơn cuối, phân bổ phần cọc bù nợ vào các hóa đơn còn thiếu
+và ghi phần cọc hoàn lại vào sổ cọc trong một transaction. API có idempotency và
+biên quyết toán chỉ được thêm mới, không sửa/xóa.
 
 Tài khoản đăng ký mới chỉ được đăng nhập sau khi xác minh email. Token xác minh
 có hiệu lực 24 giờ và database chỉ lưu SHA-256 của token, không lưu token gốc.

@@ -142,7 +142,8 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
   const calculatedTotal = Math.max(0, Number(invoiceTotalVnd) || 0);
   const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(roomId, period)) || null;
   const hasTransactions = Number(invoice?.transactionCount) > 0;
-  const total = hasTransactions
+  const hasLockedTotal = hasTransactions || !!invoice?.finalizedAt;
+  const total = hasLockedTotal
     ? Math.max(0, Number(invoice.invoiceTotalVnd) || 0)
     : calculatedTotal;
   const paidAmount = invoice
@@ -164,7 +165,7 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
     invoiceId: invoice ? Number(invoice.invoiceId) : null,
     invoiceTotalVnd: total,
     calculatedTotalVnd: calculatedTotal,
-    totalLocked: hasTransactions,
+    totalLocked: hasLockedTotal,
     paidAmountVnd: paidAmount,
     remainingVnd: remaining,
     priorDebtVnd,
@@ -1481,6 +1482,7 @@ function rentInvoiceSyncNeeded() {
   return rentInvoicesForSync().some((entry) => {
     const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(entry.roomId, entry.period));
     if (!invoice) return true;
+    if (invoice.finalizedAt) return false;
     return Number(invoice.transactionCount) === 0
       && Number(invoice.invoiceTotalVnd) !== Number(entry.invoiceTotalVnd);
   });
@@ -2814,6 +2816,9 @@ let rentalHandovers = [];
 let rentalReservations = [];
 let rentalLifecycleEvents = [];
 let activeRentalLifecycleContract = null;
+let activeRentalFinalSettlementContract = null;
+let activeRentalFinalSettlementPreview = null;
+let activeRentalFinalSettlement = null;
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -3009,6 +3014,9 @@ function renderRentalContracts() {
     card.dataset.contractId = String(contract.id);
     const amendments = Array.isArray(contract.amendments) ? contract.amendments : [];
     const expiry = rentalContractExpiryStatus(contract);
+    const canFinalizeCheckout = contract.status === 'ended'
+      && rentalLifecycleEvents.some(event => event.eventType === 'checked_out'
+        && Number(event.contractId) === Number(contract.id));
     const amendmentItems = amendments.length > 0
       ? amendments.map(amendment => `
           <li>
@@ -3076,6 +3084,7 @@ function renderRentalContracts() {
         <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
         ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
         ${contract.status === 'active' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="transfer">🔁 Chuyển phòng</button><button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="checkout">🚪 Trả phòng</button>' : ''}
+        ${canFinalizeCheckout ? '<button type="button" class="btn btn--primary btn--sm" data-contract-final-settlement>🧾 Quyết toán cuối</button>' : ''}
         <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
       </div>
       ${amendmentForm}
@@ -3512,6 +3521,189 @@ function closeRentalLifecycleModal() {
   document.getElementById('rental-lifecycle-modal').hidden = true;
 }
 
+function rentalFinalSettlementMethodLabel(method) {
+  return ({
+    bank_transfer: 'Chuyển khoản',
+    cash: 'Tiền mặt',
+    manual: 'Ghi nhận thủ công',
+    other: 'Khác'
+  })[method] || method || '';
+}
+
+function rentalFinalSettlementDocument(settlement) {
+  const detail = settlement?.detail || {};
+  const contract = detail.contract || {};
+  const calculation = detail.calculation || {};
+  return `
+    <article class="rental-final-settlement-document">
+      <h1>BIÊN BẢN QUYẾT TOÁN TRẢ PHÒNG</h1>
+      <p>Số: <strong>${escapeHtml(settlement.code || '')}</strong></p>
+      <p>Hợp đồng <strong>${escapeHtml(contract.code || '')}</strong> · Phòng <strong>${escapeHtml(contract.roomName || '')}</strong><br />
+        Khách thuê: <strong>${escapeHtml(contract.tenantName || '')}</strong><br />
+        Thời gian thuê: ${escapeHtml(dateLabel(contract.startsOn) || contract.startsOn || '')} đến hết ${escapeHtml(dateLabel(contract.checkoutOn) || contract.checkoutOn || '')}
+      </p>
+      <table>
+        <tbody>
+          <tr><th>Hóa đơn tháng ${escapeHtml(settlement.period || '')} trước khi chốt</th><td>${fmt(settlement.invoiceOriginalTotalVnd)}</td></tr>
+          <tr><th>Tiền phòng thực tế (${Number(calculation.chargedDays) || 0}/${Number(calculation.daysInMonth) || 0} ngày)</th><td>${fmt(calculation.finalRentVnd)}</td></tr>
+          <tr><th>Hóa đơn sau khi chốt</th><td>${fmt(settlement.invoiceFinalTotalVnd)}</td></tr>
+          <tr><th>Công nợ kỳ trước</th><td>${fmt(settlement.priorDebtVnd)}</td></tr>
+          <tr><th>Tiền cọc bù công nợ</th><td>− ${fmt(settlement.depositAppliedVnd)}</td></tr>
+          <tr><th>Còn phải thu</th><td>${fmt(settlement.remainingDueVnd)}</td></tr>
+          <tr><th>Tiền cọc hoàn lại</th><td>${fmt(settlement.depositRefundedVnd)}</td></tr>
+          <tr><th>Tiền phòng đã trả dư hoàn lại</th><td>${fmt(settlement.rentOverpaymentVnd)}</td></tr>
+          <tr><th>Tổng tiền hoàn khách</th><td>${fmt(settlement.totalRefundVnd)}</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Phương thức hoàn:</strong> ${escapeHtml(rentalFinalSettlementMethodLabel(settlement.refundMethod))}</p>
+      <p><strong>Nội dung xác nhận:</strong> ${escapeHtml(settlement.reason || '')}</p>
+      <p>Biên bản được chốt lúc ${escapeHtml(subscriptionDateTime(settlement.createdAt))}. Các số liệu hóa đơn, công nợ và tiền cọc được lưu dưới dạng snapshot bất biến.</p>
+      <div class="rental-final-settlement-signatures">
+        <div><strong>BÊN CHO THUÊ</strong><br /><small>(Ký và ghi rõ họ tên)</small></div>
+        <div><strong>BÊN THUÊ</strong><br /><small>(Ký và ghi rõ họ tên)</small></div>
+      </div>
+    </article>`;
+}
+
+function renderRentalFinalSettlementResult(settlement) {
+  activeRentalFinalSettlement = settlement;
+  activeRentalFinalSettlementPreview = null;
+  document.getElementById('rental-final-settlement-loading').hidden = true;
+  document.getElementById('rental-final-settlement-form').hidden = true;
+  document.getElementById('rental-final-settlement-result').hidden = false;
+  document.getElementById('rental-final-settlement-contract').textContent =
+    `${settlement.code} · ${periodLabel(settlement.period)}`;
+  document.getElementById('rental-final-settlement-paper').innerHTML =
+    rentalFinalSettlementDocument(settlement);
+}
+
+function updateRentalFinalSettlementBalance() {
+  const preview = activeRentalFinalSettlementPreview;
+  if (!preview) return;
+  const input = document.getElementById('rental-final-settlement-applied');
+  const refunded = document.getElementById('rental-final-settlement-refunded');
+  const balance = Number(preview.deposit?.balanceVnd) || 0;
+  const outstanding = Number(preview.outstandingBeforeDepositVnd) || 0;
+  const applied = Number(input.value);
+  const valid = Number.isSafeInteger(applied) && applied >= 0
+    && applied <= balance && applied <= outstanding;
+  refunded.value = valid ? String(balance - applied) : '';
+  const remaining = valid ? Math.max(0, outstanding - applied) : outstanding;
+  const totalRefund = valid
+    ? balance - applied + (Number(preview.rentOverpaymentVnd) || 0)
+    : Number(preview.rentOverpaymentVnd) || 0;
+  document.getElementById('rental-final-settlement-balance').textContent = valid
+    ? `Sau đối trừ: còn phải thu ${fmt(remaining)} · tổng hoàn khách ${fmt(totalRefund)}.`
+    : `Tiền cọc bù công nợ phải từ 0 đến ${fmt(Math.min(balance, outstanding))}.`;
+}
+
+function renderRentalFinalSettlementPreview(preview) {
+  activeRentalFinalSettlementPreview = preview;
+  activeRentalFinalSettlement = null;
+  document.getElementById('rental-final-settlement-loading').hidden = true;
+  document.getElementById('rental-final-settlement-result').hidden = true;
+  document.getElementById('rental-final-settlement-form').hidden = false;
+  document.getElementById('rental-final-settlement-contract').textContent =
+    `${preview.contract.code} · ${preview.contract.roomName} · ${preview.contract.tenantName}`;
+  document.getElementById('rental-final-settlement-summary').innerHTML = `
+    <div><span>Tiền phòng thực tế</span><strong>${fmt(preview.invoice.finalRentVnd)} · ${preview.invoice.chargedDays}/${preview.invoice.daysInMonth} ngày</strong></div>
+    <div><span>Hóa đơn sau chốt</span><strong>${fmt(preview.invoice.finalTotalVnd)}</strong></div>
+    <div><span>Công nợ trước bù cọc</span><strong>${fmt(preview.outstandingBeforeDepositVnd)}</strong></div>
+    <div><span>Đã thu trong kỳ thuê</span><strong>${fmt(preview.paidBeforeVnd)}</strong></div>
+    <div><span>Số dư cọc</span><strong>${fmt(preview.deposit.balanceVnd)}</strong></div>
+    <div><span>Tiền phòng đã trả dư</span><strong>${fmt(preview.rentOverpaymentVnd)}</strong></div>`;
+  const applied = document.getElementById('rental-final-settlement-applied');
+  applied.max = String(Math.min(
+    Number(preview.deposit.balanceVnd) || 0,
+    Number(preview.outstandingBeforeDepositVnd) || 0
+  ));
+  applied.value = String(preview.deposit.suggestedAppliedVnd || 0);
+  document.getElementById('rental-final-settlement-refunded').value =
+    String(preview.deposit.suggestedRefundedVnd || 0);
+  document.getElementById('rental-final-settlement-method').value = 'bank_transfer';
+  document.getElementById('rental-final-settlement-error').hidden = true;
+  updateRentalFinalSettlementBalance();
+}
+
+async function openRentalFinalSettlement(contract) {
+  activeRentalFinalSettlementContract = contract;
+  activeRentalFinalSettlementPreview = null;
+  activeRentalFinalSettlement = null;
+  const modal = document.getElementById('rental-final-settlement-modal');
+  const loading = document.getElementById('rental-final-settlement-loading');
+  document.getElementById('rental-final-settlement-contract').textContent =
+    `${contract.code} · ${contract.roomName} · ${contract.tenantName}`;
+  loading.textContent = 'Đang đối chiếu hóa đơn, công nợ và tiền cọc…';
+  loading.hidden = false;
+  document.getElementById('rental-final-settlement-form').hidden = true;
+  document.getElementById('rental-final-settlement-result').hidden = true;
+  modal.hidden = false;
+  try {
+    await ensureRentInvoicesSynced();
+    const result = await API.getRentalFinalSettlement(contract.id);
+    if (result.finalized) renderRentalFinalSettlementResult(result.settlement);
+    else renderRentalFinalSettlementPreview(result.preview);
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    loading.textContent = error.message || 'Không tải được dữ liệu quyết toán';
+  }
+}
+
+function closeRentalFinalSettlement() {
+  activeRentalFinalSettlementContract = null;
+  activeRentalFinalSettlementPreview = null;
+  activeRentalFinalSettlement = null;
+  document.getElementById('rental-final-settlement-modal').hidden = true;
+  const printArea = document.getElementById('print-area');
+  printArea?.classList.remove('print-area--rental-final-settlement');
+}
+
+async function submitRentalFinalSettlement(event) {
+  event.preventDefault();
+  const contract = activeRentalFinalSettlementContract;
+  const preview = activeRentalFinalSettlementPreview;
+  if (!contract || !preview) return;
+  const button = document.getElementById('rental-final-settlement-submit');
+  const errorElement = document.getElementById('rental-final-settlement-error');
+  button.disabled = true;
+  errorElement.hidden = true;
+  try {
+    const applied = Number(document.getElementById('rental-final-settlement-applied').value);
+    const refunded = Number(document.getElementById('rental-final-settlement-refunded').value);
+    const result = await API.createRentalFinalSettlement(contract.id, {
+      depositAppliedVnd: applied,
+      depositRefundedVnd: refunded,
+      refundMethod: document.getElementById('rental-final-settlement-method').value,
+      reason: document.getElementById('rental-final-settlement-reason').value
+    });
+    renderRentalFinalSettlementResult(result.settlement);
+    await refreshRentInvoiceSummaries();
+    renderBills();
+    showToast(result.reused ? 'Đã mở biên quyết toán hiện có' : 'Đã chốt quyết toán trả phòng ✓', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không chốt được quyết toán';
+    errorElement.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function printRentalFinalSettlement() {
+  const paper = document.getElementById('rental-final-settlement-paper');
+  const printArea = document.getElementById('print-area');
+  if (!paper.firstElementChild || !activeRentalFinalSettlement || !printArea) return;
+  printArea.innerHTML = paper.innerHTML;
+  printArea.classList.add('print-area--rental-final-settlement');
+  const filename = `${removeVietnameseTones(activeRentalFinalSettlement.code || 'quyet-toan-tra-phong')
+    .replace(/[^a-zA-Z0-9-]+/g, '-').toLowerCase()}.pdf`;
+  try {
+    triggerPrint(filename);
+  } finally {
+    window.setTimeout(closeRentalFinalSettlement, 0);
+  }
+}
+
 async function refreshRentalStateAfterLifecycle() {
   const serverState = await API.getState();
   loadState(serverState);
@@ -3546,6 +3738,7 @@ async function submitRentalLifecycle(event) {
       showToast('Đã chuyển phòng và tạo hợp đồng mới ✓', 'success');
       return;
     }
+    await ensureRentInvoicesSynced();
     await API.checkoutRentalContract(contract.id, {
       occurredOn: document.getElementById('rental-lifecycle-date').value,
       reason: document.getElementById('rental-lifecycle-reason').value
@@ -3553,6 +3746,8 @@ async function submitRentalLifecycle(event) {
     closeRentalLifecycleModal();
     showToast('Đã ghi nhận trả phòng ✓', 'success');
     await loadRentalContracts();
+    const endedContract = rentalContracts.find(item => Number(item.id) === Number(contract.id));
+    if (endedContract) void openRentalFinalSettlement(endedContract);
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
     errorElement.textContent = error.message || 'Không xử lý được vòng đời thuê';
@@ -4096,6 +4291,15 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
     }
     return;
   }
+  const finalSettlementButton = event.target?.closest?.('[data-contract-final-settlement]');
+  if (finalSettlementButton) {
+    const finalSettlementCard = finalSettlementButton.closest('.rental-contract-card');
+    const finalSettlementContract = rentalContracts.find(
+      item => Number(item.id) === Number(finalSettlementCard?.dataset.contractId)
+    );
+    if (finalSettlementContract) void openRentalFinalSettlement(finalSettlementContract);
+    return;
+  }
   const documentButton = event.target?.closest?.('[data-contract-document]');
   if (documentButton) {
     const documentCard = documentButton.closest('.rental-contract-card');
@@ -4122,6 +4326,17 @@ document.getElementById('rental-lifecycle-close').addEventListener('click', clos
 document.getElementById('rental-lifecycle-cancel').addEventListener('click', closeRentalLifecycleModal);
 document.getElementById('rental-lifecycle-modal').addEventListener('click', event => {
   if (event.target === event.currentTarget) closeRentalLifecycleModal();
+});
+document.getElementById('rental-final-settlement-form').addEventListener('submit', event => {
+  void submitRentalFinalSettlement(event);
+});
+document.getElementById('rental-final-settlement-applied').addEventListener('input', updateRentalFinalSettlementBalance);
+document.getElementById('rental-final-settlement-close').addEventListener('click', closeRentalFinalSettlement);
+document.getElementById('rental-final-settlement-cancel').addEventListener('click', closeRentalFinalSettlement);
+document.getElementById('rental-final-settlement-close-footer').addEventListener('click', closeRentalFinalSettlement);
+document.getElementById('rental-final-settlement-print').addEventListener('click', printRentalFinalSettlement);
+document.getElementById('rental-final-settlement-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeRentalFinalSettlement();
 });
 document.getElementById('rental-contract-document-form').addEventListener('submit', event => {
   void submitRentalContractDocument(event);

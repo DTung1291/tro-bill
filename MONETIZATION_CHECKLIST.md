@@ -228,10 +228,10 @@ Trạng thái ngày 24/08/2026:
 - [x] Nhắc hợp đồng sắp hết hạn.
 - [x] Quản lý đặt cọc và biên bản bàn giao tài sản.
 - [x] Hỗ trợ giữ chỗ, chuyển phòng và trả phòng.
-- [ ] Chốt bill cuối cùng khi khách trả phòng.
+- [x] Chốt bill cuối cùng khi khách trả phòng.
 - [ ] Quản lý trạng thái phòng: trống, giữ chỗ, đang thuê, đang sửa.
 
-Trạng thái đến ngày 29/08/2026:
+Trạng thái đến ngày 30/08/2026:
 
 - Hợp đồng lưu bản chụp phòng/khách thuê, có trạng thái nháp, hiệu lực, kết thúc
   và hủy; mỗi phòng chỉ có một hợp đồng đang hiệu lực trong một tài khoản.
@@ -276,6 +276,16 @@ Trạng thái đến ngày 29/08/2026:
   một-bản-mỗi-loại và append-only trên Neon `staging-privacy` lẫn production;
   credential `tro_bill_runtime_sql` production có INSERT nhưng không có
   UPDATE/DELETE. Toàn bộ 288/288 test tự động thành công.
+- Sau khi trả phòng, hệ thống lập bản xem trước quyết toán từ hóa đơn đúng tháng,
+  tính tiền phòng theo số ngày ở thực tế có tính cả ngày vào và ngày trả, đối
+  chiếu chỉ số điện/nước với biên bản trả phòng, rồi cho bù công nợ và hoàn số dư
+  từ sổ cọc. Khi xác nhận, tổng/chi tiết hóa đơn cuối và biên quyết toán được
+  khóa bất biến; khoản cọc bù nợ được phân bổ vào ledger thu tiền trong cùng một
+  transaction và thao tác gửi lại cùng nội dung không tạo giao dịch trùng. Số
+  tiền phải thu ở QR, nhắc nợ, đối soát và biên nhận đều dùng tổng cuối đã chốt.
+  Migration `20260830_rental_final_settlements.sql` đạt đủ 5 kiểm tra schema,
+  ownership, snapshot bất biến và quyền append-only trên Neon `staging-privacy`
+  lẫn production; toàn bộ 303/303 test tự động thành công.
 
 ### Nhiều khu và phân quyền
 

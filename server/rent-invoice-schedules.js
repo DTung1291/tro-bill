@@ -312,7 +312,7 @@ async function enqueueAutomaticInvoiceReminders(dependencies = {}) {
            NULLIF(left(room.rent_start_date, 7), '') IS NULL
            OR invoice.period >= left(room.rent_start_date, 7)
          )
-         AND invoice.issued_total_vnd > COALESCE((
+         AND COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd) > COALESCE((
            SELECT SUM(payment_tx.amount_vnd)
            FROM rent_payment_transactions payment_tx
            WHERE payment_tx.user_id=invoice.user_id

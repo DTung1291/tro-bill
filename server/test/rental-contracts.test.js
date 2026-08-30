@@ -503,5 +503,5 @@ test('bản in hợp đồng bỏ khóa cuộn popup để Chromium phân trang 
   assert.match(css, /\.print-area\s*\{[\s\S]*height: auto !important;[\s\S]*overflow: visible !important;/);
   assert.match(css, /\.print-area \.rental-contract-document\s*\{[\s\S]*height: auto;[\s\S]*overflow: visible;/);
   assert.match(css, /@page rentalContract\s*\{[\s\S]*size: Letter portrait;/);
-  assert.match(html, /style\.css\?v=102/);
+  assert.match(html, /style\.css\?v=103/);
 });

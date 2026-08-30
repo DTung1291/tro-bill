@@ -442,6 +442,21 @@ const API = (() => {
     );
   }
 
+  function getRentalFinalSettlement(contractId) {
+    return request(
+      'GET',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/final-settlement`
+    );
+  }
+
+  function createRentalFinalSettlement(contractId, input) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/final-settlement`,
+      input
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -588,6 +603,8 @@ const API = (() => {
     cancelRentalReservation,
     transferRentalContract,
     checkoutRentalContract,
+    getRentalFinalSettlement,
+    createRentalFinalSettlement,
     privacy,
     getConfig,
     admin

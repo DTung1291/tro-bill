@@ -129,3 +129,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hệ quả:** Phòng đích phải không có hợp đồng hoặc giữ chỗ active. Giữ chỗ chỉ
   được chuyển thành hợp đồng khi client gửi đúng `reservationId`; bill cuối cùng
   và trạng thái phòng sẽ dựa trên event/hợp đồng thay vì xóa lịch sử cũ.
+
+## D-013 — Quyết toán cuối là snapshot bất biến trên invoice và ledger hiện có
+
+- **Trạng thái:** Đang áp dụng từ 30/08/2026.
+- **Quyết định:** Chỉ chốt quyết toán sau event `checked_out` và biên bản
+  `check_out` cùng ngày. Giữ nguyên `issued_total_vnd`/`detail_snapshot`, ghi tổng
+  và chi tiết sau quyết toán vào các cột `final_*` chỉ một lần. Tiền phòng tính từ
+  ngày bắt đầu của hợp đồng (nếu cùng tháng) đến ngày trả phòng, bao gồm cả hai
+  đầu ngày. Tiền cọc bù nợ tạo receipt/allocation và giao dịch khấu trừ; cọc còn
+  lại tạo giao dịch hoàn, tất cả trong cùng transaction.
+- **Lý do:** Sửa hóa đơn gốc làm mất chứng từ đã phát hành; tạo một nguồn công nợ
+  hoặc số dư cọc khác sẽ khiến đối soát QR, nhắc nợ, biên nhận và sổ cọc lệch nhau.
+- **Hệ quả:** Mọi luồng đọc số tiền phải dùng
+  `COALESCE(final_total_vnd, issued_total_vnd)`. Final settlement là append-only,
+  idempotent theo hợp đồng và không thể chạy nếu chỉ số điện/nước khác biên bản.
+  Hoàn tiền thuê do trả thừa được lưu riêng trong snapshot quyết toán; việc chi
+  tiền thực tế vẫn là nghiệp vụ vận hành cần chủ trọ xác nhận ngoài hệ thống.

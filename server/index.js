@@ -55,6 +55,7 @@ const rentalContracts = require('./rental-contracts');
 const rentalContractNotifications = require('./rental-contract-notifications');
 const rentalHandovers = require('./rental-handovers');
 const rentalLifecycle = require('./rental-lifecycle');
+const rentalFinalSettlements = require('./rental-final-settlements');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -319,6 +320,16 @@ app.post(
   '/api/rental-contracts/:id/checkout',
   requireAuth,
   wrap(rentalLifecycle.checkoutContract)
+);
+app.get(
+  '/api/rental-contracts/:id/final-settlement',
+  requireAuth,
+  wrap(rentalFinalSettlements.getFinalSettlement)
+);
+app.post(
+  '/api/rental-contracts/:id/final-settlement',
+  requireAuth,
+  wrap(rentalFinalSettlements.createFinalSettlement)
 );
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));

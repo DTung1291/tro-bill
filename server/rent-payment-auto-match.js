@@ -55,14 +55,18 @@ async function targetWithOutstanding(client, transaction, invoiceId) {
   );
   const balanceResult = await client.query(
     `SELECT i.id, i.period,
-            GREATEST(i.issued_total_vnd - COALESCE(SUM(t.amount_vnd), 0), 0)
+            GREATEST(i.issued_total_vnd
+              + COALESCE(i.final_total_vnd - i.issued_total_vnd, 0)
+              - COALESCE(SUM(t.amount_vnd), 0), 0)
               AS remaining_vnd
      FROM rent_invoices i
      LEFT JOIN rent_payment_transactions t
        ON t.user_id=i.user_id AND t.invoice_id=i.id
      WHERE i.user_id=$1 AND i.room_id=$2 AND i.period<=$3
      GROUP BY i.id
-     HAVING i.issued_total_vnd - COALESCE(SUM(t.amount_vnd), 0) > 0
+     HAVING i.issued_total_vnd
+       + COALESCE(i.final_total_vnd - i.issued_total_vnd, 0)
+       - COALESCE(SUM(t.amount_vnd), 0) > 0
      ORDER BY i.period, i.id`,
     [transaction.user_id, targetInvoice.room_id, targetInvoice.period]
   );
