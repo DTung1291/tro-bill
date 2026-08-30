@@ -305,12 +305,18 @@ Trạng thái đến ngày 30/08/2026:
 
 ### Nhiều khu và phân quyền
 
-- [ ] Một tài khoản chủ sở hữu quản lý được nhiều khu/tòa nhà.
+- [x] Một tài khoản chủ sở hữu quản lý được nhiều khu/tòa nhà.
 - [ ] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
 - [ ] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
 - [ ] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
 - [ ] Dashboard tổng hợp và bộ lọc theo từng khu.
 - [ ] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
+
+Trạng thái đến ngày 30/08/2026: khu/tòa nhà đã có CRUD riêng theo tài khoản,
+mỗi phòng bắt buộc thuộc đúng một khu và dữ liệu cũ được đưa vào khu mặc định.
+Trang Phòng hỗ trợ lọc, gắn/chuyển khu; backup cũ và backup nhiều khu đều được
+ánh xạ an toàn khi import. Migration đã áp dụng và xác minh trên staging lẫn
+production; 318/318 test và smoke test production thành công.
 
 ### Bảo trì và tài sản
 

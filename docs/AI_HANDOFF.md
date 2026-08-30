@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang phát hành — nhiều khu/tòa nhà đã code và migrate, chờ push/deploy + smoke test UI |
+| Trạng thái | Sẵn sàng bàn giao — quản lý nhiều khu/tòa nhà đã phát hành và xác minh production |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
-| Phần ứng dụng phát hành gần nhất | `8b9c652` — hotfix ledger cọc và tuần tự hóa autosave toàn-state |
-| Việc code tiếp theo | Hoàn tất phát hành nhiều khu; sau đó vai trò chủ sở hữu/quản lý/kế toán/người ghi điện nước |
+| Phần ứng dụng phát hành gần nhất | `6aa82cc` — một chủ sở hữu quản lý nhiều khu/tòa nhà |
+| Việc code tiếp theo | Vai trò chủ sở hữu/quản lý/kế toán/người ghi điện nước |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -28,8 +28,8 @@ event sửa chữa và cập nhật UI/cache an toàn. Migration và production 
 minh. Hotfix đã phát hành để giao dịch cọc tương thích runtime least privilege và
 để các bản lưu toàn-state không chạy chồng/ghi đè ngược thứ tự. Sau khi người
 dùng smoke test đúng loại giao dịch cọc, phần đầu **Nhiều khu và phân quyền** đã
-được triển khai: khu có CRUD riêng, phòng gắn ownership theo khu, có khu mặc định
-và import tương thích. Đang chờ phát hành ứng dụng và smoke test UI production.
+được triển khai và phát hành: khu có CRUD riêng, phòng gắn ownership theo khu,
+có khu mặc định và import tương thích. Hạng mục tiếp theo là mô hình vai trò.
 
 ## Bản đồ hệ thống ngắn
 
@@ -133,7 +133,14 @@ và import tương thích. Đang chờ phát hành ứng dụng và smoke test U
   `20260830_multi_properties.sql` đã chạy trên Neon `staging-privacy` và
   production ngày 30/08/2026, đạt 6/6 cờ kiểm tra; production backfill 3 tài
   khoản và 8 phòng. Preview `tro-bill-ich3ee367-dtung.vercel.app` READY; phiên
-  Preview chưa đăng nhập nên smoke test popup có dữ liệu chờ deployment production.
+  Preview chưa đăng nhập nên không dùng để kiểm tra dữ liệu thật.
+- Commit `6aa82cc` đã push lên `main`; GitHub Actions `33323477587` thành công.
+  Deployment production `tro-bill-b0vl39tjo-dtung.vercel.app` ở trạng thái
+  `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
+  `6aa82cc1baa7`, database/schema `ok` và runtime role `restricted`. Bộ đầy đủ
+  đạt 318/318 test, secret scan và `git diff --check` sạch. Smoke test production
+  xác nhận 7/7 phòng hiển thị với badge khu, bộ lọc đúng, không tràn ngang và
+  modal khóa scroll nền. Không tạo/xóa dữ liệu thử trên production.
 
 ## Việc chưa được xem là hoàn tất
 
