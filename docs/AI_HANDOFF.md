@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng phát hành — review trạng thái phòng đã hoàn tất |
+| Trạng thái | Sẵn sàng bàn giao — chờ người dùng kiểm tra trạng thái phòng |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit phát hành; agent mới vẫn phải tự kiểm tra |
-| Phần ứng dụng phát hành gần nhất | `776ea2e` — bản Claude quản lý trạng thái phòng, đang được sửa sau review |
-| Việc code tiếp theo | Commit/push bản review rồi xác minh CI và production revision mới |
+| Phần ứng dụng phát hành gần nhất | `ab7a952` — bản review và gia cố quản lý trạng thái phòng |
+| Việc code tiếp theo | Sau khi người dùng xác nhận UI: Giai đoạn 4, một chủ quản lý nhiều khu/tòa nhà |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -22,12 +22,11 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 ## Mục tiêu đang theo đuổi
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
-cho người dùng kiểm tra. Bản Claude `776ea2e` đã đưa quản lý trạng thái phòng lên
-`main`, nhưng review phát hiện trạng thái client không có dữ liệu hợp đồng/giữ
-chỗ, thiếu chốt chặn transaction và modal có rủi ro injection/scroll. Bản sửa
-Codex hiện suy trạng thái ở server từ khách/hợp đồng/giữ chỗ/sửa chữa, khóa phòng
-trước thao tác, ghi event sửa chữa và cập nhật UI/cache an toàn. Migration đã
-được xác minh trên staging lẫn production; bản review sẵn sàng phát hành.
+cho người dùng kiểm tra. Bản review trạng thái phòng đã phát hành: server suy
+trạng thái từ khách/hợp đồng/giữ chỗ/sửa chữa, khóa phòng trước thao tác, ghi
+event sửa chữa và cập nhật UI/cache an toàn. Migration và production đã được xác
+minh. Chờ người dùng kiểm tra giao diện trước khi chuyển sang phần **Nhiều khu và
+phân quyền**, bắt đầu bằng một chủ sở hữu quản lý nhiều khu/tòa nhà.
 
 ## Bản đồ hệ thống ngắn
 
@@ -104,6 +103,12 @@ trước thao tác, ghi event sửa chữa và cập nhật UI/cache an toàn. M
   `staging-privacy` ngày 30/08/2026; production được kiểm tra lại bằng cùng SELECT.
   Cả hai môi trường đều đạt đủ 5 cờ bảng, unique active, liên kết lifecycle,
   ownership FK và quyền runtime.
+- Commit review `ab7a952` đã push lên `main`; GitHub Actions `33309502867` thành
+  công. Deployment production `tro-bill-ejn9hhys7-dtung.vercel.app` ở trạng thái
+  `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
+  `ab7a9526a105`, database/schema `ok` và runtime role `restricted` ngày
+  30/08/2026. Quét log lỗi 10 phút sau deploy không có bản ghi lỗi. Phiên Chrome
+  đã hết đăng nhập nên phần UI có dữ liệu thật chờ người dùng smoke test.
 
 ## Việc chưa được xem là hoàn tất
 
