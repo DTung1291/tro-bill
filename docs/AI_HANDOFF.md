@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — chờ người dùng kiểm tra trạng thái phòng |
+| Trạng thái | Đang làm — Codex / hotfix tiền cọc và tuần tự hóa autosave, chờ phát hành |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit phát hành; agent mới vẫn phải tự kiểm tra |
+| Worktree kỳ vọng | Có thay đổi hotfix chưa commit; agent mới phải đọc diff trước khi tiếp tục |
 | Phần ứng dụng phát hành gần nhất | `ab7a952` — bản review và gia cố quản lý trạng thái phòng |
-| Việc code tiếp theo | Sau khi người dùng xác nhận UI: Giai đoạn 4, một chủ quản lý nhiều khu/tòa nhà |
+| Việc code tiếp theo | Phát hành, smoke test hotfix; sau đó Giai đoạn 4, một chủ quản lý nhiều khu/tòa nhà |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -25,8 +25,10 @@ Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng ph
 cho người dùng kiểm tra. Bản review trạng thái phòng đã phát hành: server suy
 trạng thái từ khách/hợp đồng/giữ chỗ/sửa chữa, khóa phòng trước thao tác, ghi
 event sửa chữa và cập nhật UI/cache an toàn. Migration và production đã được xác
-minh. Chờ người dùng kiểm tra giao diện trước khi chuyển sang phần **Nhiều khu và
-phân quyền**, bắt đầu bằng một chủ sở hữu quản lý nhiều khu/tòa nhà.
+minh. Hotfix đang chờ phát hành để giao dịch cọc tương thích runtime least
+privilege và để các bản lưu toàn-state không chạy chồng/ghi đè ngược thứ tự. Sau
+khi smoke test production, chuyển sang phần **Nhiều khu và phân quyền**, bắt đầu
+bằng một chủ sở hữu quản lý nhiều khu/tòa nhà.
 
 ## Bản đồ hệ thống ngắn
 
@@ -109,6 +111,14 @@ phân quyền**, bắt đầu bằng một chủ sở hữu quản lý nhiều k
   `ab7a9526a105`, database/schema `ok` và runtime role `restricted` ngày
   30/08/2026. Quét log lỗi 10 phút sau deploy không có bản ghi lỗi. Phiên Chrome
   đã hết đăng nhập nên phần UI có dữ liệu thật chờ người dùng smoke test.
+- Runtime Logs ngày 30/08/2026 xác nhận `POST /api/deposits/transactions` lỗi
+  PostgreSQL `42501`: code dùng `SELECT ... FOR UPDATE` trong khi ledger cọc cố
+  ý chỉ cấp `SELECT/INSERT`. Hotfix thay row lock bằng advisory lock theo
+  idempotency, giao dịch hoàn tác và số dư; không nới quyền `UPDATE`. Cùng đợt
+  log có nhiều deadlock `PUT /api/state`, nên frontend xếp hàng autosave và
+  server khóa tuần tự toàn-state theo `user_id` trước mọi row lock. Test mục tiêu
+  đạt 30/30, bộ đầy đủ đạt 313/313, secret scan và `git diff --check` sạch; không
+  có thay đổi schema/migration. Chưa push/deploy ở thời điểm ghi nhận này.
 
 ## Việc chưa được xem là hoàn tất
 

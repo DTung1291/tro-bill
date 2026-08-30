@@ -47,7 +47,7 @@ test('giao diện nạp bộ phân loại trước app và hiển thị tuổi n
   const htmlSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
-  assert.match(htmlSource, /debt-age\.js\?v=83[\s\S]*app\.js\?v=105/);
+  assert.match(htmlSource, /debt-age\.js\?v=83[\s\S]*app\.js\?v=106/);
   assert.match(appSource, /oldestPriorDebtPeriodFromLoadedInvoices/);
   assert.match(appSource, /debtAgeBadge\(payment\)/);
   assert.match(appSource, /debtAgeMessageLine\(payment\)/);

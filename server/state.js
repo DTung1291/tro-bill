@@ -316,6 +316,18 @@ async function putState(req, res) {
   try {
     await client.query('BEGIN');
 
+    // Frontend lưu toàn bộ state nên hai request cùng tài khoản không được chạy
+    // chồng nhau: request cũ hoàn tất sau có thể ghi đè request mới và các row
+    // lock của hai transaction có thể tạo deadlock. Khóa theo user trước mọi
+    // truy vấn/row lock để giữ đúng một thứ tự ghi trên mọi serverless instance.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended(
+         'state-write:' || $1::text,
+         0
+       ))`,
+      [uid]
+    );
+
     // Server quyết định quyền ghi và giới hạn phòng từ subscription trong DB.
     // Kiểm tra client chỉ để UX; không thể dùng client để tự mở khóa gói.
     await enforceStateWrite(uid, rooms.length, client.query.bind(client));

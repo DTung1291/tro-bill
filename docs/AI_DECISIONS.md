@@ -162,3 +162,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   đều phải khóa phòng rồi kiểm tra mọi nguồn xung đột trong cùng transaction.
   Sửa chữa có lịch sử riêng; hai mốc bắt đầu/hoàn thành được ghi vào event
   append-only. UI không được tự suy trạng thái từ các cache chưa tải.
+
+## D-015 — Khóa đồng thời phải giữ nguyên least privilege và thứ tự snapshot
+
+- **Trạng thái:** Đang áp dụng từ 30/08/2026.
+- **Quyết định:** Ledger append-only không được cấp `UPDATE` chỉ để dùng row
+  lock; các thao tác cọc dùng advisory lock ổn định theo idempotency, giao dịch
+  hoàn tác và tài khoản số dư. Vì `PUT /api/state` thay toàn bộ snapshot, frontend
+  phải xếp hàng các request và server phải khóa tuần tự theo `user_id` trước mọi
+  row lock.
+- **Lý do:** PostgreSQL yêu cầu quyền `UPDATE` cho `SELECT ... FOR UPDATE`, từng
+  làm API cọc lỗi `42501`. Nhiều autosave chạy chồng vừa có thể deadlock vừa cho
+  phép snapshot cũ commit sau và ghi đè snapshot mới.
+- **Hệ quả:** Không sửa lỗi khóa bằng cách nới quyền trên sổ tài chính. Mọi đường
+  ghi cọc mới phải dùng cùng khóa `deposit-balance:<user>:<account>` với trigger;
+  mọi thay đổi cơ chế autosave phải giữ kiểm tra account context, revision và hai
+  lớp tuần tự client/server.

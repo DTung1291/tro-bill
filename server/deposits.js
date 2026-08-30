@@ -233,8 +233,7 @@ async function createDepositTransaction(req, res) {
        FROM tenant_deposit_transactions t
        JOIN tenant_deposit_accounts a
          ON a.user_id=t.user_id AND a.id=t.account_id
-       WHERE t.user_id=$1 AND t.idempotency_key=$2
-       FOR UPDATE OF t`,
+       WHERE t.user_id=$1 AND t.idempotency_key=$2`,
       [req.userId, input.idempotencyKey]
     );
     if (replayResult.rows[0]) {
@@ -263,8 +262,7 @@ async function createDepositTransaction(req, res) {
 
     let accountResult = await client.query(
       `SELECT * FROM tenant_deposit_accounts
-       WHERE user_id=$1 AND tenant_id=$2
-       FOR UPDATE`,
+       WHERE user_id=$1 AND tenant_id=$2`,
       [req.userId, input.tenantId]
     );
     let account = accountResult.rows[0];
@@ -290,6 +288,16 @@ async function createDepositTransaction(req, res) {
       account = accountResult.rows[0];
     }
 
+    // Runtime chỉ có SELECT/INSERT trên ledger append-only nên không thể dùng
+    // SELECT ... FOR UPDATE. Khóa advisory này trùng với trigger database và
+    // giữ số dư ổn định cho đến khi bút toán mới được chèn/transaction kết thúc.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended(
+         'deposit-balance:' || $1::text || ':' || $2::text,
+         0
+       ))`,
+      [req.userId, account.id]
+    );
     const balanceResult = await client.query(
       `SELECT COALESCE(SUM(amount_vnd), 0) AS balance_vnd
        FROM tenant_deposit_transactions
@@ -370,11 +378,19 @@ async function reverseDepositTransaction(req, res) {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
+    // Một giao dịch gốc chỉ được hoàn tác một lần. Advisory lock thay cho row
+    // lock vì bảng giao dịch cố ý không cấp quyền UPDATE cho runtime role.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended(
+         'deposit-reversal:' || $1::text || ':' || $2::text,
+         0
+       ))`,
+      [req.userId, transactionId]
+    );
     const originalResult = await client.query(
       `SELECT t.*
        FROM tenant_deposit_transactions t
-       WHERE t.user_id=$1 AND t.id=$2
-       FOR UPDATE OF t`,
+       WHERE t.user_id=$1 AND t.id=$2`,
       [req.userId, transactionId]
     );
     const original = originalResult.rows[0];
@@ -393,9 +409,10 @@ async function reverseDepositTransaction(req, res) {
       throw new DepositError(409, 'DEPOSIT_TRANSACTION_ALREADY_REVERSED', 'Giao dịch đã được hoàn tác');
     }
     await client.query(
-      `SELECT id FROM tenant_deposit_accounts
-       WHERE user_id=$1 AND id=$2
-       FOR UPDATE`,
+      `SELECT pg_advisory_xact_lock(hashtextextended(
+         'deposit-balance:' || $1::text || ':' || $2::text,
+         0
+       ))`,
       [req.userId, original.account_id]
     );
     const balanceResult = await client.query(

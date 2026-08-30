@@ -99,3 +99,12 @@ test('giao diện hủy autosave và đồng bộ thay đổi phiên giữa các
   assert.match(appSource, /cancelPendingStateSave\(\);[\s\S]*API\.clearSession\(\);[\s\S]*clearSensitiveStateFromMemory\(\)/);
   assert.match(appSource, /expectedGeneration !== _sessionGeneration/);
 });
+
+test('giao diện xếp hàng PUT state để snapshot cũ không ghi đè snapshot mới', () => {
+  const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  assert.match(appSource, /let _saveInFlight = null/);
+  assert.match(appSource, /const previousSave = _saveInFlight/);
+  assert.match(appSource, /if \(previousSave\)[\s\S]*await previousSave/);
+  assert.match(appSource, /_saveInFlight = currentSave/);
+  assert.match(appSource, /revision === _saveRevision/);
+});

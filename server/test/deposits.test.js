@@ -12,6 +12,7 @@ const db = require('../db');
 const {
   createDepositTransaction,
   depositTransactionInput,
+  reverseDepositTransaction,
   transactionCode
 } = require('../deposits');
 
@@ -69,8 +70,13 @@ test('thu cọc tạo bút toán dương và không cập nhật/xóa sổ giao 
   const client = {
     async query(sql, params = []) {
       calls.push({ sql, params });
+      if (/FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(sql)) {
+        const error = new Error('permission denied for append-only deposit ledger');
+        error.code = '42501';
+        throw error;
+      }
       if (sql.includes('WHERE t.user_id=$1 AND t.idempotency_key=$2')) return { rows: [] };
-      if (sql.includes('FROM tenant_deposit_accounts') && sql.includes('FOR UPDATE')) {
+      if (sql.includes('FROM tenant_deposit_accounts') && sql.includes('tenant_id=$2')) {
         return { rows: [{
           id: 4,
           user_id: 7,
@@ -130,6 +136,8 @@ test('thu cọc tạo bút toán dương và không cập nhật/xóa sổ giao 
   assert.equal(insert.params[5], 2000000);
   assert.equal(insert.params[3], 'TC-00000010');
   assert.equal(calls.some((call) => /UPDATE tenant_deposit_transactions|DELETE FROM tenant_deposit_transactions/.test(call.sql)), false);
+  assert.equal(calls.some((call) => /FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(call.sql)), false);
+  assert.equal(calls.some((call) => call.sql.includes("'deposit-balance:'")), true);
   assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
 });
 
@@ -140,7 +148,7 @@ test('khấu trừ hoặc hoàn cọc không được làm số dư âm', async 
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (sql.includes('WHERE t.user_id=$1 AND t.idempotency_key=$2')) return { rows: [] };
-      if (sql.includes('FROM tenant_deposit_accounts') && sql.includes('FOR UPDATE')) {
+      if (sql.includes('FROM tenant_deposit_accounts') && sql.includes('tenant_id=$2')) {
         return { rows: [{ id: 4, tenant_id: 'tenant-1' }] };
       }
       if (sql.includes('SELECT COALESCE(SUM(amount_vnd), 0) AS balance_vnd')) {
@@ -165,6 +173,91 @@ test('khấu trừ hoặc hoàn cọc không được làm số dư âm', async 
   assert.equal(response.record.body.code, 'DEPOSIT_EXCEEDS_BALANCE');
   assert.equal(calls.some((call) => call.sql.includes('INSERT INTO tenant_deposit_transactions')), false);
   assert.equal(calls.some((call) => call.sql === 'ROLLBACK'), true);
+});
+
+test('hoàn tác dùng advisory lock và vẫn tương thích runtime ledger append-only', async (t) => {
+  const originalGetClient = db.getClient;
+  const calls = [];
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (/FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(sql)) {
+        const error = new Error('permission denied for append-only deposit ledger');
+        error.code = '42501';
+        throw error;
+      }
+      if (sql.includes('WHERE t.user_id=$1 AND t.id=$2')) {
+        return { rows: [{
+          id: 36,
+          user_id: 7,
+          account_id: 4,
+          transaction_code: 'TC-00000010',
+          entry_type: 'collection',
+          amount_vnd: '2000000',
+          payment_method: 'bank_transfer',
+          note: 'Cọc phòng P101',
+          source: 'manual',
+          reverses_transaction_id: null,
+          occurred_at: '2026-08-25T01:00:00.000Z',
+          created_at: '2026-08-25T01:00:00.000Z'
+        }] };
+      }
+      if (sql.includes('WHERE user_id=$1 AND reverses_transaction_id=$2')) return { rows: [] };
+      if (sql.includes('SELECT COALESCE(SUM(amount_vnd), 0) AS balance_vnd')) {
+        return { rows: [{ balance_vnd: '2000000' }] };
+      }
+      if (sql.includes("nextval('tenant_deposit_transactions_id_seq')")) {
+        return { rows: [{ id: 37 }] };
+      }
+      if (sql.includes('INSERT INTO tenant_deposit_transactions')) {
+        return { rows: [{
+          id: 37,
+          account_id: 4,
+          transaction_code: 'DC-00000011',
+          entry_type: 'reversal',
+          amount_vnd: '-2000000',
+          payment_method: 'bank_transfer',
+          note: 'Hoàn tác khoản thu nhập nhầm',
+          source: 'manual_reversal',
+          reverses_transaction_id: 36,
+          occurred_at: '2026-08-30T01:00:00.000Z',
+          created_at: '2026-08-30T01:00:00.000Z'
+        }] };
+      }
+      if (sql.includes('COALESCE(SUM(t.amount_vnd), 0) AS balance_vnd')) {
+        return { rows: [{
+          id: 4,
+          tenant_id: 'tenant-1',
+          tenant_name_snapshot: 'Nguyễn Văn A',
+          room_id: 'room-1',
+          room_name_snapshot: 'P101',
+          balance_vnd: '0',
+          transaction_count: 2,
+          last_transaction_at: '2026-08-30T01:00:00.000Z'
+        }] };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  db.getClient = async () => client;
+  t.after(() => { db.getClient = originalGetClient; });
+
+  const response = responseRecorder();
+  await reverseDepositTransaction({
+    userId: 7,
+    params: { id: '36' },
+    body: { reason: 'Hoàn tác khoản thu nhập nhầm' }
+  }, response.res);
+
+  assert.equal(response.record.statusCode, 201);
+  assert.equal(response.record.body.account.balanceVnd, 0);
+  assert.equal(response.record.body.transaction.entryType, 'reversal');
+  assert.equal(response.record.body.transaction.amountVnd, -2000000);
+  assert.equal(calls.some((call) => call.sql.includes("'deposit-reversal:'")), true);
+  assert.equal(calls.some((call) => call.sql.includes("'deposit-balance:'")), true);
+  assert.equal(calls.some((call) => /FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(call.sql)), false);
+  assert.equal(calls.at(-1).sql, 'COMMIT');
 });
 
 const schema = fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8');

@@ -192,6 +192,8 @@ test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) 
   assert.deepEqual(billingInsert.params.slice(10, 13), [100000, 50000, 20000]);
   assert.deepEqual(responseBody, { ok: true });
   assert.equal(calls[0].sql, 'BEGIN');
+  assert.match(calls[1].sql, /pg_advisory_xact_lock[\s\S]*state-write:/);
+  assert.deepEqual(calls[1].params, [7]);
   assert.equal(calls.at(-1).sql, 'COMMIT');
 });
 

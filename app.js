@@ -1060,6 +1060,8 @@ const STORAGE_KEY = 'trobill_v1'; // giữ lại cho import/export JSON tương 
 
 let _saveTimer = null;
 let _savePending = false;
+let _saveInFlight = null;
+let _saveRevision = 0;
 
 function cancelPendingStateSave() {
   if (_saveTimer) clearTimeout(_saveTimer);
@@ -1087,10 +1089,32 @@ async function flushState(options = {}) {
   const expectedAccountContext = API.getAccountContext();
   const expectedGeneration = _sessionGeneration;
   if (!API.isLoggedIn() || !expectedAccountContext) return;
+
+  // Mỗi PUT chứa toàn bộ state. Xếp request thành hàng đợi để snapshot cũ
+  // không thể hoàn tất sau và ghi đè snapshot mới; server vẫn có advisory lock
+  // làm lớp bảo vệ khi nhiều tab/thiết bị cùng ghi.
+  const revision = _saveRevision;
+  const snapshot = _serializeState();
+  const previousSave = _saveInFlight;
+  const currentSave = (async () => {
+    if (previousSave) {
+      try { await previousSave; } catch (_) {}
+    }
+    if (expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()
+        || !API.isLoggedIn()) {
+      return { skipped: true };
+    }
+    await API.putState(snapshot);
+    return { skipped: false };
+  })();
+  _saveInFlight = currentSave;
   try {
-    await API.putState(_serializeState());
-    if (expectedGeneration === _sessionGeneration &&
-        expectedAccountContext === API.getAccountContext()) {
+    const result = await currentSave;
+    if (!result.skipped
+        && revision === _saveRevision
+        && expectedGeneration === _sessionGeneration
+        && expectedAccountContext === API.getAccountContext()) {
       _savePending = false;
     }
   } catch (e) {
@@ -1102,6 +1126,8 @@ async function flushState(options = {}) {
       showToast(entitlementError ? e.message : '⚠️ Chưa lưu được, sẽ thử lại', 'error', 3000);
     }
     if (options.throwOnError) throw e;
+  } finally {
+    if (_saveInFlight === currentSave) _saveInFlight = null;
   }
 }
 
@@ -1146,6 +1172,7 @@ function clearSensitiveStateFromMemory() {
 function saveState() {
   if (!API.isLoggedIn() || !API.getAccountContext()) return;
   _savePending = true;
+  _saveRevision += 1;
   if (_saveTimer) clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => {
     _saveTimer = null;
