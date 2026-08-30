@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — bắt đầu chốt bill cuối cùng khi khách trả phòng |
+| Trạng thái | Sẵn sàng bàn giao — bắt đầu quản lý trạng thái phòng |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch; agent mới vẫn phải tự chạy `git status --short` |
-| Phần ứng dụng phát hành gần nhất | `5375daa` — giữ chỗ, chuyển phòng và trả phòng có nhật ký bất biến |
-| Việc code tiếp theo | Giai đoạn 4: chốt bill cuối cùng khi khách trả phòng |
+| Phần ứng dụng phát hành gần nhất | `bf07073` — quyết toán cuối khi khách trả phòng |
+| Việc code tiếp theo | Giai đoạn 4: trạng thái phòng trống, giữ chỗ, đang thuê, đang sửa |
 | Việc vận hành còn mở | Xác minh deployment mới dùng `tro_bill_runtime_sql`, sau đó mới thu hồi role cũ `tro_bill_app` |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -23,9 +23,11 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 
 Tiếp tục `MONETIZATION_CHECKLIST.md` theo thứ tự, hoàn thành từng phần có test và
 cho người dùng kiểm tra. Phần **giữ chỗ, chuyển phòng và trả phòng** đã phát hành
-và xác minh production. Ưu tiên tiếp theo là chốt bill cuối cùng khi khách trả
-phòng; phải tái sử dụng invoice/payment/deposit ledger hiện có và không sửa hóa
-đơn hoặc biên bản đã khóa.
+và xác minh production. Phần **quyết toán cuối khi trả phòng** cũng đã phát hành,
+dùng lại invoice/payment/deposit ledger và khóa snapshot cuối. Ưu tiên tiếp theo
+là quản lý trạng thái phòng; trạng thái phải được suy ra an toàn từ hợp đồng/giữ
+chỗ hiện có và bổ sung luồng sửa phòng có lịch sử, không tạo một nguồn trạng thái
+mâu thuẫn với vòng đời thuê.
 
 ## Bản đồ hệ thống ngắn
 
@@ -77,6 +79,21 @@ phòng; phải tái sử dụng invoice/payment/deposit ledger hiện có và kh
   Deployment production `tro-bill-ph6am8l8m-dtung.vercel.app` ở trạng thái
   `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
   `5375daa1c872`, database/schema `ok` và runtime role `restricted` ngày
+  30/08/2026.
+- Quyết toán trả phòng có preview và biên bản in A4; tiền phòng tính bao gồm ngày
+  bắt đầu/ngày trả, chỉ số điện nước phải khớp biên bản, tổng cuối khóa bất biến.
+  Tiền cọc bù công nợ được tạo receipt/allocation và hai hướng khấu trừ/hoàn cọc
+  dùng ledger hiện có trong cùng transaction. Các luồng QR, nhắc nợ, đối soát,
+  biên nhận và export đều dùng tổng cuối sau khi chốt.
+- Migration `20260830_rental_final_settlements.sql` đã chạy trên Neon
+  `staging-privacy` và production ngày 30/08/2026; cả 5 cờ schema, ownership,
+  snapshot bất biến và quyền append-only đều `true`. Test mục tiêu đạt 8/8, toàn
+  bộ test đạt 303/303; secret scan và `git diff --check` sạch. Modal đã kiểm tra
+  trực quan ở desktop, không tràn ngang và cuộn nội bộ khi viewport thấp.
+- Commit `bf07073` đã push lên `main`; GitHub Actions `33298052320` thành công.
+  Deployment production `tro-bill-3yjtydgpk-dtung.vercel.app` ở trạng thái
+  `Ready`; alias `tro-bill.vercel.app/api/health/ready` trả HTTP 200, revision
+  `bf07073c69f2`, database/schema `ok` và runtime role `restricted` ngày
   30/08/2026.
 
 ## Việc chưa được xem là hoàn tất
