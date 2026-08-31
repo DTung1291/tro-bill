@@ -1,6 +1,7 @@
 'use strict';
 
 const InvoiceReference = require('../invoice-reference');
+const { recordDataAudits } = require('./data-audit');
 const { receiptCode } = require('./rent-payments');
 
 const TRANSFER_REFERENCE_PATTERN = /\bHD[0-9A-Z]{8,13}\b/g;
@@ -173,6 +174,40 @@ async function recordMatch(client, transaction, target, options = {}) {
       manual ? options.actorUserId : null
     ]
   );
+  const actorUserId = manual ? options.actorUserId : null;
+  const auditBase = {
+    actorUserId,
+    actorEmail: manual ? String(options.actorEmail || '') : '',
+    subjectUserId: transaction.user_id,
+    requestIpHash: manual ? String(options.requestIpHash || '') : '',
+    userAgent: manual ? String(options.userAgent || '') : ''
+  };
+  await recordDataAudits(client.query.bind(client), [
+    {
+      ...auditBase,
+      action: 'rent_bank_transaction_matched',
+      resourceType: 'rent_bank_transaction',
+      resourceId: String(transaction.id),
+      changedFields: ['matchStatus'],
+      purpose: manual ? 'Đối soát thủ công' : 'Đối soát tự động theo mã chuyển khoản'
+    },
+    ...allocations.map(allocation => ({
+      ...auditBase,
+      action: 'rent_payment_transaction_recorded',
+      resourceType: 'rent_payment_transaction',
+      resourceId: String(allocation.transactionId),
+      changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+      purpose: `${manual ? 'Đối soát thủ công' : 'Đối soát tự động'} kỳ ${allocation.period}`
+    })),
+    ...[...new Set(allocations.map(allocation => allocation.invoiceId))].map(invoiceId => ({
+      ...auditBase,
+      action: 'rent_invoice_payment_changed',
+      resourceType: 'rent_invoice',
+      resourceId: String(invoiceId),
+      changedFields: ['paid', 'amountVnd'],
+      purpose: `Phiếu thu ${newReceiptCode}`
+    }))
+  ]);
   return {
     matched: true,
     status: 'matched',
@@ -219,7 +254,14 @@ async function autoMatchBankTransaction(client, transaction) {
   return recordMatch(client, transaction, target, { transferReference, mode: 'auto' });
 }
 
-async function manuallyMatchBankTransaction(client, transaction, invoiceId, actorUserId, reviewNote) {
+async function manuallyMatchBankTransaction(
+  client,
+  transaction,
+  invoiceId,
+  actorUserId,
+  reviewNote,
+  auditContext = {}
+) {
   if (!transaction || transaction.match_status !== 'pending') {
     throw new ReconciliationError(
       409,
@@ -245,7 +287,8 @@ async function manuallyMatchBankTransaction(client, transaction, invoiceId, acto
   return recordMatch(client, transaction, target, {
     mode: 'manual',
     actorUserId,
-    reviewNote
+    reviewNote,
+    ...auditContext
   });
 }
 

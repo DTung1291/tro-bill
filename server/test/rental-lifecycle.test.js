@@ -321,6 +321,14 @@ test('chuyển phòng yêu cầu biên bản trả, kết thúc hợp đồng c�
   assert.equal(response.record.body.contract.roomId, 'room-2');
   assert.equal(response.record.body.event.eventType, 'room_transferred');
   assert.equal(calls.some(call => call.sql.includes('UPDATE tenants SET room_id=$3')), true);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    [
+      'rental_contract_transferred',
+      'rental_contract_created_from_transfer',
+      'room_rate_created'
+    ]
+  );
   assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
 });
 

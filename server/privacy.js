@@ -123,15 +123,17 @@ async function loadAccountAuditLogs(userId, limit) {
     limitClause = 'LIMIT $2';
   }
   const { rows } = await db.query(
-    `SELECT id::text AS id, action, resource_type, resource_id,
-            changed_fields, purpose, created_at
+    `SELECT id::text AS id, actor_user_id, actor_email_snapshot,
+            action, resource_type, resource_id, changed_fields, purpose, created_at
      FROM (
-       SELECT id, action, resource_type, resource_id, changed_fields,
-              purpose, created_at
+       SELECT id, actor_user_id, actor_email_snapshot, action, resource_type,
+              resource_id, changed_fields, purpose, created_at
        FROM data_audit_logs
        WHERE subject_user_id=$1
        UNION ALL
-       SELECT id, 'admin_tenant_sensitive_view' AS action,
+       SELECT id, admin_user_id AS actor_user_id,
+              admin_email_snapshot AS actor_email_snapshot,
+              'admin_tenant_sensitive_view' AS action,
               'tenant' AS resource_type, tenant_id AS resource_id,
               ARRAY[]::TEXT[] AS changed_fields, reason AS purpose, created_at
        FROM admin_sensitive_access_logs
@@ -143,6 +145,10 @@ async function loadAccountAuditLogs(userId, limit) {
   );
   return rows.map(row => ({
     id: String(row.id),
+    actorUserId: row.actor_user_id === null || row.actor_user_id === undefined
+      ? null
+      : Number(row.actor_user_id),
+    actorEmail: row.actor_email_snapshot || '',
     action: row.action,
     resourceType: row.resource_type,
     resourceId: row.resource_id,

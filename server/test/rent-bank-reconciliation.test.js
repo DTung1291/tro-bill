@@ -104,6 +104,10 @@ test('ghép thủ công cho phép thanh toán một phần và tạo phiếu thu
   const response = responseRecorder();
   await manuallyMatchTransaction({
     userId: 7,
+    actorUserId: 17,
+    userEmail: 'staff@example.com',
+    ip: '127.0.0.1',
+    headers: { 'user-agent': 'audit-test' },
     params: { id: '99' },
     body: { invoiceId: 41, note: 'Khách xác nhận chuyển thiếu và sẽ trả tiếp' }
   }, response.res);
@@ -119,8 +123,21 @@ test('ghép thủ công cho phép thanh toán một phần và tạo phiếu thu
   assert.deepEqual(review.params.slice(3), [
     'matched_manual',
     'Khách xác nhận chuyển thiếu và sẽ trả tiếp',
-    7
+    17
   ]);
+  const auditCalls = calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs'));
+  assert.deepEqual(
+    auditCalls.map(call => call.params[3]),
+    [
+      'rent_bank_transaction_matched',
+      'rent_payment_transaction_recorded',
+      'rent_invoice_payment_changed'
+    ]
+  );
+  assert.equal(auditCalls[0].params[0], 17);
+  assert.equal(auditCalls[0].params[1], 'staff@example.com');
+  assert.equal(auditCalls[0].params[2], 7);
+  assert.match(auditCalls[0].params[8], /^[a-f0-9]{64}$/);
   assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
 });
 
@@ -146,21 +163,25 @@ test('không thể ghép giao dịch của user khác hoặc giao dịch đã x�
 });
 
 test('bỏ qua bắt buộc lý do và chỉ update dòng pending thuộc user', async (t) => {
-  const originalQuery = db.query;
+  const originalGetClient = db.getClient;
   const calls = [];
-  db.query = async (sql, params) => {
-    calls.push({ sql, params });
-    if (sql.includes('UPDATE rent_bank_transactions')) {
-      return { rows: [bankRow({
-        match_status: 'ignored',
-        match_reason: 'manual_ignored',
-        review_note: params[2],
-        reviewed_at: '2026-08-25T00:00:00.000Z'
-      })] };
-    }
-    return { rows: [] };
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('UPDATE rent_bank_transactions')) {
+        return { rows: [bankRow({
+          match_status: 'ignored',
+          match_reason: 'manual_ignored',
+          review_note: params[2],
+          reviewed_at: '2026-08-25T00:00:00.000Z'
+        })] };
+      }
+      return { rows: [] };
+    },
+    release() {}
   };
-  t.after(() => { db.query = originalQuery; });
+  db.getClient = async () => client;
+  t.after(() => { db.getClient = originalGetClient; });
 
   const invalid = responseRecorder();
   await ignoreBankTransaction({ userId: 7, params: { id: '99' }, body: { reason: 'nhầm' } }, invalid.res);
@@ -176,6 +197,8 @@ test('bỏ qua bắt buộc lý do và chỉ update dòng pending thuộc user',
   const update = calls.find((call) => call.sql.includes('UPDATE rent_bank_transactions'));
   assert.deepEqual(update.params, [7, 99, 'Giao dịch cá nhân không liên quan tiền trọ']);
   assert.match(update.sql, /WHERE user_id=\$1 AND id=\$2 AND match_status='pending'/);
+  assert.equal(calls.some(call => call.sql.includes('INSERT INTO data_audit_logs')), true);
+  assert.equal(calls.at(-1).sql, 'COMMIT');
 });
 
 test('migration và UI có hàng chờ xử lý thủ công, không cấp quyền sửa payload ngân hàng', () => {
@@ -199,6 +222,6 @@ test('migration và UI có hàng chờ xử lý thủ công, không cấp quyề
   assert.match(apiSource, /function ignoreRentBankTransaction/);
   assert.match(appSource, /function renderRentBankReconciliation/);
   assert.match(htmlSource, /id="bank-reconciliation"/);
-  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=110/);
+  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=111/);
   assert.match(styleSource, /\.bank-reconciliation-controls/);
 });

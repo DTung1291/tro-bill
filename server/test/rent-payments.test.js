@@ -195,6 +195,10 @@ test('ghi đủ tiền tạo invoice và transaction phần còn lại trong cù
   assert.match(sourceCheck.sql, /FROM billing_entries b/);
   assert.match(sourceCheck.sql, /b\.period=\$3/);
   assert.match(insert.sql, /VALUES \(\$1,\$2,\$3,'payment',\$4,\$5,\$6,\$7,\$8\)/);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    ['rent_payment_transaction_recorded', 'rent_invoice_payment_changed']
+  );
   assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
   assert.equal(calls.some((call) => /UPDATE rent_payment_transactions|DELETE FROM rent_payment_transactions/.test(call.sql)), false);
 });
@@ -728,6 +732,10 @@ test('hoàn tác tạo dòng âm tham chiếu giao dịch gốc, không sửa d�
   assert.equal(response.record.body.invoice.status, 'unpaid');
   const reversal = calls.find((call) => call.sql.includes('INSERT INTO rent_payment_transactions'));
   assert.deepEqual(reversal.params.slice(1), [41, -3000000, 'manual', 'Khách chuyển nhầm cần hoàn tác', 91]);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    ['rent_payment_transaction_reversed', 'rent_invoice_payment_changed']
+  );
   assert.equal(calls.some((call) => /UPDATE rent_payment_transactions|DELETE FROM rent_payment_transactions/.test(call.sql)), false);
 });
 
@@ -771,6 +779,10 @@ test('đồng bộ tạo cả hóa đơn chưa thu để kỳ sau tính được
   const sourceCheck = calls.find((call) => call.sql.includes('source.server_paid'));
   assert.doesNotMatch(sourceCheck.sql, /hb\.paid=true|b\.paid=true/);
   assert.equal(calls.some((call) => call.sql.includes('INSERT INTO rent_payment_transactions')), false);
+  assert.equal(
+    calls.find(call => call.sql.includes('INSERT INTO data_audit_logs')).params[3],
+    'rent_invoice_created'
+  );
   assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
 });
 
@@ -803,6 +815,10 @@ test('migration legacy chỉ nhận dòng paid thuộc user và chống tạo tr
   assert.match(transaction.sql, /WHERE NOT EXISTS/);
   assert.match(transaction.sql, /ON CONFLICT \(user_id, idempotency_key\)/);
   assert.equal(transaction.params[2], 3000000);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    ['rent_invoice_created', 'rent_payment_transaction_recorded']
+  );
 });
 
 test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình đối soát', () => {
@@ -828,5 +844,5 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=110/);
+  assert.match(htmlSource, /app\.js\?v=111/);
 });

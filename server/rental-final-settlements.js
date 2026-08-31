@@ -2,6 +2,7 @@
 
 const db = require('./db');
 const subscription = require('./subscription');
+const { recordDataAudits, requestDataAuditEntry } = require('./data-audit');
 const {
   RentPaymentError,
   invoiceDetailInput,
@@ -760,6 +761,48 @@ async function createFinalSettlement(req, res, dependencies = {}) {
         input.reason
       ]
     );
+    await recordDataAudits(client.query.bind(client), [
+      requestDataAuditEntry(
+        req,
+        'rental_contract_final_settlement_created',
+        'rental_contract',
+        contractId,
+        {
+          changedFields: ['status', 'finalTotalVnd', 'depositVnd'],
+          purpose: input.reason
+        }
+      ),
+      requestDataAuditEntry(
+        req,
+        'rent_invoice_finalized',
+        'rent_invoice',
+        context.invoice.id,
+        {
+          changedFields: ['finalTotalVnd', 'detailSnapshot'],
+          purpose: `Quyết toán ${inserted.rows[0].settlement_code}`
+        }
+      ),
+      ...applied.allocations.map(allocation => requestDataAuditEntry(
+        req,
+        'rent_payment_transaction_recorded',
+        'rent_payment_transaction',
+        allocation.transactionId,
+        {
+          changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+          purpose: `Cấn trừ cọc khi quyết toán kỳ ${allocation.period}`
+        }
+      )),
+      ...[depositApply, depositRefund].filter(Boolean).map(transaction => requestDataAuditEntry(
+        req,
+        'deposit_transaction_recorded',
+        'deposit_transaction',
+        transaction.id,
+        {
+          changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+          purpose: `Quyết toán ${inserted.rows[0].settlement_code}`
+        }
+      ))
+    ]);
     await client.query('COMMIT');
     return res.status(201).json({ reused: false, settlement: settlementJson(inserted.rows[0]) });
   } catch (error) {

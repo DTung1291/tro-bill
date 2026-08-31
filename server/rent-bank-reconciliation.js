@@ -2,6 +2,11 @@
 
 const db = require('./db');
 const {
+  recordDataAudit,
+  requestAuditContext,
+  requestDataAuditEntry
+} = require('./data-audit');
+const {
   ReconciliationError,
   manuallyMatchBankTransaction
 } = require('./rent-payment-auto-match');
@@ -100,8 +105,12 @@ async function manuallyMatchTransaction(req, res) {
       client,
       transactionResult.rows[0],
       invoiceId,
-      req.userId,
-      note
+      req.actorUserId || req.userId,
+      note,
+      {
+        actorEmail: req.userEmail || '',
+        ...requestAuditContext(req)
+      }
     );
     await client.query('COMMIT');
     return res.status(201).json({ match });
@@ -138,26 +147,51 @@ async function ignoreBankTransaction(req, res) {
     throw error;
   }
 
-  const updated = await db.query(
-    `UPDATE rent_bank_transactions
-     SET match_status='ignored', match_reason='manual_ignored',
-         review_note=$3, reviewed_by_user_id=$1, reviewed_at=now(), updated_at=now()
-     WHERE user_id=$1 AND id=$2 AND match_status='pending'
-     RETURNING *`,
-    [req.userId, transactionId, reason]
-  );
-  if (!updated.rows[0]) {
-    const existing = await db.query(
-      `SELECT match_status FROM rent_bank_transactions WHERE user_id=$1 AND id=$2`,
-      [req.userId, transactionId]
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE rent_bank_transactions
+       SET match_status='ignored', match_reason='manual_ignored',
+           review_note=$3, reviewed_by_user_id=$1, reviewed_at=now(), updated_at=now()
+       WHERE user_id=$1 AND id=$2 AND match_status='pending'
+       RETURNING *`,
+      [req.userId, transactionId, reason]
     );
-    if (!existing.rows[0]) {
-      return res.status(404).json({ error: 'Không tìm thấy giao dịch ngân hàng', code: 'BANK_TRANSACTION_NOT_FOUND' });
+    if (!updated.rows[0]) {
+      const existing = await client.query(
+        `SELECT match_status FROM rent_bank_transactions WHERE user_id=$1 AND id=$2`,
+        [req.userId, transactionId]
+      );
+      if (!existing.rows[0]) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Không tìm thấy giao dịch ngân hàng', code: 'BANK_TRANSACTION_NOT_FOUND' });
+      }
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Giao dịch đã được xử lý trước đó', code: 'BANK_TRANSACTION_ALREADY_REVIEWED' });
     }
-    return res.status(409).json({ error: 'Giao dịch đã được xử lý trước đó', code: 'BANK_TRANSACTION_ALREADY_REVIEWED' });
+    await recordDataAudit(
+      client.query.bind(client),
+      requestDataAuditEntry(
+        req,
+        'rent_bank_transaction_ignored',
+        'rent_bank_transaction',
+        transactionId,
+        {
+          changedFields: ['matchStatus'],
+          purpose: reason
+        }
+      )
+    );
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'no-store');
+    return res.json({ transaction: transactionJson(updated.rows[0]) });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    throw error;
+  } finally {
+    client.release();
   }
-  res.set('Cache-Control', 'no-store');
-  return res.json({ transaction: transactionJson(updated.rows[0]) });
 }
 
 module.exports = {

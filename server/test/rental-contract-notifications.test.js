@@ -190,5 +190,5 @@ test('schema, migration, route, cron và UI cùng hỗ trợ nhắc hợp đồn
   assert.match(appSource, /function rentalContractExpiryStatus/);
   assert.match(appSource, /rental-contract-expiry--/);
   assert.match(html, /rental-contract-cycle\.js\?v=2/);
-  assert.match(html, /app\.js\?v=110/);
+  assert.match(html, /app\.js\?v=111/);
 });

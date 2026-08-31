@@ -3,6 +3,11 @@
 const db = require('./db');
 const subscription = require('./subscription');
 const {
+  recordDataAudit,
+  recordDataAudits,
+  requestDataAuditEntry
+} = require('./data-audit');
+const {
   contractCode,
   contractJson,
   syncRentRate
@@ -645,6 +650,41 @@ async function transferContract(req, res, dependencies = {}) {
         depositVnd: targetDeposit
       }
     });
+    await recordDataAudits(client.query.bind(client), [
+      requestDataAuditEntry(
+        req,
+        'rental_contract_transferred',
+        'rental_contract',
+        contractId,
+        {
+          changedFields: ['status', 'roomId'],
+          purpose: `Chuyển sang hợp đồng ${inserted.rows[0].contract_code}: ${input.reason}`
+        }
+      ),
+      requestDataAuditEntry(
+        req,
+        'rental_contract_created_from_transfer',
+        'rental_contract',
+        newContractId,
+        {
+          changedFields: [
+            'status', 'roomId', 'tenantId', 'startsOn', 'endsOn',
+            'monthlyRentVnd', 'depositVnd'
+          ],
+          purpose: `Chuyển từ hợp đồng ${contract.contract_code}`
+        }
+      ),
+      requestDataAuditEntry(
+        req,
+        'room_rate_created',
+        'room_rate',
+        `${input.targetRoomId}:${input.occurredOn.slice(0, 7)}`,
+        {
+          changedFields: ['effectiveFrom', 'rentPrice'],
+          purpose: `Chuyển phòng theo hợp đồng ${inserted.rows[0].contract_code}`
+        }
+      )
+    ]);
     await client.query('COMMIT');
     return res.status(201).json({
       previousContract: contractJson(updatedOld.rows[0]),
@@ -709,6 +749,19 @@ async function checkoutContract(req, res, dependencies = {}) {
       occurredOn: input.occurredOn,
       reason: input.reason
     });
+    await recordDataAudit(
+      client.query.bind(client),
+      requestDataAuditEntry(
+        req,
+        'rental_contract_checked_out',
+        'rental_contract',
+        contractId,
+        {
+          changedFields: ['status', 'endsOn'],
+          purpose: input.reason
+        }
+      )
+    );
     await client.query('COMMIT');
     return res.json({ contract: contractJson(updated.rows[0]), event: eventJson(event) });
   } catch (error) {

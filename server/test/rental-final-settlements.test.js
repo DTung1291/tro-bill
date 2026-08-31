@@ -315,6 +315,16 @@ test('POST quyết toán ghi invoice, phiếu thu, hai bút toán cọc và biê
   );
   assert.deepEqual(depositInserts.map((call) => call.params[4]), ['deduction', 'refund']);
   assert.deepEqual(depositInserts.map((call) => call.params[5]), [-1300000, -1700000]);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    [
+      'rental_contract_final_settlement_created',
+      'rent_invoice_finalized',
+      'rent_payment_transaction_recorded',
+      'deposit_transaction_recorded',
+      'deposit_transaction_recorded'
+    ]
+  );
 });
 
 test('schema/migration giữ snapshot final bất biến và bảng quyết toán append-only đúng thứ tự', () => {

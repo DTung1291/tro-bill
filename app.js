@@ -7540,7 +7540,31 @@ const AUDIT_ACTION_LABELS = {
   tenant_sensitive_update: 'Sửa dữ liệu khách thuê',
   tenant_sensitive_delete: 'Xóa dữ liệu khách thuê',
   account_data_export: 'Xuất dữ liệu tài khoản',
-  account_delete: 'Xóa tài khoản'
+  account_delete: 'Xóa tài khoản',
+  room_rate_created: 'Tạo biểu phí',
+  room_rate_updated: 'Cập nhật biểu phí',
+  room_rate_deleted: 'Xóa biểu phí',
+  rent_invoice_source_created: 'Tạo dữ liệu tính hóa đơn',
+  rent_invoice_source_updated: 'Cập nhật dữ liệu tính hóa đơn',
+  rent_invoice_source_deleted: 'Xóa dữ liệu tính hóa đơn',
+  rent_invoice_created: 'Phát hành hóa đơn',
+  rent_invoice_updated: 'Cập nhật hóa đơn',
+  rent_invoice_finalized: 'Chốt hóa đơn trả phòng',
+  rent_invoice_payment_changed: 'Thay đổi thanh toán hóa đơn',
+  rent_payment_transaction_recorded: 'Ghi giao dịch tiền phòng',
+  rent_payment_transaction_reversed: 'Hoàn tác giao dịch tiền phòng',
+  rent_bank_transaction_matched: 'Đối soát giao dịch ngân hàng',
+  rent_bank_transaction_ignored: 'Bỏ qua giao dịch ngân hàng',
+  deposit_transaction_recorded: 'Ghi giao dịch tiền cọc',
+  deposit_transaction_reversed: 'Hoàn tác giao dịch tiền cọc',
+  rental_contract_created: 'Tạo hợp đồng',
+  rental_contract_document_export: 'Xuất bản hợp đồng đầy đủ',
+  rental_contract_status_changed: 'Đổi trạng thái hợp đồng',
+  rental_contract_amended: 'Tạo phụ lục hợp đồng',
+  rental_contract_transferred: 'Chuyển phòng theo hợp đồng',
+  rental_contract_created_from_transfer: 'Tạo hợp đồng chuyển phòng',
+  rental_contract_checked_out: 'Trả phòng và kết thúc hợp đồng',
+  rental_contract_final_settlement_created: 'Lập quyết toán cuối hợp đồng'
 };
 let privacyActionMode = '';
 
@@ -7570,9 +7594,9 @@ async function loadPrivacyAudit() {
       ? logs.map(log => `
           <div class="privacy-audit-item">
             <span>${escapeHtml(new Date(log.createdAt).toLocaleString('vi-VN'))}</span>
-            <span><strong>${escapeHtml(AUDIT_ACTION_LABELS[log.action] || log.action)}</strong>${log.changedFields.length ? ` · ${escapeHtml(log.changedFields.join(', '))}` : ''}${log.purpose ? ` · ${escapeHtml(log.purpose)}` : ''}</span>
+            <span><strong>${escapeHtml(AUDIT_ACTION_LABELS[log.action] || log.action)}</strong> · ${escapeHtml(log.actorEmail || 'Hệ thống')}${log.changedFields.length ? ` · ${escapeHtml(log.changedFields.join(', '))}` : ''}${log.purpose ? ` · ${escapeHtml(log.purpose)}` : ''}</span>
           </div>`).join('')
-      : '<div class="settings-security-note">Chưa có hoạt động dữ liệu nào được ghi nhận.</div>';
+      : '<div class="settings-security-note">Chưa có hoạt động dữ liệu hoặc nghiệp vụ nào được ghi nhận.</div>';
     container.hidden = false;
   } catch (error) {
     showToast(error.message || 'Không tải được nhật ký dữ liệu', 'error');

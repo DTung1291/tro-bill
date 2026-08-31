@@ -138,6 +138,10 @@ test('thu cọc tạo bút toán dương và không cập nhật/xóa sổ giao 
   assert.equal(calls.some((call) => /UPDATE tenant_deposit_transactions|DELETE FROM tenant_deposit_transactions/.test(call.sql)), false);
   assert.equal(calls.some((call) => /FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(call.sql)), false);
   assert.equal(calls.some((call) => call.sql.includes("'deposit-balance:'")), true);
+  assert.equal(
+    calls.find(call => call.sql.includes('INSERT INTO data_audit_logs')).params[3],
+    'deposit_transaction_recorded'
+  );
   assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
 });
 
@@ -257,6 +261,10 @@ test('hoàn tác dùng advisory lock và vẫn tương thích runtime ledger app
   assert.equal(calls.some((call) => call.sql.includes("'deposit-reversal:'")), true);
   assert.equal(calls.some((call) => call.sql.includes("'deposit-balance:'")), true);
   assert.equal(calls.some((call) => /FROM tenant_deposit_(accounts|transactions)[\s\S]*FOR UPDATE/.test(call.sql)), false);
+  assert.equal(
+    calls.find(call => call.sql.includes('INSERT INTO data_audit_logs')).params[3],
+    'deposit_transaction_reversed'
+  );
   assert.equal(calls.at(-1).sql, 'COMMIT');
 });
 

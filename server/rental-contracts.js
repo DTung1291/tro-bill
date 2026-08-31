@@ -2,7 +2,11 @@
 
 const db = require('./db');
 const subscription = require('./subscription');
-const { recordDataAudit, requestAuditContext } = require('./data-audit');
+const {
+  recordDataAudit,
+  recordDataAudits,
+  requestDataAuditEntry
+} = require('./data-audit');
 const RentalContractCycle = require('../rental-contract-cycle');
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -601,6 +605,33 @@ async function createContract(req, res, dependencies = {}) {
         insert.rows[0]
       );
     }
+    const contractAudits = [requestDataAuditEntry(
+      req,
+      'rental_contract_created',
+      'rental_contract',
+      id,
+      {
+        changedFields: [
+          'status', 'roomId', 'tenantId', 'startsOn', 'endsOn',
+          'billingCycleMonths', 'paymentDueDay', 'monthlyRentVnd',
+          'depositVnd', 'terms'
+        ],
+        purpose: `Tạo hợp đồng ${code} ở trạng thái ${input.status}`
+      }
+    )];
+    if (rate) {
+      contractAudits.push(requestDataAuditEntry(
+        req,
+        'room_rate_created',
+        'room_rate',
+        `${input.roomId}:${input.startsOn.slice(0, 7)}`,
+        {
+          changedFields: ['effectiveFrom', 'rentPrice'],
+          purpose: `Áp dụng từ hợp đồng ${code}`
+        }
+      ));
+    }
+    await recordDataAudits(client.query.bind(client), contractAudits);
     await client.query('COMMIT');
     return res.status(201).json({ contract: contractJson(insert.rows[0]), rate });
   } catch (error) {
@@ -644,17 +675,19 @@ async function getContractDocument(req, res, dependencies = {}) {
      ORDER BY effective_from, id`,
     [req.userId, contractId]
   );
-  await recordDataAudit(query, {
-    actorUserId: req.userId,
-    actorEmail: req.userEmail,
-    subjectUserId: req.userId,
-    action: 'rental_contract_document_export',
-    resourceType: 'rental_contract',
-    resourceId: String(contractId),
-    changedFields: ['fullName', 'phone', 'cccd', 'issueDate', 'dob', 'gender', 'address'],
-    purpose,
-    ...requestAuditContext(req)
-  });
+  await recordDataAudit(
+    query,
+    requestDataAuditEntry(
+      req,
+      'rental_contract_document_export',
+      'rental_contract',
+      contractId,
+      {
+        changedFields: ['fullName', 'phone', 'cccd', 'issueDate', 'dob', 'gender', 'address'],
+        purpose
+      }
+    )
+  );
   res.set('Cache-Control', 'no-store');
   res.set('Pragma', 'no-cache');
   return res.json({
@@ -757,6 +790,29 @@ async function changeContractStatus(req, res, dependencies = {}) {
         { rentStartDate: dateJson(contract.starts_on) }
       )
       : null;
+    const statusAudits = [requestDataAuditEntry(
+      req,
+      'rental_contract_status_changed',
+      'rental_contract',
+      contractId,
+      {
+        changedFields: ['status'],
+        purpose: `${contract.status} → ${input.status}: ${input.reason}`
+      }
+    )];
+    if (rate) {
+      statusAudits.push(requestDataAuditEntry(
+        req,
+        'room_rate_created',
+        'room_rate',
+        `${contract.room_id}:${dateJson(contract.starts_on).slice(0, 7)}`,
+        {
+          changedFields: ['effectiveFrom', 'rentPrice'],
+          purpose: `Kích hoạt hợp đồng ${contract.contract_code}`
+        }
+      ));
+    }
+    await recordDataAudits(client.query.bind(client), statusAudits);
     await client.query('COMMIT');
     return res.json({ contract: contractJson(updated.rows[0]), rate });
   } catch (error) {
@@ -861,6 +917,28 @@ async function createAmendment(req, res, dependencies = {}) {
       input.effectiveFrom,
       input.newMonthlyRentVnd
     );
+    await recordDataAudits(client.query.bind(client), [
+      requestDataAuditEntry(
+        req,
+        'rental_contract_amended',
+        'rental_contract',
+        contractId,
+        {
+          changedFields: ['effectiveFrom', 'monthlyRentVnd'],
+          purpose: input.reason
+        }
+      ),
+      requestDataAuditEntry(
+        req,
+        'room_rate_created',
+        'room_rate',
+        `${contract.room_id}:${input.effectiveFrom}`,
+        {
+          changedFields: ['effectiveFrom', 'rentPrice'],
+          purpose: `Phụ lục ${insert.rows[0].amendment_code}: ${input.reason}`
+        }
+      )
+    ]);
     await client.query('COMMIT');
     return res.status(201).json({ amendment: amendmentJson(insert.rows[0]), rate });
   } catch (error) {

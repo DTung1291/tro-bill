@@ -201,6 +201,10 @@ test('tạo hợp đồng active khóa đúng phòng/khách và đồng bộ m�
   assert.equal(rateInsert.params[3], 3000000);
   const roomUpdate = calls.find(call => call.sql.includes('UPDATE rooms'));
   assert.equal(roomUpdate.params[4], '2026-08-10');
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    ['rental_contract_created', 'room_rate_created']
+  );
   assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
   assert.equal(calls.some(call => /DELETE FROM rental_contract/.test(call.sql)), false);
 });
@@ -261,6 +265,10 @@ test('phụ lục active là append-only và tạo mốc giá mới cho công th
     3200000,
     'Điều chỉnh theo thỏa thuận hai bên'
   ]);
+  assert.deepEqual(
+    calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
+    ['rental_contract_amended', 'room_rate_created']
+  );
   assert.equal(calls.some(call => /UPDATE rental_contract_amendments|DELETE FROM rental_contract_amendments/.test(call.sql)), false);
 });
 
@@ -298,6 +306,10 @@ test('kết thúc hợp đồng chỉ cập nhật trạng thái thuộc đúng 
   const update = calls.find(call => call.sql.includes('UPDATE rental_contracts'));
   assert.deepEqual(update.params, [7, 36, 'ended', 'Khách đã hoàn tất trả phòng']);
   assert.match(update.sql, /WHERE user_id=\$1 AND id=\$2/);
+  assert.equal(
+    calls.find(call => call.sql.includes('INSERT INTO data_audit_logs')).params[3],
+    'rental_contract_status_changed'
+  );
   assert.equal(calls.some(call => /DELETE FROM rental_contracts/.test(call.sql)), false);
 });
 
@@ -334,7 +346,9 @@ test('bản hợp đồng chỉ mở snapshot CCCD sau lý do hợp lệ và ghi
   const response = responseRecorder();
   await getContractDocument({
     userId: 7,
-    userEmail: 'owner@example.com',
+    actorUserId: 17,
+    accountUserId: 7,
+    userEmail: 'staff@example.com',
     params: { id: '36' },
     body: { purpose: 'In hai bản để chủ trọ và khách thuê ký' },
     headers: { 'user-agent': 'node-test' },
@@ -356,6 +370,7 @@ test('bản hợp đồng chỉ mở snapshot CCCD sau lý do hợp lệ và ghi
   assert.equal(response.record.headers['cache-control'], 'no-store');
   assert.equal(response.record.headers.pragma, 'no-cache');
   const audit = calls.find(call => call.sql.includes('INSERT INTO data_audit_logs'));
+  assert.deepEqual(audit.params.slice(0, 3), [17, 'staff@example.com', 7]);
   assert.equal(audit.params[3], 'rental_contract_document_export');
   assert.equal(audit.params[4], 'rental_contract');
   assert.equal(audit.params[5], '36');

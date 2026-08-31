@@ -229,3 +229,23 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   trường ngoài nghiệp vụ. Các quyền ghi sau này cần endpoint hẹp theo từng tài
   nguyên, kiểm tra lại khu/nghiệp vụ trong transaction; không được mở ghi bằng
   cách bỏ chốt read-only của state.
+
+## D-019 — Audit nghiệp vụ dùng chung nhật ký dữ liệu và tách actor khỏi subject
+
+- **Trạng thái:** Đang áp dụng từ 31/08/2026.
+- **Quyết định:** Thay đổi biểu phí, nguồn/phát hành hóa đơn, ledger tiền
+  phòng/cọc, đối soát ngân hàng và vòng đời hợp đồng được ghi vào
+  `data_audit_logs` trong cùng transaction với nghiệp vụ. Nhật ký phân biệt
+  `actor_user_id` là người thật đang thao tác với `subject_user_id` là tài khoản
+  sở hữu dữ liệu; tác vụ tự động để actor rỗng và hiển thị là “Hệ thống”. Audit
+  chỉ lưu loại thao tác, tài nguyên, tên trường đã đổi và mục đích ngắn, không
+  lưu giá trị trước/sau hoặc snapshot dữ liệu nhạy cảm.
+- **Lý do:** Tạo thêm một bảng audit tài chính/hợp đồng sẽ phân mảnh lịch sử và
+  chính sách lưu giữ. Ghi log sau khi commit có thể làm nghiệp vụ thành công
+  nhưng mất dấu vết; coi workspace là actor sẽ tiếp tục gây nhầm tài khoản khi
+  nhân viên làm việc thay chủ.
+- **Hệ quả:** Mọi đường ghi mới trong bốn nhóm nghiệp vụ phải dùng
+  `requestDataAuditEntry` và ghi trước `COMMIT`; request idempotent phát lại
+  không được tạo log mới. `PUT /api/state` phải so sánh dữ liệu hiện có với
+  snapshot gửi lên để bỏ qua no-op. Trường audit mới phải được allowlist và nhật
+  ký tiếp tục áp dụng retention 365 ngày.

@@ -2,7 +2,10 @@
 
 const db = require('./db');
 const RoomRates = require('../rate-history');
-const { recordDataAudit, requestAuditContext } = require('./data-audit');
+const {
+  recordDataAudits,
+  requestDataAuditEntry
+} = require('./data-audit');
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
@@ -64,6 +67,143 @@ function changedTenantFields(existing, tenant, resolvedCccd) {
       return String(existing[databaseField] || '') !== String(nextValue || '');
     })
     .map(([clientField]) => clientField);
+}
+
+const RATE_AUDIT_FIELDS = [
+  'rentPrice', 'electricRate', 'waterRate', 'trashFee', 'wifiFee', 'manageFee'
+];
+const BILLING_AUDIT_FIELDS = [
+  'electricNew', 'waterUnits', 'waterNew', 'electricOldOverride',
+  'waterOldOverride', 'note', 'utilityOnly', 'discountAmount',
+  'surchargeAmount', 'lateFeeAmount', 'paid'
+];
+
+function auditComparable(value) {
+  return value === undefined || value === '' ? null : value;
+}
+
+function changedAuditFields(before, after, fields) {
+  return fields.filter(field => (
+    JSON.stringify(auditComparable(before?.[field]))
+      !== JSON.stringify(auditComparable(after?.[field]))
+  ));
+}
+
+function rateAuditMap(rows = []) {
+  return new Map(rows.map(row => {
+    const effectiveFrom = String(row.effective_from || row.effectiveFrom || '');
+    const roomId = String(row.room_id || row.roomId || '');
+    return [`${roomId}::${effectiveFrom}`, {
+      roomId,
+      effectiveFrom,
+      rentPrice: num(row.rent_price ?? row.rentPrice),
+      electricRate: num(row.electric_rate ?? row.electricRate),
+      waterRate: num(row.water_rate ?? row.waterRate),
+      trashFee: num(row.trash_fee ?? row.trashFee),
+      wifiFee: num(row.wifi_fee ?? row.wifiFee),
+      manageFee: num(row.manage_fee ?? row.manageFee)
+    }];
+  }));
+}
+
+function submittedRateAuditMap(rooms = []) {
+  const rows = [];
+  for (const room of rooms) {
+    for (const rate of RoomRates.normalizeHistory(room)) {
+      rows.push({ roomId: String(room.id), ...rate });
+    }
+  }
+  return rateAuditMap(rows);
+}
+
+function billingAuditMap(rows = []) {
+  return new Map(rows.map(row => {
+    const period = String(row.period || '');
+    const roomId = String(row.room_id || row.roomId || '');
+    return [`${period}::${roomId}`, {
+      period,
+      roomId,
+      electricNew: orNull(row.electric_new ?? row.electricNew),
+      waterUnits: orNull(row.water_units ?? row.waterUnits),
+      waterNew: orNull(row.water_new ?? row.waterNew),
+      electricOldOverride: orNull(row.electric_old_override ?? row.electricOldOverride),
+      waterOldOverride: orNull(row.water_old_override ?? row.waterOldOverride),
+      note: strOrNull(row.note),
+      utilityOnly: !!(row.utility_only ?? row.utilityOnly),
+      discountAmount: num(row.discount_amount ?? row.discountAmount),
+      surchargeAmount: num(row.surcharge_amount ?? row.surchargeAmount),
+      lateFeeAmount: num(row.late_fee_amount ?? row.lateFeeAmount),
+      paid: !!row.paid
+    }];
+  }));
+}
+
+function submittedBillingAuditMap(billingData = {}) {
+  const rows = [];
+  for (const [period, byRoom] of Object.entries(billingData || {})) {
+    for (const [roomId, entry] of Object.entries(byRoom || {})) {
+      rows.push({ period, roomId, ...(entry || {}) });
+    }
+  }
+  return billingAuditMap(rows);
+}
+
+function stateBusinessAuditEntries(req, existingRates, existingBilling, rooms, billingData) {
+  const entries = [];
+  const appendChanges = (beforeMap, afterMap, fields, config) => {
+    const keys = new Set([...beforeMap.keys(), ...afterMap.keys()]);
+    for (const key of keys) {
+      const before = beforeMap.get(key);
+      const after = afterMap.get(key);
+      const changedFields = before && after
+        ? changedAuditFields(before, after, fields)
+        : [...fields];
+      if (before && after && changedFields.length === 0) continue;
+      const source = after || before;
+      entries.push(requestDataAuditEntry(
+        req,
+        !before ? config.createdAction : (!after ? config.deletedAction : config.updatedAction),
+        config.resourceType,
+        config.resourceId(source),
+        {
+          changedFields: [
+            ...(config.includeEffectiveFrom ? ['effectiveFrom'] : []),
+            ...changedFields
+          ],
+          purpose: config.purpose(source)
+        }
+      ));
+    }
+  };
+  appendChanges(
+    rateAuditMap(existingRates),
+    submittedRateAuditMap(rooms),
+    RATE_AUDIT_FIELDS,
+    {
+      createdAction: 'room_rate_created',
+      updatedAction: 'room_rate_updated',
+      deletedAction: 'room_rate_deleted',
+      resourceType: 'room_rate',
+      includeEffectiveFrom: true,
+      resourceId: row => `${row.roomId}:${row.effectiveFrom}`,
+      purpose: row => `Biểu phí áp dụng từ ${row.effectiveFrom}`
+    }
+  );
+  appendChanges(
+    billingAuditMap(existingBilling),
+    submittedBillingAuditMap(billingData),
+    BILLING_AUDIT_FIELDS,
+    {
+      createdAction: 'rent_invoice_source_created',
+      updatedAction: 'rent_invoice_source_updated',
+      deletedAction: 'rent_invoice_source_deleted',
+      resourceType: 'rent_invoice_source',
+      includeEffectiveFrom: false,
+      resourceId: row => `${row.period}:${row.roomId}`,
+      purpose: row => `Dữ liệu tính hóa đơn kỳ ${row.period}`
+    }
+  );
+  return entries;
 }
 
 // ============================================================
@@ -572,11 +712,33 @@ async function putState(req, res) {
       });
     }
 
-    const existingTenantResult = await client.query(
-      `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
-              data_notice_version, data_notice_acknowledged_at
-       FROM tenants WHERE user_id=$1`,
-      [uid]
+    const [existingTenantResult, existingRateResult, existingBillingResult] = await Promise.all([
+      client.query(
+        `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
+                data_notice_version, data_notice_acknowledged_at
+         FROM tenants WHERE user_id=$1`,
+        [uid]
+      ),
+      client.query(
+        `SELECT room_id, effective_from, rent_price, electric_rate, water_rate,
+                trash_fee, wifi_fee, manage_fee
+         FROM room_rate_history WHERE user_id=$1`,
+        [uid]
+      ),
+      client.query(
+        `SELECT period, room_id, electric_new, water_units, water_new,
+                electric_old_override, water_old_override, note, utility_only,
+                discount_amount, surcharge_amount, late_fee_amount, paid
+         FROM billing_entries WHERE user_id=$1`,
+        [uid]
+      )
+    ]);
+    const businessAudits = stateBusinessAuditEntries(
+      req,
+      existingRateResult.rows,
+      existingBillingResult.rows,
+      rooms,
+      billingData
     );
     const existingTenants = new Map(existingTenantResult.rows.map(tenant => [tenant.id, tenant]));
     const removedTenantIds = Array.from(existingTenants.keys())
@@ -834,19 +996,16 @@ async function putState(req, res) {
       }
     }
 
-    const auditContext = requestAuditContext(req);
-    for (const audit of tenantAudits) {
-      await recordDataAudit(client.query.bind(client), {
-        actorUserId: uid,
-        actorEmail: req.userEmail || '',
-        subjectUserId: uid,
-        action: audit.action,
-        resourceType: 'tenant',
-        resourceId: audit.tenantId,
-        changedFields: audit.fields,
-        ...auditContext
-      });
-    }
+    await recordDataAudits(client.query.bind(client), [
+      ...tenantAudits.map(audit => requestDataAuditEntry(
+        req,
+        audit.action,
+        'tenant',
+        audit.tenantId,
+        { changedFields: audit.fields }
+      )),
+      ...businessAudits
+    ]);
 
     await client.query('COMMIT');
     res.json({ ok: true });
@@ -868,6 +1027,7 @@ module.exports = {
   maskCccd,
   num,
   orNull,
+  stateBusinessAuditEntries,
   putState,
   strOrNull
 };

@@ -3,6 +3,10 @@
 const db = require('./db');
 const DebtAge = require('../debt-age');
 const InvoiceReference = require('../invoice-reference');
+const {
+  recordDataAudits,
+  requestDataAuditEntry
+} = require('./data-audit');
 
 const PERIOD_PATTERN = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9:_-]{8,300}$/;
@@ -669,6 +673,30 @@ async function settleInvoice(req, res) {
       unallocated -= allocatedAmount;
     }
     const summary = await invoiceSummary(client.query.bind(client), req.userId, invoiceId);
+    await recordDataAudits(client.query.bind(client), [
+      ...allocations.map(allocation => requestDataAuditEntry(
+        req,
+        'rent_payment_transaction_recorded',
+        'rent_payment_transaction',
+        allocation.transactionId,
+        {
+          changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+          purpose: `Thu tiền kỳ ${allocation.period} qua ${input.paymentMethod}`
+        }
+      )),
+      ...[...new Set(allocations.map(allocation => allocation.invoiceId))].map(affectedInvoiceId => (
+        requestDataAuditEntry(
+          req,
+          'rent_invoice_payment_changed',
+          'rent_invoice',
+          affectedInvoiceId,
+          {
+            changedFields: ['paid', 'amountVnd'],
+            purpose: `Phiếu thu ${newReceiptCode}`
+          }
+        )
+      ))
+    ]);
     await client.query('COMMIT');
     return res.status(201).json({
       reused: false,
@@ -802,6 +830,28 @@ async function reverseTransaction(req, res) {
       req.userId,
       original.invoice_id
     );
+    await recordDataAudits(client.query.bind(client), [
+      requestDataAuditEntry(
+        req,
+        'rent_payment_transaction_reversed',
+        'rent_payment_transaction',
+        reversalResult.rows[0].id,
+        {
+          changedFields: ['entryType', 'amountVnd', 'reversesTransactionId'],
+          purpose: `Hoàn tác giao dịch ${transactionId}: ${reason}`
+        }
+      ),
+      requestDataAuditEntry(
+        req,
+        'rent_invoice_payment_changed',
+        'rent_invoice',
+        original.invoice_id,
+        {
+          changedFields: ['paid', 'amountVnd'],
+          purpose: `Hoàn tác giao dịch ${transactionId}`
+        }
+      )
+    ]);
     await client.query('COMMIT');
     return res.status(201).json({
       transaction: transactionJson({ ...reversalResult.rows[0], is_reversed: false }),
@@ -871,6 +921,7 @@ async function syncInvoices(req, res) {
 
   const client = await db.getClient();
   const stats = { created: 0, updated: 0, migratedPaid: 0, unchanged: 0, skipped: 0 };
+  const auditEntries = [];
   try {
     await client.query('BEGIN');
     for (const entry of entries) {
@@ -924,6 +975,16 @@ async function syncInvoices(req, res) {
       let transactionCount = 0;
       if (invoice) {
         stats.created += 1;
+        auditEntries.push(requestDataAuditEntry(
+          req,
+          'rent_invoice_created',
+          'rent_invoice',
+          invoice.id,
+          {
+            changedFields: ['issuedTotalVnd', 'detailSnapshot'],
+            purpose: `Phát hành hóa đơn kỳ ${entry.period}`
+          }
+        ));
       } else {
         const existing = await client.query(
           `SELECT i.id, i.issued_total_vnd, i.detail_snapshot, i.finalized_at,
@@ -964,6 +1025,19 @@ async function syncInvoices(req, res) {
             ]
           );
           stats.updated += 1;
+          auditEntries.push(requestDataAuditEntry(
+            req,
+            'rent_invoice_updated',
+            'rent_invoice',
+            invoice.id,
+            {
+              changedFields: [
+                ...(totalChanged ? ['issuedTotalVnd'] : []),
+                ...(detailChanged || canBackfillDetail ? ['detailSnapshot'] : [])
+              ],
+              purpose: `Đồng bộ lại hóa đơn kỳ ${entry.period}`
+            }
+          ));
         } else {
           stats.unchanged += 1;
         }
@@ -980,9 +1054,22 @@ async function syncInvoices(req, res) {
            RETURNING id`,
           [req.userId, invoice.id, totalVnd, legacyKey]
         );
-        if (migrated.rows[0]) stats.migratedPaid += 1;
+        if (migrated.rows[0]) {
+          stats.migratedPaid += 1;
+          auditEntries.push(requestDataAuditEntry(
+            req,
+            'rent_payment_transaction_recorded',
+            'rent_payment_transaction',
+            migrated.rows[0].id,
+            {
+              changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+              purpose: `Chuyển trạng thái đã thu cũ kỳ ${entry.period}`
+            }
+          ));
+        }
       }
     }
+    await recordDataAudits(client.query.bind(client), auditEntries);
     await client.query('COMMIT');
     return res.json(stats);
   } catch (error) {
@@ -1006,6 +1093,7 @@ async function migrateLegacyPaid(req, res) {
   const client = await db.getClient();
   let migrated = 0;
   let skipped = 0;
+  const auditEntries = [];
   try {
     await client.query('BEGIN');
     for (const entry of entries) {
@@ -1050,6 +1138,18 @@ async function migrateLegacyPaid(req, res) {
         ]
       );
       let invoiceId = invoiceInsert.rows[0]?.id;
+      if (invoiceId) {
+        auditEntries.push(requestDataAuditEntry(
+          req,
+          'rent_invoice_created',
+          'rent_invoice',
+          invoiceId,
+          {
+            changedFields: ['issuedTotalVnd'],
+            purpose: `Khởi tạo từ hóa đơn cũ kỳ ${entry.period}`
+          }
+        ));
+      }
       if (!invoiceId) {
         const existing = await client.query(
           `SELECT id FROM rent_invoices
@@ -1074,9 +1174,21 @@ async function migrateLegacyPaid(req, res) {
          RETURNING id`,
         [req.userId, invoiceId, totalVnd, idempotencyKey]
       );
-      if (transaction.rows[0]) migrated += 1;
-      else skipped += 1;
+      if (transaction.rows[0]) {
+        migrated += 1;
+        auditEntries.push(requestDataAuditEntry(
+          req,
+          'rent_payment_transaction_recorded',
+          'rent_payment_transaction',
+          transaction.rows[0].id,
+          {
+            changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+            purpose: `Chuyển trạng thái đã thu cũ kỳ ${entry.period}`
+          }
+        ));
+      } else skipped += 1;
     }
+    await recordDataAudits(client.query.bind(client), auditEntries);
     await client.query('COMMIT');
     return res.json({ migrated, skipped });
   } catch (error) {

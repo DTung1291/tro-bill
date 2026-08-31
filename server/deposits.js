@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('./db');
+const { recordDataAudit, requestDataAuditEntry } = require('./data-audit');
 
 const DEPOSIT_ENTRY_TYPES = new Set(['collection', 'deduction', 'refund']);
 const DEPOSIT_PAYMENT_METHODS = new Set(['bank_transfer', 'cash', 'manual', 'other']);
@@ -338,6 +339,19 @@ async function createDepositTransaction(req, res) {
       ]
     );
     const summary = await accountSummary(client.query.bind(client), req.userId, account.id);
+    await recordDataAudit(
+      client.query.bind(client),
+      requestDataAuditEntry(
+        req,
+        'deposit_transaction_recorded',
+        'deposit_transaction',
+        transactionId,
+        {
+          changedFields: ['entryType', 'amountVnd', 'paymentMethod'],
+          purpose: `${input.entryType} qua ${input.paymentMethod}`
+        }
+      )
+    );
     await client.query('COMMIT');
     return res.status(201).json({
       reused: false,
@@ -455,6 +469,19 @@ async function reverseDepositTransaction(req, res) {
       client.query.bind(client),
       req.userId,
       original.account_id
+    );
+    await recordDataAudit(
+      client.query.bind(client),
+      requestDataAuditEntry(
+        req,
+        'deposit_transaction_reversed',
+        'deposit_transaction',
+        reversalId,
+        {
+          changedFields: ['entryType', 'amountVnd', 'reversesTransactionId'],
+          purpose: `Hoàn tác giao dịch ${transactionId}: ${reason}`
+        }
+      )
     );
     await client.query('COMMIT');
     return res.status(201).json({ account: summary, transaction: transactionJson(inserted.rows[0]) });
