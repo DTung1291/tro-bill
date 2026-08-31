@@ -9,7 +9,7 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang phát hành — mô hình vai trò và màn hình quản lý thành viên |
+| Trạng thái | Đang xác minh — vai trò đã phát hành; UI production chờ phiên đăng nhập để smoke test |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
 | Phần ứng dụng phát hành gần nhất | `6aa82cc` — một chủ sở hữu quản lý nhiều khu/tòa nhà |
@@ -148,7 +148,12 @@ có khu mặc định và import tương thích. Hạng mục tiếp theo là m�
   Migration `20260830_account_roles.sql` đã chạy trên Neon `staging-privacy` và
   production ngày 31/08/2026, cả hai đạt 6/6 cờ bảng, constraint, trigger,
   backfill và quyền runtime. Bộ test hiện đạt 326/326, secret scan và
-  `git diff --check` sạch; commit/deploy/kiểm tra giao diện còn đang thực hiện.
+  `git diff --check` sạch. Commit `f94e452` đã push lên `main`; GitHub Actions
+  `33346046457` thành công. Deployment production
+  `tro-bill-fwck1jqza-dtung.vercel.app` ở trạng thái `Ready`; alias readiness
+  trả revision `f94e4523c933`, database/schema `ok` và runtime role `restricted`.
+  Chrome production hiện ở màn hình đăng nhập nên chưa kiểm tra card vai trò
+  bằng dữ liệu thật; không tạo tài khoản hoặc membership thử trên production.
 
 ## Việc chưa được xem là hoàn tất
 
