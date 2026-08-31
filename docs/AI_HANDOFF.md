@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — phân quyền nhân viên theo khu/nghiệp vụ đã phát hành và xác minh production |
+| Trạng thái | Sẵn sàng bàn giao — audit giá/hóa đơn/giao dịch/hợp đồng đã phát hành và xác minh production |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
-| Phần ứng dụng phát hành gần nhất | `0e75d72` — workspace nhân viên lọc theo khu/nghiệp vụ, chỉ đọc |
-| Việc code tiếp theo | Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng |
+| Phần ứng dụng phát hành gần nhất | `1dfcf13` — audit nghiệp vụ cùng transaction; actor tách khỏi tài khoản dữ liệu |
+| Việc code tiếp theo | Dashboard tổng hợp và bộ lọc theo từng khu |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -31,8 +31,9 @@ dùng smoke test đúng loại giao dịch cọc, phần đầu **Nhiều khu v�
 được triển khai và phát hành: khu có CRUD riêng, phòng gắn ownership theo khu,
 có khu mặc định và import tương thích. Mô hình vai trò và phân quyền nhân viên đã
 phát hành: actor đăng nhập tách khỏi workspace chủ, dữ liệu lọc theo khu/nghiệp
-vụ và staff chỉ đọc. Hạng mục tiếp theo là audit log thay đổi giá, hóa đơn, giao
-dịch và hợp đồng.
+vụ và staff chỉ đọc. Audit giá, hóa đơn, giao dịch và hợp đồng đã phát hành,
+dùng chung retention/least privilege của nhật ký dữ liệu. Hạng mục tiếp theo là
+dashboard tổng hợp và bộ lọc theo từng khu.
 
 ## Bản đồ hệ thống ngắn
 
@@ -177,6 +178,20 @@ dịch và hợp đồng.
   runtime role `restricted`. Smoke test phiên production xác nhận reload vẫn
   đúng tài khoản, đủ 7 phòng, workspace riêng duy nhất, form nhân viên Free 0/0
   bị khóa, không tràn ngang; log error 10 phút đầu không có bản ghi.
+- Audit nghiệp vụ mở rộng `data_audit_logs` hiện có cho biểu phí, dữ liệu/phát
+  hành hóa đơn, tiền phòng/cọc, đối soát ngân hàng và toàn bộ vòng đời hợp đồng.
+  Mọi log được ghi trước `COMMIT`, tách actor nhân viên khỏi account owner, chỉ
+  lưu tên trường/mục đích an toàn và bỏ qua idempotent replay/no-op state. Không
+  có migration mới. Preview `tro-bill-r7tef9yge-dtung.vercel.app` READY với
+  staging database/schema `ok`; bộ phát hành cuối đạt 344/344 test và secret
+  scan sạch. Commit tính năng `e4f2c46`, hotfix dependency CI `1dfcf13`; CI
+  `33403227484` thành công. Production deployment
+  `tro-bill-9oj3rrf6l-dtung.vercel.app`
+  (`dpl_6T8NkBiSxDRoM9Y4joDuDesfNDZq`) READY; alias readiness HTTP 200 revision
+  `1dfcf13872cd`, database/schema `ok`, runtime role `restricted`. Smoke test
+  phiên đăng nhập tải được danh sách audit cùng actor/nhãn, không có console
+  error hoặc tràn ngang; reload vẫn đúng `admin@trobill.local` và 7/7 phòng.
+  Runtime error scan 10 phút đầu không có bản ghi.
 
 ## Việc chưa được xem là hoàn tất
 

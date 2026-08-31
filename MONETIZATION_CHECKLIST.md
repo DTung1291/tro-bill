@@ -308,7 +308,7 @@ Trạng thái đến ngày 30/08/2026:
 - [x] Một tài khoản chủ sở hữu quản lý được nhiều khu/tòa nhà.
 - [x] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
 - [x] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
-- [ ] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
+- [x] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
 - [ ] Dashboard tổng hợp và bộ lọc theo từng khu.
 - [ ] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
 
@@ -334,6 +334,18 @@ dữ liệu khu khác; đổi vai trò chỉ thu hồi phạm vi khi vai trò th
 Chi phí cấp tài khoản chỉ hiện khi nhân viên được giao toàn bộ khu. Migration
 assignment đã áp dụng trên `staging-privacy` và production, cả hai đạt 6/6 cờ;
 340/340 test, CI, readiness và smoke test production sau reload đều thành công.
+
+Audit nghiệp vụ ngày 31/08/2026 dùng chung `data_audit_logs` với retention 365
+ngày, phân biệt nhân viên thực hiện với tài khoản sở hữu dữ liệu và ghi cùng
+transaction cho biểu phí, nguồn/phát hành hóa đơn, ledger tiền phòng/cọc, đối
+soát ngân hàng, hợp đồng/phụ lục/chuyển phòng/trả phòng/quyết toán. Audit chỉ lưu
+loại thao tác, tài nguyên, tên trường và mục đích ngắn, không lưu giá trị
+trước/sau; request idempotent không tạo log lặp và autosave no-op không tạo log
+rác. Không cần migration mới vì bảng/permission hiện có đã đáp ứng. Bộ đầy đủ
+đạt 344/344 test, CI `33403227484` thành công; production revision
+`1dfcf13872cd` readiness HTTP 200. Smoke test tài khoản thật xác nhận nhật ký tải
+được actor, nhãn nghiệp vụ, không lỗi console/tràn ngang và reload vẫn đúng chủ
+`admin@trobill.local` với 7 phòng.
 
 ### Bảo trì và tài sản
 
