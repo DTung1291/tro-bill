@@ -109,6 +109,114 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   assert.equal(state.history[0].bills[0].lateFeeAmount, 20000);
 });
 
+test('state nhân viên chỉ trả khu được giao và che dữ liệu ngoài nghiệp vụ', async (t) => {
+  const originalQuery = db.query;
+  const calls = [];
+  t.after(() => { db.query = originalQuery; });
+  db.query = async (sql, params = []) => {
+    calls.push({ sql, params });
+    if (sql.includes('FROM properties property')) {
+      return { rows: [{
+        id: 3, user_id: 7, name: 'Khu A', address: '', note: '', is_default: true,
+        sort_order: 0, room_count: 1, created_at: new Date(), updated_at: new Date()
+      }] };
+    }
+    if (sql.includes('FROM settings')) {
+      return { rows: [{ bank_id: 'ICB', bank_account: 'secret-account' }] };
+    }
+    if (sql.includes('FROM tenants')) {
+      return { rows: [{ id: 'tenant-1', room_id: 'room-1', full_name: 'Khách A' }] };
+    }
+    if (sql.includes('FROM billing_entries')) {
+      return { rows: [{
+        period: '2026-08', room_id: 'room-1', electric_new: '25', water_units: '2',
+        discount_amount: '100000', surcharge_amount: '50000', paid: true
+      }] };
+    }
+    if (sql.includes('FROM rooms')) return { rows: [roomRow] };
+    return { rows: [] };
+  };
+
+  const state = await buildState(7, {
+    allowedPropertyIds: [3],
+    operations: ['meters'],
+    workspaceAccess: {
+      accountUserId: 7,
+      actorUserId: 8,
+      role: 'meter_reader',
+      isOwner: false,
+      propertyIds: [3],
+      operations: ['meters'],
+      readOnly: true
+    }
+  });
+
+  assert.deepEqual(state.properties.map(property => property.id), [3]);
+  assert.equal(state.rooms[0].rentPrice, 0);
+  assert.equal(state.rooms[0].electricPrev, 10);
+  assert.deepEqual(state.rooms[0].tenants, []);
+  assert.equal(state.billingData['2026-08']['room-1'].electricNew, 25);
+  assert.equal(state.billingData['2026-08']['room-1'].discountAmount, 0);
+  assert.equal(state.billingData['2026-08']['room-1'].paid, false);
+  assert.equal(state.settings.bankAccount, '');
+  assert.deepEqual(state.expenses, {});
+  assert.deepEqual(state.history, []);
+  assert.equal(state.workspaceAccess.role, 'meter_reader');
+  assert.equal(
+    calls.filter(call => call.params.length === 2)
+      .every(call => call.params[0] === 7 && call.params[1][0] === 3),
+    true
+  );
+});
+
+test('PUT state của workspace nhân viên bị chặn trước khi chạm database', async () => {
+  const response = {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  await putState({
+    userId: 7,
+    workspace: { isOwner: false },
+    body: { rooms: [] }
+  }, response);
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.body.code, 'STAFF_WORKSPACE_READ_ONLY');
+});
+
+test('chi phí cấp tài khoản bị ẩn khi nhân viên chưa được giao toàn bộ khu', async (t) => {
+  const originalQuery = db.query;
+  const calls = [];
+  t.after(() => { db.query = originalQuery; });
+  db.query = async (sql, params = []) => {
+    calls.push({ sql, params });
+    if (sql.includes('FROM properties property')) {
+      return { rows: [{
+        id: 3, user_id: 7, name: 'Khu A', address: '', note: '', is_default: true,
+        sort_order: 0, room_count: 0, created_at: new Date(), updated_at: new Date()
+      }] };
+    }
+    if (sql.includes('FROM expense_entries')) {
+      // Mock mô phỏng chốt SQL: nếu thiếu chốt thì dữ liệu khu khác sẽ bị lộ.
+      return sql.includes('NOT EXISTS') && sql.includes('unassigned_property.id=ANY')
+        ? { rows: [] }
+        : { rows: [{ id: 'secret-expense', period: '2026-08', name: 'Khu B' }] };
+    }
+    return { rows: [] };
+  };
+
+  const state = await buildState(7, {
+    allowedPropertyIds: [3],
+    operations: ['expenses']
+  });
+
+  assert.deepEqual(state.expenses, {});
+  const expenseCall = calls.find(call => call.sql.includes('FROM expense_entries'));
+  assert.deepEqual(expenseCall.params, [7, [3]]);
+  assert.match(expenseCall.sql, /NOT EXISTS[\s\S]*unassigned_property\.id=ANY/);
+});
+
 test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) => {
   const originalGetClient = db.getClient;
   const calls = [];

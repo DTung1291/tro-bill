@@ -713,6 +713,64 @@ BEGIN
   END IF;
 END $$;
 
+-- Phạm vi truy cập của nhân viên tách thành hai chiều: khu được giao và nghiệp
+-- vụ được giao. Middleware chỉ cấp dữ liệu khi membership, khu và nghiệp vụ đều
+-- còn hợp lệ; owner không cần dòng assignment.
+CREATE TABLE IF NOT EXISTS account_member_property_access (
+  account_user_id    BIGINT NOT NULL,
+  member_user_id     BIGINT NOT NULL,
+  property_id        BIGINT NOT NULL,
+  created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_user_id, member_user_id, property_id),
+  CONSTRAINT account_member_property_membership_fk
+    FOREIGN KEY (account_user_id, member_user_id)
+    REFERENCES account_memberships(account_user_id, member_user_id)
+    ON DELETE CASCADE,
+  CONSTRAINT account_member_property_owner_fk
+    FOREIGN KEY (account_user_id, property_id)
+    REFERENCES properties(user_id, id)
+    ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_member_property_access_lookup
+  ON account_member_property_access(member_user_id, account_user_id, property_id);
+
+CREATE TABLE IF NOT EXISTS account_member_operation_access (
+  account_user_id    BIGINT NOT NULL,
+  member_user_id     BIGINT NOT NULL,
+  operation          TEXT NOT NULL,
+  created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_user_id, member_user_id, operation),
+  CONSTRAINT account_member_operation_membership_fk
+    FOREIGN KEY (account_user_id, member_user_id)
+    REFERENCES account_memberships(account_user_id, member_user_id)
+    ON DELETE CASCADE,
+  CONSTRAINT account_member_operation_valid CHECK (
+    operation IN ('overview', 'rooms', 'meters', 'expenses', 'invoices')
+  )
+);
+CREATE INDEX IF NOT EXISTS idx_member_operation_access_lookup
+  ON account_member_operation_access(member_user_id, account_user_id, operation);
+
+DO $$
+DECLARE
+  runtime_role text;
+BEGIN
+  FOREACH runtime_role IN ARRAY ARRAY['tro_bill_runtime', 'tro_bill_runtime_sql', 'tro_bill_app'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=runtime_role) THEN
+      EXECUTE format(
+        'GRANT SELECT, INSERT, DELETE ON account_member_property_access TO %I',
+        runtime_role
+      );
+      EXECUTE format(
+        'GRANT SELECT, INSERT, DELETE ON account_member_operation_access TO %I',
+        runtime_role
+      );
+    END IF;
+  END LOOP;
+END $$;
+
 -- Phòng — id giữ nguyên uuid do client sinh (TEXT)
 CREATE TABLE IF NOT EXISTS rooms (
   id            TEXT PRIMARY KEY,

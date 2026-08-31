@@ -9,6 +9,7 @@ const API = (() => {
   const LEGACY_TOKEN_KEY = 'trobill_token';
   let sessionActive = false;
   let accountContext = '';
+  let workspaceAccountId = null;
   let sessionMismatchHandler = null;
   let sessionMismatchNotified = false;
 
@@ -21,6 +22,7 @@ const API = (() => {
   function clearSession() {
     sessionActive = false;
     accountContext = '';
+    workspaceAccountId = null;
     sessionMismatchNotified = false;
   }
 
@@ -32,6 +34,16 @@ const API = (() => {
     return accountContext;
   }
 
+  function getWorkspaceAccountId() {
+    return workspaceAccountId;
+  }
+
+  function setWorkspaceAccountId(value) {
+    const id = Number(value);
+    workspaceAccountId = Number.isSafeInteger(id) && id > 0 ? id : null;
+    return workspaceAccountId;
+  }
+
   function adoptSession(session) {
     const nextContext = String(session && session.accountContext || '');
     if (!/^[a-f0-9]{64}$/i.test(nextContext)) {
@@ -39,6 +51,7 @@ const API = (() => {
       throw new Error('Máy chủ không trả về định danh phiên hợp lệ');
     }
     accountContext = nextContext;
+    workspaceAccountId = null;
     sessionActive = true;
     sessionMismatchNotified = false;
     return session;
@@ -55,6 +68,9 @@ const API = (() => {
     // đổi tài khoản. Mọi API còn lại đều được ràng buộc với accountContext.
     if (url !== '/api/me' && accountContext) {
       headers['X-Trobill-Account-Context'] = accountContext;
+    }
+    if (workspaceAccountId && url !== '/api/workspaces') {
+      headers['X-Trobill-Workspace-Account-Id'] = String(workspaceAccountId);
     }
 
     let res;
@@ -171,6 +187,14 @@ const API = (() => {
 
   function deleteTeamMember(id) {
     return request('DELETE', `/api/team/members/${encodeURIComponent(id)}`);
+  }
+
+  function updateTeamMemberAccess(id, input) {
+    return request('PUT', `/api/team/members/${encodeURIComponent(id)}/access`, input);
+  }
+
+  function getWorkspaces() {
+    return request('GET', '/api/workspaces');
   }
 
   function me() {
@@ -592,6 +616,8 @@ const API = (() => {
     clearSession,
     isLoggedIn,
     getAccountContext,
+    getWorkspaceAccountId,
+    setWorkspaceAccountId,
     adoptSession,
     onSessionMismatch,
     register,
@@ -612,6 +638,8 @@ const API = (() => {
     createTeamMember,
     updateTeamMember,
     deleteTeamMember,
+    updateTeamMemberAccess,
+    getWorkspaces,
     me,
     getSubscription,
     getPlans,

@@ -104,6 +104,21 @@ let TEAM_MEMBER_ROLES = [
   { value: 'meter_reader', label: 'Người ghi điện nước' }
 ];
 let TEAM_STAFF_USAGE = { used: 0, limit: 0, remaining: 0, canManage: false };
+let TEAM_PROPERTIES = [];
+let TEAM_ACCESS_OPERATIONS = [];
+let WORKSPACES = [];
+let CURRENT_WORKSPACE = null;
+let CURRENT_WORKSPACE_ACCESS = null;
+
+function isOwnerWorkspace() {
+  return !CURRENT_WORKSPACE_ACCESS || CURRENT_WORKSPACE_ACCESS.isOwner === true;
+}
+
+function hasWorkspaceOperation(operation) {
+  return isOwnerWorkspace()
+    || (Array.isArray(CURRENT_WORKSPACE_ACCESS?.operations)
+      && CURRENT_WORKSPACE_ACCESS.operations.includes(operation));
+}
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -1098,6 +1113,7 @@ async function flushState(options = {}) {
   const expectedAccountContext = API.getAccountContext();
   const expectedGeneration = _sessionGeneration;
   if (!API.isLoggedIn() || !expectedAccountContext) return;
+  if (!isOwnerWorkspace()) return { skipped: true };
 
   // Mỗi PUT chứa toàn bộ state. Xếp request thành hàng đợi để snapshot cũ
   // không thể hoàn tất sau và ghi đè snapshot mới; server vẫn có advisory lock
@@ -1174,6 +1190,11 @@ function clearSensitiveStateFromMemory() {
   RENT_INVOICE_PAYMENT_PROOFS = [];
   TEAM_MEMBERS = [];
   TEAM_STAFF_USAGE = { used: 0, limit: 0, remaining: 0, canManage: false };
+  TEAM_PROPERTIES = [];
+  TEAM_ACCESS_OPERATIONS = [];
+  WORKSPACES = [];
+  CURRENT_WORKSPACE = null;
+  CURRENT_WORKSPACE_ACCESS = null;
   ACTIVE_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
   SERVER_SUBSCRIPTION_PAYMENTS = [];
@@ -1184,6 +1205,7 @@ function clearSensitiveStateFromMemory() {
 
 function saveState() {
   if (!API.isLoggedIn() || !API.getAccountContext()) return;
+  if (!isOwnerWorkspace()) return;
   _savePending = true;
   _saveRevision += 1;
   if (_saveTimer) clearTimeout(_saveTimer);
@@ -1213,6 +1235,7 @@ function loadState(savedObj) {
     try { saved = JSON.parse(raw); } catch (e) { console.warn('parse localStorage lỗi', e); return false; }
   }
   try {
+    CURRENT_WORKSPACE_ACCESS = saved?.workspaceAccess || CURRENT_WORKSPACE_ACCESS;
 
     if (Array.isArray(saved.properties)) {
       STATE.properties = saved.properties.map(property => ({
@@ -2627,7 +2650,155 @@ function getExpenseMeta(category) {
 // ============================================================
 let activePage = 'dashboard';
 
+const WORKSPACE_PAGE_OPERATIONS = Object.freeze({
+  rooms: ['rooms'],
+  billing: ['meters'],
+  expenses: ['expenses'],
+  report: ['invoices'],
+  history: ['invoices']
+});
+
+function workspaceStorageKey() {
+  return `trobill_workspace:${API.getAccountContext()}`;
+}
+
+function workspaceRoleLabel(role) {
+  return ({
+    owner: 'Chủ sở hữu',
+    manager: 'Quản lý',
+    accountant: 'Kế toán',
+    meter_reader: 'Người ghi điện nước'
+  })[role] || role;
+}
+
+function workspaceOperationLabel(operation) {
+  return ({
+    overview: 'Tổng quan',
+    rooms: 'Phòng và khách thuê',
+    meters: 'Ghi điện nước',
+    expenses: 'Chi phí',
+    invoices: 'Hóa đơn và thanh toán'
+  })[operation] || operation;
+}
+
+function renderWorkspaceSwitcher() {
+  const wrapper = document.getElementById('workspace-switcher');
+  const select = document.getElementById('workspace-select');
+  if (!wrapper || !select) return;
+  wrapper.hidden = WORKSPACES.length <= 1;
+  select.innerHTML = WORKSPACES.map(workspace => `
+    <option value="${workspace.accountUserId}" ${workspace.canAccess ? '' : 'disabled'}>
+      ${escapeHtml(workspace.isOwner ? 'Dữ liệu của tôi' : workspace.accountEmail)} · ${escapeHtml(workspaceRoleLabel(workspace.role))}${workspace.canAccess ? '' : ' · chưa cấp phạm vi'}
+    </option>
+  `).join('');
+  if (CURRENT_WORKSPACE) select.value = String(CURRENT_WORKSPACE.accountUserId);
+}
+
+async function configureWorkspace() {
+  const result = await API.getWorkspaces();
+  WORKSPACES = Array.isArray(result.workspaces) ? result.workspaces : [];
+  const ownWorkspace = WORKSPACES.find(workspace => workspace.isOwner && workspace.canAccess)
+    || WORKSPACES.find(workspace => workspace.canAccess);
+  if (!ownWorkspace) throw new Error('Tài khoản chưa có không gian dữ liệu hợp lệ');
+  let storedId = null;
+  try { storedId = Number(sessionStorage.getItem(workspaceStorageKey())); } catch (_) {}
+  const selected = WORKSPACES.find(workspace => (
+    workspace.canAccess && workspace.accountUserId === storedId
+  )) || ownWorkspace;
+  CURRENT_WORKSPACE = selected;
+  API.setWorkspaceAccountId(selected.accountUserId);
+  try { sessionStorage.setItem(workspaceStorageKey(), String(selected.accountUserId)); } catch (_) {}
+  renderWorkspaceSwitcher();
+  return selected;
+}
+
+function workspacePageAllowed(page) {
+  if (isOwnerWorkspace() || page === 'dashboard') return true;
+  const required = WORKSPACE_PAGE_OPERATIONS[page] || [];
+  return required.some(operation => hasWorkspaceOperation(operation));
+}
+
+function applyWorkspaceUiAccess() {
+  const staffWorkspace = !isOwnerWorkspace();
+  document.body.classList.toggle('workspace-staff-active', staffWorkspace);
+  const banner = document.getElementById('workspace-access-banner');
+  if (banner) {
+    banner.hidden = !staffWorkspace;
+    if (staffWorkspace) {
+      const operationLabels = TEAM_ACCESS_OPERATIONS.length > 0
+        ? TEAM_ACCESS_OPERATIONS
+          .filter(operation => hasWorkspaceOperation(operation.value))
+          .map(operation => operation.label)
+        : (CURRENT_WORKSPACE_ACCESS.operations || []).map(workspaceOperationLabel);
+      banner.textContent = `Đang xem ${CURRENT_WORKSPACE?.accountEmail || 'tài khoản được giao'} với vai trò ${workspaceRoleLabel(CURRENT_WORKSPACE_ACCESS.role)} · ${CURRENT_WORKSPACE_ACCESS.propertyIds?.length || 0} khu · ${operationLabels.join(', ') || 'chưa có nghiệp vụ'} · chỉ xem`;
+    }
+  }
+  document.querySelectorAll('.nav-tab[data-page]').forEach(tab => {
+    tab.hidden = !workspacePageAllowed(tab.dataset.page);
+  });
+  const addRoom = document.getElementById('btn-add-room');
+  const manageProperties = document.getElementById('btn-manage-properties');
+  const enterAllMeters = document.getElementById('btn-enter-all');
+  if (addRoom) addRoom.hidden = staffWorkspace;
+  if (manageProperties) manageProperties.hidden = staffWorkspace;
+  if (enterAllMeters) {
+    enterAllMeters.hidden = staffWorkspace && !hasWorkspaceOperation('meters');
+  }
+  const expensePage = document.getElementById('page-expenses');
+  if (expensePage) {
+    expensePage.querySelectorAll('form input, form select, form textarea, form button').forEach(control => {
+      control.disabled = staffWorkspace;
+    });
+    const transfer = document.getElementById('btn-transfer-expenses');
+    if (transfer) transfer.hidden = staffWorkspace;
+  }
+  const settings = document.getElementById('page-settings');
+  if (settings) settings.setAttribute('aria-hidden', staffWorkspace ? 'true' : 'false');
+  [
+    'bill-preview-share-link',
+    'bill-preview-message-template',
+    'bill-message-schedule',
+    'bill-message-create-link',
+    'bill-message-share',
+    'bill-message-email',
+    'invoice-share-create',
+    'rent-payment-modal-add'
+  ].forEach(id => {
+    const control = document.getElementById(id);
+    if (control) control.disabled = staffWorkspace;
+  });
+  if (staffWorkspace && !workspacePageAllowed(activePage)) navigate('dashboard');
+}
+
+document.getElementById('workspace-select')?.addEventListener('change', async event => {
+  const nextId = Number(event.target.value);
+  const nextWorkspace = WORKSPACES.find(workspace => (
+    workspace.accountUserId === nextId && workspace.canAccess
+  ));
+  if (!nextWorkspace || nextWorkspace.accountUserId === CURRENT_WORKSPACE?.accountUserId) return;
+  _sessionGeneration += 1;
+  cancelPendingStateSave();
+  clearSensitiveStateFromMemory();
+  CURRENT_WORKSPACE = nextWorkspace;
+  CURRENT_WORKSPACE_ACCESS = null;
+  API.setWorkspaceAccountId(nextWorkspace.accountUserId);
+  try { sessionStorage.setItem(workspaceStorageKey(), String(nextWorkspace.accountUserId)); } catch (_) {}
+  event.target.disabled = true;
+  try {
+    await startApp();
+    showToast(`Đã chuyển sang ${nextWorkspace.isOwner ? 'dữ liệu của bạn' : nextWorkspace.accountEmail}`, 'success');
+  } catch (error) {
+    showToast(error.message || 'Không chuyển được không gian làm việc', 'error', 4500);
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
 function navigate(page) {
+  if (!workspacePageAllowed(page)) {
+    showToast('Bạn chưa được giao nghiệp vụ này', 'error', 3000);
+    page = 'dashboard';
+  }
   triggerHaptic('light');
   activePage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -2639,7 +2810,7 @@ function navigate(page) {
   if (tabEl)   tabEl.classList.add('active');
   if (btabEl)  btabEl.classList.add('active');
   renderPage(page);
-  if (page === 'report' || page === 'history') {
+  if (isOwnerWorkspace() && (page === 'report' || page === 'history')) {
     ensureRentInvoicesSynced().then(() => {
       if (activePage === page) renderPage(page);
     }).catch((error) => {
@@ -4217,13 +4388,13 @@ function renderRooms() {
           ${waterPrevHtml}
         </div>
       </div>
-      <div class="room-card-actions">
-        <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
-        <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
-        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Trạng thái</button>
-        <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
-        <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
-      </div>
+      ${isOwnerWorkspace() ? `<div class="room-card-actions">
+          <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
+          <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
+          <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Trạng thái</button>
+          <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
+          <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
+        </div>` : ''}
     `;
     const tenantsBtn = card.querySelector('[data-tenants]');
     const contractsBtn = card.querySelector('[data-contracts]');
@@ -5125,6 +5296,16 @@ function renderBilling() {
 
   refreshBillingProgress();
   renderBillingLegend();
+  const transferButton = document.getElementById('btn-transfer-period');
+  if (!isOwnerWorkspace()) {
+    tbody.querySelectorAll('input, button').forEach(control => {
+      control.disabled = true;
+      control.title = 'Không gian nhân viên hiện chỉ cho phép xem';
+    });
+    if (transferButton) transferButton.hidden = true;
+  } else if (transferButton) {
+    transferButton.hidden = false;
+  }
 }
 
 // Dynamic legend: only show rates that are uniform across all rooms
@@ -6053,9 +6234,11 @@ function renderReport() {
   const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
   if (billsWithData.length === 0) {
     if (summaryEl) summaryEl.style.display = 'none';
+    const meterShortcut = isOwnerWorkspace() || hasWorkspaceOperation('meters')
+      ? '<br><button class="link-btn" data-goto="billing">Nhập chỉ số ngay →</button>'
+      : '';
     listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🧾</div>
-      <p>Nhập chỉ số điện/nước để xem hóa đơn.<br>
-      <button class="link-btn" data-goto="billing">Nhập chỉ số ngay →</button></p></div>`;
+      <p>Chưa có hóa đơn trong tháng này.${meterShortcut}</p></div>`;
     listEl.querySelector('[data-goto]')?.addEventListener('click', () => navigate('billing'));
     return;
   }
@@ -6066,6 +6249,7 @@ function renderReport() {
   let totalPaid = 0;
   let paidCount = 0;
   const activeBills = [];
+  const staffReadOnly = !isOwnerWorkspace();
 
   for (const room of STATE.rooms) {
     const rec  = getPeriodRecord(room.id, period);
@@ -6225,12 +6409,12 @@ function renderReport() {
           <div style="color:var(--primary)">${fmt(bill.total)}</div>
         </div>
         <div class="bill-footer">
-          <button class="btn ${paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-paid-room="${room.id}" ${bill.total <= 0 ? 'disabled' : ''}>
+          <button class="btn ${paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-paid-room="${room.id}" ${bill.total <= 0 || staffReadOnly ? 'disabled' : ''}>
             ${bill.total <= 0 ? 'Không có khoản phải thu' : paymentButtonLabel}
           </button>
           ${billPreviewBtnHtml}
           <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
-          <button class="btn btn--ghost btn--sm" data-share-room="${room.id}">📤 Gửi</button>
+          <button class="btn btn--ghost btn--sm" data-share-room="${room.id}" ${staffReadOnly ? 'disabled' : ''}>📤 Gửi</button>
         </div>
       </div>
     `;
@@ -6971,6 +7155,51 @@ function applyTeamMembersPayload(payload = {}) {
     remaining: Math.max(0, Number(payload.staffUsage?.remaining) || 0),
     canManage: payload.staffUsage?.canManage === true
   };
+  TEAM_PROPERTIES = Array.isArray(payload.properties) ? payload.properties : [];
+  TEAM_ACCESS_OPERATIONS = Array.isArray(payload.operations) ? payload.operations : [];
+}
+
+function teamMemberAccessHtml(member) {
+  const selectedProperties = new Set((member.access?.propertyIds || []).map(Number));
+  const selectedOperations = new Set(member.access?.operations || []);
+  const propertiesHtml = TEAM_PROPERTIES.map(property => `
+    <label class="team-access-option">
+      <input type="checkbox" data-team-property value="${property.id}"
+        ${selectedProperties.has(Number(property.id)) ? 'checked' : ''}
+        ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'} />
+      <span>${escapeHtml(property.name)}</span>
+    </label>
+  `).join('') || '<span class="settings-security-note">Chưa có khu nào.</span>';
+  const allowedOperations = TEAM_ACCESS_OPERATIONS.filter(operation => (
+    !Array.isArray(operation.roles) || operation.roles.includes(member.role)
+  ));
+  const operationsHtml = allowedOperations.map(operation => `
+    <label class="team-access-option">
+      <input type="checkbox" data-team-operation value="${escapeHtml(operation.value)}"
+        ${selectedOperations.has(operation.value) ? 'checked' : ''}
+        ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'} />
+      <span>${escapeHtml(operation.label)}</span>
+    </label>
+  `).join('') || '<span class="settings-security-note">Vai trò này chưa có nghiệp vụ.</span>';
+  return `
+    <details class="team-member-access">
+      <summary>Phân quyền · ${selectedProperties.size} khu · ${selectedOperations.size} nghiệp vụ</summary>
+      <div class="team-access-grid">
+        <div class="team-access-group">
+          <strong>Khu được xem</strong>
+          <div class="team-access-options">${propertiesHtml}</div>
+        </div>
+        <div class="team-access-group">
+          <strong>Nghiệp vụ được xem</strong>
+          <div class="team-access-options">${operationsHtml}</div>
+        </div>
+      </div>
+      <div class="team-access-actions">
+        <button type="button" class="btn btn--sm btn--primary" data-team-access-save="${member.userId}"
+          ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>Lưu phân quyền</button>
+      </div>
+    </details>
+  `;
 }
 
 function renderTeamMembers() {
@@ -6995,17 +7224,20 @@ function renderTeamMembers() {
     const owner = member.isOwner || member.role === 'owner';
     return `
       <div class="team-member-row" data-team-member="${member.userId}">
-        <div class="team-member-identity">
-          <strong>${escapeHtml(member.email)}</strong>
-          <span>${owner ? 'Tài khoản sở hữu dữ liệu' : escapeHtml(member.roleLabel || member.role)}</span>
+        <div class="team-member-main">
+          <div class="team-member-identity">
+            <strong>${escapeHtml(member.email)}</strong>
+            <span>${owner ? 'Tài khoản sở hữu dữ liệu' : escapeHtml(member.roleLabel || member.role)}</span>
+          </div>
+          <div class="team-member-actions">
+            ${owner
+              ? '<span class="team-owner-badge">Chủ sở hữu</span>'
+              : `<select class="form-input team-member-role-select" aria-label="Vai trò của ${escapeHtml(member.email)}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>${teamRoleOptions(member.role)}</select>
+                 <button type="button" class="btn btn--sm btn--ghost" data-team-save="${member.userId}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>Lưu vai trò</button>
+                 <button type="button" class="btn btn--sm btn--danger" data-team-remove="${member.userId}">Xóa</button>`}
+          </div>
         </div>
-        <div class="team-member-actions">
-          ${owner
-            ? '<span class="team-owner-badge">Chủ sở hữu</span>'
-            : `<select class="form-input team-member-role-select" aria-label="Vai trò của ${escapeHtml(member.email)}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>${teamRoleOptions(member.role)}</select>
-               <button type="button" class="btn btn--sm btn--ghost" data-team-save="${member.userId}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>Lưu vai trò</button>
-               <button type="button" class="btn btn--sm btn--danger" data-team-remove="${member.userId}">Xóa</button>`}
-        </div>
+        ${owner ? '' : teamMemberAccessHtml(member)}
       </div>
     `;
   }).join('');
@@ -7020,7 +7252,9 @@ function renderTeamMembers() {
         const index = TEAM_MEMBERS.findIndex(member => member.userId === result.member.userId);
         if (index >= 0) TEAM_MEMBERS[index] = result.member;
         renderTeamMembers();
-        showToast('Đã cập nhật vai trò ✓', 'success');
+        showToast(result.accessReset
+          ? 'Đã đổi vai trò và thu hồi phạm vi cũ. Hãy gán lại khu/nghiệp vụ.'
+          : 'Đã cập nhật vai trò ✓', 'success', 4500);
       } catch (error) {
         if (error.code === 401) return handleAuthExpired();
         showToast(error.message || 'Không cập nhật được vai trò', 'error', 4000);
@@ -7046,6 +7280,38 @@ function renderTeamMembers() {
           showToast(error.message || 'Không xóa được nhân viên', 'error', 4000);
         }
       }, null, 'Xóa nhân viên');
+    });
+  });
+
+  list.querySelectorAll('[data-team-access-save]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const row = button.closest('[data-team-member]');
+      if (!row) return;
+      const propertyIds = [...row.querySelectorAll('[data-team-property]:checked')]
+        .map(input => Number(input.value));
+      const operations = [...row.querySelectorAll('[data-team-operation]:checked')]
+        .map(input => input.value);
+      button.disabled = true;
+      try {
+        const result = await API.updateTeamMemberAccess(button.dataset.teamAccessSave, {
+          propertyIds,
+          operations
+        });
+        const index = TEAM_MEMBERS.findIndex(member => member.userId === result.member.userId);
+        if (index >= 0) TEAM_MEMBERS[index] = result.member;
+        renderTeamMembers();
+        showToast(
+          propertyIds.length > 0 && operations.length > 0
+            ? 'Đã lưu phạm vi truy cập ✓'
+            : 'Đã thu hồi quyền vào dữ liệu của chủ',
+          propertyIds.length > 0 && operations.length > 0 ? 'success' : 'info',
+          4000
+        );
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không lưu được phân quyền', 'error', 4500);
+        renderTeamMembers();
+      }
     });
   });
 }
@@ -8891,42 +9157,74 @@ function handleAuthExpired() {
 }
 
 async function startApp() {
-  const expectedAccountContext = API.getAccountContext();
-  const expectedGeneration = _sessionGeneration;
-  if (!expectedAccountContext) {
+  const accountContextBeforeWorkspace = API.getAccountContext();
+  if (!accountContextBeforeWorkspace) {
     const error = new Error('Chưa xác định được tài khoản của phiên');
     error.code = 401;
     throw error;
   }
+  const workspace = await configureWorkspace();
+  const expectedAccountContext = API.getAccountContext();
+  const expectedWorkspaceId = API.getWorkspaceAccountId();
+  const expectedGeneration = _sessionGeneration;
+  const ownerWorkspace = workspace.isOwner === true;
+  const readOnlyEntitlement = {
+    accessMode: 'read_only',
+    plan: {
+      code: 'staff',
+      name: workspaceRoleLabel(workspace.role),
+      roomLimit: 0,
+      staffLimit: 0
+    },
+    features: {
+      roomManagement: { enabled: false, limit: 0 },
+      staffManagement: { enabled: false, limit: 0 },
+      dataExport: { enabled: false }
+    }
+  };
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
   const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult] = await Promise.all([
     API.getState(),
-    API.getSubscription(),
-    API.getPlans().catch(() => ({ plans: [] })),
-    API.getSubscriptionPayments(30).catch(() => ({ payments: [] })),
-    API.getRentPaymentSummaries().catch((error) => {
+    ownerWorkspace ? API.getSubscription() : Promise.resolve(readOnlyEntitlement),
+    ownerWorkspace ? API.getPlans().catch(() => ({ plans: [] })) : Promise.resolve({ plans: [] }),
+    ownerWorkspace ? API.getSubscriptionPayments(30).catch(() => ({ payments: [] })) : Promise.resolve({ payments: [] }),
+    ownerWorkspace ? API.getRentPaymentSummaries().catch((error) => {
       console.warn('Không tải được sổ giao dịch tiền trọ:', error.message);
       return { invoices: [] };
-    }),
-    API.getRentPaymentChannels().catch((error) => {
+    }) : Promise.resolve({ invoices: [] }),
+    ownerWorkspace ? API.getRentPaymentChannels().catch((error) => {
       console.warn('Không tải được kênh thanh toán:', error.message);
       return { channels: [] };
-    }),
-    API.getRentBankTransactions('pending', 50).catch((error) => {
+    }) : Promise.resolve({ channels: [] }),
+    ownerWorkspace ? API.getRentBankTransactions('pending', 50).catch((error) => {
       console.warn('Không tải được giao dịch cần đối soát:', error.message);
       return { transactions: [] };
-    }),
-    API.getRoomMaintenance().catch((error) => {
+    }) : Promise.resolve({ transactions: [] }),
+    ownerWorkspace ? API.getRoomMaintenance().catch((error) => {
       console.warn('Không tải được lịch sử bảo trì:', error.message);
       return { maintenancePeriods: [] };
-    }),
-    API.getTeamMembers().catch((error) => {
+    }) : Promise.resolve({ maintenancePeriods: [] }),
+    ownerWorkspace ? API.getTeamMembers().catch((error) => {
       console.warn('Không tải được danh sách vai trò:', error.message);
       return { members: [], staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false } };
+    }) : Promise.resolve({
+      members: [],
+      staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false },
+      properties: [],
+      operations: []
     })
   ]);
   if (expectedGeneration !== _sessionGeneration ||
-      expectedAccountContext !== API.getAccountContext()) return;
+      expectedAccountContext !== API.getAccountContext() ||
+      expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
+  CURRENT_WORKSPACE_ACCESS = serverState.workspaceAccess || {
+    accountUserId: workspace.accountUserId,
+    role: workspace.role,
+    isOwner: workspace.isOwner,
+    propertyIds: workspace.propertyIds,
+    operations: workspace.operations,
+    readOnly: !workspace.isOwner
+  };
   applyServerEntitlements(entitlement);
   SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
   SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(paymentsResult.payments)
@@ -8940,22 +9238,26 @@ async function startApp() {
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
     ? bankTransactionsResult.transactions
     : [];
-  try {
-    await syncRentInvoicesWithLedger();
-  } catch (error) {
-    console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
-    syncLegacyPaidFlagsFromLedger();
+  if (ownerWorkspace) {
+    try {
+      await syncRentInvoicesWithLedger();
+    } catch (error) {
+      console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
+      syncLegacyPaidFlagsFromLedger();
+    }
   }
   if (expectedGeneration !== _sessionGeneration ||
-      expectedAccountContext !== API.getAccountContext()) return;
+      expectedAccountContext !== API.getAccountContext() ||
+      expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
   renderSubscriptionSummary();
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
   renderRentPaymentChannel();
   renderTeamMembers();
   loadDonateConfig();
-  loadPrivacyStatus();
+  if (ownerWorkspace) loadPrivacyStatus();
   showAuthScreen(false);
+  applyWorkspaceUiAccess();
   updateAdminEntry();
   if (!_appStarted) {
     init();
@@ -8971,6 +9273,11 @@ async function startApp() {
 async function updateAdminEntry() {
   const btn = document.getElementById('admin-entry');
   if (!btn) return;
+  if (!isOwnerWorkspace()) {
+    btn.hidden = true;
+    btn.classList.remove('show');
+    return;
+  }
   try {
     const me = await API.me();
     if (me && me.isAdmin) {

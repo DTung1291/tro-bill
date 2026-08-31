@@ -59,6 +59,7 @@ const rentalFinalSettlements = require('./rental-final-settlements');
 const roomMaintenance = require('./room-maintenance');
 const properties = require('./properties');
 const teamMembers = require('./team-members');
+const accountAccess = require('./account-access');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -148,6 +149,7 @@ app.post(
   wrap(subscriptionRefunds.cancelRefundRequest)
 );
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
+app.get('/api/workspaces', requireAuth, wrap(accountAccess.listWorkspaces));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));
 app.post('/api/rent-payments/sync', requireAuth, wrap(rentPayments.syncInvoices));
@@ -341,16 +343,36 @@ app.post(
   requireAuth,
   wrap(roomMaintenance.completeMaintenance)
 );
-app.get('/api/properties', requireAuth, wrap(properties.listProperties));
+app.get(
+  '/api/properties',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('any')),
+  wrap(properties.listProperties)
+);
 app.post('/api/properties', requireAuth, wrap(properties.createProperty));
 app.patch('/api/properties/:id', requireAuth, wrap(properties.updateProperty));
 app.delete('/api/properties/:id', requireAuth, wrap(properties.deleteProperty));
 app.get('/api/team/members', requireAuth, wrap(teamMembers.listTeamMembers));
 app.post('/api/team/members', requireAuth, wrap(teamMembers.createTeamMember));
 app.patch('/api/team/members/:id', requireAuth, wrap(teamMembers.updateTeamMember));
+app.put(
+  '/api/team/members/:id/access',
+  requireAuth,
+  wrap(teamMembers.updateTeamMemberAccess)
+);
 app.delete('/api/team/members/:id', requireAuth, wrap(teamMembers.deleteTeamMember));
-app.get('/api/state', requireAuth, wrap(getState));
-app.put('/api/state', requireAuth, wrap(putState));
+app.get(
+  '/api/state',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('any')),
+  wrap(getState)
+);
+app.put(
+  '/api/state',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('any')),
+  wrap(putState)
+);
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));
 app.post('/api/privacy/accept', requireAuth, wrap(privacy.acceptPolicies));
 app.post('/api/privacy/tenants/:tenantId/reveal-cccd', requireAuth, wrap(privacy.revealTenantCccd));

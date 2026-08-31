@@ -132,6 +132,16 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_trigger
       WHERE tgname='users_assign_owner_account_membership'
+    )
+    AND to_regclass('public.account_member_property_access') IS NOT NULL
+    AND to_regclass('public.account_member_operation_access') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='account_member_property_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='account_member_operation_valid'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

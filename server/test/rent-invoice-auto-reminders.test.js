@@ -144,7 +144,7 @@ test('schema, state, giao diện và checklist có cấu hình nhắc hóa đơn
   assert.match(migration, /rent_invoice_deliveries_reminder_offset_valid/);
   assert.match(migration, /DROP CONSTRAINT IF EXISTS rent_invoice_deliveries_tenant_id_fkey/);
   assert.match(migration, /AS tenant_autosave_safe/);
-  assert.match(state, /invoiceReminderEnabled: !!s\.invoice_reminder_enabled/);
+  assert.match(state, /invoiceReminderEnabled: !isScopedStaff && !!s\.invoice_reminder_enabled/);
   assert.match(state, /invoice_reminder_enabled=COALESCE/);
   assert.match(schedules, /async function enqueueAutomaticInvoiceReminders/);
   assert.match(schedules, /INVOICE_ALREADY_PAID/);

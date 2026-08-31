@@ -108,8 +108,23 @@ function sendPropertyError(res, error) {
 
 async function listProperties(req, res, dependencies = {}) {
   const query = dependencies.query || db.query;
+  if (req.workspace && !req.workspace.isOwner) {
+    const propertyIds = Array.isArray(req.workspace.propertyIds) ? req.workspace.propertyIds : [];
+    const result = await query(
+      `SELECT property.*, COUNT(room.id)::int AS room_count
+       FROM properties property
+       LEFT JOIN rooms room
+         ON room.user_id=property.user_id AND room.property_id=property.id
+       WHERE property.user_id=$1 AND property.id=ANY($2::bigint[])
+       GROUP BY property.id
+       ORDER BY property.is_default DESC, property.sort_order, property.name, property.id`,
+      [req.userId, propertyIds]
+    );
+    res.set('Cache-Control', 'no-store');
+    return res.json({ properties: result.rows.map(propertyJson) });
+  }
   res.set('Cache-Control', 'no-store');
-  res.json({ properties: (await propertyRows(req.userId, query)).map(propertyJson) });
+  return res.json({ properties: (await propertyRows(req.userId, query)).map(propertyJson) });
 }
 
 async function createProperty(req, res, dependencies = {}) {

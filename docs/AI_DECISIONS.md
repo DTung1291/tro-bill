@@ -212,3 +212,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   viên luôn được phép kể cả khi gói hết hạn/hạ cấp. Mọi endpoint dữ liệu dành
   cho nhân viên sau này phải xác minh membership cùng assignment cụ thể, không
   được thay `req.userId` bằng account chủ chỉ dựa trên role.
+
+## D-018 — Workspace nhân viên tách actor khỏi phạm vi dữ liệu hiệu lực
+
+- **Trạng thái:** Đang áp dụng từ 31/08/2026.
+- **Quyết định:** Cookie và `X-Trobill-Account-Context` luôn xác định tài khoản
+  thật đang đăng nhập (`actor`). Client chỉ được chọn tài khoản làm việc bằng
+  `X-Trobill-Workspace-Account-Id`; server phải xác minh membership, vai trò,
+  ít nhất một khu và từng nghiệp vụ được giao trước khi đổi phạm vi truy vấn sang
+  `account_user_id` của chủ. Workspace nhân viên hiện chỉ đọc; `PUT /api/state`
+  luôn bị chặn vì endpoint này thay toàn bộ snapshot.
+- **Lý do:** Dùng workspace như danh tính đăng nhập sẽ tái tạo lỗi lẫn tài khoản
+  giữa các tab. Cho nhân viên ghi một snapshot đã lọc có thể xóa dữ liệu ở những
+  khu họ không nhìn thấy.
+- **Hệ quả:** Mọi dữ liệu trả về cho nhân viên phải vừa lọc theo khu, vừa lược bỏ
+  trường ngoài nghiệp vụ. Các quyền ghi sau này cần endpoint hẹp theo từng tài
+  nguyên, kiểm tra lại khu/nghiệp vụ trong transaction; không được mở ghi bằng
+  cách bỏ chốt read-only của state.

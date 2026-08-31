@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=107" />
+  <link rel="stylesheet" href="style.css?v=109" />
 </head>
 
 <body>
@@ -63,6 +63,10 @@
         <span class="brand-icon">🏠</span>
         <span class="brand-name">TrọBill</span>
       </div>
+      <label class="workspace-switcher" id="workspace-switcher" hidden>
+        <span class="workspace-switcher-label">Không gian</span>
+        <select id="workspace-select" aria-label="Chọn tài khoản làm việc"></select>
+      </label>
       <div class="nav-nav-wrap" style="display:flex;align-items:center;gap:10px">
         <!-- Desktop tabs (hidden on mobile) -->
         <div class="nav-tabs nav-tabs--desktop">
@@ -94,6 +98,8 @@
       </div>
     </div>
   </nav>
+
+  <div class="workspace-access-banner" id="workspace-access-banner" role="status" hidden></div>
 
   <!-- Mobile Bottom Navigation (shown on mobile only) -->
   <nav class="bottom-nav" id="bottom-nav" aria-label="Điều hướng mobile">
@@ -419,7 +425,7 @@
           <span class="team-staff-usage" id="team-staff-usage">0 / 0 nhân viên</span>
         </div>
         <p class="team-members-access-note">
-          Vai trò được lưu an toàn ở bước này. Nhân viên chỉ được vào dữ liệu của chủ sau khi bạn gán khu và nghiệp vụ ở phần phân quyền kế tiếp.
+          Nhân viên chỉ mở được dữ liệu sau khi được gán ít nhất một khu và một nghiệp vụ. Đổi vai trò sẽ thu hồi phạm vi cũ để tránh giữ quyền thừa.
         </p>
         <div class="team-members-list" id="team-members-list"></div>
         <form class="team-member-form" id="team-member-form">
@@ -1886,7 +1892,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=103"></script>
+  <script src="api.js?v=104"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1896,7 +1902,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=108"></script>
+  <script src="app.js?v=110"></script>
 </body>
 
 </html>

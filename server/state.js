@@ -70,30 +70,101 @@ function changedTenantFields(existing, tenant, resolvedCccd) {
 //  GET /api/state — lắp ráp toàn bộ state từ các bảng dữ liệu
 // ============================================================
 async function buildState(uid, options = {}) {
+  const scopedPropertyIds = Array.isArray(options.allowedPropertyIds)
+    ? [...new Set(options.allowedPropertyIds.map(Number).filter(Number.isSafeInteger))]
+    : null;
+  const operations = new Set(Array.isArray(options.operations) ? options.operations : []);
+  const isScopedStaff = scopedPropertyIds !== null;
+  const canViewInvoices = !isScopedStaff || operations.has('invoices') || operations.has('overview');
+  const canViewRooms = !isScopedStaff || canViewInvoices || operations.has('rooms');
+  const canViewTenants = !isScopedStaff || operations.has('rooms') || operations.has('invoices');
+  const canViewMeters = !isScopedStaff || canViewInvoices || operations.has('meters');
+  const canViewExpenses = !isScopedStaff || operations.has('expenses') || operations.has('overview');
+  const canViewHistory = !isScopedStaff || operations.has('invoices');
+  const scopeParams = isScopedStaff ? [uid, scopedPropertyIds] : [uid];
+  const propertyScope = isScopedStaff ? ' AND property.id=ANY($2::bigint[])' : '';
+  const roomScope = isScopedStaff ? ' AND property_id=ANY($2::bigint[])' : '';
+  const childRoomScope = (alias) => isScopedStaff
+    ? ` AND EXISTS (
+          SELECT 1 FROM rooms scoped_room
+          WHERE scoped_room.user_id=$1
+            AND scoped_room.id=${alias}.room_id
+            AND scoped_room.property_id=ANY($2::bigint[])
+        )`
+    : '';
+  // expense_entries hiện là dữ liệu cấp tài khoản, chưa mang property_id. Để
+  // không lộ chi phí của khu chưa giao, staff chỉ nhận nhóm này khi được giao
+  // toàn bộ khu của chủ. Khi expense có property_id, thay chốt này bằng lọc khu.
+  const accountWideScope = isScopedStaff
+    ? ` AND NOT EXISTS (
+          SELECT 1 FROM properties unassigned_property
+          WHERE unassigned_property.user_id=$1
+            AND NOT (unassigned_property.id=ANY($2::bigint[]))
+        )`
+    : '';
+  const snapshotScope = isScopedStaff
+    ? ` AND EXISTS (
+          SELECT 1
+          FROM history_bills scoped_bill
+          JOIN rooms scoped_room
+            ON scoped_room.user_id=$1 AND scoped_room.id=scoped_bill.room_id
+          WHERE scoped_bill.snapshot_id=snapshot.id
+            AND scoped_room.property_id=ANY($2::bigint[])
+        )`
+    : '';
   const [propertiesR, settingsR, roomsR, ratesR, tenantsR, billingR, expensesR, snapsR, billsR] = await Promise.all([
     db.query(
       `SELECT property.*, COUNT(room.id)::int AS room_count
        FROM properties property
        LEFT JOIN rooms room
          ON room.user_id=property.user_id AND room.property_id=property.id
-       WHERE property.user_id=$1
+       WHERE property.user_id=$1${propertyScope}
        GROUP BY property.id
        ORDER BY property.is_default DESC, property.sort_order, property.name, property.id`,
-      [uid]
+      scopeParams
     ),
     db.query('SELECT * FROM settings WHERE user_id=$1', [uid]),
-    db.query('SELECT * FROM rooms WHERE user_id=$1 ORDER BY sort_order, name', [uid]),
-    db.query('SELECT * FROM room_rate_history WHERE user_id=$1 ORDER BY room_id, effective_from', [uid]),
-    db.query('SELECT * FROM tenants WHERE user_id=$1 ORDER BY sort_order', [uid]),
-    db.query('SELECT * FROM billing_entries WHERE user_id=$1', [uid]),
-    db.query('SELECT * FROM expense_entries WHERE user_id=$1 ORDER BY period, sort_order', [uid]),
-    db.query('SELECT * FROM history_snapshots WHERE user_id=$1 ORDER BY period', [uid]),
+    db.query(`SELECT * FROM rooms WHERE user_id=$1${roomScope} ORDER BY sort_order, name`, scopeParams),
     db.query(
+      `SELECT rate.* FROM room_rate_history rate
+       WHERE rate.user_id=$1${childRoomScope('rate')}
+       ORDER BY rate.room_id, rate.effective_from`,
+      scopeParams
+    ),
+    db.query(
+      `SELECT tenant.* FROM tenants tenant
+       WHERE tenant.user_id=$1${childRoomScope('tenant')}
+       ORDER BY tenant.sort_order`,
+      scopeParams
+    ),
+    db.query(
+      `SELECT billing.* FROM billing_entries billing
+       WHERE billing.user_id=$1${childRoomScope('billing')}`,
+      scopeParams
+    ),
+    canViewExpenses
+      ? db.query(
+          `SELECT * FROM expense_entries
+           WHERE user_id=$1${accountWideScope}
+           ORDER BY period, sort_order`,
+          scopeParams
+        )
+      : Promise.resolve({ rows: [] }),
+    canViewHistory
+      ? db.query(
+          `SELECT snapshot.* FROM history_snapshots snapshot
+           WHERE snapshot.user_id=$1${snapshotScope}
+           ORDER BY snapshot.period`,
+          scopeParams
+        )
+      : Promise.resolve({ rows: [] }),
+    canViewHistory ? db.query(
       `SELECT hb.* FROM history_bills hb
        JOIN history_snapshots hs ON hs.id = hb.snapshot_id
-       WHERE hs.user_id=$1 ORDER BY hb.snapshot_id, hb.sort_order`,
-      [uid]
-    )
+       WHERE hs.user_id=$1${childRoomScope('hb')}
+       ORDER BY hb.snapshot_id, hb.sort_order`,
+      scopeParams
+    ) : Promise.resolve({ rows: [] })
   ]);
 
   const properties = propertiesR.rows.map(propertyJson);
@@ -101,14 +172,14 @@ async function buildState(uid, options = {}) {
   const s = settingsR.rows[0] || {};
   const settings = {
     deduction: num(s.deduction, 450000),
-    bankId: s.bank_id || '',
-    bankAccount: s.bank_account || '',
-    bankOwnerName: s.bank_owner_name || '',
-    bankTransferPattern: s.bank_transfer_pattern || '',
-    reminderEnabled: !!s.reminder_enabled,
+    bankId: canViewInvoices ? (s.bank_id || '') : '',
+    bankAccount: canViewInvoices ? (s.bank_account || '') : '',
+    bankOwnerName: canViewInvoices ? (s.bank_owner_name || '') : '',
+    bankTransferPattern: canViewInvoices ? (s.bank_transfer_pattern || '') : '',
+    reminderEnabled: !isScopedStaff && !!s.reminder_enabled,
     reminderDay: num(s.reminder_day, 30),
     reminderTime: s.reminder_time || '20:00',
-    invoiceReminderEnabled: !!s.invoice_reminder_enabled,
+    invoiceReminderEnabled: !isScopedStaff && !!s.invoice_reminder_enabled,
     invoiceReminderBeforeDays: Array.isArray(s.invoice_reminder_before_days)
       ? s.invoice_reminder_before_days.map(Number)
       : [...DEFAULT_BEFORE_DAYS],
@@ -169,9 +240,23 @@ async function buildState(uid, options = {}) {
       electricPrev: num(r.electric_prev),
       waterPrev: num(r.water_prev),
       notes: r.notes || '',
-      tenants: tenantsByRoom[r.id] || [],
-      rateHistory: ratesByRoom[r.id] || []
+      tenants: canViewTenants ? (tenantsByRoom[r.id] || []) : [],
+      rateHistory: canViewRooms ? (ratesByRoom[r.id] || []) : []
     };
+    if (!canViewRooms) {
+      room.rentStartDate = '';
+      room.rentPrice = 0;
+      room.electricRate = 0;
+      room.waterRate = 0;
+      room.trashFee = 0;
+      room.wifiFee = 0;
+      room.manageFee = 0;
+      room.notes = '';
+    }
+    if (!canViewMeters) {
+      room.electricPrev = 0;
+      room.waterPrev = 0;
+    }
     room.rateHistory = RoomRates.normalizeHistory(room);
     return room;
   });
@@ -183,15 +268,15 @@ async function buildState(uid, options = {}) {
       electricNew: orEmpty(b.electric_new),
       waterUnits: orEmpty(b.water_units),
       waterNew: orEmpty(b.water_new),
-      utilityOnly: !!b.utility_only,
-      discountAmount: num(b.discount_amount),
-      surchargeAmount: num(b.surcharge_amount),
-      lateFeeAmount: num(b.late_fee_amount),
-      paid: !!b.paid
+      utilityOnly: canViewInvoices && !!b.utility_only,
+      discountAmount: canViewInvoices ? num(b.discount_amount) : 0,
+      surchargeAmount: canViewInvoices ? num(b.surcharge_amount) : 0,
+      lateFeeAmount: canViewInvoices ? num(b.late_fee_amount) : 0,
+      paid: canViewInvoices && !!b.paid
     };
-    if (b.electric_old_override !== null) entry.electricOldOverride = Number(b.electric_old_override);
-    if (b.water_old_override !== null) entry.waterOldOverride = Number(b.water_old_override);
-    if (b.note !== null && b.note !== '') entry.note = b.note;
+    if (canViewMeters && b.electric_old_override !== null) entry.electricOldOverride = Number(b.electric_old_override);
+    if (canViewMeters && b.water_old_override !== null) entry.waterOldOverride = Number(b.water_old_override);
+    if (canViewMeters && b.note !== null && b.note !== '') entry.note = b.note;
     (billingData[b.period] ||= {})[b.room_id] = entry;
   }
 
@@ -248,11 +333,34 @@ async function buildState(uid, options = {}) {
     bills: billsBySnap[hs.id] || []
   }));
 
-  return { properties, rooms, billingData, expenses, settings, history, theme };
+  return {
+    properties,
+    rooms,
+    billingData: canViewMeters ? billingData : {},
+    expenses,
+    settings,
+    history,
+    theme,
+    workspaceAccess: options.workspaceAccess || null
+  };
 }
 
 async function getState(req, res) {
-  res.json(await buildState(req.userId, { maskCccd: true }));
+  const workspace = req.workspace || null;
+  res.json(await buildState(req.userId, {
+    maskCccd: true,
+    allowedPropertyIds: workspace && !workspace.isOwner ? workspace.propertyIds : null,
+    operations: workspace ? workspace.operations : [],
+    workspaceAccess: workspace ? {
+      accountUserId: Number(workspace.accountUserId),
+      actorUserId: Number(workspace.actorUserId),
+      role: workspace.role,
+      isOwner: !!workspace.isOwner,
+      propertyIds: workspace.isOwner ? null : workspace.propertyIds,
+      operations: workspace.operations,
+      readOnly: !workspace.isOwner
+    } : null
+  }));
 }
 
 // ============================================================
@@ -261,6 +369,12 @@ async function getState(req, res) {
 //  với quy mô nhà trọ; toàn bộ nằm trong transaction nên không mất dữ liệu).
 // ============================================================
 async function putState(req, res) {
+  if (req.workspace && !req.workspace.isOwner) {
+    return res.status(403).json({
+      error: 'Phạm vi nhân viên hiện chỉ cho phép xem dữ liệu được giao',
+      code: 'STAFF_WORKSPACE_READ_ONLY'
+    });
+  }
   const uid = req.userId;
   const body = req.body || {};
   const rooms = Array.isArray(body.rooms) ? body.rooms : [];
