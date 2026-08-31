@@ -307,7 +307,7 @@ Trạng thái đến ngày 30/08/2026:
 
 - [x] Một tài khoản chủ sở hữu quản lý được nhiều khu/tòa nhà.
 - [x] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
-- [ ] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
+- [x] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
 - [ ] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
 - [ ] Dashboard tổng hợp và bộ lọc theo từng khu.
 - [ ] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
@@ -324,8 +324,16 @@ khoản TrọBill đã xác minh; giới hạn nhân viên theo gói được ki
 trong khi thao tác thu hồi luôn khả dụng. Migration đã áp dụng trên staging và
 production; 326/326 test, GitHub Actions và readiness production đều thành công.
 Smoke test tài khoản thật xác nhận card responsive ở viewport 390x844 và form
-Free 0/0 khóa rõ ràng. Membership chưa cấp quyền dữ liệu cho đến khi hoàn tất mục
-phân quyền theo khu/nghiệp vụ kế tiếp.
+Free 0/0 khóa rõ ràng.
+
+Phân quyền ngày 31/08/2026 tách danh tính đăng nhập khỏi workspace chủ được giao.
+Chủ chọn khu và nghiệp vụ theo ma trận vai trò; nhân viên chỉ mở workspace khi có
+ít nhất một khu và một nghiệp vụ, state được lọc theo khu và lược trường ngoài
+nghiệp vụ. Workspace nhân viên hiện chỉ đọc để không cho snapshot đã lọc ghi đè
+dữ liệu khu khác; đổi vai trò chỉ thu hồi phạm vi khi vai trò thật sự thay đổi.
+Chi phí cấp tài khoản chỉ hiện khi nhân viên được giao toàn bộ khu. Migration
+assignment đã áp dụng trên `staging-privacy` và production, cả hai đạt 6/6 cờ;
+340/340 test, CI, readiness và smoke test production sau reload đều thành công.
 
 ### Bảo trì và tài sản
 

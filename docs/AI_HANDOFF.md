@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — mô hình vai trò đã phát hành và xác minh trên production |
+| Trạng thái | Sẵn sàng bàn giao — phân quyền nhân viên theo khu/nghiệp vụ đã phát hành và xác minh production |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
-| Phần ứng dụng phát hành gần nhất | `f94e452` + hotfix `70ad7ea` — mô hình vai trò và quản lý nhân sự |
-| Việc code tiếp theo | Phân quyền nhân viên theo khu hoặc nghiệp vụ được giao |
+| Phần ứng dụng phát hành gần nhất | `0e75d72` — workspace nhân viên lọc theo khu/nghiệp vụ, chỉ đọc |
+| Việc code tiếp theo | Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -29,8 +29,10 @@ minh. Hotfix đã phát hành để giao dịch cọc tương thích runtime lea
 để các bản lưu toàn-state không chạy chồng/ghi đè ngược thứ tự. Sau khi người
 dùng smoke test đúng loại giao dịch cọc, phần đầu **Nhiều khu và phân quyền** đã
 được triển khai và phát hành: khu có CRUD riêng, phòng gắn ownership theo khu,
-có khu mặc định và import tương thích. Mô hình vai trò cũng đã phát hành và smoke
-test production; hạng mục tiếp theo là phân quyền nhân viên theo khu/nghiệp vụ.
+có khu mặc định và import tương thích. Mô hình vai trò và phân quyền nhân viên đã
+phát hành: actor đăng nhập tách khỏi workspace chủ, dữ liệu lọc theo khu/nghiệp
+vụ và staff chỉ đọc. Hạng mục tiếp theo là audit log thay đổi giá, hóa đơn, giao
+dịch và hợp đồng.
 
 ## Bản đồ hệ thống ngắn
 
@@ -157,6 +159,24 @@ test production; hạng mục tiếp theo là phân quyền nhân viên theo khu
   production xác nhận owner bất biến, gói Free hiển thị 0/0 nhân viên, form thêm
   nhân viên bị khóa đúng chính sách, nút disabled có opacity 0.5 và card không
   tràn ngang ở viewport 390x844. Không tạo membership thử trên production.
+- Phân quyền nhân viên thêm `account_member_property_access` và
+  `account_member_operation_access`; middleware chỉ đổi data scope sau khi xác
+  minh actor, membership, khu và nghiệp vụ. State nhân viên lọc phòng theo khu,
+  lược dữ liệu ngoài nghiệp vụ và chặn toàn bộ `PUT /api/state`; chi phí cấp tài
+  khoản fail-closed nếu chưa được giao mọi khu. UI có workspace switcher, ma trận
+  gán quyền và banner chỉ đọc; đổi cùng vai trò giữ nguyên assignment, đổi vai
+  trò thật sự mới thu hồi quyền cũ. Migration
+  `20260831_member_access_assignments.sql` đã chạy trên `staging-privacy` và
+  production ngày 31/08/2026, cả hai đạt 6/6 cờ bảng/FK/check/quyền runtime.
+  Preview cuối `tro-bill-ej2jf4ixe-dtung.vercel.app` READY với database/schema
+  `ok`, runtime role `restricted`; dữ liệu test staging đã xóa đúng 2 user và
+  xác nhận còn 0. Bộ đầy đủ đạt 340/340, secret scan sạch. Commit `0e75d72` đã
+  push; CI `33377992578` thành công. Production deployment
+  `tro-bill-emvbnftan-dtung.vercel.app` (`dpl_kbY7Mn8iQ7ASWimhcW3QQBMuJCDX`)
+  READY; alias readiness trả revision `0e75d72ed3ee`, database/schema `ok`,
+  runtime role `restricted`. Smoke test phiên production xác nhận reload vẫn
+  đúng tài khoản, đủ 7 phòng, workspace riêng duy nhất, form nhân viên Free 0/0
+  bị khóa, không tràn ngang; log error 10 phút đầu không có bản ghi.
 
 ## Việc chưa được xem là hoàn tất
 
