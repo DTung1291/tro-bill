@@ -795,6 +795,12 @@ body.modal-open {
   font-size: .76rem;
 }
 .team-member-form button { min-height: 42px; }
+.team-member-form button:disabled,
+.team-member-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  box-shadow: none;
+}
 .subscription-history-head {
   display: flex;
   align-items: flex-start;

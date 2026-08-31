@@ -232,5 +232,6 @@ test('UI và API khai báo đủ thao tác quản lý ba vai trò nhân viên', 
   assert.match(api, /request\('POST', '\/api\/team\/members'/);
   assert.match(api, /request\('PATCH', `\/api\/team\/members/);
   assert.match(css, /\.team-members-list/);
+  assert.match(css, /\.team-member-form button:disabled/);
   assert.match(css, /@media \(max-width:[\s\S]*\.team-member-row/);
 });

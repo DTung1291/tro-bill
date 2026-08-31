@@ -176,7 +176,7 @@ test('schema, API và UI giữ ảnh nhỏ, khóa ownership và không tự xác
   assert.match(apiSource, /function getRentInvoicePaymentProofs/);
   assert.match(appSource, /function renderInvoicePaymentProofs/);
   assert.match(htmlSource, /id="invoice-payment-proof-list"/);
-  assert.match(htmlSource, /style\.css\?v=106[\s\S]*api\.js\?v=103[\s\S]*app\.js\?v=108/);
+  assert.match(htmlSource, /style\.css\?v=107[\s\S]*api\.js\?v=103[\s\S]*app\.js\?v=108/);
   assert.match(publicHtml, /id="invoice-payment-proof-form"/);
   assert.match(publicHtml, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
   assert.match(publicJs, /toDataURL\('image\/jpeg'/);
