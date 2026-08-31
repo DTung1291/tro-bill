@@ -8,13 +8,13 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — dashboard tổng hợp và bộ lọc theo từng khu |
+| Cập nhật lần cuối | 01/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng làm — nhiều tài khoản ngân hàng nhận tiền theo khu |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Đang có thay đổi dashboard/schema chưa commit; migration staging đã chạy, chưa push production |
-| Phần ứng dụng phát hành gần nhất | `1dfcf13` — audit nghiệp vụ cùng transaction; actor tách khỏi tài khoản dữ liệu |
-| Việc code tiếp theo | Commit, dựng Preview trỏ `staging-privacy` và kiểm tra desktop/mobile |
-| Việc vận hành còn mở | Migration production chưa chạy; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
+| Worktree kỳ vọng | Sạch sau commit bàn giao dashboard; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `c0858ca` — dashboard và chi phí lọc theo từng khu |
+| Việc code tiếp theo | Thiết kế tài khoản ngân hàng theo khu, giữ tương thích cấu hình nhận tiền hiện tại |
+| Việc vận hành còn mở | Dọn user test dashboard trên staging; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -32,15 +32,14 @@ dùng smoke test đúng loại giao dịch cọc, phần đầu **Nhiều khu v�
 có khu mặc định và import tương thích. Mô hình vai trò và phân quyền nhân viên đã
 phát hành: actor đăng nhập tách khỏi workspace chủ, dữ liệu lọc theo khu/nghiệp
 vụ và staff chỉ đọc. Audit giá, hóa đơn, giao dịch và hợp đồng đã phát hành,
-dùng chung retention/least privilege của nhật ký dữ liệu. Hạng mục tiếp theo là
-dashboard tổng hợp và bộ lọc theo từng khu. Code/schema/UI cho hạng mục này đang
-ở worktree: dashboard lọc phòng và tổng tiền theo khu; chi phí có thể gắn khu
+dùng chung retention/least privilege của nhật ký dữ liệu. Dashboard theo khu đã
+phát hành: dashboard lọc phòng và tổng tiền theo khu; chi phí có thể gắn khu
 hoặc để chung; nhân viên được lọc chi phí theo assignment. Dữ liệu chi phí cũ
 được giữ là chi phí chung, không tự phân bổ. Migration
 `20260831_dashboard_property_expenses.sql` đã chạy trên Neon `staging-privacy`
-ngày 31/08/2026 và đạt 5/5 cờ cột, ownership FK, index, quyền runtime và toàn
-vẹn tham chiếu. Chưa chạy production; bước tiếp theo là dựng Preview và kiểm tra
-UI trước khi nâng production rồi mới push `main`.
+và production, cả hai đạt 5/5 cờ cột, ownership FK, index, quyền runtime và toàn
+vẹn tham chiếu. Preview và production đã kiểm tra desktop/mobile cùng dữ liệu
+thật. Hạng mục code tiếp theo là nhiều tài khoản ngân hàng nhận tiền theo khu.
 
 ## Bản đồ hệ thống ngắn
 
@@ -199,6 +198,19 @@ UI trước khi nâng production rồi mới push `main`.
   phiên đăng nhập tải được danh sách audit cùng actor/nhãn, không có console
   error hoặc tràn ngang; reload vẫn đúng `admin@trobill.local` và 7/7 phòng.
   Runtime error scan 10 phút đầu không có bản ghi.
+- Dashboard theo khu thêm `expense_entries.property_id` nullable với ownership
+  FK; `NULL` tiếp tục là chi phí chung và không bị gán giả vào khu mặc định.
+  Migration `20260831_dashboard_property_expenses.sql` đã chạy trên
+  `staging-privacy` và production ngày 01/09/2026, cả hai đạt 5/5 cờ xác minh.
+  Preview `tro-bill-enmw8xy0m-dtung.vercel.app` được thử với hai khu, hai phòng,
+  chi phí chung và chi phí riêng; tổng tất cả khu và từng khu đều đúng, viewport
+  desktop/mobile không tràn ngang và console sạch. Bộ đầy đủ đạt 347/347, secret
+  scan sạch; commit `c0858ca` đã push, CI `33431637140` thành công. Production
+  deployment `tro-bill-gqf9auib8-dtung.vercel.app`
+  (`dpl_DGFEePEjiRvbRq9zk5ysEsozFz4D`) READY; alias readiness trả revision
+  `c0858ca10e12`, database/schema `ok`, runtime role `restricted`. Smoke test
+  tài khoản thật xác nhận bộ lọc nhận đúng khu `Khu Trọ Vũ Hữu (7)` và không có
+  lỗi console; không ghi dữ liệu thử trên production.
 
 ## Việc chưa được xem là hoàn tất
 

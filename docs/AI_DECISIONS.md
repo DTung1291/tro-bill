@@ -252,7 +252,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-020 — Chi phí theo khu không được tự phân bổ từ dữ liệu chung
 
-- **Trạng thái:** Đang triển khai từ 31/08/2026; chưa phát hành production.
+- **Trạng thái:** Đã phát hành production ngày 01/09/2026.
 - **Quyết định:** `expense_entries.property_id` là quan hệ nullable có ownership
   FK cùng `user_id`. `NULL` nghĩa là chi phí chung của toàn tài khoản; dashboard
   “Tất cả khu” tính cả chi phí chung và chi phí đã gắn khu, còn dashboard một khu

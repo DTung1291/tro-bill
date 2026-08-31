@@ -309,7 +309,7 @@ Trạng thái đến ngày 30/08/2026:
 - [x] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
 - [x] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
 - [x] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
-- [ ] Dashboard tổng hợp và bộ lọc theo từng khu.
+- [x] Dashboard tổng hợp và bộ lọc theo từng khu.
 - [ ] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
 
 Trạng thái đến ngày 30/08/2026: khu/tòa nhà đã có CRUD riêng theo tài khoản,
@@ -346,6 +346,17 @@ rác. Không cần migration mới vì bảng/permission hiện có đã đáp �
 `1dfcf13872cd` readiness HTTP 200. Smoke test tài khoản thật xác nhận nhật ký tải
 được actor, nhãn nghiệp vụ, không lỗi console/tràn ngang và reload vẫn đúng chủ
 `admin@trobill.local` với 7 phòng.
+
+Dashboard theo khu phát hành ngày 01/09/2026: bộ lọc riêng trên Tổng quan giới
+hạn phòng, doanh thu, điện, nước, tiến độ và trạng thái theo khu. Chi phí có thể
+gắn một khu hoặc để chung; dữ liệu cũ giữ là chi phí chung, chỉ được tính ở chế
+độ “Tất cả khu” để không tạo số liệu phân bổ giả. Migration
+`20260831_dashboard_property_expenses.sql` đã chạy trên `staging-privacy` và
+production, cả hai đạt 5/5 cờ xác minh. Preview thử với hai khu, hai phòng và hai
+phạm vi chi phí cho kết quả đúng; desktop/mobile không tràn ngang. Bộ đầy đủ đạt
+347/347 test, CI `33431637140` thành công; production revision `c0858ca10e12`
+ready với database/schema `ok`, runtime role `restricted`. Smoke test tài khoản
+thật xác nhận bộ lọc nhận đúng khu có 7 phòng và không có lỗi console.
 
 ### Bảo trì và tài sản
 
