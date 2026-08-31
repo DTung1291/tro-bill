@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 30/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — quản lý nhiều khu/tòa nhà đã phát hành và xác minh production |
+| Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đang phát hành — mô hình vai trò và màn hình quản lý thành viên |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
 | Phần ứng dụng phát hành gần nhất | `6aa82cc` — một chủ sở hữu quản lý nhiều khu/tòa nhà |
-| Việc code tiếp theo | Vai trò chủ sở hữu/quản lý/kế toán/người ghi điện nước |
+| Việc code tiếp theo | Phân quyền nhân viên theo khu hoặc nghiệp vụ được giao |
 | Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -141,6 +141,14 @@ có khu mặc định và import tương thích. Hạng mục tiếp theo là m�
   đạt 318/318 test, secret scan và `git diff --check` sạch. Smoke test production
   xác nhận 7/7 phòng hiển thị với badge khu, bộ lọc đúng, không tràn ngang và
   modal khóa scroll nền. Không tạo/xóa dữ liệu thử trên production.
+- Mô hình vai trò đã thêm `account_memberships`, owner membership bất biến và ba
+  vai trò quản lý/kế toán/người ghi điện nước. Chủ chỉ thêm tài khoản đã xác minh,
+  bị giới hạn theo gói; thao tác thu hồi luôn khả dụng để bảo mật. Membership chưa
+  cấp quyền xem dữ liệu chủ trọ cho đến khi có assignment ở hạng mục kế tiếp.
+  Migration `20260830_account_roles.sql` đã chạy trên Neon `staging-privacy` và
+  production ngày 31/08/2026, cả hai đạt 6/6 cờ bảng, constraint, trigger,
+  backfill và quyền runtime. Bộ test hiện đạt 326/326, secret scan và
+  `git diff --check` sạch; commit/deploy/kiểm tra giao diện còn đang thực hiện.
 
 ## Việc chưa được xem là hoàn tất
 

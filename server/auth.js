@@ -197,6 +197,13 @@ async function register(req, res) {
       [email, hash, PRIVACY_POLICY_VERSION, TERMS_VERSION]
     );
     user = rows[0];
+    await client.query(
+      `INSERT INTO account_memberships
+         (account_user_id, member_user_id, role, created_by_user_id)
+       VALUES ($1, $1, 'owner', $1)
+       ON CONFLICT (account_user_id, member_user_id) DO NOTHING`,
+      [user.id]
+    );
     await client.query('INSERT INTO settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user.id]);
     await client.query(
       `INSERT INTO properties (user_id, name, is_default, sort_order)

@@ -123,6 +123,15 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_trigger
       WHERE tgname='rent_invoice_finalization_immutable_before_update'
+    )
+    AND to_regclass('public.account_memberships') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='account_memberships_owner_shape_valid'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname='users_assign_owner_account_membership'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

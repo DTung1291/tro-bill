@@ -194,3 +194,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khu mặc định cho server cũ để rollout schema trước code không làm gián đoạn
   ghi dữ liệu. Backup nhiều khu phải ánh xạ ID theo tài khoản đích trước khi ghi
   phòng; địa chỉ hợp đồng/biên bản lấy mặc định từ khu của phòng.
+
+## D-017 — Vai trò tài khoản tách khỏi quyền truy cập dữ liệu
+
+- **Trạng thái:** Đang áp dụng từ 31/08/2026.
+- **Quyết định:** Mỗi tài khoản vận hành có một membership `owner` bất biến và
+  có thể gán tài khoản TrọBill đã xác minh vào một trong ba vai trò `manager`,
+  `accountant`, `meter_reader`. Dữ liệu nghiệp vụ vẫn thuộc `account_user_id`
+  của chủ sở hữu; membership chỉ mô tả vai trò và chưa tự cấp quyền đọc/ghi dữ
+  liệu của chủ. Quyền đó chỉ được kích hoạt khi có phạm vi khu hoặc nghiệp vụ
+  được giao ở hạng mục phân quyền tiếp theo.
+- **Lý do:** Cho nhân viên truy cập toàn bộ dữ liệu ngay khi gán vai trò sẽ vượt
+  quá nguyên tắc least privilege và làm mục “chỉ xem khu/nghiệp vụ được giao”
+  không còn chốt chặn an toàn.
+- **Hệ quả:** Chỉ chủ sở hữu quản lý danh sách vai trò; không thể sửa/xóa owner.
+  Thêm hoặc đổi vai trò tuân theo gói và hạn mức nhân viên, nhưng thu hồi thành
+  viên luôn được phép kể cả khi gói hết hạn/hạ cấp. Mọi endpoint dữ liệu dành
+  cho nhân viên sau này phải xác minh membership cùng assignment cụ thể, không
+  được thay `req.userId` bằng account chủ chỉ dựa trên role.

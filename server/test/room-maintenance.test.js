@@ -316,5 +316,5 @@ test('schema, chốt chặn và UI không dùng trạng thái client hoặc inli
   assert.match(app, /ROOM_OPERATIONAL_STATUS_BY_ROOM/);
   assert.match(app, /syncModalScrollLock\(\)/);
   assert.doesNotMatch(app, /onclick="(?:open|close).*Maintenance/);
-  assert.match(html, /style\.css\?v=105[\s\S]*api\.js\?v=102[\s\S]*app\.js\?v=107/);
+  assert.match(html, /style\.css\?v=106[\s\S]*api\.js\?v=103[\s\S]*app\.js\?v=108/);
 });

@@ -157,6 +157,22 @@ const API = (() => {
     return request('DELETE', `/api/properties/${encodeURIComponent(id)}`);
   }
 
+  function getTeamMembers() {
+    return request('GET', '/api/team/members');
+  }
+
+  function createTeamMember(input) {
+    return request('POST', '/api/team/members', input);
+  }
+
+  function updateTeamMember(id, input) {
+    return request('PATCH', `/api/team/members/${encodeURIComponent(id)}`, input);
+  }
+
+  function deleteTeamMember(id) {
+    return request('DELETE', `/api/team/members/${encodeURIComponent(id)}`);
+  }
+
   function me() {
     return request('GET', '/api/me');
   }
@@ -592,6 +608,10 @@ const API = (() => {
     createProperty,
     updateProperty,
     deleteProperty,
+    getTeamMembers,
+    createTeamMember,
+    updateTeamMember,
+    deleteTeamMember,
     me,
     getSubscription,
     getPlans,

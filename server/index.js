@@ -58,6 +58,7 @@ const rentalLifecycle = require('./rental-lifecycle');
 const rentalFinalSettlements = require('./rental-final-settlements');
 const roomMaintenance = require('./room-maintenance');
 const properties = require('./properties');
+const teamMembers = require('./team-members');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -344,6 +345,10 @@ app.get('/api/properties', requireAuth, wrap(properties.listProperties));
 app.post('/api/properties', requireAuth, wrap(properties.createProperty));
 app.patch('/api/properties/:id', requireAuth, wrap(properties.updateProperty));
 app.delete('/api/properties/:id', requireAuth, wrap(properties.deleteProperty));
+app.get('/api/team/members', requireAuth, wrap(teamMembers.listTeamMembers));
+app.post('/api/team/members', requireAuth, wrap(teamMembers.createTeamMember));
+app.patch('/api/team/members/:id', requireAuth, wrap(teamMembers.updateTeamMember));
+app.delete('/api/team/members/:id', requireAuth, wrap(teamMembers.deleteTeamMember));
 app.get('/api/state', requireAuth, wrap(getState));
 app.put('/api/state', requireAuth, wrap(putState));
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));

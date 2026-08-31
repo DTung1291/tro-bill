@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=105" />
+  <link rel="stylesheet" href="style.css?v=106" />
 </head>
 
 <body>
@@ -409,6 +409,36 @@
           Chưa có đơn thanh toán subscription nào.
         </p>
       </div>
+
+      <section class="settings-card team-members-card" id="team-members-card" aria-labelledby="team-members-title">
+        <div class="team-members-head">
+          <div>
+            <strong id="team-members-title">👥 Nhân sự và vai trò</strong>
+            <p>Gán vai trò cho tài khoản TrọBill đã xác minh. Chủ sở hữu luôn có toàn quyền và không thể bị sửa hoặc xóa.</p>
+          </div>
+          <span class="team-staff-usage" id="team-staff-usage">0 / 0 nhân viên</span>
+        </div>
+        <p class="team-members-access-note">
+          Vai trò được lưu an toàn ở bước này. Nhân viên chỉ được vào dữ liệu của chủ sau khi bạn gán khu và nghiệp vụ ở phần phân quyền kế tiếp.
+        </p>
+        <div class="team-members-list" id="team-members-list"></div>
+        <form class="team-member-form" id="team-member-form">
+          <label>
+            <span>Email tài khoản nhân viên</span>
+            <input class="form-input" type="email" id="team-member-email" maxlength="320" autocomplete="off" placeholder="nhanvien@example.com" required />
+          </label>
+          <label>
+            <span>Vai trò</span>
+            <select class="form-input" id="team-member-role" required>
+              <option value="manager">Quản lý</option>
+              <option value="accountant">Kế toán</option>
+              <option value="meter_reader">Người ghi điện nước</option>
+            </select>
+          </label>
+          <button type="submit" class="btn btn--sm btn--primary" id="team-member-submit">Thêm nhân viên</button>
+        </form>
+        <p class="settings-security-note" id="team-member-status">Đang tải danh sách vai trò…</p>
+      </section>
 
       <div class="settings-card">
         <span>⚙️ Khoản khấu trừ thêm khi in báo cáo:</span>
@@ -1856,7 +1886,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=102"></script>
+  <script src="api.js?v=103"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1866,7 +1896,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=108"></script>
 </body>
 
 </html>

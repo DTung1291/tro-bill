@@ -97,6 +97,13 @@ let ACTIVE_RENT_INVOICE_SHARE_ID = null;
 let RENT_INVOICE_SHARE_LINKS = [];
 let RENT_INVOICE_PAYMENT_PROOFS = [];
 let ACTIVE_PROPERTY_FILTER = 'all';
+let TEAM_MEMBERS = [];
+let TEAM_MEMBER_ROLES = [
+  { value: 'manager', label: 'Quản lý' },
+  { value: 'accountant', label: 'Kế toán' },
+  { value: 'meter_reader', label: 'Người ghi điện nước' }
+];
+let TEAM_STAFF_USAGE = { used: 0, limit: 0, remaining: 0, canManage: false };
 
 function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
@@ -1165,6 +1172,8 @@ function clearSensitiveStateFromMemory() {
   ACTIVE_RENT_INVOICE_SHARE_ID = null;
   RENT_INVOICE_SHARE_LINKS = [];
   RENT_INVOICE_PAYMENT_PROOFS = [];
+  TEAM_MEMBERS = [];
+  TEAM_STAFF_USAGE = { used: 0, limit: 0, remaining: 0, canManage: false };
   ACTIVE_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
   SERVER_SUBSCRIPTION_PAYMENTS = [];
@@ -6945,6 +6954,132 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
 // ============================================================
 //  SETTINGS
 // ============================================================
+function teamRoleOptions(selectedRole) {
+  return TEAM_MEMBER_ROLES.map(role => (
+    `<option value="${role.value}" ${role.value === selectedRole ? 'selected' : ''}>${escapeHtml(role.label)}</option>`
+  )).join('');
+}
+
+function applyTeamMembersPayload(payload = {}) {
+  TEAM_MEMBERS = Array.isArray(payload.members) ? payload.members : [];
+  if (Array.isArray(payload.roles) && payload.roles.length > 0) {
+    TEAM_MEMBER_ROLES = payload.roles;
+  }
+  TEAM_STAFF_USAGE = {
+    used: Math.max(0, Number(payload.staffUsage?.used) || 0),
+    limit: Math.max(0, Number(payload.staffUsage?.limit) || 0),
+    remaining: Math.max(0, Number(payload.staffUsage?.remaining) || 0),
+    canManage: payload.staffUsage?.canManage === true
+  };
+}
+
+function renderTeamMembers() {
+  const list = document.getElementById('team-members-list');
+  const usage = document.getElementById('team-staff-usage');
+  const status = document.getElementById('team-member-status');
+  const form = document.getElementById('team-member-form');
+  if (!list || !usage || !status || !form) return;
+
+  usage.textContent = `${TEAM_STAFF_USAGE.used} / ${TEAM_STAFF_USAGE.limit} nhân viên`;
+  const canAdd = TEAM_STAFF_USAGE.canManage && TEAM_STAFF_USAGE.remaining > 0;
+  form.querySelectorAll('input, select, button').forEach(control => {
+    control.disabled = !canAdd;
+  });
+  status.textContent = TEAM_STAFF_USAGE.canManage
+    ? (TEAM_STAFF_USAGE.remaining > 0
+      ? `Còn ${TEAM_STAFF_USAGE.remaining} vị trí nhân viên trong gói hiện tại.`
+      : 'Đã dùng hết số nhân viên của gói hiện tại.')
+    : 'Gói hiện tại chưa hỗ trợ thêm nhân viên. Nâng cấp Business hoặc dùng thử Business để kích hoạt.';
+
+  list.innerHTML = TEAM_MEMBERS.map(member => {
+    const owner = member.isOwner || member.role === 'owner';
+    return `
+      <div class="team-member-row" data-team-member="${member.userId}">
+        <div class="team-member-identity">
+          <strong>${escapeHtml(member.email)}</strong>
+          <span>${owner ? 'Tài khoản sở hữu dữ liệu' : escapeHtml(member.roleLabel || member.role)}</span>
+        </div>
+        <div class="team-member-actions">
+          ${owner
+            ? '<span class="team-owner-badge">Chủ sở hữu</span>'
+            : `<select class="form-input team-member-role-select" aria-label="Vai trò của ${escapeHtml(member.email)}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>${teamRoleOptions(member.role)}</select>
+               <button type="button" class="btn btn--sm btn--ghost" data-team-save="${member.userId}" ${TEAM_STAFF_USAGE.canManage ? '' : 'disabled'}>Lưu vai trò</button>
+               <button type="button" class="btn btn--sm btn--danger" data-team-remove="${member.userId}">Xóa</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-team-save]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const row = button.closest('[data-team-member]');
+      const role = row?.querySelector('.team-member-role-select')?.value;
+      button.disabled = true;
+      try {
+        const result = await API.updateTeamMember(button.dataset.teamSave, { role });
+        const index = TEAM_MEMBERS.findIndex(member => member.userId === result.member.userId);
+        if (index >= 0) TEAM_MEMBERS[index] = result.member;
+        renderTeamMembers();
+        showToast('Đã cập nhật vai trò ✓', 'success');
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không cập nhật được vai trò', 'error', 4000);
+        renderTeamMembers();
+      }
+    });
+  });
+
+  list.querySelectorAll('[data-team-remove]').forEach(button => {
+    button.addEventListener('click', () => {
+      const member = TEAM_MEMBERS.find(item => item.userId === Number(button.dataset.teamRemove));
+      if (!member) return;
+      showConfirm(`Xóa ${member.email} khỏi danh sách nhân viên?`, async () => {
+        try {
+          await API.deleteTeamMember(member.userId);
+          TEAM_MEMBERS = TEAM_MEMBERS.filter(item => item.userId !== member.userId);
+          TEAM_STAFF_USAGE.used = Math.max(0, TEAM_STAFF_USAGE.used - 1);
+          TEAM_STAFF_USAGE.remaining = Math.max(0, TEAM_STAFF_USAGE.limit - TEAM_STAFF_USAGE.used);
+          renderTeamMembers();
+          showToast('Đã xóa nhân viên', 'info');
+        } catch (error) {
+          if (error.code === 401) return handleAuthExpired();
+          showToast(error.message || 'Không xóa được nhân viên', 'error', 4000);
+        }
+      }, null, 'Xóa nhân viên');
+    });
+  });
+}
+
+async function refreshTeamMembers() {
+  const result = await API.getTeamMembers();
+  applyTeamMembersPayload(result);
+  renderTeamMembers();
+}
+
+document.getElementById('team-member-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const emailInput = document.getElementById('team-member-email');
+  const roleInput = document.getElementById('team-member-role');
+  const submit = document.getElementById('team-member-submit');
+  submit.disabled = true;
+  try {
+    const result = await API.createTeamMember({
+      email: emailInput.value.trim(),
+      role: roleInput.value
+    });
+    TEAM_MEMBERS.push(result.member);
+    TEAM_STAFF_USAGE.used += 1;
+    TEAM_STAFF_USAGE.remaining = Math.max(0, TEAM_STAFF_USAGE.limit - TEAM_STAFF_USAGE.used);
+    emailInput.value = '';
+    renderTeamMembers();
+    showToast('Đã thêm nhân viên và gán vai trò ✓', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không thêm được nhân viên', 'error', 4500);
+    renderTeamMembers();
+  }
+});
+
 document.getElementById('save-deduction').addEventListener('click', () => {
   const val = parseFloat(document.getElementById('deduction-input').value);
   if (isNaN(val)) { showToast('Số không hợp lệ', 'error'); return; }
@@ -8764,7 +8899,7 @@ async function startApp() {
     throw error;
   }
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult] = await Promise.all([
+  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult] = await Promise.all([
     API.getState(),
     API.getSubscription(),
     API.getPlans().catch(() => ({ plans: [] })),
@@ -8784,6 +8919,10 @@ async function startApp() {
     API.getRoomMaintenance().catch((error) => {
       console.warn('Không tải được lịch sử bảo trì:', error.message);
       return { maintenancePeriods: [] };
+    }),
+    API.getTeamMembers().catch((error) => {
+      console.warn('Không tải được danh sách vai trò:', error.message);
+      return { members: [], staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false } };
     })
   ]);
   if (expectedGeneration !== _sessionGeneration ||
@@ -8795,6 +8934,7 @@ async function startApp() {
     : [];
   loadState(serverState);
   applyRoomOperationalStatusPayload(maintenanceResult);
+  applyTeamMembersPayload(teamResult);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
@@ -8812,6 +8952,7 @@ async function startApp() {
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
   renderRentPaymentChannel();
+  renderTeamMembers();
   loadDonateConfig();
   loadPrivacyStatus();
   showAuthScreen(false);

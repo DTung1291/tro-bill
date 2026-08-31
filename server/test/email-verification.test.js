@@ -79,6 +79,11 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
       if (sql.includes('INSERT INTO users')) {
         return { rows: [{ id: 9, email: 'new@example.com' }] };
       }
+      if (sql.includes('INSERT INTO account_memberships')) {
+        assert.deepEqual(params, [9]);
+        assert.match(sql, /'owner'/);
+        return { rows: [] };
+      }
       if (sql.includes('INSERT INTO settings')) return { rows: [] };
       if (sql.includes('INSERT INTO properties')) {
         assert.deepEqual(params, [9]);

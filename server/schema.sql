@@ -41,6 +41,71 @@ BEGIN
   END IF;
 END $$;
 
+-- Thành viên của một tài khoản vận hành. user_id trên dữ liệu nghiệp vụ vẫn là
+-- account_user_id (chủ sở hữu); member_user_id là người được gán vai trò.
+CREATE TABLE IF NOT EXISTS account_memberships (
+  account_user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  member_user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role               TEXT NOT NULL,
+  created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_user_id, member_user_id),
+  CONSTRAINT account_memberships_role_valid
+    CHECK (role IN ('owner', 'manager', 'accountant', 'meter_reader')),
+  CONSTRAINT account_memberships_owner_shape_valid CHECK (
+    (role='owner' AND account_user_id=member_user_id)
+    OR (role<>'owner' AND account_user_id<>member_user_id)
+  )
+);
+CREATE INDEX IF NOT EXISTS idx_account_memberships_member
+  ON account_memberships(member_user_id, role, account_user_id);
+
+INSERT INTO account_memberships
+  (account_user_id, member_user_id, role, created_by_user_id)
+SELECT id, id, 'owner', id
+FROM users
+ON CONFLICT (account_user_id, member_user_id) DO NOTHING;
+
+-- Migration schema có thể chạy trước code mới. Trigger giữ cho tài khoản được
+-- tạo bởi server phiên bản cũ vẫn luôn có membership chủ sở hữu.
+CREATE OR REPLACE FUNCTION assign_owner_account_membership()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO account_memberships
+    (account_user_id, member_user_id, role, created_by_user_id)
+  VALUES (NEW.id, NEW.id, 'owner', NEW.id)
+  ON CONFLICT (account_user_id, member_user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS users_assign_owner_account_membership ON users;
+CREATE TRIGGER users_assign_owner_account_membership
+AFTER INSERT ON users
+FOR EACH ROW EXECUTE FUNCTION assign_owner_account_membership();
+
+-- Database khởi tạo mới cũng phải cấp đúng quyền cho runtime giống forward
+-- migration. tro_bill_runtime_sql có thể chưa tồn tại ở thời điểm đoạn này chạy;
+-- cuối schema sẽ sao chép quyền từ tro_bill_runtime sang role đó.
+DO $$
+DECLARE
+  runtime_role text;
+BEGIN
+  FOREACH runtime_role IN ARRAY ARRAY['tro_bill_runtime', 'tro_bill_runtime_sql', 'tro_bill_app'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=runtime_role) THEN
+      EXECUTE format(
+        'GRANT SELECT, INSERT, UPDATE, DELETE ON account_memberships TO %I',
+        runtime_role
+      );
+    END IF;
+  END LOOP;
+END $$;
+
 -- Chỉ lưu SHA-256 của token; liên kết email chứa token gốc và hết hạn sau 24h.
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
   user_id    BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
