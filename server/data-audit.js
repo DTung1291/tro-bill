@@ -1,7 +1,6 @@
 'use strict';
 
 const { AUDIT_RETENTION_DAYS } = require('./privacy-constants');
-const { keyHash, requestIp } = require('./rate-limit');
 
 const ALLOWED_FIELDS = new Set([
   'fullName',
@@ -57,6 +56,9 @@ const ALLOWED_FIELDS = new Set([
 ]);
 
 function requestAuditContext(req = {}) {
+  // Tránh bắt các module đọc thuần phải có rate-limit secret ngay khi import.
+  // Production vẫn bắt buộc secret tại thời điểm tạo context audit từ request.
+  const { keyHash, requestIp } = require('./rate-limit');
   const rawIp = requestIp(req);
   return {
     requestIpHash: keyHash('data-audit', 'ip', rawIp),

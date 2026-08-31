@@ -6,6 +6,7 @@ process.env.NODE_ENV = 'test';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
@@ -13,6 +14,26 @@ const {
   requestDataAuditEntry
 } = require('../data-audit');
 const { stateBusinessAuditEntries } = require('../state');
+
+test('module đọc thuần không bị audit ép nạp rate-limit secret khi import', () => {
+  const childEnv = {
+    ...process.env,
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    NODE_ENV: 'test'
+  };
+  delete childEnv.JWT_SECRET;
+  delete childEnv.RATE_LIMIT_SECRET;
+  const result = spawnSync(
+    process.execPath,
+    ['-e', "require('./rent-payment-auto-match'); require('./rent-invoice-links');"],
+    {
+      cwd: path.join(__dirname, '..'),
+      env: childEnv,
+      encoding: 'utf8'
+    }
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 test('audit nghiệp vụ giữ actor khác subject, lọc field và chỉ dọn retention một lần', async () => {
   const calls = [];
