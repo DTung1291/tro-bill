@@ -97,6 +97,7 @@ let ACTIVE_RENT_INVOICE_SHARE_ID = null;
 let RENT_INVOICE_SHARE_LINKS = [];
 let RENT_INVOICE_PAYMENT_PROOFS = [];
 let ACTIVE_PROPERTY_FILTER = 'all';
+let ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
 let TEAM_MEMBERS = [];
 let TEAM_MEMBER_ROLES = [
   { value: 'manager', label: 'Quản lý' },
@@ -1196,6 +1197,7 @@ function clearSensitiveStateFromMemory() {
   CURRENT_WORKSPACE = null;
   CURRENT_WORKSPACE_ACCESS = null;
   ACTIVE_PROPERTY_FILTER = 'all';
+  ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
   SERVER_SUBSCRIPTION_PAYMENTS = [];
   CURRENT_SUBSCRIPTION_ORDER = null;
@@ -1297,6 +1299,9 @@ function loadState(savedObj) {
       period,
       (Array.isArray(items) ? items : []).map(item => ({
         id: item.id || uuid(),
+        propertyId: Number.isSafeInteger(Number(item.propertyId)) && Number(item.propertyId) > 0
+          ? Number(item.propertyId)
+          : null,
         category: item.category || 'other',
         name: item.name || '',
         amount: item.amount !== undefined ? Number(item.amount) : 0,
@@ -2637,8 +2642,10 @@ function getPeriodExpenses(period = STATE.currentPeriod) {
   return Array.isArray(STATE.expenses[period]) ? STATE.expenses[period] : [];
 }
 
-function getExpenseTotal(period = STATE.currentPeriod) {
-  return getPeriodExpenses(period).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+function getExpenseTotal(period = STATE.currentPeriod, propertyFilter = 'all') {
+  return getPeriodExpenses(period)
+    .filter(item => propertyFilter === 'all' || String(item.propertyId) === String(propertyFilter))
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 }
 
 function getExpenseMeta(category) {
@@ -2912,20 +2919,40 @@ function renderDashboard() {
   if (reminderTimeInput) reminderTimeInput.value = STATE.settings.reminderTime || '20:00';
   renderInvoiceReminderSettings();
 
+  const propertyFilter = document.getElementById('dashboard-property-filter');
+  if (ACTIVE_DASHBOARD_PROPERTY_FILTER !== 'all'
+      && !STATE.properties.some(property => String(property.id) === ACTIVE_DASHBOARD_PROPERTY_FILTER)) {
+    ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
+  }
+  propertyFilter.innerHTML = '<option value="all">Tất cả khu</option>' + STATE.properties.map(property => (
+    `<option value="${property.id}">${escapeHtml(property.name)} (${propertyRoomCount(property.id)})</option>`
+  )).join('');
+  propertyFilter.value = ACTIVE_DASHBOARD_PROPERTY_FILTER;
+  const selectedProperty = STATE.properties.find(
+    property => String(property.id) === ACTIVE_DASHBOARD_PROPERTY_FILTER
+  );
+  const visibleRooms = selectedProperty
+    ? STATE.rooms.filter(room => Number(room.propertyId) === Number(selectedProperty.id))
+    : STATE.rooms;
+
   let totalAmt = 0, totalPaid = 0, totalElec = 0, totalWater = 0;
   let entered = 0;
 
   const listEl = document.getElementById('room-status-list');
   listEl.innerHTML = '';
 
-  if (STATE.rooms.length === 0) {
+  if (visibleRooms.length === 0) {
     listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div>
-      <p>Chưa có phòng nào. <button class="link-btn" data-goto="rooms">Thêm phòng ngay</button></p></div>`;
+      <p>${STATE.rooms.length === 0 ? 'Chưa có phòng nào.' : 'Khu này chưa có phòng.'}
+      <button class="link-btn" data-goto="rooms">${STATE.rooms.length === 0 ? 'Thêm phòng ngay' : 'Mở quản lý phòng'}</button></p></div>`;
     listEl.querySelector('[data-goto]')?.addEventListener('click', () => navigate('rooms'));
   }
 
-  for (const room of STATE.rooms) {
+  for (const room of visibleRooms) {
     const rec = getPeriodRecord(room.id, period);
+    const roomProperty = STATE.properties.find(
+      property => Number(property.id) === Number(room.propertyId)
+    );
     const bill = rec ? calcBill(room, rec, period) : null;
     const payment = bill
       ? rentInvoicePaymentState(room.id, period, bill.total, rec?.paid)
@@ -2944,7 +2971,9 @@ function renderDashboard() {
     const waterUnit = room.waterType === 'người' ? 'người' : 'khối';
     item.innerHTML = `
       <div>
-        <div class="room-status-name">${room.name}</div>
+        <div class="room-status-name">${escapeHtml(room.name)}${!selectedProperty && roomProperty
+          ? ` <span class="dashboard-room-property">🏢 ${escapeHtml(roomProperty.name)}</span>`
+          : ''}</div>
         <div class="room-status-detail">
           ${bill ? `⚡ ${fmtNum(bill.kwh)} kWh &nbsp;|&nbsp; 💧 ${bill.waterUnits} ${waterUnit}` : 'Chưa nhập chỉ số'}
         </div>
@@ -2962,7 +2991,7 @@ function renderDashboard() {
     listEl.appendChild(item);
   }
 
-  const totalExpenses = getExpenseTotal(period);
+  const totalExpenses = getExpenseTotal(period, ACTIVE_DASHBOARD_PROPERTY_FILTER);
   document.getElementById('total-amount').textContent = fmt(totalAmt);
   document.getElementById('total-net').textContent     = `Đã thu: ${fmt(totalPaid)}`;
   document.getElementById('total-electric').textContent = fmt(totalElec);
@@ -2970,7 +2999,15 @@ function renderDashboard() {
   document.getElementById('total-expenses').textContent = fmt(totalExpenses);
   document.getElementById('total-profit').textContent   = fmt(totalPaid - totalExpenses);
   document.getElementById('rooms-entered').textContent  = entered;
-  document.getElementById('rooms-total').textContent    = STATE.rooms.length;
+  document.getElementById('rooms-total').textContent    = visibleRooms.length;
+  document.getElementById('total-expenses-note').textContent = selectedProperty
+    ? `Đã trả nhà cung cấp · không gồm chi phí chung`
+    : (isOwnerWorkspace()
+      ? 'Đã trả nhà cung cấp · gồm chi phí chung'
+      : 'Đã trả nhà cung cấp · theo phạm vi được giao');
+  document.getElementById('total-profit-note').textContent = selectedProperty
+    ? `Tiền đã thu - chi phí của ${selectedProperty.name}`
+    : 'Tiền đã thu - toàn bộ chi phí thực tế';
 }
 
 // ============================================================
@@ -2983,6 +3020,18 @@ function resetExpenseForm() {
   document.getElementById('expense-name-row').hidden = true;
   document.getElementById('expense-form-cancel').hidden = true;
   document.getElementById('expense-form-submit').textContent = '+ Lưu chi phí';
+  renderExpensePropertyOptions('');
+}
+
+function renderExpensePropertyOptions(selectedValue) {
+  const select = document.getElementById('expense-property');
+  if (!select) return;
+  const current = selectedValue === undefined ? select.value : String(selectedValue || '');
+  select.innerHTML = '<option value="">Chi phí chung (chỉ tính ở Tất cả khu)</option>'
+    + STATE.properties.map(property => (
+      `<option value="${property.id}">${escapeHtml(property.name)}</option>`
+    )).join('');
+  select.value = STATE.properties.some(property => String(property.id) === current) ? current : '';
 }
 
 function renderExpenses() {
@@ -2994,6 +3043,7 @@ function renderExpenses() {
   document.getElementById('expenses-period-label').textContent = periodLabel(period);
   document.getElementById('expenses-month-input').value = periodInputValue(period);
   document.getElementById('expense-total').textContent = fmt(getExpenseTotal(period));
+  renderExpensePropertyOptions();
 
   summaryEl.innerHTML = Object.entries(EXPENSE_CATEGORIES)
     .filter(([category]) => category !== 'other')
@@ -3014,12 +3064,15 @@ function renderExpenses() {
     const name = item.category === 'other' && item.name ? item.name : meta.label;
     const details = [item.paidDate ? `Ngày trả: ${new Date(`${item.paidDate}T00:00:00`).toLocaleDateString('vi-VN')}` : '', item.note]
       .filter(Boolean).join(' | ') || 'Chưa có ghi chú';
+    const property = STATE.properties.find(entry => Number(entry.id) === Number(item.propertyId));
+    const propertyLabel = property ? `🏢 ${property.name}` : '🌐 Chi phí chung';
     return `
       <div class="expense-item">
         <div class="expense-item-icon">${meta.icon}</div>
         <div class="expense-item-main">
-          <div class="expense-item-name">${name}</div>
-          <div class="expense-item-meta">${details}</div>
+          <div class="expense-item-name">${escapeHtml(name)}</div>
+          <div class="expense-item-property">${escapeHtml(propertyLabel)}</div>
+          <div class="expense-item-meta">${escapeHtml(details)}</div>
         </div>
         <div class="expense-item-amount">${fmt(item.amount)}</div>
         <div class="expense-item-actions">
@@ -3042,6 +3095,7 @@ function editExpense(id) {
   if (!item) return;
   document.getElementById('expense-id').value = item.id;
   document.getElementById('expense-category').value = item.category;
+  renderExpensePropertyOptions(item.propertyId);
   document.getElementById('expense-name').value = item.name || '';
   document.getElementById('expense-amount').value = item.amount;
   document.getElementById('expense-date').value = item.paidDate || '';
@@ -4275,9 +4329,11 @@ function renderPropertyList() {
           await API.deleteProperty(property.id);
           STATE.properties = STATE.properties.filter(item => item.id !== property.id);
           if (ACTIVE_PROPERTY_FILTER === String(property.id)) ACTIVE_PROPERTY_FILTER = 'all';
+          if (ACTIVE_DASHBOARD_PROPERTY_FILTER === String(property.id)) ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
           resetPropertyForm();
           renderPropertyList();
           renderRooms();
+          renderDashboard();
           showToast(`Đã xóa khu ${property.name}`, 'info');
         } catch (error) {
           if (error.code === 401) return handleAuthExpired();
@@ -4716,6 +4772,7 @@ document.getElementById('property-form').addEventListener('submit', async event 
     resetPropertyForm();
     renderPropertyList();
     renderRooms();
+    renderDashboard();
     showToast(id ? 'Đã cập nhật khu ✓' : 'Đã thêm khu ✓', 'success');
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
@@ -7073,6 +7130,10 @@ function shiftPeriod(delta) {
 
 document.getElementById('prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('next-month').addEventListener('click', () => shiftPeriod(+1));
+document.getElementById('dashboard-property-filter').addEventListener('change', event => {
+  ACTIVE_DASHBOARD_PROPERTY_FILTER = event.target.value;
+  renderDashboard();
+});
 document.getElementById('billing-prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('billing-next-month').addEventListener('click', () => shiftPeriod(+1));
 document.getElementById('billing-month-input').addEventListener('change', (e) => {
@@ -7105,6 +7166,8 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const id = document.getElementById('expense-id').value;
   const category = document.getElementById('expense-category').value;
+  const propertyValue = document.getElementById('expense-property').value;
+  const propertyId = propertyValue ? Number(propertyValue) : null;
   const amount = Number(document.getElementById('expense-amount').value);
   const name = document.getElementById('expense-name').value.trim();
   if (!Number.isFinite(amount) || amount < 0) {
@@ -7115,8 +7178,15 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
     showToast('Vui lòng nhập tên chi phí khác', 'error');
     return;
   }
+  if (propertyId !== null
+      && (!Number.isSafeInteger(propertyId)
+        || !STATE.properties.some(property => property.id === propertyId))) {
+    showToast('Khu áp dụng không hợp lệ', 'error');
+    return;
+  }
   const item = {
     id: id || uuid(),
+    propertyId,
     category,
     name: category === 'other' ? name : '',
     amount,

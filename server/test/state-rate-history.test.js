@@ -185,7 +185,7 @@ test('PUT state của workspace nhân viên bị chặn trước khi chạm data
   assert.equal(response.body.code, 'STAFF_WORKSPACE_READ_ONLY');
 });
 
-test('chi phí cấp tài khoản bị ẩn khi nhân viên chưa được giao toàn bộ khu', async (t) => {
+test('chi phí nhân viên được lọc theo khu và chi phí chung chỉ hiện khi có toàn bộ khu', async (t) => {
   const originalQuery = db.query;
   const calls = [];
   t.after(() => { db.query = originalQuery; });
@@ -198,10 +198,15 @@ test('chi phí cấp tài khoản bị ẩn khi nhân viên chưa được giao 
       }] };
     }
     if (sql.includes('FROM expense_entries')) {
-      // Mock mô phỏng chốt SQL: nếu thiếu chốt thì dữ liệu khu khác sẽ bị lộ.
-      return sql.includes('NOT EXISTS') && sql.includes('unassigned_property.id=ANY')
-        ? { rows: [] }
-        : { rows: [{ id: 'secret-expense', period: '2026-08', name: 'Khu B' }] };
+      // Mock chỉ trả khoản thuộc khu được giao khi truy vấn có đủ hai chốt.
+      return sql.includes('expense.property_id=ANY')
+          && sql.includes('expense.property_id IS NULL')
+          && sql.includes('unassigned_property.id=ANY')
+        ? { rows: [{
+          id: 'assigned-expense', property_id: 3, period: '2026-08',
+          category: 'electric', name: '', amount: '120000', paid_date: '', note: ''
+        }] }
+        : { rows: [{ id: 'secret-expense', property_id: 4, period: '2026-08', name: 'Khu B' }] };
     }
     return { rows: [] };
   };
@@ -211,10 +216,31 @@ test('chi phí cấp tài khoản bị ẩn khi nhân viên chưa được giao 
     operations: ['expenses']
   });
 
-  assert.deepEqual(state.expenses, {});
+  assert.equal(state.expenses['2026-08'][0].id, 'assigned-expense');
+  assert.equal(state.expenses['2026-08'][0].propertyId, 3);
   const expenseCall = calls.find(call => call.sql.includes('FROM expense_entries'));
   assert.deepEqual(expenseCall.params, [7, [3]]);
-  assert.match(expenseCall.sql, /NOT EXISTS[\s\S]*unassigned_property\.id=ANY/);
+  assert.match(expenseCall.sql, /expense\.property_id=ANY/);
+  assert.match(expenseCall.sql, /expense\.property_id IS NULL[\s\S]*NOT EXISTS[\s\S]*unassigned_property\.id=ANY/);
+});
+
+test('putState từ chối ID khu chi phí sai trước khi mở transaction', async () => {
+  const response = { statusCode: 200, body: null };
+  const res = {
+    status(code) { response.statusCode = code; return res; },
+    json(body) { response.body = body; return res; }
+  };
+  await putState({
+    userId: 7,
+    body: {
+      rooms: [],
+      expenses: {
+        '2026-08': [{ id: 'expense-1', propertyId: 'not-an-id', amount: 100000 }]
+      }
+    }
+  }, res);
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.body.code, 'INVALID_EXPENSE_PROPERTY');
 });
 
 test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) => {

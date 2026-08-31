@@ -202,6 +202,14 @@ body.workspace-staff-active .main { padding-top: 112px; }
   gap: 8px;
   flex-wrap: wrap;
 }
+.dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dashboard-property-filter { width: min(240px, 100%); }
 
 /* ----- Period Switcher ----- */
 .period-switcher {
@@ -314,6 +322,13 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .room-status-item:hover { border-color: var(--primary); }
 .room-status-name { font-weight: 700; font-size: .95rem; }
+.dashboard-room-property {
+  display: inline-flex;
+  margin-left: 6px;
+  color: var(--primary);
+  font-size: .72rem;
+  font-weight: 700;
+}
 .room-status-total { font-weight: 800; font-size: 1.05rem; color: var(--primary); }
 .room-status-detail { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
 .room-status-payment,
@@ -3623,6 +3638,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
   max-width: 100%;
 }
 .expense-help { margin: -6px 0 2px; color: var(--text-muted); font-size: .84rem; line-height: 1.5; }
+.expense-property-help { color: var(--text-muted); font-size: .76rem; line-height: 1.4; }
 .expense-total { font-size: 1.05rem; font-weight: 800; color: var(--red); }
 .expense-list { display: flex; flex-direction: column; gap: 8px; }
 .expense-item { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -3630,6 +3646,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .expense-item-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--bg3); font-size: 1rem; }
 .expense-item-main { min-width: 0; flex: 1; }
 .expense-item-name { font-size: .9rem; font-weight: 700; }
+.expense-item-property { margin-top: 3px; color: var(--primary); font-size: .75rem; font-weight: 700; }
 .expense-item-meta { margin-top: 2px; color: var(--text-muted); font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .expense-item-amount { font-weight: 800; color: var(--red); white-space: nowrap; }
 .expense-item-actions { display: flex; gap: 4px; }
@@ -3714,6 +3731,9 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
   .rate-effective-panel { grid-template-columns: 1fr; align-items: stretch; }
   .page-header { flex-direction: column; }
+  .dashboard-toolbar { width: 100%; justify-content: stretch; }
+  .dashboard-property-filter { width: 100%; flex-basis: 100%; }
+  .dashboard-toolbar .period-switcher { width: 100%; justify-content: space-between; }
   .rooms-toolbar { width: 100%; justify-content: stretch; }
   .rooms-toolbar > * { flex: 1 1 auto; }
   .rooms-property-filter { width: 100%; flex-basis: 100%; }

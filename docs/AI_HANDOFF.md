@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 31/08/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — audit giá/hóa đơn/giao dịch/hợp đồng đã phát hành và xác minh production |
+| Trạng thái | Đang làm — dashboard tổng hợp và bộ lọc theo từng khu |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit ghi nhận phát hành; agent mới vẫn phải tự kiểm tra |
+| Worktree kỳ vọng | Đang có thay đổi dashboard/schema chưa commit; migration staging đã chạy, chưa push production |
 | Phần ứng dụng phát hành gần nhất | `1dfcf13` — audit nghiệp vụ cùng transaction; actor tách khỏi tài khoản dữ liệu |
-| Việc code tiếp theo | Dashboard tổng hợp và bộ lọc theo từng khu |
-| Việc vận hành còn mở | Credential local `tro_bill_app` đã cũ; vẫn cần xác minh runtime role trước khi thu hồi role cũ |
+| Việc code tiếp theo | Commit, dựng Preview trỏ `staging-privacy` và kiểm tra desktop/mobile |
+| Việc vận hành còn mở | Migration production chưa chạy; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -33,7 +33,14 @@ có khu mặc định và import tương thích. Mô hình vai trò và phân qu
 phát hành: actor đăng nhập tách khỏi workspace chủ, dữ liệu lọc theo khu/nghiệp
 vụ và staff chỉ đọc. Audit giá, hóa đơn, giao dịch và hợp đồng đã phát hành,
 dùng chung retention/least privilege của nhật ký dữ liệu. Hạng mục tiếp theo là
-dashboard tổng hợp và bộ lọc theo từng khu.
+dashboard tổng hợp và bộ lọc theo từng khu. Code/schema/UI cho hạng mục này đang
+ở worktree: dashboard lọc phòng và tổng tiền theo khu; chi phí có thể gắn khu
+hoặc để chung; nhân viên được lọc chi phí theo assignment. Dữ liệu chi phí cũ
+được giữ là chi phí chung, không tự phân bổ. Migration
+`20260831_dashboard_property_expenses.sql` đã chạy trên Neon `staging-privacy`
+ngày 31/08/2026 và đạt 5/5 cờ cột, ownership FK, index, quyền runtime và toàn
+vẹn tham chiếu. Chưa chạy production; bước tiếp theo là dựng Preview và kiểm tra
+UI trước khi nâng production rồi mới push `main`.
 
 ## Bản đồ hệ thống ngắn
 

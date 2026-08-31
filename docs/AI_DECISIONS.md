@@ -249,3 +249,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   không được tạo log mới. `PUT /api/state` phải so sánh dữ liệu hiện có với
   snapshot gửi lên để bỏ qua no-op. Trường audit mới phải được allowlist và nhật
   ký tiếp tục áp dụng retention 365 ngày.
+
+## D-020 — Chi phí theo khu không được tự phân bổ từ dữ liệu chung
+
+- **Trạng thái:** Đang triển khai từ 31/08/2026; chưa phát hành production.
+- **Quyết định:** `expense_entries.property_id` là quan hệ nullable có ownership
+  FK cùng `user_id`. `NULL` nghĩa là chi phí chung của toàn tài khoản; dashboard
+  “Tất cả khu” tính cả chi phí chung và chi phí đã gắn khu, còn dashboard một khu
+  chỉ tính khoản gắn trực tiếp vào khu đó. Dữ liệu cũ giữ `NULL`, không tự gán
+  sang khu mặc định và không tự chia tỷ lệ theo số phòng/doanh thu.
+- **Lý do:** Hệ thống không có căn cứ nghiệp vụ để biết chi phí điện, sửa chữa
+  hoặc vận hành cũ thực sự thuộc khu nào. Tự gán hoặc phân bổ sẽ làm báo cáo lợi
+  nhuận từng khu trông chính xác nhưng sai số liệu gốc.
+- **Hệ quả:** Form chi phí phải cho chọn một khu hoặc “Chi phí chung” và giải
+  thích phạm vi tính. Khu còn khoản chi đã gắn không được xóa cho đến khi khoản
+  chi được chuyển khu hoặc đưa về chung. Nhân viên chỉ nhận khoản chi thuộc khu
+  được giao; chi phí chung chỉ được trả về khi họ được giao toàn bộ khu của tài
+  khoản. Nếu sau này cần phân bổ chi phí chung, phải thêm quy tắc và bút toán
+  phân bổ có thể kiểm tra, không thay đổi âm thầm ý nghĩa của `NULL`.

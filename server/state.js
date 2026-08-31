@@ -232,14 +232,19 @@ async function buildState(uid, options = {}) {
             AND scoped_room.property_id=ANY($2::bigint[])
         )`
     : '';
-  // expense_entries hiện là dữ liệu cấp tài khoản, chưa mang property_id. Để
-  // không lộ chi phí của khu chưa giao, staff chỉ nhận nhóm này khi được giao
-  // toàn bộ khu của chủ. Khi expense có property_id, thay chốt này bằng lọc khu.
-  const accountWideScope = isScopedStaff
-    ? ` AND NOT EXISTS (
-          SELECT 1 FROM properties unassigned_property
-          WHERE unassigned_property.user_id=$1
-            AND NOT (unassigned_property.id=ANY($2::bigint[]))
+  // Chi phí gắn khu được lọc theo assignment. Chi phí chung (property_id NULL)
+  // chỉ hiện khi nhân viên được giao toàn bộ khu để không lộ số liệu toàn tài khoản.
+  const expenseScope = isScopedStaff
+    ? ` AND (
+          expense.property_id=ANY($2::bigint[])
+          OR (
+            expense.property_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM properties unassigned_property
+              WHERE unassigned_property.user_id=$1
+                AND NOT (unassigned_property.id=ANY($2::bigint[]))
+            )
+          )
         )`
     : '';
   const snapshotScope = isScopedStaff
@@ -284,9 +289,9 @@ async function buildState(uid, options = {}) {
     ),
     canViewExpenses
       ? db.query(
-          `SELECT * FROM expense_entries
-           WHERE user_id=$1${accountWideScope}
-           ORDER BY period, sort_order`,
+          `SELECT expense.* FROM expense_entries expense
+           WHERE expense.user_id=$1${expenseScope}
+           ORDER BY expense.period, expense.sort_order`,
           scopeParams
         )
       : Promise.resolve({ rows: [] }),
@@ -424,6 +429,9 @@ async function buildState(uid, options = {}) {
   for (const expense of expensesR.rows) {
     (expenses[expense.period] ||= []).push({
       id: expense.id,
+      propertyId: expense.property_id === null || expense.property_id === undefined
+        ? null
+        : Number(expense.property_id),
       category: expense.category || 'other',
       name: expense.name || '',
       amount: num(expense.amount),
@@ -538,6 +546,7 @@ async function putState(req, res) {
   const roomIds = new Set();
   const tenantIds = new Set();
   const tenantRoomIds = new Map();
+  const expensePropertyIds = [];
   for (const room of rooms) {
     const roomId = String(room && room.id || '').trim();
     if (!roomId || roomId.length > 200 || roomIds.has(roomId)) {
@@ -573,6 +582,22 @@ async function putState(req, res) {
       }
     }
   }
+  for (const period of Object.keys(expenses)) {
+    const items = Array.isArray(expenses[period]) ? expenses[period] : [];
+    for (const expense of items) {
+      if (expense?.propertyId === undefined || expense?.propertyId === null || expense?.propertyId === '') {
+        continue;
+      }
+      const id = Number(expense.propertyId);
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        return res.status(400).json({
+          error: 'Chi phí chứa ID khu không hợp lệ',
+          code: 'INVALID_EXPENSE_PROPERTY'
+        });
+      }
+      expensePropertyIds.push(id);
+    }
+  }
   for (const snapshot of history) {
     if ((Array.isArray(snapshot?.bills) ? snapshot.bills : []).some(hasInvalidInvoiceAdjustment)) {
       return res.status(400).json({
@@ -603,10 +628,13 @@ async function putState(req, res) {
     await enforceStateWrite(uid, rooms.length, client.query.bind(client));
 
     await ensureDefaultProperty(uid, client.query.bind(client));
-    const submittedPropertyIds = [...new Set(rooms
-      .map(room => room?.propertyId)
-      .filter(value => value !== undefined && value !== null && value !== '')
-      .map(Number))];
+    const submittedPropertyIds = [...new Set([
+      ...rooms
+        .map(room => room?.propertyId)
+        .filter(value => value !== undefined && value !== null && value !== '')
+        .map(Number),
+      ...expensePropertyIds
+    ])];
     if (submittedPropertyIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
       await client.query('ROLLBACK');
       return res.status(400).json({
@@ -635,6 +663,13 @@ async function putState(req, res) {
         });
       }
       roomPropertyIds.set(String(room.id), submittedId);
+    }
+    if (expensePropertyIds.some(id => !propertyIds.has(id))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Chi phí chứa khu không thuộc tài khoản',
+        code: 'INVALID_EXPENSE_PROPERTY'
+      });
     }
 
     // PUT /state thay lại toàn bộ rooms/tenants. Khóa chúng cùng hợp đồng active
@@ -951,10 +986,14 @@ async function putState(req, res) {
       for (const expense of items) {
         await client.query(
           `INSERT INTO expense_entries
-             (id, user_id, period, category, name, amount, paid_date, note, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+             (id, user_id, property_id, period, category, name, amount, paid_date, note, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
           [
-            expense.id, uid, period, expense.category || 'other', expense.name || '',
+            expense.id, uid,
+            expense.propertyId === undefined || expense.propertyId === null || expense.propertyId === ''
+              ? null
+              : Number(expense.propertyId),
+            period, expense.category || 'other', expense.name || '',
             num(expense.amount), expense.paidDate || '', expense.note || '', expenseIndex++
           ]
         );

@@ -280,6 +280,17 @@ async function deleteProperty(req, res, dependencies = {}) {
         'Hãy chuyển hết phòng sang khu khác trước khi xóa khu này'
       );
     }
+    const expenseCountResult = await client.query(
+      'SELECT COUNT(*)::int AS expense_count FROM expense_entries WHERE user_id=$1 AND property_id=$2',
+      [req.userId, id]
+    );
+    if (Number(expenseCountResult.rows[0]?.expense_count) > 0) {
+      throw new PropertyError(
+        409,
+        'PROPERTY_HAS_EXPENSES',
+        'Hãy chuyển các khoản chi sang khu khác hoặc chi phí chung trước khi xóa khu này'
+      );
+    }
     await client.query('DELETE FROM properties WHERE user_id=$1 AND id=$2', [req.userId, id]);
     await client.query('COMMIT');
     res.json({ ok: true });

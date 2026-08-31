@@ -136,10 +136,16 @@
           <h1 class="page-title">Tổng quan</h1>
           <p class="page-sub" id="dashboard-period">Tháng --/----</p>
         </div>
-        <div class="period-switcher">
-          <button class="btn-icon" id="prev-month" title="Tháng trước">‹</button>
-          <span class="period-label" id="period-display">--/----</span>
-          <button class="btn-icon" id="next-month" title="Tháng sau">›</button>
+        <div class="dashboard-toolbar">
+          <label class="sr-only" for="dashboard-property-filter">Lọc tổng quan theo khu</label>
+          <select class="form-input dashboard-property-filter" id="dashboard-property-filter">
+            <option value="all">Tất cả khu</option>
+          </select>
+          <div class="period-switcher">
+            <button class="btn-icon" id="prev-month" title="Tháng trước">‹</button>
+            <span class="period-label" id="period-display">--/----</span>
+            <button class="btn-icon" id="next-month" title="Tháng sau">›</button>
+          </div>
         </div>
       </div>
 
@@ -160,12 +166,12 @@
         <div class="card card--expense">
           <div class="card-label">Chi phí thực tế</div>
           <div class="card-value" id="total-expenses">0 đ</div>
-          <div class="card-sub">Đã trả nhà cung cấp</div>
+          <div class="card-sub" id="total-expenses-note">Đã trả nhà cung cấp · gồm chi phí chung</div>
         </div>
         <div class="card card--profit">
           <div class="card-label">Còn lại sau chi phí</div>
           <div class="card-value" id="total-profit">0 đ</div>
-          <div class="card-sub">Tiền đã thu - chi phí thực tế</div>
+          <div class="card-sub" id="total-profit-note">Tiền đã thu - chi phí thực tế</div>
         </div>
         <div class="card card--status">
           <div class="card-label">Phòng đã nhập</div>
@@ -289,6 +295,13 @@
               <option value="internet">📶 Tiền Internet</option>
               <option value="other">➕ Chi phí khác</option>
             </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="expense-property">Khu áp dụng</label>
+            <select class="form-input" id="expense-property">
+              <option value="">Chi phí chung (chỉ tính ở Tất cả khu)</option>
+            </select>
+            <small class="expense-property-help">Chọn một khu để khoản chi được tính vào lợi nhuận riêng của khu đó.</small>
           </div>
           <div class="form-row" id="expense-name-row" hidden>
             <label class="form-label" for="expense-name">Tên chi phí</label>
@@ -1902,7 +1915,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=111"></script>
+  <script src="app.js?v=112"></script>
 </body>
 
 </html>

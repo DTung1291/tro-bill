@@ -1537,6 +1537,7 @@ CREATE INDEX IF NOT EXISTS idx_billing_user_period ON billing_entries(user_id, p
 CREATE TABLE IF NOT EXISTS expense_entries (
   id        TEXT PRIMARY KEY,
   user_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  property_id BIGINT,
   period    TEXT NOT NULL,
   category  TEXT NOT NULL DEFAULT 'other',
   name      TEXT NOT NULL DEFAULT '',
@@ -1545,7 +1546,20 @@ CREATE TABLE IF NOT EXISTS expense_entries (
   note      TEXT NOT NULL DEFAULT '',
   sort_order INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS property_id BIGINT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='expense_entries_property_owner_fk'
+  ) THEN
+    ALTER TABLE expense_entries ADD CONSTRAINT expense_entries_property_owner_fk
+      FOREIGN KEY (user_id, property_id)
+      REFERENCES properties(user_id, id) ON DELETE RESTRICT;
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_expenses_user_period ON expense_entries(user_id, period);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_property_period
+  ON expense_entries(user_id, property_id, period);
 
 -- Ảnh chụp tháng đã lưu (snapshot) + các bill trong đó
 CREATE TABLE IF NOT EXISTS history_snapshots (

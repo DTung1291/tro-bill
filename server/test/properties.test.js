@@ -129,6 +129,33 @@ test('không cho xóa khu mặc định', async () => {
   assert.equal(calls.at(-1).sql, 'ROLLBACK');
 });
 
+test('không cho xóa khu còn khoản chi đã gắn', async () => {
+  const calls = [];
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('COUNT(*)::int AS room_count')) return { rows: [{ room_count: 0 }] };
+      if (sql.includes('FROM subscriptions s')) return { rows: [activeSubscriptionRow()] };
+      if (sql.includes('SELECT * FROM properties') && sql.includes('FOR UPDATE')) {
+        return { rows: [propertyRow()] };
+      }
+      if (sql.includes('COUNT(*)::int AS expense_count')) return { rows: [{ expense_count: 2 }] };
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const response = responseRecorder();
+  await deleteProperty(
+    { userId: 7, params: { id: '2' } },
+    response.res,
+    { getClient: async () => client }
+  );
+  assert.equal(response.record.statusCode, 409);
+  assert.equal(response.record.body.code, 'PROPERTY_HAS_EXPENSES');
+  assert.equal(calls.some(call => call.sql.startsWith('DELETE FROM properties')), false);
+  assert.equal(calls.at(-1).sql, 'ROLLBACK');
+});
+
 test('schema và migration có backfill, ownership FK và quyền runtime', () => {
   const schema = fs.readFileSync(path.join(root, 'server', 'schema.sql'), 'utf8');
   const migration = fs.readFileSync(
@@ -165,4 +192,28 @@ test('UI quản lý, lọc, gắn phòng theo khu và giữ cấu trúc khi impo
   assert.match(api, /request\('PATCH', `\/api\/properties/);
   assert.match(css, /\.property-modal-body[\s\S]*grid-template-columns/);
   assert.match(css, /@media \(max-width:[\s\S]*\.property-modal-body \{ grid-template-columns: 1fr/);
+});
+
+test('dashboard lọc theo khu và chi phí giữ tương thích dữ liệu chung', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const schema = fs.readFileSync(path.join(root, 'server', 'schema.sql'), 'utf8');
+  const migration = fs.readFileSync(
+    path.join(root, 'server', 'migrations', '20260831_dashboard_property_expenses.sql'),
+    'utf8'
+  );
+
+  assert.match(html, /id="dashboard-property-filter"/);
+  assert.match(html, /id="expense-property"[\s\S]*Chi phí chung/);
+  assert.match(app, /ACTIVE_DASHBOARD_PROPERTY_FILTER/);
+  assert.match(app, /getExpenseTotal\(period, ACTIVE_DASHBOARD_PROPERTY_FILTER\)/);
+  assert.match(app, /const propertyId = propertyValue \? Number\(propertyValue\) : null/);
+  assert.match(app, /const item = \{[\s\S]*propertyId,/);
+  for (const source of [schema, migration]) {
+    assert.match(source, /expense_entries_property_owner_fk/);
+    assert.match(source, /REFERENCES properties\(user_id, id\) ON DELETE RESTRICT/);
+    assert.match(source, /idx_expenses_user_property_period/);
+  }
+  assert.doesNotMatch(migration, /UPDATE expense_entries[\s\S]*property_id/);
+  assert.match(migration, /'tro_bill_runtime_sql'/);
 });
