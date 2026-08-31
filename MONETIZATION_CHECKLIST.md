@@ -306,7 +306,7 @@ Trạng thái đến ngày 30/08/2026:
 ### Nhiều khu và phân quyền
 
 - [x] Một tài khoản chủ sở hữu quản lý được nhiều khu/tòa nhà.
-- [ ] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
+- [x] Có vai trò chủ sở hữu, quản lý, kế toán và người ghi điện nước.
 - [ ] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
 - [ ] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
 - [ ] Dashboard tổng hợp và bộ lọc theo từng khu.
@@ -317,6 +317,15 @@ mỗi phòng bắt buộc thuộc đúng một khu và dữ liệu cũ được 
 Trang Phòng hỗ trợ lọc, gắn/chuyển khu; backup cũ và backup nhiều khu đều được
 ánh xạ an toàn khi import. Migration đã áp dụng và xác minh trên staging lẫn
 production; 318/318 test và smoke test production thành công.
+
+Trạng thái đến ngày 31/08/2026: đã có membership bất biến cho chủ sở hữu và ba
+vai trò nhân viên quản lý, kế toán, người ghi điện nước. Chủ chỉ thêm được tài
+khoản TrọBill đã xác minh; giới hạn nhân viên theo gói được kiểm tra ở API và UI,
+trong khi thao tác thu hồi luôn khả dụng. Migration đã áp dụng trên staging và
+production; 326/326 test, GitHub Actions và readiness production đều thành công.
+Smoke test tài khoản thật xác nhận card responsive ở viewport 390x844 và form
+Free 0/0 khóa rõ ràng. Membership chưa cấp quyền dữ liệu cho đến khi hoàn tất mục
+phân quyền theo khu/nghiệp vụ kế tiếp.
 
 ### Bảo trì và tài sản
 
