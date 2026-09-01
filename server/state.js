@@ -734,6 +734,22 @@ async function putState(req, res) {
         roomId: detachedMaintenance.room_id
       });
     }
+    const activeRoomAssets = await client.query(
+      `SELECT id, asset_code, room_id
+       FROM room_assets
+       WHERE user_id=$1 AND status='active'`,
+      [uid]
+    );
+    const detachedAsset = activeRoomAssets.rows.find(asset => !roomIds.has(asset.room_id));
+    if (detachedAsset) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Phòng đang có tài sản ${detachedAsset.asset_code}. Hãy chuyển hoặc ngừng sử dụng tài sản trước khi xóa phòng.`,
+        code: 'ACTIVE_ROOM_ASSET_REQUIRED',
+        assetId: Number(detachedAsset.id),
+        roomId: detachedAsset.room_id
+      });
+    }
     const occupiedRoomIds = new Set(tenantRoomIds.values());
     const occupiedMaintenance = activeMaintenance.rows.find(
       maintenance => occupiedRoomIds.has(maintenance.room_id)

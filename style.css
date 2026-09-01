@@ -1440,6 +1440,75 @@ body.workspace-staff-active .main { padding-top: 112px; }
   margin-bottom: 4px;
 }
 .room-maintenance-history-head span { color: var(--text-muted); font-size: .78rem; }
+.room-assets-heading,
+.room-asset-card,
+.room-asset-title,
+.room-asset-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.room-assets-heading { justify-content: space-between; margin-bottom: 10px; }
+.room-assets-heading h3 { margin: 0; }
+.room-assets-heading p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+.room-assets-list { display: grid; gap: 8px; }
+.room-asset-card {
+  justify-content: space-between;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3);
+}
+.room-asset-card.is-archived { opacity: .72; }
+.room-asset-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.room-asset-main > span {
+  color: var(--text-muted);
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+.room-asset-title { flex-wrap: wrap; }
+.room-asset-condition {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, .12);
+  color: #15803d;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.room-asset-condition--fair { background: rgba(245, 158, 11, .14); color: #b45309; }
+.room-asset-condition--damaged,
+.room-asset-condition--lost { background: rgba(239, 68, 68, .12); color: #b91c1c; }
+.room-asset-archived-reason { color: var(--red) !important; }
+.room-asset-actions { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.room-assets-editor:not(:empty) { margin-bottom: 12px; }
+.room-asset-form {
+  padding: 13px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+.room-asset-form h4 { margin: 0 0 12px; }
+.room-asset-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.room-asset-form-grid .form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.room-asset-wide { grid-column: 1 / -1; }
 
 /* ===========================
    BILLING TABLE
@@ -1818,6 +1887,14 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 
 @media (max-width: 640px) {
+  .room-assets-heading,
+  .room-asset-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .room-asset-form-grid { grid-template-columns: 1fr; }
+  .room-asset-wide { grid-column: auto; }
+  .room-asset-actions { justify-content: flex-start; }
   .billing-toolbar {
     display: grid;
     grid-template-columns: 1fr;
@@ -2848,7 +2925,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .modal-overlay[hidden] { display: none !important; }
 /* Popup xác nhận có thể được mở từ bên trong một modal khác (khách trọ,
    lịch sử biểu phí...). Luôn đặt nó trên modal đang hoạt động. */
-#confirm-modal { z-index: 1300; }
+#confirm-modal { z-index: 1500; }
 .modal.modal--confirm { max-width: 420px; }
 .confirm-modal-content {
   display: flex;

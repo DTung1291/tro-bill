@@ -19,6 +19,7 @@ const { loadRentalHandoverExport } = require('./rental-handovers');
 const { loadRentalLifecycleExport } = require('./rental-lifecycle');
 const { loadRentalFinalSettlementExport } = require('./rental-final-settlements');
 const { loadMaintenanceExport } = require('./room-maintenance');
+const { loadRoomAssetsExport } = require('./room-assets');
 const {
   checkAuthRateLimit,
   clearAccountRateLimit,
@@ -176,7 +177,8 @@ async function exportAccountData(req, res) {
     rentalHandovers,
     rentalLifecycle,
     rentalFinalSettlements,
-    roomMaintenance
+    roomMaintenance,
+    roomAssets
   ] = await Promise.all([
     db.query(
       `SELECT email, created_at, privacy_policy_version, privacy_accepted_at,
@@ -191,7 +193,8 @@ async function exportAccountData(req, res) {
     loadRentalHandoverExport(req.userId),
     loadRentalLifecycleExport(req.userId),
     loadRentalFinalSettlementExport(req.userId),
-    loadMaintenanceExport(req.userId)
+    loadMaintenanceExport(req.userId),
+    loadRoomAssetsExport(req.userId)
   ]);
   if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy tài khoản' });
   await recordDataAudit(db.query, auditEntry(req, 'account_data_export', 'account'));
@@ -206,6 +209,7 @@ async function exportAccountData(req, res) {
     rentalLifecycle,
     rentalFinalSettlements,
     roomMaintenance,
+    roomAssets,
     exportMetadata: {
       exportedAt: new Date().toISOString(),
       account: {

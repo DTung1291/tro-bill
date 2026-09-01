@@ -380,6 +380,12 @@ scan sạch.
 ### Bảo trì và tài sản
 
 - [ ] Quản lý tài sản/nội thất theo phòng.
+  Đang triển khai: danh mục có mã, số lượng, tình trạng, serial, ngày/giá mua;
+  hỗ trợ chuyển phòng, ngừng dùng có lý do, khôi phục, export dữ liệu và tự điền
+  biên bản bàn giao. API lọc nhân viên theo khu; chỉ chủ tài khoản được ghi.
+  Migration staging và production đều đạt 5/5 cờ; Preview đã qua E2E
+  tạo/sửa/chuyển phòng/ngừng dùng/khôi phục, desktop/mobile và confirm modal.
+  Chờ deploy/smoke test production trước khi đánh dấu hoàn thành.
 - [ ] Khách thuê gửi yêu cầu sửa chữa.
 - [ ] Phân công người xử lý và theo dõi trạng thái.
 - [ ] Ghi nhận chi phí sửa chữa vào báo cáo thực tế.

@@ -57,6 +57,7 @@ const rentalHandovers = require('./rental-handovers');
 const rentalLifecycle = require('./rental-lifecycle');
 const rentalFinalSettlements = require('./rental-final-settlements');
 const roomMaintenance = require('./room-maintenance');
+const roomAssets = require('./room-assets');
 const properties = require('./properties');
 const rentBankAccounts = require('./rent-bank-accounts');
 const teamMembers = require('./team-members');
@@ -343,6 +344,36 @@ app.post(
   '/api/room-maintenance/:id/complete',
   requireAuth,
   wrap(roomMaintenance.completeMaintenance)
+);
+app.get(
+  '/api/room-assets',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(roomAssets.listRoomAssets)
+);
+app.post(
+  '/api/room-assets',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(roomAssets.createRoomAsset)
+);
+app.patch(
+  '/api/room-assets/:id',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(roomAssets.updateRoomAsset)
+);
+app.post(
+  '/api/room-assets/:id/archive',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(roomAssets.archiveRoomAsset)
+);
+app.post(
+  '/api/room-assets/:id/restore',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(roomAssets.restoreRoomAsset)
 );
 app.get(
   '/api/properties',

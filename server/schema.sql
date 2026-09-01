@@ -1304,6 +1304,80 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rental_reservations_one_active_room
 CREATE INDEX IF NOT EXISTS idx_rental_reservations_user_room_created
   ON rental_reservations(user_id, room_id, created_at DESC);
 
+-- Danh mục tài sản/nội thất đang dùng và đã ngừng sử dụng theo phòng. Không FK
+-- trực tiếp tới rooms vì PUT /state thay lại bảng rooms; API và chốt chặn state
+-- giữ ownership, còn room_name_snapshot giữ lịch sử khi phòng được xóa hợp lệ.
+CREATE TABLE IF NOT EXISTS room_assets (
+  id                  BIGSERIAL PRIMARY KEY,
+  user_id             BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  asset_code          TEXT NOT NULL,
+  room_id             TEXT NOT NULL,
+  room_name_snapshot  TEXT NOT NULL,
+  name                TEXT NOT NULL,
+  quantity            NUMERIC(10,2) NOT NULL,
+  unit                TEXT NOT NULL DEFAULT 'cái',
+  condition_status    TEXT NOT NULL DEFAULT 'good',
+  condition_note      TEXT NOT NULL DEFAULT '',
+  serial_number       TEXT NOT NULL DEFAULT '',
+  acquired_on         DATE,
+  purchase_price_vnd  BIGINT,
+  note                TEXT NOT NULL DEFAULT '',
+  status              TEXT NOT NULL DEFAULT 'active',
+  archived_reason     TEXT NOT NULL DEFAULT '',
+  archived_at         TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT room_assets_user_id_id_unique UNIQUE (user_id, id),
+  CONSTRAINT room_assets_code_unique UNIQUE (user_id, asset_code),
+  CONSTRAINT room_assets_code_valid
+    CHECK (asset_code ~ '^TS-[0-9]{4}-[A-Z0-9]{6}$'),
+  CONSTRAINT room_assets_condition_valid
+    CHECK (condition_status IN ('good','fair','damaged','lost')),
+  CONSTRAINT room_assets_status_valid
+    CHECK (status IN ('active','archived')),
+  CONSTRAINT room_assets_quantity_valid
+    CHECK (quantity > 0 AND quantity <= 99999999),
+  CONSTRAINT room_assets_price_valid
+    CHECK (purchase_price_vnd IS NULL OR purchase_price_vnd BETWEEN 0 AND 999999999999),
+  CONSTRAINT room_assets_content_valid CHECK (
+    char_length(room_id) BETWEEN 1 AND 200
+    AND char_length(room_name_snapshot) BETWEEN 1 AND 200
+    AND char_length(name) BETWEEN 1 AND 200
+    AND char_length(unit) BETWEEN 1 AND 50
+    AND char_length(condition_note) <= 500
+    AND char_length(serial_number) <= 200
+    AND char_length(note) <= 1000
+  ),
+  CONSTRAINT room_assets_archive_valid CHECK (
+    (status='active' AND archived_reason='' AND archived_at IS NULL)
+    OR (status='archived' AND char_length(archived_reason) BETWEEN 3 AND 500
+      AND archived_at IS NOT NULL)
+  )
+);
+CREATE INDEX IF NOT EXISTS idx_room_assets_user_room_status
+  ON room_assets(user_id, room_id, status, name, id);
+CREATE INDEX IF NOT EXISTS idx_room_assets_user_status_updated
+  ON room_assets(user_id, status, updated_at DESC, id DESC);
+
+DO $$
+DECLARE
+  runtime_role TEXT;
+BEGIN
+  FOREACH runtime_role IN ARRAY ARRAY[
+    'tro_bill_runtime', 'tro_bill_runtime_sql', 'tro_bill_app'
+  ] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=runtime_role) THEN
+      EXECUTE format('GRANT SELECT, INSERT ON room_assets TO %I', runtime_role);
+      EXECUTE format(
+        'GRANT UPDATE (room_id, room_name_snapshot, name, quantity, unit, condition_status, condition_note, serial_number, acquired_on, purchase_price_vnd, note, status, archived_reason, archived_at, updated_at) ON room_assets TO %I',
+        runtime_role
+      );
+      EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE room_assets_id_seq TO %I', runtime_role);
+      EXECUTE format('REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON room_assets FROM %I', runtime_role);
+    END IF;
+  END LOOP;
+END $$;
+
 -- Chỉ trạng thái "đang sửa" cần lưu riêng. Trống/giữ chỗ/đang thuê được suy ra
 -- từ reservation và hợp đồng active để không tạo hai nguồn trạng thái cạnh tranh.
 -- Không FK trực tiếp tới rooms vì PUT /state thay lại bảng rooms; snapshot và

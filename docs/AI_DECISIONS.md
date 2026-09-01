@@ -288,3 +288,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tài khoản hiệu lực theo khu rồi mới fallback mặc định. Giao dịch có
   `bank_account_id` chỉ được tự động hoặc thủ công ghép với invoice có cùng tài
   khoản hiệu lực; giao dịch legacy chưa có ID vẫn giữ luồng tương thích.
+
+## D-022 — Tài sản phòng dùng lưu trữ mềm và không giữ FK trực tiếp tới snapshot phòng
+
+- **Trạng thái:** Đang triển khai từ 01/09/2026.
+- **Quyết định:** Mỗi tài sản có mã ổn định, phòng hiện tại và snapshot tên
+  phòng. Tài sản không có thao tác xóa vật lý; ngừng dùng phải lưu lý do và thời
+  điểm, sau đó có thể khôi phục vào một phòng còn tồn tại. Không tạo foreign key
+  trực tiếp từ `room_assets.room_id` sang `rooms` vì endpoint state cũ thay toàn
+  bộ các row phòng. Thay vào đó mọi đường ghi khóa cùng advisory lock với state,
+  xác minh ownership trong transaction và `PUT /state` chặn xóa phòng còn tài
+  sản hoạt động.
+- **Lý do:** Xóa tài sản làm mất lịch sử bàn giao và kiểm kê. Foreign key trực
+  tiếp sẽ làm cơ chế thay snapshot phòng hiện tại lỗi hoặc buộc cascade ngoài ý
+  muốn dù ID phòng logic không đổi.
+- **Hệ quả:** Tài sản đã lưu trữ vẫn giữ tên phòng cuối để xuất dữ liệu. Chỉ chủ
+  tài khoản được ghi; nhân viên có nghiệp vụ phòng chỉ đọc tài sản thuộc khu đã
+  giao. Danh mục tài sản đang hoạt động là nguồn mặc định cho biên bản bàn giao,
+  nhưng biên bản đã xác nhận vẫn là snapshot bất biến.

@@ -110,6 +110,15 @@ const SCHEMA_READY_QUERY = `
       SELECT 1 FROM pg_constraint
       WHERE conname='rental_lifecycle_events_maintenance_owner_fk'
     )
+    AND to_regclass('public.room_assets') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_indexes
+      WHERE schemaname='public' AND indexname='idx_room_assets_user_room_status'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='room_assets_archive_valid'
+    )
     AND to_regclass('public.rental_final_settlements') IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM information_schema.columns

@@ -137,6 +137,11 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | GET    | `/api/room-maintenance` | Lịch sử sửa chữa và trạng thái hiện tại của từng phòng |
 | POST   | `/api/room-maintenance` | Bắt đầu sửa chữa cho một phòng đang trống |
 | POST   | `/api/room-maintenance/:id/complete` | Hoàn thành một đợt sửa chữa đang hoạt động |
+| GET    | `/api/room-assets?roomId=...&status=active\|archived\|all` | Danh mục tài sản phòng trong phạm vi workspace |
+| POST   | `/api/room-assets` | Thêm tài sản vào một phòng (chủ tài khoản) |
+| PATCH  | `/api/room-assets/:id` | Cập nhật hoặc chuyển phòng cho tài sản đang dùng |
+| POST   | `/api/room-assets/:id/archive` | Ngừng sử dụng tài sản và lưu lý do |
+| POST   | `/api/room-assets/:id/restore` | Khôi phục tài sản vào một phòng còn tồn tại |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -152,6 +157,13 @@ sang hết hạn. Khi tạo hợp đồng, đúng lượt giữ chỗ đã chọ
 cùng transaction. Chuyển phòng giữ nguyên hợp đồng/biên bản cũ, kết thúc hợp đồng
 cũ rồi tạo hợp đồng mới; trả phòng không cho thực hiện nếu chưa có biên bản trả
 phòng. Nhật ký vòng đời chỉ được thêm mới để không mất dấu vết vận hành.
+
+Danh mục tài sản/nội thất lưu mã tài sản, phòng, số lượng, tình trạng, serial,
+ngày tiếp nhận và giá mua. Tài sản không bị xóa vật lý: khi ngừng sử dụng phải
+nhập lý do và vẫn xuất hiện trong lịch sử; có thể khôi phục vào phòng còn tồn
+tại. Nhân viên có nghiệp vụ phòng chỉ xem được tài sản thuộc các khu đã giao,
+chủ tài khoản mới được thay đổi. Tài sản đang dùng của phòng được dùng làm danh
+sách mặc định khi lập biên bản nhận/trả phòng.
 
 Trạng thái phòng do server suy ra, không nhận trạng thái tự khai từ trình duyệt:
 phòng có khách hiện tại hoặc hợp đồng hiệu lực là **đang thuê**, lượt giữ chỗ

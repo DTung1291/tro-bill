@@ -556,6 +556,38 @@ const API = (() => {
     );
   }
 
+  function getRoomAssets(roomId = '', status = 'active') {
+    const params = new URLSearchParams();
+    if (roomId) params.set('roomId', roomId);
+    if (status) params.set('status', status);
+    const query = params.toString();
+    return request('GET', `/api/room-assets${query ? `?${query}` : ''}`);
+  }
+
+  function createRoomAsset(input) {
+    return request('POST', '/api/room-assets', input);
+  }
+
+  function updateRoomAsset(assetId, input) {
+    return request('PATCH', `/api/room-assets/${encodeURIComponent(assetId)}`, input);
+  }
+
+  function archiveRoomAsset(assetId, reason) {
+    return request(
+      'POST',
+      `/api/room-assets/${encodeURIComponent(assetId)}/archive`,
+      { reason }
+    );
+  }
+
+  function restoreRoomAsset(assetId, roomId = '') {
+    return request(
+      'POST',
+      `/api/room-assets/${encodeURIComponent(assetId)}/restore`,
+      { roomId: roomId || null }
+    );
+  }
+
   const privacy = {
     getStatus: () => request('GET', '/api/privacy/status'),
     acceptPolicies: () => request('POST', '/api/privacy/accept', {
@@ -724,6 +756,11 @@ const API = (() => {
     getRoomMaintenance,
     createRoomMaintenance,
     completeRoomMaintenance,
+    getRoomAssets,
+    createRoomAsset,
+    updateRoomAsset,
+    archiveRoomAsset,
+    restoreRoomAsset,
     privacy,
     getConfig,
     admin

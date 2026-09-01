@@ -1435,6 +1435,8 @@ function clearSensitiveStateFromMemory() {
   TEAM_STAFF_USAGE = { used: 0, limit: 0, remaining: 0, canManage: false };
   TEAM_PROPERTIES = [];
   TEAM_ACCESS_OPERATIONS = [];
+  ROOM_ASSETS = [];
+  ACTIVE_ROOM_ASSET_ID = null;
   WORKSPACES = [];
   CURRENT_WORKSPACE = null;
   CURRENT_WORKSPACE_ACCESS = null;
@@ -2235,6 +2237,8 @@ let ROOM_MAINTENANCE_PERIODS = [];
 let ROOM_OPERATIONAL_STATUS_BY_ROOM = new Map();
 let ROOM_OPERATIONAL_STATUS_LOADED = false;
 let ACTIVE_ROOM_LIFECYCLE_ROOM_ID = '';
+let ROOM_ASSETS = [];
+let ACTIVE_ROOM_ASSET_ID = null;
 
 function applyRoomOperationalStatusPayload(payload = {}) {
   ROOM_MAINTENANCE_PERIODS = Array.isArray(payload.maintenancePeriods)
@@ -3833,7 +3837,19 @@ function rentalHandoverTypeLabel(type) {
   return type === 'check_out' ? 'Trả phòng' : 'Nhận phòng';
 }
 
-function rentalHandoverItemsText() {
+function rentalHandoverItemsText(assets = []) {
+  const activeAssets = Array.isArray(assets)
+    ? assets.filter(asset => asset.status === 'active')
+    : [];
+  if (activeAssets.length > 0) {
+    return activeAssets.map(asset => [
+      asset.name,
+      asset.quantity,
+      asset.unit,
+      [roomAssetConditionLabel(asset.condition), asset.conditionNote].filter(Boolean).join(': '),
+      asset.note || ''
+    ].join(' | ')).join('\n');
+  }
   return ContractTemplate.DEFAULT_EQUIPMENT
     .map(([name, quantity, condition]) => [name, quantity, 'cái', condition || 'Tốt', ''].join(' | '))
     .join('\n');
@@ -3935,7 +3951,8 @@ async function openRentalHandoverModal(contract) {
   document.getElementById('rental-handover-contract-code').textContent = `${contract.code} · ${contract.roomName} · ${contract.tenantName}`;
   const room = STATE.rooms.find(item => item.id === contract.roomId);
   document.getElementById('rental-handover-address').value = roomPropertyAddress(room);
-  document.getElementById('rental-handover-items').value = rentalHandoverItemsText();
+  const defaultItemsText = rentalHandoverItemsText();
+  document.getElementById('rental-handover-items').value = defaultItemsText;
   document.getElementById('rental-handover-condition').value = 'Phòng sạch, tường và các thiết bị hoạt động bình thường.';
   document.getElementById('rental-handover-type').value = 'check_in';
   document.getElementById('rental-handover-keys').value = '1';
@@ -3947,9 +3964,20 @@ async function openRentalHandoverModal(contract) {
   document.getElementById('rental-handover-preview').hidden = true;
   document.getElementById('rental-handover-modal').hidden = false;
   try {
-    const result = await API.getRentalHandovers(contract.id);
+    const [result, assetResult] = await Promise.all([
+      API.getRentalHandovers(contract.id),
+      API.getRoomAssets(contract.roomId, 'active').catch((error) => {
+        console.warn('Không tải được tài sản mặc định cho biên bản:', error.message);
+        return { assets: [] };
+      })
+    ]);
     if (activeRentalHandoverContractId !== Number(contract.id)) return;
     rentalHandovers = Array.isArray(result.handovers) ? result.handovers : [];
+    const itemInput = document.getElementById('rental-handover-items');
+    if (itemInput.value === defaultItemsText && Array.isArray(assetResult.assets)
+        && assetResult.assets.length > 0) {
+      itemInput.value = rentalHandoverItemsText(assetResult.assets);
+    }
     renderRentalHandovers();
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
@@ -4694,13 +4722,15 @@ function renderRooms() {
           ${waterPrevHtml}
         </div>
       </div>
-      ${isOwnerWorkspace() ? `<div class="room-card-actions">
+      <div class="room-card-actions">
+        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">📦 Vận hành &amp; tài sản</button>
+        ${isOwnerWorkspace() ? `
           <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
           <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
-          <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">🔄 Trạng thái</button>
           <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
           <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
-        </div>` : ''}
+        ` : ''}
+      </div>
     `;
     const tenantsBtn = card.querySelector('[data-tenants]');
     const contractsBtn = card.querySelector('[data-contracts]');
@@ -7955,7 +7985,11 @@ const AUDIT_ACTION_LABELS = {
   rental_contract_transferred: 'Chuyển phòng theo hợp đồng',
   rental_contract_created_from_transfer: 'Tạo hợp đồng chuyển phòng',
   rental_contract_checked_out: 'Trả phòng và kết thúc hợp đồng',
-  rental_contract_final_settlement_created: 'Lập quyết toán cuối hợp đồng'
+  rental_contract_final_settlement_created: 'Lập quyết toán cuối hợp đồng',
+  room_asset_created: 'Thêm tài sản phòng',
+  room_asset_updated: 'Cập nhật tài sản phòng',
+  room_asset_archived: 'Ngừng sử dụng tài sản',
+  room_asset_restored: 'Khôi phục tài sản phòng'
 };
 let privacyActionMode = '';
 
@@ -8680,7 +8714,7 @@ async function openRoomLifecycleModal(roomId) {
       <div class="modal room-lifecycle-mgmt-modal" role="dialog" aria-modal="true" aria-labelledby="room-lifecycle-mgmt-title">
         <div class="modal-header">
           <div>
-            <h2 class="modal-title" id="room-lifecycle-mgmt-title">Trạng thái phòng</h2>
+            <h2 class="modal-title" id="room-lifecycle-mgmt-title">Vận hành &amp; tài sản phòng</h2>
             <p class="rental-contract-room">${escapeHtml(room.name)}</p>
           </div>
           <button type="button" class="modal-close" data-room-lifecycle-close aria-label="Đóng">✕</button>
@@ -8708,12 +8742,39 @@ async function openRoomLifecycleModal(roomId) {
       return;
     }
     const completeButton = event.target.closest('[data-maintenance-complete]');
-    if (completeButton) openCompleteMaintenanceForm(Number(completeButton.dataset.maintenanceComplete));
+    if (completeButton) {
+      openCompleteMaintenanceForm(Number(completeButton.dataset.maintenanceComplete));
+      return;
+    }
+    if (event.target.closest('[data-room-asset-add]')) {
+      openRoomAssetForm();
+      return;
+    }
+    const editAssetButton = event.target.closest('[data-room-asset-edit]');
+    if (editAssetButton) {
+      openRoomAssetForm(Number(editAssetButton.dataset.roomAssetEdit));
+      return;
+    }
+    const archiveAssetButton = event.target.closest('[data-room-asset-archive]');
+    if (archiveAssetButton) {
+      archiveRoomAssetFromModal(Number(archiveAssetButton.dataset.roomAssetArchive));
+      return;
+    }
+    const restoreAssetButton = event.target.closest('[data-room-asset-restore]');
+    if (restoreAssetButton) {
+      restoreRoomAssetFromModal(Number(restoreAssetButton.dataset.roomAssetRestore));
+      return;
+    }
+    if (event.target.closest('[data-room-asset-cancel]')) renderRoomLifecycleContent();
   });
   syncModalScrollLock();
   try {
-    const result = await API.getRoomMaintenance();
-    applyRoomOperationalStatusPayload(result);
+    const [result, assetResult] = await Promise.all([
+      isOwnerWorkspace() ? API.getRoomMaintenance() : Promise.resolve(null),
+      API.getRoomAssets(roomId, 'all')
+    ]);
+    if (result) applyRoomOperationalStatusPayload(result);
+    ROOM_ASSETS = Array.isArray(assetResult.assets) ? assetResult.assets : [];
     renderRooms();
     renderRoomLifecycleContent();
   } catch (error) {
@@ -8731,10 +8792,13 @@ function renderRoomLifecycleContent() {
   const status = getRoomOperationalStatus(room.id);
   const maintenancePeriods = ROOM_MAINTENANCE_PERIODS.filter(item => item.roomId === room.id);
   const activeMaintenance = maintenancePeriods.find(m => m.status === 'active');
+  const owner = isOwnerWorkspace();
   statusElement.className = `room-lifecycle-current room-lifecycle-current--${status.conflict ? 'conflict' : status.status}`;
   statusElement.textContent = `Trạng thái hiện tại: ${status.label}`;
   let html = '';
-  if (status.conflict) {
+  if (!owner) {
+    html += '<p class="rental-contract-helper">Bạn đang xem danh mục tài sản trong phạm vi khu được giao. Chỉ chủ tài khoản mới có thể thay đổi vận hành và tài sản.</p>';
+  } else if (status.conflict) {
     html += `
       <p class="rental-contract-document-error">
         Phòng đang có nhiều nguồn trạng thái hoạt động cùng lúc. Hãy hoàn thành đợt sửa hoặc xử lý hợp đồng/giữ chỗ trước khi tiếp tục.
@@ -8770,7 +8834,7 @@ function renderRoomLifecycleContent() {
       </section>
     `;
   }
-  if (maintenancePeriods.length > 0) {
+  if (owner && maintenancePeriods.length > 0) {
     html += `
       <section class="room-lifecycle-section room-lifecycle-history">
         <h3>Lịch sử sửa chữa</h3>
@@ -8791,7 +8855,222 @@ function renderRoomLifecycleContent() {
     }
     html += '</section>';
   }
+  html += renderRoomAssetSection(room);
   content.innerHTML = html;
+}
+
+function roomAssetConditionLabel(condition) {
+  return ({
+    good: 'Tốt',
+    fair: 'Đã qua sử dụng',
+    damaged: 'Hư hỏng',
+    lost: 'Thất lạc'
+  })[condition] || 'Chưa xác định';
+}
+
+function renderRoomAssetSection(room) {
+  const assets = ROOM_ASSETS.filter(asset => asset.roomId === room.id);
+  const activeCount = assets.filter(asset => asset.status === 'active').length;
+  const owner = isOwnerWorkspace();
+  let html = `
+    <section class="room-lifecycle-section room-assets-section">
+      <div class="room-assets-heading">
+        <div>
+          <h3>Tài sản / nội thất</h3>
+          <p>${activeCount} đang sử dụng · ${assets.length - activeCount} đã ngừng</p>
+        </div>
+        ${owner ? '<button type="button" class="btn btn--primary btn--sm" data-room-asset-add>+ Thêm tài sản</button>' : ''}
+      </div>
+      <div class="room-assets-editor" id="room-assets-editor"></div>
+      <div class="room-assets-list">`;
+  if (assets.length === 0) {
+    html += '<p class="rental-contract-empty">Phòng chưa có tài sản trong danh mục.</p>';
+  } else {
+    for (const asset of assets) {
+      const archived = asset.status === 'archived';
+      const meta = [
+        asset.serialNumber ? `Serial: ${asset.serialNumber}` : '',
+        asset.acquiredOn ? `Tiếp nhận: ${dateLabel(asset.acquiredOn) || asset.acquiredOn}` : '',
+        asset.purchasePriceVnd !== null ? `Giá mua: ${fmt(asset.purchasePriceVnd)}` : ''
+      ].filter(Boolean).join(' · ');
+      html += `
+        <article class="room-asset-card ${archived ? 'is-archived' : ''}">
+          <div class="room-asset-main">
+            <div class="room-asset-title">
+              <strong>${escapeHtml(asset.name)}</strong>
+              <span class="room-asset-condition room-asset-condition--${escapeHtml(asset.condition)}">${escapeHtml(roomAssetConditionLabel(asset.condition))}</span>
+              ${archived ? '<span class="badge badge--empty">Đã ngừng</span>' : ''}
+            </div>
+            <span>${escapeHtml(asset.code)} · ${escapeHtml(String(asset.quantity))} ${escapeHtml(asset.unit)}</span>
+            ${asset.conditionNote ? `<span>${escapeHtml(asset.conditionNote)}</span>` : ''}
+            ${meta ? `<span>${escapeHtml(meta)}</span>` : ''}
+            ${asset.note ? `<span>Ghi chú: ${escapeHtml(asset.note)}</span>` : ''}
+            ${archived ? `<span class="room-asset-archived-reason">Lý do ngừng: ${escapeHtml(asset.archivedReason)}</span>` : ''}
+          </div>
+          ${owner ? `<div class="room-asset-actions">
+            ${archived
+              ? `<button type="button" class="btn btn--ghost btn--sm" data-room-asset-restore="${Number(asset.id)}">Khôi phục</button>`
+              : `<button type="button" class="btn btn--ghost btn--sm" data-room-asset-edit="${Number(asset.id)}">Sửa</button>
+                 <button type="button" class="btn btn--danger btn--sm" data-room-asset-archive="${Number(asset.id)}">Ngừng dùng</button>`}
+          </div>` : ''}
+        </article>`;
+    }
+  }
+  html += '</div></section>';
+  return html;
+}
+
+function roomAssetFormRoomOptions(selectedRoomId) {
+  return STATE.rooms.map(room => `
+    <option value="${escapeHtml(room.id)}" ${room.id === selectedRoomId ? 'selected' : ''}>
+      ${escapeHtml(room.name)}
+    </option>`).join('');
+}
+
+function openRoomAssetForm(assetId = null) {
+  if (!isOwnerWorkspace()) return;
+  const editor = document.getElementById('room-assets-editor');
+  if (!editor) return;
+  const asset = assetId === null
+    ? null
+    : ROOM_ASSETS.find(item => Number(item.id) === Number(assetId));
+  if (assetId !== null && (!asset || asset.status !== 'active')) return;
+  ACTIVE_ROOM_ASSET_ID = asset ? Number(asset.id) : null;
+  editor.innerHTML = `
+    <form class="room-asset-form" id="room-asset-form">
+      <h4>${asset ? `Sửa ${escapeHtml(asset.code)}` : 'Thêm tài sản vào phòng'}</h4>
+      <div class="room-asset-form-grid">
+        <label class="form-label">Phòng *
+          <select class="form-input" id="room-asset-room" required>
+            ${roomAssetFormRoomOptions(asset?.roomId || ACTIVE_ROOM_LIFECYCLE_ROOM_ID)}
+          </select>
+        </label>
+        <label class="form-label">Tên tài sản *
+          <input class="form-input" id="room-asset-name" maxlength="200" required value="${escapeHtml(asset?.name || '')}" placeholder="Ví dụ: Máy lạnh Panasonic" />
+        </label>
+        <label class="form-label">Số lượng *
+          <input class="form-input" id="room-asset-quantity" type="number" min="0.01" max="99999999" step="0.01" required value="${escapeHtml(String(asset?.quantity ?? 1))}" />
+        </label>
+        <label class="form-label">Đơn vị *
+          <input class="form-input" id="room-asset-unit" maxlength="50" required value="${escapeHtml(asset?.unit || 'cái')}" />
+        </label>
+        <label class="form-label">Tình trạng *
+          <select class="form-input" id="room-asset-condition" required>
+            ${['good', 'fair', 'damaged', 'lost'].map(value => `<option value="${value}" ${asset?.condition === value ? 'selected' : ''}>${escapeHtml(roomAssetConditionLabel(value))}</option>`).join('')}
+          </select>
+        </label>
+        <label class="form-label">Ngày mua / tiếp nhận
+          <input class="form-input" id="room-asset-acquired" type="date" value="${escapeHtml(asset?.acquiredOn || '')}" />
+        </label>
+        <label class="form-label">Giá mua (VND)
+          <input class="form-input" id="room-asset-price" type="number" min="0" max="999999999999" step="1" value="${asset?.purchasePriceVnd ?? ''}" />
+        </label>
+        <label class="form-label">Serial / mã thiết bị
+          <input class="form-input" id="room-asset-serial" maxlength="200" value="${escapeHtml(asset?.serialNumber || '')}" />
+        </label>
+        <label class="form-label room-asset-wide">Mô tả tình trạng
+          <textarea class="form-input" id="room-asset-condition-note" maxlength="500" rows="2">${escapeHtml(asset?.conditionNote || '')}</textarea>
+        </label>
+        <label class="form-label room-asset-wide">Ghi chú
+          <textarea class="form-input" id="room-asset-note" maxlength="1000" rows="2">${escapeHtml(asset?.note || '')}</textarea>
+        </label>
+      </div>
+      <p class="rental-contract-document-error room-asset-wide" id="room-asset-error" hidden></p>
+      <div class="rental-contract-document-actions room-asset-wide">
+        <button type="button" class="btn btn--ghost" data-room-asset-cancel>Hủy</button>
+        <button type="submit" class="btn btn--primary">${asset ? 'Lưu thay đổi' : 'Thêm tài sản'}</button>
+      </div>
+    </form>`;
+  editor.scrollIntoView({ block: 'nearest' });
+  document.getElementById('room-asset-name')?.focus();
+  document.getElementById('room-asset-form').addEventListener('submit', submitRoomAssetForm);
+}
+
+async function submitRoomAssetForm(event) {
+  event.preventDefault();
+  const errorElement = document.getElementById('room-asset-error');
+  const submit = event.currentTarget.querySelector('[type="submit"]');
+  const priceValue = document.getElementById('room-asset-price').value.trim();
+  const input = {
+    roomId: document.getElementById('room-asset-room').value,
+    name: document.getElementById('room-asset-name').value,
+    quantity: Number(document.getElementById('room-asset-quantity').value),
+    unit: document.getElementById('room-asset-unit').value,
+    condition: document.getElementById('room-asset-condition').value,
+    acquiredOn: document.getElementById('room-asset-acquired').value || null,
+    purchasePriceVnd: priceValue === '' ? null : Number(priceValue),
+    serialNumber: document.getElementById('room-asset-serial').value,
+    conditionNote: document.getElementById('room-asset-condition-note').value,
+    note: document.getElementById('room-asset-note').value
+  };
+  errorElement.hidden = true;
+  submit.disabled = true;
+  try {
+    if (ACTIVE_ROOM_ASSET_ID) {
+      await API.updateRoomAsset(ACTIVE_ROOM_ASSET_ID, input);
+      showToast('Đã cập nhật tài sản', 'success');
+    } else {
+      await API.createRoomAsset(input);
+      showToast('Đã thêm tài sản vào phòng', 'success');
+    }
+    ACTIVE_ROOM_ASSET_ID = null;
+    await refreshRoomAssets();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không lưu được tài sản';
+    errorElement.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function refreshRoomAssets() {
+  const roomId = ACTIVE_ROOM_LIFECYCLE_ROOM_ID;
+  if (!roomId) return;
+  const result = await API.getRoomAssets(roomId, 'all');
+  if (ACTIVE_ROOM_LIFECYCLE_ROOM_ID !== roomId) return;
+  ROOM_ASSETS = Array.isArray(result.assets) ? result.assets : [];
+  renderRoomLifecycleContent();
+}
+
+async function archiveRoomAssetFromModal(assetId) {
+  const asset = ROOM_ASSETS.find(item => Number(item.id) === Number(assetId));
+  if (!asset || asset.status !== 'active') return;
+  const reason = window.prompt(`Lý do ngừng sử dụng “${asset.name}” (3–500 ký tự):`, 'Không còn sử dụng trong phòng');
+  if (reason === null) return;
+  const normalized = reason.trim();
+  if (normalized.length < 3 || normalized.length > 500) {
+    showToast('Lý do ngừng sử dụng phải từ 3 đến 500 ký tự', 'error', 3500);
+    return;
+  }
+  try {
+    await API.archiveRoomAsset(assetId, normalized);
+    showToast('Đã chuyển tài sản sang lịch sử', 'success');
+    await refreshRoomAssets();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không ngừng sử dụng được tài sản', 'error', 4000);
+  }
+}
+
+function restoreRoomAssetFromModal(assetId) {
+  const asset = ROOM_ASSETS.find(item => Number(item.id) === Number(assetId));
+  if (!asset || asset.status !== 'archived') return;
+  showConfirm(
+    `Khôi phục “${asset.name}” vào danh mục đang sử dụng của phòng này?`,
+    async () => {
+      try {
+        await API.restoreRoomAsset(assetId, ACTIVE_ROOM_LIFECYCLE_ROOM_ID);
+        showToast('Đã khôi phục tài sản', 'success');
+        await refreshRoomAssets();
+      } catch (error) {
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không khôi phục được tài sản', 'error', 4000);
+      }
+    },
+    null,
+    'Khôi phục'
+  );
 }
 
 function openStartMaintenanceForm() {
@@ -8896,6 +9175,8 @@ function closeRoomLifecycleMgmtModal() {
   const modal = document.getElementById('room-lifecycle-mgmt-modal');
   if (modal) modal.remove();
   ACTIVE_ROOM_LIFECYCLE_ROOM_ID = '';
+  ACTIVE_ROOM_ASSET_ID = null;
+  ROOM_ASSETS = [];
   syncModalScrollLock();
 }
 
