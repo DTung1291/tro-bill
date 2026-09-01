@@ -291,7 +291,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-022 — Tài sản phòng dùng lưu trữ mềm và không giữ FK trực tiếp tới snapshot phòng
 
-- **Trạng thái:** Đang triển khai từ 01/09/2026.
+- **Trạng thái:** Đã phát hành production ngày 01/09/2026.
 - **Quyết định:** Mỗi tài sản có mã ổn định, phòng hiện tại và snapshot tên
   phòng. Tài sản không có thao tác xóa vật lý; ngừng dùng phải lưu lý do và thời
   điểm, sau đó có thể khôi phục vào một phòng còn tồn tại. Không tạo foreign key

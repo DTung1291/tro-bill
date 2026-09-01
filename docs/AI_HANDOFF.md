@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — Codex / quản lý tài sản-nội thất theo phòng |
+| Trạng thái | Sẵn sàng làm — khách thuê gửi yêu cầu sửa chữa |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Đang có thay đổi chưa commit cho room assets; không được dọn hoặc ghi đè |
-| Phần ứng dụng phát hành gần nhất | `42f438e` — nhiều tài khoản ngân hàng nhận tiền theo khu |
-| Việc code tiếp theo | Chờ xác nhận Preview; sau đó commit/push, migration và phát hành production room assets |
+| Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `300c178` — quản lý tài sản/nội thất theo phòng |
+| Việc code tiếp theo | Khách thuê gửi yêu cầu sửa chữa |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -42,9 +42,10 @@ vẹn tham chiếu. Preview và production đã kiểm tra desktop/mobile cùng 
 thật. Hạng mục nhiều tài khoản ngân hàng nhận tiền theo khu đã phát hành:
 schema/API/UI hoàn tất; migration staging/production đều đạt 7/7 cờ, Preview đã
 qua kiểm thử desktop/mobile/VietQR và production smoke test sạch. Hạng mục quản
-lý tài sản/nội thất theo phòng đang được triển khai: schema/API/UI/export và
-liên kết biên bản bàn giao đã có; toàn bộ 361 test hiện đạt. Chưa chạy migration
-hoặc phát hành Preview/production nên checkbox vẫn mở.
+lý tài sản/nội thất theo phòng cũng đã phát hành: schema/API/UI/export, lưu trữ
+mềm và liên kết biên bản bàn giao hoàn tất; migration hai môi trường, Preview
+E2E và production smoke đều đạt. Hạng mục kế tiếp là để khách thuê gửi yêu cầu
+sửa chữa.
 
 ## Bản đồ hệ thống ngắn
 
@@ -243,7 +244,7 @@ hoặc phát hành Preview/production nên checkbox vẫn mở.
   tài khoản thật xác nhận backfill ICB mặc định, khu hiện tại kế thừa đúng,
   SePay dùng đúng tài khoản; desktop/mobile 390px không tràn, console và runtime
   error scan sạch.
-- Quản lý tài sản/nội thất theo phòng đang phát hành production. Migration
+- Quản lý tài sản/nội thất theo phòng đã phát hành production. Migration
   `20260901_room_assets.sql` đã chạy đúng Neon branch `staging-privacy`
   (`br-ancient-wave-azwc43to`) ngày 01/09/2026 và đạt 5/5 cờ bảng, index, quyền
   runtime và ownership. Test mục tiêu đạt 7/7; toàn bộ 361 test, secret scan và
@@ -255,8 +256,12 @@ hoặc phát hành Preview/production nên checkbox vẫn mở.
   `#confirm-modal` lên 1500 và kiểm tra trực quan popup đúng lớp. Desktop 1242px
   và mobile 390×844 không tràn, nền khóa scroll và console sạch. Migration
   production đã chạy đúng branch `br-fancy-star-azyclc1h` và cũng đạt 5/5 cờ.
-  Code vẫn chưa commit/push hoặc deploy production; checklist chưa đánh dấu
-  hoàn thành.
+  Commit `300c178` đã push, CI `33483586344` thành công. Deployment production
+  `tro-bill-12p0kiwct-dtung.vercel.app`
+  (`dpl_2oVEaKGSzXfjmJj2PqmmsoL34NcV`) READY và alias `tro-bill.vercel.app`
+  trả revision `300c178874d9`, database/schema `ok`, runtime role `restricted`.
+  Static pins đúng `style 112 / api 105 / app 115`; bảng production có 0 tài
+  sản và 0 tham chiếu active lỗi; Runtime Errors 30 phút không có lỗi.
 
 ## Việc chưa được xem là hoàn tất
 
