@@ -474,6 +474,112 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: .04em;
 }
+.rent-bank-accounts-card { margin-top: 12px; }
+.rent-bank-accounts-head,
+.rent-bank-account-item,
+.property-bank-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rent-bank-accounts-head p,
+.rent-bank-account-empty,
+.rent-bank-account-info > span {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+.rent-bank-account-list,
+#property-bank-account-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.rent-bank-account-item,
+.property-bank-account-row {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rent-bank-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.rent-bank-account-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rent-bank-account-info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.rent-bank-account-info > span { overflow-wrap: anywhere; }
+.rent-bank-account-default-badge {
+  display: inline-flex;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, .12);
+  color: #15803d;
+  font-size: .7rem;
+  font-weight: 700;
+}
+.rent-bank-account-form {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.rent-bank-account-form h3,
+.property-bank-account-assignment h3 { margin: 0 0 10px; }
+.rent-bank-account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.rent-bank-account-form-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.rent-bank-account-form-grid .inline-input { width: 100%; min-width: 0; }
+.rent-bank-account-default-option {
+  display: flex !important;
+  align-items: center;
+  align-self: end;
+  grid-auto-flow: column;
+  justify-content: start;
+  min-height: 38px;
+}
+.rent-bank-account-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.property-bank-account-assignment {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.property-bank-account-row .inline-input {
+  width: min(320px, 100%);
+  min-width: 0;
+}
+.payment-channel-account-picker {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.payment-channel-account-picker .inline-input { width: min(420px, 100%); }
 .direct-settlement-notice {
   display: flex;
   align-items: flex-start;
@@ -674,6 +780,15 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .bank-reconciliation-controls { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
+  .rent-bank-accounts-head,
+  .rent-bank-account-item,
+  .property-bank-account-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .rent-bank-account-form-grid { grid-template-columns: 1fr; }
+  .rent-bank-account-actions { justify-content: flex-start; }
+  .property-bank-account-row .inline-input { width: 100%; }
   .payment-channel-head,
   .payment-channel-value-row { align-items: stretch; flex-direction: column; }
   .payment-channel-value-row .inline-input { flex-basis: auto; width: 100%; }

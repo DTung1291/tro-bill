@@ -91,6 +91,9 @@ let ACTIVE_DEPOSIT_TENANT_ID = null;
 let ACTIVE_DEPOSIT_RESULT = null;
 let RENT_INVOICE_SYNC_PROMISE = null;
 let RENT_PAYMENT_CHANNELS = [];
+let RENT_BANK_ACCOUNTS = [];
+let ACTIVE_RENT_BANK_ACCOUNT_EDIT_ID = null;
+let ACTIVE_SEPAY_BANK_ACCOUNT_ID = null;
 let ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
 let RENT_BANK_TRANSACTIONS = [];
 let ACTIVE_RENT_INVOICE_SHARE_ID = null;
@@ -339,12 +342,216 @@ function subscriptionDateTime(value) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
 }
 
-function activeSepayChannel() {
-  return RENT_PAYMENT_CHANNELS.find(channel => channel.provider === 'sepay') || null;
+function selectedSepayBankAccount() {
+  const selected = RENT_BANK_ACCOUNTS.find(
+    account => Number(account.id) === Number(ACTIVE_SEPAY_BANK_ACCOUNT_ID)
+  );
+  return selected || defaultRentBankAccount() || null;
 }
 
-function currentBankAccountDigits() {
-  return String(STATE.settings.bankAccount || '').replace(/[^0-9]/g, '');
+function activeSepayChannel() {
+  const account = selectedSepayBankAccount();
+  return RENT_PAYMENT_CHANNELS.find(channel => (
+    channel.provider === 'sepay'
+    && (
+      (account && Number(channel.bankAccountId) === Number(account.id))
+      || (!account && channel.bankAccountId == null)
+    )
+  )) || null;
+}
+
+function currentBankAccountDigits(account = selectedSepayBankAccount() || defaultRentBankAccount()) {
+  return String(account?.accountNumber || STATE.settings.bankAccount || '')
+    .replace(/[^0-9]/g, '');
+}
+
+function defaultRentBankAccount() {
+  return RENT_BANK_ACCOUNTS.find(account => account.isDefault) || null;
+}
+
+function rentBankAccountForRoom(room) {
+  const property = STATE.properties.find(item => Number(item.id) === Number(room?.propertyId));
+  const assignedId = property?.rentBankAccountId;
+  return RENT_BANK_ACCOUNTS.find(account => Number(account.id) === Number(assignedId))
+    || defaultRentBankAccount()
+    || {
+      id: null,
+      label: 'Tài khoản mặc định',
+      bankId: STATE.settings.bankId || '',
+      accountNumber: STATE.settings.bankAccount || '',
+      ownerName: STATE.settings.bankOwnerName || '',
+      isDefault: true
+    };
+}
+
+function rentBankAccountFormElements() {
+  return {
+    form: document.getElementById('rent-bank-account-form'),
+    title: document.getElementById('rent-bank-account-form-title'),
+    label: document.getElementById('rent-bank-account-label'),
+    bankSelect: document.getElementById('rent-bank-account-bank-select'),
+    customWrap: document.getElementById('rent-bank-account-custom-wrap'),
+    custom: document.getElementById('rent-bank-account-custom'),
+    accountNumber: document.getElementById('rent-bank-account-number'),
+    owner: document.getElementById('rent-bank-account-owner'),
+    makeDefault: document.getElementById('rent-bank-account-default')
+  };
+}
+
+function setRentBankAccountBankValue(bankId = '') {
+  const { bankSelect, customWrap, custom } = rentBankAccountFormElements();
+  if (!bankSelect || !customWrap || !custom) return;
+  const predefined = [...bankSelect.options].some(
+    option => option.value === bankId && option.value !== 'custom'
+  );
+  bankSelect.value = predefined ? bankId : (bankId ? 'custom' : '');
+  customWrap.hidden = bankSelect.value !== 'custom';
+  custom.value = predefined ? '' : bankId;
+}
+
+function hideRentBankAccountForm() {
+  const { form } = rentBankAccountFormElements();
+  ACTIVE_RENT_BANK_ACCOUNT_EDIT_ID = null;
+  if (form) {
+    form.reset();
+    form.hidden = true;
+  }
+  setRentBankAccountBankValue('');
+}
+
+function showRentBankAccountForm(account = null) {
+  const fields = rentBankAccountFormElements();
+  if (!fields.form) return;
+  ACTIVE_RENT_BANK_ACCOUNT_EDIT_ID = account ? Number(account.id) : null;
+  fields.form.hidden = false;
+  fields.title.textContent = account
+    ? 'Chỉnh sửa tài khoản nhận tiền'
+    : 'Thêm tài khoản nhận tiền';
+  fields.label.value = account?.label || '';
+  setRentBankAccountBankValue(account?.bankId || '');
+  fields.accountNumber.value = account?.accountNumber || '';
+  fields.owner.value = account?.ownerName || '';
+  fields.makeDefault.checked = !!account?.isDefault;
+  fields.makeDefault.disabled = !!account?.isDefault;
+  fields.label.focus();
+}
+
+function renderRentBankAccounts() {
+  const list = document.getElementById('rent-bank-account-list');
+  const empty = document.getElementById('rent-bank-account-empty');
+  const propertyList = document.getElementById('property-bank-account-list');
+  if (!list || !empty || !propertyList) return;
+  list.textContent = '';
+  propertyList.textContent = '';
+  empty.hidden = RENT_BANK_ACCOUNTS.length !== 0;
+
+  for (const account of RENT_BANK_ACCOUNTS) {
+    const card = document.createElement('article');
+    card.className = 'rent-bank-account-item';
+    const info = document.createElement('div');
+    info.className = 'rent-bank-account-info';
+    const heading = document.createElement('div');
+    heading.className = 'rent-bank-account-title';
+    const name = document.createElement('strong');
+    name.textContent = account.label;
+    heading.appendChild(name);
+    if (account.isDefault) {
+      const badge = document.createElement('span');
+      badge.className = 'rent-bank-account-default-badge';
+      badge.textContent = 'Mặc định';
+      heading.appendChild(badge);
+    }
+    const details = document.createElement('span');
+    details.textContent = `${account.bankId} · ${account.accountNumber} · ${account.ownerName}`;
+    info.append(heading, details);
+
+    const actions = document.createElement('div');
+    actions.className = 'rent-bank-account-actions';
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'btn btn--sm btn--ghost';
+    edit.textContent = 'Sửa';
+    edit.addEventListener('click', () => showRentBankAccountForm(account));
+    actions.appendChild(edit);
+    if (!account.isDefault) {
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn btn--sm btn--danger';
+      remove.textContent = 'Xóa';
+      remove.addEventListener('click', () => {
+        showConfirm(
+          `Xóa tài khoản “${account.label}”? Tài khoản đang gán cho khu hoặc đã có lịch sử đối soát sẽ không thể xóa.`,
+          async () => {
+            try {
+              await API.deleteRentBankAccount(account.id);
+              RENT_BANK_ACCOUNTS = RENT_BANK_ACCOUNTS.filter(
+                item => Number(item.id) !== Number(account.id)
+              );
+              if (Number(ACTIVE_SEPAY_BANK_ACCOUNT_ID) === Number(account.id)) {
+                ACTIVE_SEPAY_BANK_ACCOUNT_ID = defaultRentBankAccount()?.id || null;
+              }
+              renderRentBankAccounts();
+              renderRentPaymentChannel();
+              showToast('Đã xóa tài khoản nhận tiền.', 'success');
+            } catch (error) {
+              if (error.code === 401) return handleAuthExpired();
+              showToast(error.message || 'Không xóa được tài khoản', 'error', 4500);
+            }
+          },
+          null,
+          'Xóa tài khoản'
+        );
+      });
+      actions.appendChild(remove);
+    }
+    card.append(info, actions);
+    list.appendChild(card);
+  }
+
+  const defaultAccount = defaultRentBankAccount();
+  for (const property of STATE.properties) {
+    const row = document.createElement('label');
+    row.className = 'property-bank-account-row';
+    const name = document.createElement('span');
+    name.textContent = property.name;
+    const select = document.createElement('select');
+    select.className = 'inline-input';
+    select.setAttribute('aria-label', `Tài khoản nhận tiền cho ${property.name}`);
+    const inherited = document.createElement('option');
+    inherited.value = '';
+    inherited.textContent = defaultAccount
+      ? `Kế thừa mặc định · ${defaultAccount.label}`
+      : 'Kế thừa tài khoản mặc định';
+    select.appendChild(inherited);
+    for (const account of RENT_BANK_ACCOUNTS) {
+      const option = document.createElement('option');
+      option.value = String(account.id);
+      option.textContent = `${account.label} · ${account.bankId} ${account.accountNumber}`;
+      select.appendChild(option);
+    }
+    select.value = property.rentBankAccountId == null
+      ? ''
+      : String(property.rentBankAccountId);
+    select.addEventListener('change', async () => {
+      const previous = property.rentBankAccountId ?? null;
+      const next = select.value ? Number(select.value) : null;
+      select.disabled = true;
+      try {
+        const result = await API.assignPropertyRentBankAccount(property.id, next);
+        property.rentBankAccountId = result.bankAccountId;
+        showToast(`Đã cập nhật tài khoản nhận tiền cho ${property.name}.`, 'success');
+      } catch (error) {
+        property.rentBankAccountId = previous;
+        select.value = previous == null ? '' : String(previous);
+        if (error.code === 401) return handleAuthExpired();
+        showToast(error.message || 'Không gán được tài khoản cho khu', 'error');
+      } finally {
+        select.disabled = false;
+      }
+    });
+    row.append(name, select);
+    propertyList.appendChild(row);
+  }
 }
 
 function applyRentPaymentChannelResult(result) {
@@ -362,6 +569,26 @@ function applyRentPaymentChannelResult(result) {
   renderRentPaymentChannel();
 }
 
+function renderSepayBankAccountSelect() {
+  const select = document.getElementById('sepay-bank-account-select');
+  if (!select) return;
+  const previous = Number(ACTIVE_SEPAY_BANK_ACCOUNT_ID);
+  select.textContent = '';
+  for (const account of RENT_BANK_ACCOUNTS) {
+    const option = document.createElement('option');
+    option.value = String(account.id);
+    option.textContent = `${account.label}${account.isDefault ? ' · Mặc định' : ''} · ${account.bankId} ${account.accountNumber}`;
+    select.appendChild(option);
+  }
+  const next = RENT_BANK_ACCOUNTS.find(account => Number(account.id) === previous)
+    || defaultRentBankAccount()
+    || RENT_BANK_ACCOUNTS[0]
+    || null;
+  ACTIVE_SEPAY_BANK_ACCOUNT_ID = next ? Number(next.id) : null;
+  if (next) select.value = String(next.id);
+  select.disabled = RENT_BANK_ACCOUNTS.length === 0;
+}
+
 function renderRentPaymentChannel() {
   const empty = document.getElementById('sepay-channel-empty');
   const detail = document.getElementById('sepay-channel-detail');
@@ -371,6 +598,8 @@ function renderRentPaymentChannel() {
   const reconciliation = document.getElementById('bank-reconciliation');
   if (!empty || !detail || !status || !secretPanel || !secretInput) return;
 
+  renderSepayBankAccountSelect();
+  const selectedAccount = selectedSepayBankAccount();
   const channel = activeSepayChannel();
   empty.hidden = !!channel;
   detail.hidden = !channel;
@@ -382,7 +611,7 @@ function renderRentPaymentChannel() {
     secretInput.value = '';
     if (reconciliation) reconciliation.hidden = true;
     const createButton = document.getElementById('sepay-channel-create');
-    const hasAccount = /^[0-9]{4,30}$/.test(currentBankAccountDigits());
+    const hasAccount = /^[0-9]{4,30}$/.test(currentBankAccountDigits(selectedAccount));
     if (createButton) {
       createButton.disabled = !hasAccount;
       createButton.title = hasAccount ? '' : 'Hãy lưu số tài khoản VietQR trước';
@@ -405,12 +634,14 @@ function renderRentPaymentChannel() {
   const toggle = document.getElementById('sepay-channel-toggle');
   const accountWarning = document.getElementById('sepay-channel-account-warning');
   const syncAccount = document.getElementById('sepay-channel-sync-account');
-  const currentAccount = currentBankAccountDigits();
+  const currentAccount = currentBankAccountDigits(selectedAccount);
   const accountMismatch = /^[0-9]{4,30}$/.test(currentAccount)
     && currentAccount !== channel.expectedAccountNumber;
 
   if (webhookInput) webhookInput.value = channel.webhookUrl || '';
-  if (account) account.textContent = `Tài khoản nhận: ${channel.expectedAccountNumber || '—'}`;
+  if (account) {
+    account.textContent = `Tài khoản nhận: ${selectedAccount?.label || 'Mặc định'} · ${channel.expectedAccountNumber || '—'}`;
+  }
   if (key) key.textContent = `API key: ••••••••${channel.secretLast4 || ''}`;
   if (lastReceived) {
     lastReceived.textContent = channel.lastReceivedAt
@@ -438,14 +669,17 @@ function reconciliationReasonLabel(reason) {
     multiple_transfer_references: 'Có nhiều mã hóa đơn',
     invoice_not_found: 'Mã không thuộc hóa đơn hiện có',
     invoice_already_settled: 'Hóa đơn đã được thu đủ',
-    amount_mismatch: 'Số tiền không khớp công nợ'
+    amount_mismatch: 'Số tiền không khớp công nợ',
+    bank_account_mismatch: 'Hóa đơn dùng tài khoản nhận tiền khác'
   };
   return labels[reason] || 'Cần chủ trọ kiểm tra';
 }
 
-function reconciliationInvoiceCandidates() {
+function reconciliationInvoiceCandidates(bankAccountId = null) {
   return [...RENT_INVOICE_SUMMARIES.values()]
     .filter(invoice => Number(invoice.totalDueVnd) > 0)
+    .filter(invoice => bankAccountId == null
+      || Number(invoice.bankAccountId) === Number(bankAccountId))
     .sort((a, b) => String(b.period).localeCompare(String(a.period))
       || String(a.roomName).localeCompare(String(b.roomName)));
 }
@@ -456,9 +690,8 @@ function renderRentBankReconciliation() {
   if (!list || !empty) return;
   list.textContent = '';
   empty.hidden = RENT_BANK_TRANSACTIONS.length !== 0;
-  const candidates = reconciliationInvoiceCandidates();
-
   for (const transaction of RENT_BANK_TRANSACTIONS) {
+    const candidates = reconciliationInvoiceCandidates(transaction.bankAccountId);
     const item = document.createElement('article');
     item.className = 'bank-reconciliation-item';
     const content = transaction.content || transaction.transactionCode || '(Không có nội dung)';
@@ -475,6 +708,7 @@ function renderRentBankReconciliation() {
         <div>
           <strong>${escapeHtml(transaction.gateway || 'Ngân hàng')}</strong>
           <span> · ${escapeHtml(subscriptionDateTime(transaction.occurredAt))}</span>
+          ${transaction.bankAccountLabel ? `<span> · ${escapeHtml(transaction.bankAccountLabel)}</span>` : ''}
         </div>
         <span class="bank-reconciliation-amount">${escapeHtml(fmt(transaction.amountVnd))}</span>
       </div>
@@ -588,14 +822,15 @@ async function loadRentPaymentChannels() {
 
 document.getElementById('sepay-channel-create')?.addEventListener('click', async event => {
   const button = event.currentTarget;
-  const account = currentBankAccountDigits();
-  if (!/^[0-9]{4,30}$/.test(account)) {
+  const selectedAccount = selectedSepayBankAccount();
+  const account = currentBankAccountDigits(selectedAccount);
+  if (!selectedAccount || !/^[0-9]{4,30}$/.test(account)) {
     showToast('Hãy lưu số tài khoản VietQR trước khi kết nối SePay.', 'error');
     return;
   }
   button.disabled = true;
   try {
-    const result = await API.createSepayRentPaymentChannel(account);
+    const result = await API.createSepayRentPaymentChannel(account, selectedAccount.id);
     applyRentPaymentChannelResult(result);
     showToast('Đã tạo endpoint và API key SePay.', 'success');
   } catch (error) {
@@ -604,6 +839,12 @@ document.getElementById('sepay-channel-create')?.addEventListener('click', async
   } finally {
     button.disabled = false;
   }
+});
+
+document.getElementById('sepay-bank-account-select')?.addEventListener('change', event => {
+  ACTIVE_SEPAY_BANK_ACCOUNT_ID = Number(event.currentTarget.value) || null;
+  ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null;
+  renderRentPaymentChannel();
 });
 
 document.getElementById('sepay-copy-webhook')?.addEventListener('click', () => {
@@ -1162,6 +1403,7 @@ function clearSensitiveStateFromMemory() {
   STATE.rooms = [];
   STATE.billingData = {};
   STATE.expenses = {};
+  RENT_BANK_ACCOUNTS = [];
   STATE.settings = {
     deduction: 450000,
     bankId: '',
@@ -1246,6 +1488,10 @@ function loadState(savedObj) {
         address: String(property.address || ''),
         note: String(property.note || ''),
         isDefault: !!property.isDefault,
+        rentBankAccountId: Number.isSafeInteger(Number(property.rentBankAccountId))
+          && Number(property.rentBankAccountId) > 0
+          ? Number(property.rentBankAccountId)
+          : null,
         roomCount: Math.max(0, Number(property.roomCount) || 0),
         createdAt: property.createdAt || null,
         updatedAt: property.updatedAt || null
@@ -2056,9 +2302,10 @@ function getVietQrDescription(room, period) {
 }
 
 function genVietQrUrl(room, bill, period, amountOverride = null) {
-  const bankId = String(STATE.settings.bankId || '').trim().toUpperCase();
-  const account = currentBankAccountDigits();
-  const owner = STATE.settings.bankOwnerName || '';
+  const bank = rentBankAccountForRoom(room);
+  const bankId = String(bank?.bankId || '').trim().toUpperCase();
+  const account = String(bank?.accountNumber || '').replace(/[^0-9]/g, '');
+  const owner = bank?.ownerName || '';
 
   if (!bankId || !account) return null;
 
@@ -2075,10 +2322,11 @@ function genVietQrUrl(room, bill, period, amountOverride = null) {
   return `https://img.vietqr.io/image/${encodeURIComponent(bankId)}-${encodeURIComponent(account)}-compact.png?amount=${amount}&addInfo=${encodedDesc}&accountName=${encodedOwner}`;
 }
 
-function rentBankRecipientText() {
-  const bankId = String(STATE.settings.bankId || '').trim().toUpperCase();
-  const account = currentBankAccountDigits();
-  const owner = String(STATE.settings.bankOwnerName || '').trim().toUpperCase();
+function rentBankRecipientText(room) {
+  const bank = rentBankAccountForRoom(room);
+  const bankId = String(bank?.bankId || '').trim().toUpperCase();
+  const account = String(bank?.accountNumber || '').replace(/[^0-9]/g, '');
+  const owner = String(bank?.ownerName || '').trim().toUpperCase();
   if (!bankId || !account) return '';
   return [owner, bankId, account].filter(Boolean).join(' · ');
 }
@@ -2839,6 +3087,7 @@ function renderPage(page) {
       renderSubscriptionSummary();
       renderSubscriptionPlans();
       renderSubscriptionPaymentHistory();
+      renderRentBankAccounts();
       renderRentPaymentChannel();
       break;
   }
@@ -3432,8 +3681,9 @@ function parseRentalContractEquipmentInput(value) {
     });
 }
 
-function rentalContractBankPaymentText() {
-  return [STATE.settings.bankOwnerName, STATE.settings.bankId, STATE.settings.bankAccount]
+function rentalContractBankPaymentText(room) {
+  const bank = rentBankAccountForRoom(room);
+  return [bank?.ownerName, bank?.bankId, bank?.accountNumber]
     .map(value => String(value || '').trim())
     .filter(Boolean)
     .join(' · ');
@@ -3495,7 +3745,7 @@ function openRentalContractDocumentModal(contract) {
     1,
     Number(room.peopleCount) || room.tenants?.length || 1
   );
-  document.getElementById('contract-bank-payment').value = rentalContractBankPaymentText();
+  document.getElementById('contract-bank-payment').value = rentalContractBankPaymentText(room);
   document.getElementById('contract-equipment').value = rentalContractEquipmentText();
   document.getElementById('rental-contract-document-modal').hidden = false;
   document.getElementById('rental-contract-document-purpose').focus();
@@ -5473,7 +5723,8 @@ function buildBillPreviewContent(room, rec, bill, period) {
   const remaining = payment.totalDueVnd;
   const transferContent = getVietQrDescription(room, period);
   const qrUrl = remaining > 0 ? genVietQrUrl(room, bill, period, remaining) : null;
-  const hasBankConfig = !!(STATE.settings.bankId && STATE.settings.bankAccount);
+  const selectedBankAccount = rentBankAccountForRoom(room);
+  const hasBankConfig = !!(selectedBankAccount?.bankId && selectedBankAccount?.accountNumber);
   const waterUsage = room.waterType === 'khối'
     ? `${fmtNum(bill.waterUnits)} m³`
     : `${fmtNum(bill.waterUnits)} người`;
@@ -5501,7 +5752,7 @@ function buildBillPreviewContent(room, rec, bill, period) {
         <p>Vào Cài đặt để thêm ngân hàng và số tài khoản nhận tiền.</p>
       </div>`;
   } else {
-    const recipient = rentBankRecipientText();
+    const recipient = rentBankRecipientText(room);
     qrContent = `
       <div class="bill-preview-qr-frame">
         <img src="${escapeHtml(qrUrl)}" alt="VietQR thanh toán ${escapeHtml(room.name)}" />
@@ -5651,7 +5902,7 @@ function billMessageContext() {
     dueDate: payment.dueDate || billDueDate(period),
     overdueDays: payment.overdueDays,
     transferContent: getVietQrDescription(room, period),
-    bankRecipient: rentBankRecipientText(),
+    bankRecipient: rentBankRecipientText(room),
     invoiceUrl: ACTIVE_BILL_MESSAGE_SHARE_LINK?.publicUrl || ''
   };
 }
@@ -6531,8 +6782,8 @@ function renderReport() {
       const totalDueLine = `💳 TỔNG CẦN THANH TOÁN: ${fmt(payment.totalDueVnd)}`;
       const debtAgeLine = debtAgeMessageLine(payment);
       const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
-      const recipientLine = rentBankRecipientText()
-        ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText()}`
+      const recipientLine = rentBankRecipientText(room)
+        ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText(room)}`
         : '';
 
       const waterLine = room.waterType === 'khối'
@@ -6604,8 +6855,8 @@ async function copyBillText(room, rec, bill, period) {
     : '';
   const debtAgeLine = debtAgeMessageLine(payment);
   const transferLine = `🧾 NỘI DUNG CHUYỂN KHOẢN: ${getVietQrDescription(room, period)}`;
-  const recipientLine = rentBankRecipientText()
-    ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText()}`
+  const recipientLine = rentBankRecipientText(room)
+    ? `🏦 NGƯỜI NHẬN: ${rentBankRecipientText(room)}`
     : '';
 
   const electricOld = getElectricOld(room, period);
@@ -7461,6 +7712,10 @@ if (saveBankBtn) {
     const normalizedAccount = accountVal.replace(/[\s-]/g, '');
     const normalizedOwner = removeVietnameseTones(ownerVal).trim().replace(/\s+/g, ' ').toUpperCase();
     const hasAnyBankValue = Boolean(normalizedBankId || normalizedAccount || normalizedOwner);
+    if (!hasAnyBankValue && RENT_BANK_ACCOUNTS.length > 0) {
+      showToast('Không thể xóa tài khoản mặc định tại form này. Hãy chỉnh sửa tài khoản trong danh sách theo khu.', 'error', 4500);
+      return;
+    }
     if (hasAnyBankValue && !/^[A-Z0-9]{2,20}$/.test(normalizedBankId)) {
       showToast('Mã ngân hàng phải có từ 2 đến 20 chữ hoặc số.', 'error');
       return;
@@ -7495,10 +7750,76 @@ if (saveBankBtn) {
       button.disabled = false;
     }
     showToast('Đã lưu cấu hình tài khoản nhận tiền ✓', 'success');
+    try {
+      const result = await API.getRentBankAccounts();
+      RENT_BANK_ACCOUNTS = Array.isArray(result.bankAccounts) ? result.bankAccounts : [];
+    } catch (error) {
+      console.warn('Không tải lại được danh sách tài khoản nhận tiền:', error.message);
+    }
     renderDashboard();
+    renderRentBankAccounts();
     renderRentPaymentChannel();
   });
 }
+
+document.getElementById('rent-bank-account-add')?.addEventListener(
+  'click',
+  () => showRentBankAccountForm()
+);
+document.getElementById('rent-bank-account-cancel')?.addEventListener(
+  'click',
+  hideRentBankAccountForm
+);
+document.getElementById('rent-bank-account-bank-select')?.addEventListener('change', event => {
+  const fields = rentBankAccountFormElements();
+  fields.customWrap.hidden = event.currentTarget.value !== 'custom';
+  if (!fields.customWrap.hidden) fields.custom.focus();
+});
+document.getElementById('rent-bank-account-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const fields = rentBankAccountFormElements();
+  const bankId = fields.bankSelect.value === 'custom'
+    ? fields.custom.value
+    : fields.bankSelect.value;
+  const payload = {
+    label: fields.label.value,
+    bankId,
+    accountNumber: fields.accountNumber.value,
+    ownerName: fields.owner.value,
+    makeDefault: fields.makeDefault.checked
+  };
+  const save = document.getElementById('rent-bank-account-save');
+  save.disabled = true;
+  try {
+    const result = ACTIVE_RENT_BANK_ACCOUNT_EDIT_ID
+      ? await API.updateRentBankAccount(ACTIVE_RENT_BANK_ACCOUNT_EDIT_ID, payload)
+      : await API.createRentBankAccount(payload);
+    const account = result.bankAccount;
+    const index = RENT_BANK_ACCOUNTS.findIndex(
+      item => Number(item.id) === Number(account.id)
+    );
+    if (account.isDefault) {
+      for (const item of RENT_BANK_ACCOUNTS) item.isDefault = false;
+      STATE.settings.bankId = account.bankId;
+      STATE.settings.bankAccount = account.accountNumber;
+      STATE.settings.bankOwnerName = account.ownerName;
+    }
+    if (index >= 0) RENT_BANK_ACCOUNTS[index] = account;
+    else RENT_BANK_ACCOUNTS.push(account);
+    RENT_BANK_ACCOUNTS.sort((a, b) => Number(b.isDefault) - Number(a.isDefault)
+      || a.label.localeCompare(b.label, 'vi'));
+    hideRentBankAccountForm();
+    renderRentBankAccounts();
+    renderRentPaymentChannel();
+    renderDashboard();
+    showToast('Đã lưu tài khoản nhận tiền.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không lưu được tài khoản', 'error', 4500);
+  } finally {
+    save.disabled = false;
+  }
+});
 
 const saveReminderBtn = document.getElementById('save-reminder-settings');
 if (saveReminderBtn) {
@@ -9277,8 +9598,14 @@ async function startApp() {
     }
   };
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult] = await Promise.all([
+  const [serverState, bankAccountsResult, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult] = await Promise.all([
     API.getState(),
+    (ownerWorkspace || (workspace.operations || []).includes('invoices'))
+      ? API.getRentBankAccounts().catch((error) => {
+          console.warn('Không tải được tài khoản nhận tiền:', error.message);
+          return { bankAccounts: [] };
+        })
+      : Promise.resolve({ bankAccounts: [] }),
     ownerWorkspace ? API.getSubscription() : Promise.resolve(readOnlyEntitlement),
     ownerWorkspace ? API.getPlans().catch(() => ({ plans: [] })) : Promise.resolve({ plans: [] }),
     ownerWorkspace ? API.getSubscriptionPayments(30).catch(() => ({ payments: [] })) : Promise.resolve({ payments: [] }),
@@ -9325,6 +9652,9 @@ async function startApp() {
     ? paymentsResult.payments
     : [];
   loadState(serverState);
+  RENT_BANK_ACCOUNTS = Array.isArray(bankAccountsResult.bankAccounts)
+    ? bankAccountsResult.bankAccounts
+    : [];
   applyRoomOperationalStatusPayload(maintenanceResult);
   applyTeamMembersPayload(teamResult);
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
@@ -9346,6 +9676,7 @@ async function startApp() {
   renderSubscriptionSummary();
   renderSubscriptionPlans();
   renderSubscriptionPaymentHistory();
+  renderRentBankAccounts();
   renderRentPaymentChannel();
   renderTeamMembers();
   loadDonateConfig();

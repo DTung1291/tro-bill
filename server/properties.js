@@ -22,6 +22,9 @@ function propertyJson(row) {
     address: row.address || '',
     note: row.note || '',
     isDefault: !!row.is_default,
+    rentBankAccountId: row.rent_bank_account_id === null || row.rent_bank_account_id === undefined
+      ? null
+      : Number(row.rent_bank_account_id),
     roomCount: Math.max(0, Number(row.room_count) || 0),
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null

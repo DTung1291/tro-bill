@@ -218,6 +218,8 @@ function summaryJson(row, options = {}) {
     transferContent: InvoiceReference.fromInvoiceId(row.id),
     roomId: row.room_id,
     roomName: row.room_name_snapshot || '',
+    propertyId: row.property_id == null ? null : Number(row.property_id),
+    bankAccountId: row.bank_account_id == null ? null : Number(row.bank_account_id),
     period: row.period,
     invoiceTotalVnd: total,
     issuedTotalVnd: Number(row.original_issued_total_vnd ?? row.issued_total_vnd) || 0,
@@ -246,6 +248,9 @@ function summaryJson(row, options = {}) {
 
 const SUMMARY_SELECT = `
   SELECT i.id, i.room_id, i.room_name_snapshot, i.period,
+         current_room.property_id,
+         COALESCE(current_property.rent_bank_account_id, default_bank.id)
+           AS bank_account_id,
          COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd,
          i.issued_total_vnd AS original_issued_total_vnd,
          i.finalized_at, i.finalization_contract_id, i.issued_at, i.updated_at,
@@ -305,13 +310,18 @@ const SUMMARY_SELECT = `
   LEFT JOIN rent_payment_transactions t
     ON t.user_id=i.user_id AND t.invoice_id=i.id
   LEFT JOIN rooms current_room
-    ON current_room.user_id=i.user_id AND current_room.id=i.room_id`;
+    ON current_room.user_id=i.user_id AND current_room.id=i.room_id
+  LEFT JOIN properties current_property
+    ON current_property.user_id=current_room.user_id
+   AND current_property.id=current_room.property_id
+  LEFT JOIN rent_bank_accounts default_bank
+    ON default_bank.user_id=i.user_id AND default_bank.is_default`;
 
 async function invoiceSummary(query, userId, invoiceId) {
   const { rows } = await query(
     `${SUMMARY_SELECT}
      WHERE i.user_id=$1 AND i.id=$2
-     GROUP BY i.id, current_room.id`,
+     GROUP BY i.id, current_room.id, current_property.id, default_bank.id`,
     [userId, invoiceId]
   );
   return rows[0] ? summaryJson(rows[0]) : null;
@@ -331,7 +341,7 @@ async function listInvoiceSummaries(req, res) {
   const { rows } = await db.query(
     `${SUMMARY_SELECT}
      ${filter}
-     GROUP BY i.id, current_room.id
+     GROUP BY i.id, current_room.id, current_property.id, default_bank.id
      ORDER BY i.period DESC, i.room_name_snapshot, i.id`,
     params
   );

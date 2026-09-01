@@ -81,8 +81,14 @@ test('ghép thủ công cho phép thanh toán một phần và tạo phiếu thu
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (sql.includes('SELECT * FROM rent_bank_transactions')) return { rows: [bankRow()] };
-      if (sql.includes('SELECT id, user_id, room_id, period')) {
-        return { rows: [{ id: 41, user_id: 7, room_id: 'room-1', period: '2026-08' }] };
+      if (sql.includes('SELECT invoice.id, invoice.user_id, invoice.room_id, invoice.period')) {
+        return { rows: [{
+          id: 41,
+          user_id: 7,
+          room_id: 'room-1',
+          period: '2026-08',
+          bank_account_id: null
+        }] };
       }
       if (sql.includes('GREATEST(i.issued_total_vnd')) {
         return { rows: [{ id: 41, period: '2026-08', remaining_vnd: '3000000' }] };
@@ -222,6 +228,6 @@ test('migration và UI có hàng chờ xử lý thủ công, không cấp quyề
   assert.match(apiSource, /function ignoreRentBankTransaction/);
   assert.match(appSource, /function renderRentBankReconciliation/);
   assert.match(htmlSource, /id="bank-reconciliation"/);
-  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=112/);
+  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=114/);
   assert.match(styleSource, /\.bank-reconciliation-controls/);
 });

@@ -173,6 +173,30 @@ const API = (() => {
     return request('DELETE', `/api/properties/${encodeURIComponent(id)}`);
   }
 
+  function getRentBankAccounts() {
+    return request('GET', '/api/rent-bank-accounts');
+  }
+
+  function createRentBankAccount(input) {
+    return request('POST', '/api/rent-bank-accounts', input);
+  }
+
+  function updateRentBankAccount(id, input) {
+    return request('PATCH', `/api/rent-bank-accounts/${encodeURIComponent(id)}`, input);
+  }
+
+  function deleteRentBankAccount(id) {
+    return request('DELETE', `/api/rent-bank-accounts/${encodeURIComponent(id)}`);
+  }
+
+  function assignPropertyRentBankAccount(propertyId, bankAccountId) {
+    return request(
+      'PATCH',
+      `/api/properties/${encodeURIComponent(propertyId)}/rent-bank-account`,
+      { bankAccountId: bankAccountId ?? null }
+    );
+  }
+
   function getTeamMembers() {
     return request('GET', '/api/team/members');
   }
@@ -278,8 +302,11 @@ const API = (() => {
     return request('GET', '/api/rent-payment-channels');
   }
 
-  function createSepayRentPaymentChannel(expectedAccountNumber) {
-    return request('POST', '/api/rent-payment-channels/sepay', { expectedAccountNumber });
+  function createSepayRentPaymentChannel(expectedAccountNumber, bankAccountId = null) {
+    return request('POST', '/api/rent-payment-channels/sepay', {
+      expectedAccountNumber,
+      bankAccountId
+    });
   }
 
   function rotateRentPaymentChannelSecret(channelId) {
@@ -634,6 +661,11 @@ const API = (() => {
     createProperty,
     updateProperty,
     deleteProperty,
+    getRentBankAccounts,
+    createRentBankAccount,
+    updateRentBankAccount,
+    deleteRentBankAccount,
+    assignPropertyRentBankAccount,
     getTeamMembers,
     createTeamMember,
     updateTeamMember,

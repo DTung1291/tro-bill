@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng làm — nhiều tài khoản ngân hàng nhận tiền theo khu |
+| Trạng thái | Migration production đạt — chuẩn bị commit/push tài khoản ngân hàng theo khu |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit bàn giao dashboard; luôn xác minh bằng Git trước khi sửa |
+| Worktree kỳ vọng | Đang bẩn có chủ đích với feature tài khoản ngân hàng theo khu; chưa commit/push |
 | Phần ứng dụng phát hành gần nhất | `c0858ca` — dashboard và chi phí lọc theo từng khu |
-| Việc code tiếp theo | Thiết kế tài khoản ngân hàng theo khu, giữ tương thích cấu hình nhận tiền hiện tại |
-| Việc vận hành còn mở | Dọn user test dashboard trên staging; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
+| Việc code tiếp theo | Commit/push, theo dõi CI và smoke test production |
+| Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -39,7 +39,10 @@ hoặc để chung; nhân viên được lọc chi phí theo assignment. Dữ li
 `20260831_dashboard_property_expenses.sql` đã chạy trên Neon `staging-privacy`
 và production, cả hai đạt 5/5 cờ cột, ownership FK, index, quyền runtime và toàn
 vẹn tham chiếu. Preview và production đã kiểm tra desktop/mobile cùng dữ liệu
-thật. Hạng mục code tiếp theo là nhiều tài khoản ngân hàng nhận tiền theo khu.
+thật. Hạng mục nhiều tài khoản ngân hàng nhận tiền theo khu đang được triển khai:
+schema/API/UI và kiểm thử tự động đã hoàn tất; migration staging/production đều
+đạt 7/7 cờ và Preview đã qua kiểm thử desktop/mobile/VietQR. Còn chờ commit,
+CI và smoke test production.
 
 ## Bản đồ hệ thống ngắn
 
@@ -211,6 +214,27 @@ thật. Hạng mục code tiếp theo là nhiều tài khoản ngân hàng nhậ
   `c0858ca10e12`, database/schema `ok`, runtime role `restricted`. Smoke test
   tài khoản thật xác nhận bộ lọc nhận đúng khu `Khu Trọ Vũ Hữu (7)` và không có
   lỗi console; không ghi dữ liệu thử trên production.
+- Tài khoản nhận tiền theo khu đang ở giai đoạn Preview. Bảng
+  `rent_bank_accounts` giữ danh mục theo chủ, một mặc định; khu để `NULL` kế
+  thừa mặc định hoặc tham chiếu tài khoản cùng chủ. Kênh SePay/giao dịch ngân
+  hàng giữ `bank_account_id`; đối soát chặn tự động lẫn thủ công khi hóa đơn dùng
+  tài khoản khác. QR, email, link công khai, hợp đồng và mẫu tin nhắn đều lấy tài
+  khoản hiệu lực theo khu, còn `settings.bank_*` được giữ đồng bộ để tương thích.
+  Migration `20260901_property_bank_accounts.sql` đã chạy trên Neon
+  `staging-privacy` và production ngày 01/09/2026; cả hai đạt 7/7 cờ
+  bảng/FK/backfill/index/quyền runtime/ownership. Bộ đầy đủ hiện đạt 354/354;
+  secret scan và diff check sạch.
+  Preview mới nhất `tro-bill-3jbffmhk2-dtung.vercel.app`
+  (`dpl_8VTjESz1R8fgtWZLdvzKKmAcvsTC`) READY, readiness staging trả database,
+  schema `ok` và runtime role `restricted`. Chưa push. API E2E bằng user test
+  staging đã tạo VCB mặc định, MB riêng cho khu B,
+  xác nhận `settings.bank_*` đồng bộ, đọc lại assignment và cập nhật tài khoản
+  thành công. Hai hóa đơn kỳ `2026-09` xác nhận phòng A101 ở khu mặc định nhận
+  `bankAccountId=1`, phòng B201 ở khu B nhận `bankAccountId=2`. E2E phát hiện và
+  sửa `loadState()` làm rơi `rentBankAccountId`; sau hotfix Khu B hiển thị đúng
+  MB qua reload. Desktop và mobile 390px không tràn, SePay liệt kê đủ hai tài
+  khoản, QR A101 dùng VCB/đúng số tiền, QR B201 dùng MB/đúng số tiền và console
+  sạch. Production migration đã đạt 7/7; còn chờ push, CI và smoke test.
 
 ## Việc chưa được xem là hoàn tất
 

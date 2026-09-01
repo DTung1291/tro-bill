@@ -38,12 +38,13 @@ function matchingClient(options = {}) {
     calls,
     async query(sql, params = []) {
       calls.push({ sql, params });
-      if (sql.includes('SELECT id, user_id, room_id, period')) {
+      if (sql.includes('SELECT invoice.id, invoice.user_id, invoice.room_id, invoice.period')) {
         return { rows: options.invoiceMissing ? [] : [{
           id: 41,
           user_id: 7,
           room_id: 'room-1',
-          period: '2026-08'
+          period: '2026-08',
+          bank_account_id: options.invoiceBankAccountId ?? null
         }] };
       }
       if (sql.includes('GREATEST(i.issued_total_vnd')) return { rows: balances };
@@ -150,6 +151,20 @@ test('không chuyển nợ của khách cũ trước ngày thuê hiện tại', 
   const result = await autoMatchBankTransaction(client, bankTransaction());
   assert.equal(result.matched, true);
   assert.deepEqual(result.allocations.map((entry) => entry.invoiceId), [41]);
+});
+
+test('không tự ghép giao dịch vào hóa đơn dùng tài khoản nhận tiền khác', async () => {
+  const client = matchingClient({ invoiceBankAccountId: 12 });
+  const result = await autoMatchBankTransaction(
+    client,
+    bankTransaction({ bank_account_id: 13 })
+  );
+  assert.equal(result.matched, false);
+  assert.equal(result.reason, 'bank_account_mismatch');
+  assert.equal(
+    client.calls.some(call => call.sql.includes('INSERT INTO rent_payment_receipts')),
+    false
+  );
 });
 
 test('migration liên kết bank transaction với phiếu thu và chỉ cấp quyền update cột đối soát', () => {

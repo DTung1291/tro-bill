@@ -315,14 +315,31 @@ async function resolvePublicInvoiceLink(req, res) {
               COALESCE(invoice.final_detail_snapshot, invoice.detail_snapshot)
                 AS detail_snapshot,
               invoice.finalized_at,
-              settings.bank_id, settings.bank_account, settings.bank_owner_name,
+              COALESCE(assigned_bank.bank_id, default_bank.bank_id, settings.bank_id)
+                AS bank_id,
+              COALESCE(assigned_bank.account_number, default_bank.account_number, settings.bank_account)
+                AS bank_account,
+              COALESCE(assigned_bank.owner_name, default_bank.owner_name, settings.bank_owner_name)
+                AS bank_owner_name,
               COALESCE(SUM(tx.amount_vnd), 0) AS paid_amount_vnd
        FROM rent_invoices invoice
+       LEFT JOIN rooms room
+         ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+       LEFT JOIN properties property
+         ON property.user_id=room.user_id AND property.id=room.property_id
+       LEFT JOIN rent_bank_accounts assigned_bank
+         ON assigned_bank.user_id=property.user_id
+        AND assigned_bank.id=property.rent_bank_account_id
+       LEFT JOIN rent_bank_accounts default_bank
+         ON default_bank.user_id=invoice.user_id AND default_bank.is_default
        LEFT JOIN settings ON settings.user_id=invoice.user_id
        LEFT JOIN rent_payment_transactions tx
          ON tx.user_id=invoice.user_id AND tx.invoice_id=invoice.id
        WHERE invoice.user_id=$1 AND invoice.id=$2
-       GROUP BY invoice.id, settings.bank_id, settings.bank_account, settings.bank_owner_name`,
+       GROUP BY invoice.id,
+                assigned_bank.bank_id, assigned_bank.account_number, assigned_bank.owner_name,
+                default_bank.bank_id, default_bank.account_number, default_bank.owner_name,
+                settings.bank_id, settings.bank_account, settings.bank_owner_name`,
       [link.user_id, link.invoice_id]
     );
     const invoice = invoiceResult.rows[0];

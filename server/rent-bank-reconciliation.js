@@ -24,6 +24,8 @@ function positiveId(value, field = 'Giao dịch') {
 function transactionJson(row) {
   return {
     id: Number(row.id),
+    bankAccountId: row.bank_account_id == null ? null : Number(row.bank_account_id),
+    bankAccountLabel: row.bank_account_label || '',
     provider: row.provider,
     providerTransactionId: row.provider_transaction_id,
     gateway: row.gateway || '',
@@ -57,8 +59,11 @@ async function listBankTransactions(req, res) {
     return res.status(400).json({ error: 'Trạng thái đối soát không hợp lệ', code: 'INVALID_MATCH_STATUS' });
   }
   const { rows } = await db.query(
-    `SELECT bank.*, invoice.room_name_snapshot, invoice.period, receipt.receipt_code
+    `SELECT bank.*, account.label AS bank_account_label,
+            invoice.room_name_snapshot, invoice.period, receipt.receipt_code
      FROM rent_bank_transactions bank
+     LEFT JOIN rent_bank_accounts account
+       ON account.user_id=bank.user_id AND account.id=bank.bank_account_id
      LEFT JOIN rent_invoices invoice
        ON invoice.user_id=bank.user_id AND invoice.id=bank.matched_invoice_id
      LEFT JOIN rent_payment_receipts receipt

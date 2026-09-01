@@ -47,12 +47,13 @@ test('server ràng buộc webhook với settings và UI công khai cơ chế kh�
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
   assert.match(stateSource, /normalizeRentBankSettings\(settings\)/);
-  assert.match(channelSource, /SELECT bank_id, bank_account, bank_owner_name[\s\S]*FROM settings/);
+  assert.match(channelSource, /COALESCE\(account\.bank_id, settings\.bank_id\)[\s\S]*FROM settings/);
+  assert.match(channelSource, /FROM rent_bank_accounts[\s\S]*WHERE user_id=\$1 AND id=\$2/);
   assert.match(channelSource, /settlementMode: 'direct_to_landlord'/);
   assert.match(channelSource, /supplied !== settings\.accountNumber/);
   assert.match(htmlSource, /Tiền thuê chuyển thẳng vào tài khoản của bạn/);
   assert.match(htmlSource, /TrọBill chỉ nhận thông báo giao dịch để đối soát/);
-  assert.match(htmlSource, /style\.css\?v=109[\s\S]*api\.js\?v=104[\s\S]*app\.js\?v=112/);
+  assert.match(htmlSource, /style\.css\?v=110[\s\S]*api\.js\?v=104[\s\S]*app\.js\?v=114/);
   assert.match(appSource, /function rentBankRecipientText/);
   assert.match(appSource, /Tiền vào thẳng tài khoản chủ trọ; TrọBill không giữ hộ tiền thuê/);
   assert.match(styleSource, /\.bill-preview-direct-settlement/);

@@ -358,6 +358,19 @@ phạm vi chi phí cho kết quả đúng; desktop/mobile không tràn ngang. B�
 ready với database/schema `ok`, runtime role `restricted`. Smoke test tài khoản
 thật xác nhận bộ lọc nhận đúng khu có 7 phòng và không có lỗi console.
 
+Tài khoản ngân hàng theo khu ngày 01/09/2026 đã qua kiểm thử Preview: danh mục tài
+khoản theo chủ, một mặc định, gán/kế thừa theo khu và kênh SePay riêng từng tài
+khoản đã có schema/API/UI. QR, email, hợp đồng và đối soát dùng tài khoản hiệu
+lực theo khu; giao dịch bị chặn khi ghép sang hóa đơn dùng tài khoản khác.
+Migration staging và production đều đạt 7/7 cờ; 354/354 test tự động thành
+công. Chưa đánh dấu hoàn tất cho đến khi CI và smoke test production đạt. API
+E2E trên Preview đã tạo đúng một tài khoản mặc định, một tài khoản riêng cho khu
+B, đồng bộ cấu hình cũ, gán khu và cập nhật tên thành công. Hai hóa đơn test cũng
+trả đúng `bankAccountId` tương ứng cho khu mặc định và khu
+B. Preview hotfix đã sửa lỗi client làm rơi assignment khi nạp state; desktop và
+mobile 390px không tràn, selector SePay đủ hai tài khoản, QR A101 dùng VCB và QR
+B201 dùng MB, console sạch. Còn chờ CI và smoke test production.
+
 ### Bảo trì và tài sản
 
 - [ ] Quản lý tài sản/nội thất theo phòng.

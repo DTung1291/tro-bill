@@ -136,8 +136,22 @@ async function executeInvoiceEmailDelivery(input, dependencies = {}) {
   }
   const { rows } = await query(
     `SELECT tenant.id, tenant.full_name, tenant.email,
-            settings.bank_id, settings.bank_account, settings.bank_owner_name
+            COALESCE(assigned_bank.bank_id, default_bank.bank_id, settings.bank_id)
+              AS bank_id,
+            COALESCE(assigned_bank.account_number, default_bank.account_number, settings.bank_account)
+              AS bank_account,
+            COALESCE(assigned_bank.owner_name, default_bank.owner_name, settings.bank_owner_name)
+              AS bank_owner_name
      FROM tenants tenant
+     LEFT JOIN rooms room
+       ON room.user_id=tenant.user_id AND room.id=tenant.room_id
+     LEFT JOIN properties property
+       ON property.user_id=room.user_id AND property.id=room.property_id
+     LEFT JOIN rent_bank_accounts assigned_bank
+       ON assigned_bank.user_id=property.user_id
+      AND assigned_bank.id=property.rent_bank_account_id
+     LEFT JOIN rent_bank_accounts default_bank
+       ON default_bank.user_id=tenant.user_id AND default_bank.is_default
      LEFT JOIN settings ON settings.user_id=tenant.user_id
      WHERE tenant.user_id=$1 AND tenant.room_id=$2 AND tenant.id=$3`,
     [input.userId, summary.roomId, input.tenantId]

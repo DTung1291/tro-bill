@@ -267,3 +267,25 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   được giao; chi phí chung chỉ được trả về khi họ được giao toàn bộ khu của tài
   khoản. Nếu sau này cần phân bổ chi phí chung, phải thêm quy tắc và bút toán
   phân bổ có thể kiểm tra, không thay đổi âm thầm ý nghĩa của `NULL`.
+
+## D-021 — Tài khoản nhận tiền là danh mục dùng chung, khu chỉ giữ tham chiếu
+
+- **Trạng thái:** Migration production đã đạt 7/7, chờ phát hành code từ
+  01/09/2026.
+- **Quyết định:** Mỗi chủ trọ có danh mục `rent_bank_accounts`, đúng một tài
+  khoản mặc định và tối đa 20 tài khoản. `properties.rent_bank_account_id` có
+  thể trỏ tới một tài khoản cùng chủ; `NULL` nghĩa là kế thừa tài khoản mặc
+  định. Một tài khoản được phép dùng cho nhiều khu. Kênh SePay và giao dịch ngân
+  hàng giữ `bank_account_id` để mỗi tài khoản có webhook riêng và chỉ đối soát
+  với hóa đơn dùng đúng tài khoản đó. Ba trường `settings.bank_*` tiếp tục phản
+  chiếu tài khoản mặc định trong giai đoạn tương thích.
+- **Lý do:** Sao chép đầy đủ thông tin ngân hàng vào từng khu tạo dữ liệu trùng,
+  khó đổi một tài khoản dùng chung và không mô hình hóa được nhiều webhook
+  SePay. Chỉ dựa vào số tài khoản trong giao dịch cũng không đủ khóa ownership
+  hoặc ngăn ghép thủ công sang hóa đơn của khu khác.
+- **Hệ quả:** Đổi tài khoản mặc định phải đồng bộ cấu hình cũ trong cùng
+  transaction. Không được xóa tài khoản đang là mặc định, đang gán cho khu hoặc
+  đã có kênh/lịch sử đối soát. QR, email, link hóa đơn, hợp đồng và tin nhắn lấy
+  tài khoản hiệu lực theo khu rồi mới fallback mặc định. Giao dịch có
+  `bank_account_id` chỉ được tự động hoặc thủ công ghép với invoice có cùng tài
+  khoản hiệu lực; giao dịch legacy chưa có ID vẫn giữ luồng tương thích.

@@ -38,14 +38,31 @@ async function keepPending(client, transactionId, reason) {
 
 async function targetWithOutstanding(client, transaction, invoiceId) {
   const invoiceResult = await client.query(
-    `SELECT id, user_id, room_id, period
-     FROM rent_invoices
-     WHERE user_id=$1 AND id=$2
-     FOR UPDATE`,
+    `SELECT invoice.id, invoice.user_id, invoice.room_id, invoice.period,
+            COALESCE(property.rent_bank_account_id, default_account.id)
+              AS bank_account_id
+     FROM rent_invoices invoice
+     LEFT JOIN rooms room
+       ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+     LEFT JOIN properties property
+       ON property.user_id=room.user_id AND property.id=room.property_id
+     LEFT JOIN rent_bank_accounts default_account
+       ON default_account.user_id=invoice.user_id AND default_account.is_default
+     WHERE invoice.user_id=$1 AND invoice.id=$2
+     FOR UPDATE OF invoice`,
     [transaction.user_id, invoiceId]
   );
   const targetInvoice = invoiceResult.rows[0];
   if (!targetInvoice) return null;
+  const transactionBankAccountId = transaction.bank_account_id == null
+    ? null
+    : Number(transaction.bank_account_id);
+  const invoiceBankAccountId = targetInvoice.bank_account_id == null
+    ? null
+    : Number(targetInvoice.bank_account_id);
+  if (transactionBankAccountId !== null && transactionBankAccountId !== invoiceBankAccountId) {
+    return { targetInvoice, bankAccountMismatch: true, outstanding: [], expectedAmountVnd: 0 };
+  }
 
   await client.query(
     `SELECT id FROM rent_invoices
@@ -243,6 +260,9 @@ async function autoMatchBankTransaction(client, transaction) {
   const invoiceId = InvoiceReference.toInvoiceId(transferReference);
   const target = await targetWithOutstanding(client, transaction, invoiceId);
   if (!target) return keepPending(client, transaction.id, 'invoice_not_found');
+  if (target.bankAccountMismatch) {
+    return keepPending(client, transaction.id, 'bank_account_mismatch');
+  }
   if (target.expectedAmountVnd <= 0) {
     return keepPending(client, transaction.id, 'invoice_already_settled');
   }
@@ -272,6 +292,13 @@ async function manuallyMatchBankTransaction(
   const target = await targetWithOutstanding(client, transaction, invoiceId);
   if (!target) {
     throw new ReconciliationError(404, 'INVOICE_NOT_FOUND', 'Không tìm thấy hóa đơn thuộc tài khoản');
+  }
+  if (target.bankAccountMismatch) {
+    throw new ReconciliationError(
+      409,
+      'BANK_ACCOUNT_MISMATCH',
+      'Hóa đơn không dùng tài khoản ngân hàng đã nhận giao dịch này'
+    );
   }
   if (target.expectedAmountVnd <= 0) {
     throw new ReconciliationError(409, 'INVOICE_ALREADY_SETTLED', 'Hóa đơn đã được thu đủ');

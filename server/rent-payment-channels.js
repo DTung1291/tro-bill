@@ -81,6 +81,7 @@ function webhookUrl(req, publicId) {
 function channelJson(row, req) {
   return {
     id: Number(row.id),
+    bankAccountId: row.bank_account_id == null ? null : Number(row.bank_account_id),
     provider: row.provider,
     status: row.status,
     expectedAccountNumber: row.expected_account_number,
@@ -93,13 +94,43 @@ function channelJson(row, req) {
   };
 }
 
-async function configuredRentAccount(userId, suppliedAccountNumber) {
-  const { rows } = await db.query(
-    `SELECT bank_id, bank_account, bank_owner_name
-     FROM settings
-     WHERE user_id=$1`,
-    [userId]
-  );
+async function configuredRentAccount(
+  userId,
+  suppliedAccountNumber,
+  bankAccountId = null,
+  query = db.query
+) {
+  let result;
+  if (bankAccountId !== null && bankAccountId !== undefined && bankAccountId !== '') {
+    const id = positiveId(bankAccountId, 'INVALID_RENT_BANK_ACCOUNT_ID');
+    result = await query(
+      `SELECT id AS bank_account_id, bank_id,
+              account_number AS bank_account, owner_name AS bank_owner_name
+       FROM rent_bank_accounts
+       WHERE user_id=$1 AND id=$2`,
+      [userId, id]
+    );
+    if (!result.rows[0]) {
+      throw new RentPaymentChannelError(
+        404,
+        'RENT_BANK_ACCOUNT_NOT_FOUND',
+        'Không tìm thấy tài khoản ngân hàng nhận tiền'
+      );
+    }
+  } else {
+    result = await query(
+      `SELECT account.id AS bank_account_id,
+              COALESCE(account.bank_id, settings.bank_id) AS bank_id,
+              COALESCE(account.account_number, settings.bank_account) AS bank_account,
+              COALESCE(account.owner_name, settings.bank_owner_name) AS bank_owner_name
+       FROM settings
+       LEFT JOIN rent_bank_accounts account
+         ON account.user_id=settings.user_id AND account.is_default
+       WHERE settings.user_id=$1`,
+      [userId]
+    );
+  }
+  const { rows } = result;
   let settings;
   try {
     settings = normalizeRentBankSettings(rows[0] || {}, { allowEmpty: false });
@@ -130,7 +161,10 @@ async function configuredRentAccount(userId, suppliedAccountNumber) {
       'Số tài khoản yêu cầu không khớp cấu hình VietQR đã lưu'
     );
   }
-  return settings.accountNumber;
+  return {
+    bankAccountId: rows[0]?.bank_account_id == null ? null : Number(rows[0].bank_account_id),
+    expectedAccountNumber: settings.accountNumber
+  };
 }
 
 function authorizationSecret(req) {
@@ -231,7 +265,7 @@ function sepayTransactionInput(body, expectedAccountNumber) {
 
 async function listChannels(req, res) {
   const { rows } = await db.query(
-    `SELECT id, provider, public_id, secret_last4, expected_account_number,
+    `SELECT id, bank_account_id, provider, public_id, secret_last4, expected_account_number,
             status, last_received_at, created_at, updated_at
      FROM rent_payment_channels
      WHERE user_id=$1
@@ -243,11 +277,12 @@ async function listChannels(req, res) {
 }
 
 async function createSepayChannel(req, res) {
-  let expectedAccountNumber;
+  let configured;
   try {
-    expectedAccountNumber = await configuredRentAccount(
+    configured = await configuredRentAccount(
       req.userId,
-      req.body?.expectedAccountNumber
+      req.body?.expectedAccountNumber,
+      req.body?.bankAccountId
     );
   } catch (error) {
     if (sendChannelError(res, error)) return res;
@@ -258,17 +293,20 @@ async function createSepayChannel(req, res) {
   try {
     const { rows } = await db.query(
       `INSERT INTO rent_payment_channels
-         (user_id, provider, public_id, secret_hash, secret_last4, expected_account_number)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, provider, public_id, secret_last4, expected_account_number,
+         (user_id, bank_account_id, provider, public_id, secret_hash, secret_last4,
+          expected_account_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, bank_account_id, provider, public_id, secret_last4,
+                 expected_account_number,
                  status, last_received_at, created_at, updated_at`,
       [
         req.userId,
+        configured.bankAccountId,
         PROVIDER,
         publicId,
         secretHash(secret),
         secret.slice(-4),
-        expectedAccountNumber
+        configured.expectedAccountNumber
       ]
     );
     res.set('Cache-Control', 'no-store');
@@ -297,7 +335,7 @@ async function rotateChannelSecret(req, res) {
     `UPDATE rent_payment_channels
      SET secret_hash=$3, secret_last4=$4, status='active', updated_at=now()
      WHERE user_id=$1 AND id=$2
-     RETURNING id, provider, public_id, secret_last4, expected_account_number,
+     RETURNING id, bank_account_id, provider, public_id, secret_last4, expected_account_number,
                status, last_received_at, created_at, updated_at`,
     [req.userId, channelId, secretHash(secret), secret.slice(-4)]
   );
@@ -324,7 +362,7 @@ async function setChannelStatus(req, res) {
     `UPDATE rent_payment_channels
      SET status=$3, updated_at=now()
      WHERE user_id=$1 AND id=$2
-     RETURNING id, provider, public_id, secret_last4, expected_account_number,
+     RETURNING id, bank_account_id, provider, public_id, secret_last4, expected_account_number,
                status, last_received_at, created_at, updated_at`,
     [req.userId, channelId, status]
   );
@@ -340,10 +378,24 @@ async function updateChannelAccount(req, res) {
   let expectedAccountNumber;
   try {
     channelId = positiveId(req.params.id);
-    expectedAccountNumber = await configuredRentAccount(
-      req.userId,
-      req.body?.expectedAccountNumber
+    const channelResult = await db.query(
+      `SELECT bank_account_id FROM rent_payment_channels
+       WHERE user_id=$1 AND id=$2`,
+      [req.userId, channelId]
     );
+    if (!channelResult.rows[0]) {
+      throw new RentPaymentChannelError(
+        404,
+        'CHANNEL_NOT_FOUND',
+        'Không tìm thấy kênh thanh toán'
+      );
+    }
+    const configured = await configuredRentAccount(
+      req.userId,
+      req.body?.expectedAccountNumber,
+      channelResult.rows[0].bank_account_id
+    );
+    expectedAccountNumber = configured.expectedAccountNumber;
   } catch (error) {
     if (sendChannelError(res, error)) return res;
     throw error;
@@ -352,7 +404,7 @@ async function updateChannelAccount(req, res) {
     `UPDATE rent_payment_channels
      SET expected_account_number=$3, updated_at=now()
      WHERE user_id=$1 AND id=$2
-     RETURNING id, provider, public_id, secret_last4, expected_account_number,
+     RETURNING id, bank_account_id, provider, public_id, secret_last4, expected_account_number,
                status, last_received_at, created_at, updated_at`,
     [req.userId, channelId, expectedAccountNumber]
   );
@@ -369,7 +421,7 @@ async function sepayWebhook(req, res) {
     return res.status(404).json({ error: 'Webhook không tồn tại', code: 'WEBHOOK_NOT_FOUND' });
   }
   const channelResult = await db.query(
-    `SELECT id, user_id, secret_hash, expected_account_number, status
+    `SELECT id, user_id, bank_account_id, secret_hash, expected_account_number, status
      FROM rent_payment_channels
      WHERE provider=$1 AND public_id=$2`,
     [PROVIDER, publicId]
@@ -395,15 +447,16 @@ async function sepayWebhook(req, res) {
     await client.query('BEGIN');
     const inserted = await client.query(
       `INSERT INTO rent_bank_transactions
-         (user_id, channel_id, provider, provider_transaction_id, gateway,
+         (user_id, channel_id, bank_account_id, provider, provider_transaction_id, gateway,
           account_number, transfer_type, amount_vnd, transaction_content,
           transaction_code, provider_reference, occurred_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (channel_id, provider_transaction_id) DO NOTHING
        RETURNING *`,
       [
         channel.user_id,
         channel.id,
+        channel.bank_account_id,
         PROVIDER,
         input.providerTransactionId,
         input.gateway,

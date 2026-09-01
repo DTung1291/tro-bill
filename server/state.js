@@ -9,6 +9,7 @@ const {
 const { TENANT_DATA_NOTICE_VERSION } = require('./privacy-constants');
 const { enforceStateWrite, sendEntitlementError } = require('./subscription');
 const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-bank-settings');
+const { syncDefaultBankAccountFromSettings } = require('./rent-bank-accounts');
 const { restoreContractRateMilestones } = require('./rental-contracts');
 const { ensureDefaultProperty, propertyJson } = require('./properties');
 const {
@@ -894,6 +895,15 @@ async function putState(req, res) {
         invoiceReminderSettings.afterDays,
         theme
       ]
+    );
+    await syncDefaultBankAccountFromSettings(
+      client.query.bind(client),
+      uid,
+      {
+        bankId: rentBankSettings.bankId,
+        bankAccount: rentBankSettings.accountNumber,
+        bankOwnerName: rentBankSettings.ownerName
+      }
     );
 
     // Xóa dữ liệu con của user (cascade sẽ dọn tenants/history_bills)

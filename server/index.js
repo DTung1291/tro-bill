@@ -58,6 +58,7 @@ const rentalLifecycle = require('./rental-lifecycle');
 const rentalFinalSettlements = require('./rental-final-settlements');
 const roomMaintenance = require('./room-maintenance');
 const properties = require('./properties');
+const rentBankAccounts = require('./rent-bank-accounts');
 const teamMembers = require('./team-members');
 const accountAccess = require('./account-access');
 
@@ -352,6 +353,32 @@ app.get(
 app.post('/api/properties', requireAuth, wrap(properties.createProperty));
 app.patch('/api/properties/:id', requireAuth, wrap(properties.updateProperty));
 app.delete('/api/properties/:id', requireAuth, wrap(properties.deleteProperty));
+app.get(
+  '/api/rent-bank-accounts',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('invoices')),
+  wrap(rentBankAccounts.listRentBankAccounts)
+);
+app.post(
+  '/api/rent-bank-accounts',
+  requireAuth,
+  wrap(rentBankAccounts.createRentBankAccount)
+);
+app.patch(
+  '/api/rent-bank-accounts/:id',
+  requireAuth,
+  wrap(rentBankAccounts.updateRentBankAccount)
+);
+app.delete(
+  '/api/rent-bank-accounts/:id',
+  requireAuth,
+  wrap(rentBankAccounts.deleteRentBankAccount)
+);
+app.patch(
+  '/api/properties/:propertyId/rent-bank-account',
+  requireAuth,
+  wrap(rentBankAccounts.assignPropertyRentBankAccount)
+);
 app.get('/api/team/members', requireAuth, wrap(teamMembers.listTeamMembers));
 app.post('/api/team/members', requireAuth, wrap(teamMembers.createTeamMember));
 app.patch('/api/team/members/:id', requireAuth, wrap(teamMembers.updateTeamMember));

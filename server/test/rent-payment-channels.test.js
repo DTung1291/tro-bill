@@ -122,10 +122,11 @@ test('tạo kênh chỉ ghi hash và trả API key rõ đúng trong response t�
     insertParams = params;
     return { rows: [{
       id: 3,
+      bank_account_id: null,
       provider: 'sepay',
       public_id: '9b78ad4a-cb73-4f1f-a24c-c5d843795715',
-      secret_last4: params[4],
-      expected_account_number: params[5],
+      secret_last4: params[5],
+      expected_account_number: params[6],
       status: 'active',
       last_received_at: null,
       created_at: '2026-08-25T00:00:00.000Z',
@@ -143,9 +144,9 @@ test('tạo kênh chỉ ghi hash và trả API key rõ đúng trong response t�
   assert.equal(record.body.channel.expectedAccountNumber, '0123456789');
   assert.match(record.body.secret, /^tbrwh_/);
   assert.equal(insertParams.includes(record.body.secret), false, 'database không nhận secret dạng rõ');
-  assert.equal(insertParams[3], secretHash(record.body.secret));
-  assert.equal(insertParams[4], record.body.secret.slice(-4));
-  assert.equal(JSON.stringify(record.body.channel).includes(insertParams[3]), false, 'API không trả secret hash');
+  assert.equal(insertParams[4], secretHash(record.body.secret));
+  assert.equal(insertParams[5], record.body.secret.slice(-4));
+  assert.equal(JSON.stringify(record.body.channel).includes(insertParams[4]), false, 'API không trả secret hash');
   assert.equal(record.body.channel.settlementMode, 'direct_to_landlord');
 });
 
@@ -178,6 +179,7 @@ test('webhook yêu cầu Apikey hợp lệ trước khi xử lý payload', async
   db.query = async () => ({ rows: [{
     id: 3,
     user_id: 7,
+    bank_account_id: 12,
     secret_hash: secretHash('tbrwh_right_secret_that_is_long_enough'),
     expected_account_number: '0123456789',
     status: 'active'
@@ -204,6 +206,7 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
   db.query = async () => ({ rows: [{
     id: 3,
     user_id: 7,
+    bank_account_id: 12,
     secret_hash: secretHash(secret),
     expected_account_number: '0123456789',
     status: 'active'
@@ -214,6 +217,7 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
     id: 99,
     user_id: 7,
     channel_id: 3,
+    bank_account_id: 12,
     provider_transaction_id: '92704',
     transaction_code: 'HD00000015',
     transaction_content: 'Thanh toan HD00000015',
@@ -257,8 +261,9 @@ test('webhook ghi giao dịch đã chuẩn hóa và retry cùng id không tạo 
 
   const insert = calls.find((call) => call.sql.includes('INSERT INTO rent_bank_transactions'));
   assert.deepEqual(insert.params.slice(0, 8), [
-    7, 3, 'sepay', '92704', 'Vietcombank', '0123456789', 'in', 3000000
+    7, 3, 12, 'sepay', '92704', 'Vietcombank', '0123456789', 'in'
   ]);
+  assert.equal(insert.params[8], 3000000);
   assert.match(insert.sql, /ON CONFLICT \(channel_id, provider_transaction_id\) DO NOTHING/);
 
   duplicate = true;
@@ -310,6 +315,6 @@ test('frontend khai báo API quản lý kênh nhưng không có API đọc secre
   assert.match(appSource, /ACTIVE_RENT_PAYMENT_CHANNEL_SECRET = null/);
   assert.match(htmlSource, /id="sepay-channel-card"/);
   assert.match(htmlSource, /API key mới — chỉ hiển thị lần này/);
-  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=112/);
+  assert.match(htmlSource, /api\.js\?v=104[\s\S]*app\.js\?v=114/);
   assert.match(styleSource, /\.payment-channel-value-row[\s\S]*min-width: 0/);
 });

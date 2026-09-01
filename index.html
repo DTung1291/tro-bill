@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=109" />
+  <link rel="stylesheet" href="style.css?v=110" />
 </head>
 
 <body>
@@ -469,7 +469,7 @@
       </div>
 
       <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
-        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">🏦 Cấu hình tài khoản nhận tiền (VietQR):</div>
+        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">🏦 Tài khoản nhận tiền mặc định (VietQR):</div>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <select id="bank-select" class="inline-input" style="width: 170px; font-weight: inherit;">
             <option value="">-- Chọn ngân hàng --</option>
@@ -503,6 +503,66 @@
         </div>
       </div>
 
+      <div class="settings-card rent-bank-accounts-card" id="rent-bank-accounts-card">
+        <div class="rent-bank-accounts-head">
+          <div>
+            <strong>🏘️ Tài khoản nhận tiền theo khu</strong>
+            <p>Mỗi khu có thể dùng một tài khoản riêng hoặc kế thừa tài khoản mặc định phía trên.</p>
+          </div>
+          <button type="button" class="btn btn--sm btn--primary" id="rent-bank-account-add">+ Thêm tài khoản</button>
+        </div>
+        <div class="rent-bank-account-list" id="rent-bank-account-list"></div>
+        <p class="rent-bank-account-empty" id="rent-bank-account-empty">Chưa có tài khoản ngân hàng hợp lệ.</p>
+
+        <form class="rent-bank-account-form" id="rent-bank-account-form" hidden>
+          <h3 id="rent-bank-account-form-title">Thêm tài khoản nhận tiền</h3>
+          <div class="rent-bank-account-form-grid">
+            <label>Tên gợi nhớ
+              <input class="inline-input" id="rent-bank-account-label" type="text" maxlength="100" placeholder="VD: Tài khoản khu A" required />
+            </label>
+            <label>Ngân hàng
+              <select class="inline-input" id="rent-bank-account-bank-select" required>
+                <option value="">-- Chọn ngân hàng --</option>
+                <option value="MB">MB Bank (MB)</option>
+                <option value="VCB">Vietcombank (VCB)</option>
+                <option value="TCB">Techcombank (TCB)</option>
+                <option value="BIDV">BIDV</option>
+                <option value="ICB">VietinBank (ICB)</option>
+                <option value="VBA">Agribank (VBA)</option>
+                <option value="ACB">ACB</option>
+                <option value="TPB">TPBank (TPB)</option>
+                <option value="VPB">VPBank (VPB)</option>
+                <option value="STB">Sacombank (STB)</option>
+                <option value="VIB">VIB</option>
+                <option value="custom">Khác (Tự nhập)...</option>
+              </select>
+            </label>
+            <label id="rent-bank-account-custom-wrap" hidden>Mã ngân hàng
+              <input class="inline-input" id="rent-bank-account-custom" type="text" maxlength="20" placeholder="VD: OCB" />
+            </label>
+            <label>Số tài khoản
+              <input class="inline-input" id="rent-bank-account-number" type="text" inputmode="numeric" maxlength="30" placeholder="Chỉ nhập chữ số" required />
+            </label>
+            <label>Chủ tài khoản
+              <input class="inline-input" id="rent-bank-account-owner" type="text" maxlength="100" placeholder="NGUYEN VAN A" required />
+            </label>
+            <label class="rent-bank-account-default-option">
+              <input id="rent-bank-account-default" type="checkbox" />
+              Đặt làm tài khoản mặc định
+            </label>
+          </div>
+          <div class="rent-bank-account-form-actions">
+            <button type="submit" class="btn btn--sm btn--primary" id="rent-bank-account-save">Lưu tài khoản</button>
+            <button type="button" class="btn btn--sm btn--ghost" id="rent-bank-account-cancel">Hủy</button>
+          </div>
+        </form>
+
+        <div class="property-bank-account-assignment" id="property-bank-account-assignment">
+          <h3>Tài khoản áp dụng cho từng khu</h3>
+          <div id="property-bank-account-list"></div>
+        </div>
+      </div>
+
       <div class="settings-card payment-channel-card" id="sepay-channel-card">
         <div class="payment-channel-head">
           <div>
@@ -513,6 +573,11 @@
           </div>
           <span class="payment-channel-status" id="sepay-channel-status">Chưa kết nối</span>
         </div>
+
+        <label class="payment-channel-account-picker" for="sepay-bank-account-select">
+          Tài khoản cần kết nối
+          <select id="sepay-bank-account-select" class="inline-input"></select>
+        </label>
 
         <div class="payment-channel-empty" id="sepay-channel-empty">
           <p>Kết nối tài khoản VietQR phía trên để nhận giao dịch chuyển vào và chuẩn bị đối soát hóa đơn tự động.</p>
@@ -1915,7 +1980,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=112"></script>
+  <script src="app.js?v=114"></script>
 </body>
 
 </html>

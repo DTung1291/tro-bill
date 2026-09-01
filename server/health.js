@@ -142,6 +142,24 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='account_member_operation_valid'
+    )
+    AND to_regclass('public.rent_bank_accounts') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='properties_rent_bank_account_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rent_payment_channels_bank_account_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='rent_bank_transactions_bank_account_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_indexes
+      WHERE schemaname='public'
+        AND indexname='idx_rent_payment_channels_account_provider'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {
