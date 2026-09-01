@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Migration production đạt — chuẩn bị commit/push tài khoản ngân hàng theo khu |
+| Trạng thái | Sẵn sàng làm — quản lý tài sản/nội thất theo phòng |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Đang bẩn có chủ đích với feature tài khoản ngân hàng theo khu; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `c0858ca` — dashboard và chi phí lọc theo từng khu |
-| Việc code tiếp theo | Commit/push, theo dõi CI và smoke test production |
+| Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `42f438e` — nhiều tài khoản ngân hàng nhận tiền theo khu |
+| Việc code tiếp theo | Quản lý tài sản/nội thất theo phòng |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -39,10 +39,10 @@ hoặc để chung; nhân viên được lọc chi phí theo assignment. Dữ li
 `20260831_dashboard_property_expenses.sql` đã chạy trên Neon `staging-privacy`
 và production, cả hai đạt 5/5 cờ cột, ownership FK, index, quyền runtime và toàn
 vẹn tham chiếu. Preview và production đã kiểm tra desktop/mobile cùng dữ liệu
-thật. Hạng mục nhiều tài khoản ngân hàng nhận tiền theo khu đang được triển khai:
-schema/API/UI và kiểm thử tự động đã hoàn tất; migration staging/production đều
-đạt 7/7 cờ và Preview đã qua kiểm thử desktop/mobile/VietQR. Còn chờ commit,
-CI và smoke test production.
+thật. Hạng mục nhiều tài khoản ngân hàng nhận tiền theo khu đã phát hành:
+schema/API/UI hoàn tất; migration staging/production đều đạt 7/7 cờ, Preview đã
+qua kiểm thử desktop/mobile/VietQR và production smoke test sạch. Hạng mục kế
+tiếp là quản lý tài sản/nội thất theo phòng.
 
 ## Bản đồ hệ thống ngắn
 
@@ -214,7 +214,7 @@ CI và smoke test production.
   `c0858ca10e12`, database/schema `ok`, runtime role `restricted`. Smoke test
   tài khoản thật xác nhận bộ lọc nhận đúng khu `Khu Trọ Vũ Hữu (7)` và không có
   lỗi console; không ghi dữ liệu thử trên production.
-- Tài khoản nhận tiền theo khu đang ở giai đoạn Preview. Bảng
+- Tài khoản nhận tiền theo khu đã phát hành production. Bảng
   `rent_bank_accounts` giữ danh mục theo chủ, một mặc định; khu để `NULL` kế
   thừa mặc định hoặc tham chiếu tài khoản cùng chủ. Kênh SePay/giao dịch ngân
   hàng giữ `bank_account_id`; đối soát chặn tự động lẫn thủ công khi hóa đơn dùng
@@ -226,15 +226,21 @@ CI và smoke test production.
   secret scan và diff check sạch.
   Preview mới nhất `tro-bill-3jbffmhk2-dtung.vercel.app`
   (`dpl_8VTjESz1R8fgtWZLdvzKKmAcvsTC`) READY, readiness staging trả database,
-  schema `ok` và runtime role `restricted`. Chưa push. API E2E bằng user test
-  staging đã tạo VCB mặc định, MB riêng cho khu B,
+  schema `ok` và runtime role `restricted`. API E2E bằng user test staging đã
+  tạo VCB mặc định, MB riêng cho khu B,
   xác nhận `settings.bank_*` đồng bộ, đọc lại assignment và cập nhật tài khoản
   thành công. Hai hóa đơn kỳ `2026-09` xác nhận phòng A101 ở khu mặc định nhận
   `bankAccountId=1`, phòng B201 ở khu B nhận `bankAccountId=2`. E2E phát hiện và
   sửa `loadState()` làm rơi `rentBankAccountId`; sau hotfix Khu B hiển thị đúng
   MB qua reload. Desktop và mobile 390px không tràn, SePay liệt kê đủ hai tài
   khoản, QR A101 dùng VCB/đúng số tiền, QR B201 dùng MB/đúng số tiền và console
-  sạch. Production migration đã đạt 7/7; còn chờ push, CI và smoke test.
+  sạch. Commit `42f438e` đã push; CI `33467448343` thành công. Production
+  deployment `tro-bill-p7unxgbia-dtung.vercel.app`
+  (`dpl_HYknWy6c4e3HizrGufxKk392T7Qr`) READY; alias chính trả revision
+  `42f438e2c5cb`, database/schema `ok`, runtime role `restricted`. Smoke test
+  tài khoản thật xác nhận backfill ICB mặc định, khu hiện tại kế thừa đúng,
+  SePay dùng đúng tài khoản; desktop/mobile 390px không tràn, console và runtime
+  error scan sạch.
 
 ## Việc chưa được xem là hoàn tất
 

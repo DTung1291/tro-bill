@@ -270,8 +270,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-021 — Tài khoản nhận tiền là danh mục dùng chung, khu chỉ giữ tham chiếu
 
-- **Trạng thái:** Migration production đã đạt 7/7, chờ phát hành code từ
-  01/09/2026.
+- **Trạng thái:** Đã phát hành production từ 01/09/2026.
 - **Quyết định:** Mỗi chủ trọ có danh mục `rent_bank_accounts`, đúng một tài
   khoản mặc định và tối đa 20 tài khoản. `properties.rent_bank_account_id` có
   thể trỏ tới một tài khoản cùng chủ; `NULL` nghĩa là kế thừa tài khoản mặc

@@ -310,7 +310,7 @@ Trạng thái đến ngày 30/08/2026:
 - [x] Nhân viên chỉ xem được khu hoặc nghiệp vụ được giao.
 - [x] Ghi audit log khi thay đổi giá, hóa đơn, giao dịch và hợp đồng.
 - [x] Dashboard tổng hợp và bộ lọc theo từng khu.
-- [ ] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
+- [x] Hỗ trợ nhiều tài khoản ngân hàng nhận tiền theo khu.
 
 Trạng thái đến ngày 30/08/2026: khu/tòa nhà đã có CRUD riêng theo tài khoản,
 mỗi phòng bắt buộc thuộc đúng một khu và dữ liệu cũ được đưa vào khu mặc định.
@@ -363,13 +363,19 @@ khoản theo chủ, một mặc định, gán/kế thừa theo khu và kênh SeP
 khoản đã có schema/API/UI. QR, email, hợp đồng và đối soát dùng tài khoản hiệu
 lực theo khu; giao dịch bị chặn khi ghép sang hóa đơn dùng tài khoản khác.
 Migration staging và production đều đạt 7/7 cờ; 354/354 test tự động thành
-công. Chưa đánh dấu hoàn tất cho đến khi CI và smoke test production đạt. API
+công. API
 E2E trên Preview đã tạo đúng một tài khoản mặc định, một tài khoản riêng cho khu
 B, đồng bộ cấu hình cũ, gán khu và cập nhật tên thành công. Hai hóa đơn test cũng
 trả đúng `bankAccountId` tương ứng cho khu mặc định và khu
 B. Preview hotfix đã sửa lỗi client làm rơi assignment khi nạp state; desktop và
 mobile 390px không tràn, selector SePay đủ hai tài khoản, QR A101 dùng VCB và QR
-B201 dùng MB, console sạch. Còn chờ CI và smoke test production.
+B201 dùng MB, console sạch. Commit `42f438e` đã push; CI `33467448343` thành
+công. Production deployment `tro-bill-p7unxgbia-dtung.vercel.app`
+(`dpl_HYknWy6c4e3HizrGufxKk392T7Qr`) READY; alias chính trả revision
+`42f438e2c5cb`, database/schema `ok`, runtime role `restricted`. Smoke test tài
+khoản thật xác nhận backfill ICB mặc định, khu hiện tại kế thừa đúng, SePay dùng
+đúng tài khoản; desktop/mobile 390px không tràn ngang, console và runtime error
+scan sạch.
 
 ### Bảo trì và tài sản
 
