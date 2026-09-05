@@ -3253,6 +3253,118 @@ body.workspace-staff-active .main { padding-top: 112px; }
   background: var(--bg2);
 }
 
+#tenant-maintenance-modal { z-index: 1260; }
+.modal.tenant-maintenance-modal {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+.tenant-maintenance-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+.tenant-maintenance-section {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg2);
+}
+.tenant-maintenance-create-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+.tenant-maintenance-create-row .form-label { width: min(220px, 100%); }
+.tenant-maintenance-link-result {
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid rgba(79, 110, 247, .3);
+  border-radius: 12px;
+  background: rgba(79, 110, 247, .06);
+}
+.tenant-maintenance-link-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tenant-maintenance-link-actions input {
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .76rem;
+}
+.tenant-maintenance-portal-list,
+.tenant-maintenance-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 13px;
+}
+.tenant-maintenance-empty {
+  margin: 0;
+  padding: 13px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: .78rem;
+  text-align: center;
+}
+.tenant-maintenance-portal-item,
+.tenant-maintenance-request-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg3);
+}
+.tenant-maintenance-portal-item > div,
+.tenant-maintenance-request-item > div { min-width: 0; }
+.tenant-maintenance-portal-item strong,
+.tenant-maintenance-request-head strong { overflow-wrap: anywhere; }
+.tenant-maintenance-portal-item p,
+.tenant-maintenance-request-item p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tenant-maintenance-request-item { display: block; }
+.tenant-maintenance-request-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tenant-maintenance-request-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tenant-maintenance-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--text-muted);
+  font-size: .66rem;
+  font-weight: 750;
+}
+.tenant-maintenance-badge--emergency,
+.tenant-maintenance-badge--high { background: rgba(239, 68, 68, .12); color: var(--red); }
+.tenant-maintenance-badge--new { background: rgba(79, 110, 247, .14); color: var(--primary); }
+.tenant-maintenance-contact {
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
 #rental-contract-document-modal { z-index: 1250; }
 .modal.rental-contract-document-modal {
   max-width: 1180px;
@@ -3734,6 +3846,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .modal.rental-contract-modal { max-height: calc(100dvh - 16px); }
   .rental-contract-body { padding: 14px; }
   .rental-contract-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tenant-maintenance-modal { padding: 8px; }
+  .modal.tenant-maintenance-modal {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+  }
+  .tenant-maintenance-body { padding: 14px; }
   #rental-contract-document-modal { padding: 8px; }
   .modal.rental-contract-document-modal { max-height: calc(100dvh - 16px); }
   .rental-contract-document-form,
@@ -3772,6 +3890,14 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .rental-contract-document-preview-toolbar .btn { width: 100%; justify-content: center; }
   .rental-contract-document-preview { overflow-x: auto; }
   .rental-contract-document-paper { width: 816px; margin: 0; }
+  .tenant-maintenance-create-row,
+  .tenant-maintenance-portal-item,
+  .tenant-maintenance-request-head { align-items: stretch; flex-direction: column; }
+  .tenant-maintenance-create-row .form-label { width: 100%; }
+  .tenant-maintenance-create-row .btn,
+  .tenant-maintenance-portal-item .btn { width: 100%; justify-content: center; }
+  .tenant-maintenance-link-actions { grid-template-columns: minmax(0, 1fr); }
+  .tenant-maintenance-link-actions .btn { width: 100%; justify-content: center; }
   .rental-handover-grid { grid-template-columns: minmax(0, 1fr); }
   .rental-handover-wide { grid-column: auto; }
   .rental-handover-card { align-items: stretch; flex-direction: column; }

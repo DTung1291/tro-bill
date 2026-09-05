@@ -1447,6 +1447,12 @@ function clearSensitiveStateFromMemory() {
   CURRENT_SUBSCRIPTION_ORDER = null;
   ACTIVE_SUBSCRIPTION_RECEIPT = null;
   ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
+  activeTenantMaintenanceContract = null;
+  tenantMaintenancePortals = [];
+  tenantMaintenanceRequests = [];
+  activeTenantMaintenancePublicUrl = '';
+  const maintenanceUrlInput = document.getElementById('tenant-maintenance-link-url');
+  if (maintenanceUrlInput) maintenanceUrlInput.value = '';
 }
 
 function saveState() {
@@ -3389,6 +3395,10 @@ let activeRentalLifecycleContract = null;
 let activeRentalFinalSettlementContract = null;
 let activeRentalFinalSettlementPreview = null;
 let activeRentalFinalSettlement = null;
+let activeTenantMaintenanceContract = null;
+let tenantMaintenancePortals = [];
+let tenantMaintenanceRequests = [];
+let activeTenantMaintenancePublicUrl = '';
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -3657,6 +3667,7 @@ function renderRentalContracts() {
       <div class="rental-contract-card-actions">
         <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
         ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
+        ${isOwnerWorkspace() && ['active', 'ended'].includes(contract.status) ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-maintenance>🔧 Báo sửa</button>' : ''}
         ${contract.status === 'active' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="transfer">🔁 Chuyển phòng</button><button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="checkout">🚪 Trả phòng</button>' : ''}
         ${canFinalizeCheckout ? '<button type="button" class="btn btn--primary btn--sm" data-contract-final-settlement>🧾 Quyết toán cuối</button>' : ''}
         <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
@@ -3664,6 +3675,184 @@ function renderRentalContracts() {
       ${amendmentForm}
       ${statusPanel}`;
     list.appendChild(card);
+  }
+}
+
+function tenantMaintenanceCategoryLabel(value) {
+  return ({
+    electricity: 'Điện',
+    water: 'Nước',
+    appliance: 'Thiết bị / nội thất',
+    structure: 'Kết cấu phòng',
+    security: 'An ninh / khóa cửa',
+    other: 'Khác'
+  })[value] || value;
+}
+
+function tenantMaintenanceUrgencyLabel(value) {
+  return ({
+    low: 'Có thể chờ',
+    normal: 'Bình thường',
+    high: 'Cần xử lý sớm',
+    emergency: 'Khẩn cấp'
+  })[value] || value;
+}
+
+function tenantMaintenanceStatusLabel(value) {
+  return ({
+    new: 'Mới gửi',
+    acknowledged: 'Đã tiếp nhận',
+    in_progress: 'Đang xử lý',
+    resolved: 'Đã hoàn tất',
+    cancelled: 'Đã hủy'
+  })[value] || value;
+}
+
+function tenantMaintenancePortalStatusLabel(value) {
+  return ({ active: 'Đang dùng', expired: 'Hết hạn', revoked: 'Đã thu hồi' })[value] || value;
+}
+
+function tenantMaintenanceDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('vi-VN');
+}
+
+function renderTenantMaintenancePortals() {
+  const list = document.getElementById('tenant-maintenance-portal-list');
+  if (!tenantMaintenancePortals.length) {
+    list.innerHTML = '<p class="tenant-maintenance-empty">Chưa có liên kết nào được tạo.</p>';
+    return;
+  }
+  list.innerHTML = tenantMaintenancePortals.map(portal => `
+    <article class="tenant-maintenance-portal-item" data-maintenance-portal-id="${Number(portal.id)}">
+      <div>
+        <strong>${escapeHtml(tenantMaintenancePortalStatusLabel(portal.status))} · đuôi ${escapeHtml(portal.tokenLast4 || '—')}</strong>
+        <p>Hết hạn: ${escapeHtml(tenantMaintenanceDateTime(portal.expiresAt))} · ${Number(portal.viewCount) || 0} lượt mở${portal.lastViewedAt ? ` · gần nhất ${escapeHtml(tenantMaintenanceDateTime(portal.lastViewedAt))}` : ''}</p>
+      </div>
+      ${portal.status === 'active' ? '<button type="button" class="btn btn--danger btn--sm" data-maintenance-portal-revoke>Thu hồi</button>' : ''}
+    </article>`).join('');
+}
+
+function renderTenantMaintenanceRequests() {
+  const list = document.getElementById('tenant-maintenance-request-list');
+  if (!tenantMaintenanceRequests.length) {
+    list.innerHTML = '<p class="tenant-maintenance-empty">Khách thuê chưa gửi yêu cầu sửa chữa.</p>';
+    return;
+  }
+  list.innerHTML = tenantMaintenanceRequests.map(request => `
+    <article class="tenant-maintenance-request-item">
+      <div class="tenant-maintenance-request-head">
+        <strong>${escapeHtml(request.code)}</strong>
+        <span>${escapeHtml(tenantMaintenanceDateTime(request.submittedAt))}</span>
+      </div>
+      <div class="tenant-maintenance-request-badges">
+        <span class="tenant-maintenance-badge">${escapeHtml(tenantMaintenanceCategoryLabel(request.category))}</span>
+        <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.urgency)}">${escapeHtml(tenantMaintenanceUrgencyLabel(request.urgency))}</span>
+        <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.status)}">${escapeHtml(tenantMaintenanceStatusLabel(request.status))}</span>
+      </div>
+      <p>${escapeHtml(request.description)}</p>
+      ${(request.contactPhone || request.availableTime) ? `<p class="tenant-maintenance-contact">${request.contactPhone ? `Liên hệ: ${escapeHtml(request.contactPhone)}` : ''}${request.contactPhone && request.availableTime ? ' · ' : ''}${request.availableTime ? `Có thể kiểm tra: ${escapeHtml(request.availableTime)}` : ''}</p>` : ''}
+    </article>`).join('');
+}
+
+async function loadTenantMaintenancePortalData() {
+  const contract = activeTenantMaintenanceContract;
+  if (!contract) return;
+  const portalList = document.getElementById('tenant-maintenance-portal-list');
+  const requestList = document.getElementById('tenant-maintenance-request-list');
+  const errorElement = document.getElementById('tenant-maintenance-error');
+  portalList.innerHTML = '<p class="tenant-maintenance-empty">Đang tải liên kết…</p>';
+  requestList.innerHTML = '<p class="tenant-maintenance-empty">Đang tải yêu cầu…</p>';
+  errorElement.hidden = true;
+  try {
+    const [portalData, requestData] = await Promise.all([
+      API.getTenantMaintenancePortals(contract.id),
+      API.getTenantMaintenanceRequests(contract.id)
+    ]);
+    if (Number(activeTenantMaintenanceContract?.id) !== Number(contract.id)) return;
+    tenantMaintenancePortals = Array.isArray(portalData.portals) ? portalData.portals : [];
+    tenantMaintenanceRequests = Array.isArray(requestData.requests) ? requestData.requests : [];
+    renderTenantMaintenancePortals();
+    renderTenantMaintenanceRequests();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không tải được cổng yêu cầu sửa chữa';
+    errorElement.hidden = false;
+    portalList.innerHTML = '';
+    requestList.innerHTML = '';
+  }
+}
+
+function openTenantMaintenanceModal(contract) {
+  activeTenantMaintenanceContract = contract;
+  tenantMaintenancePortals = [];
+  tenantMaintenanceRequests = [];
+  activeTenantMaintenancePublicUrl = '';
+  document.getElementById('tenant-maintenance-contract').textContent = `${contract.code} · ${contract.roomName || document.getElementById('rental-contract-room').textContent} · ${contract.tenantName}`;
+  document.getElementById('tenant-maintenance-link-url').value = '';
+  document.getElementById('tenant-maintenance-link-result').hidden = true;
+  document.getElementById('tenant-maintenance-error').hidden = true;
+  const canCreate = contract.status === 'active';
+  document.getElementById('tenant-maintenance-expiry').disabled = !canCreate;
+  document.getElementById('tenant-maintenance-create').disabled = !canCreate;
+  document.getElementById('tenant-maintenance-create').title = canCreate
+    ? ''
+    : 'Hợp đồng đã kết thúc: chỉ có thể xem lịch sử';
+  document.getElementById('tenant-maintenance-modal').hidden = false;
+  void loadTenantMaintenancePortalData();
+}
+
+function closeTenantMaintenanceModal() {
+  activeTenantMaintenanceContract = null;
+  tenantMaintenancePortals = [];
+  tenantMaintenanceRequests = [];
+  activeTenantMaintenancePublicUrl = '';
+  document.getElementById('tenant-maintenance-link-url').value = '';
+  document.getElementById('tenant-maintenance-link-result').hidden = true;
+  document.getElementById('tenant-maintenance-modal').hidden = true;
+}
+
+async function createTenantMaintenancePortal() {
+  const contract = activeTenantMaintenanceContract;
+  if (!contract) return;
+  const button = document.getElementById('tenant-maintenance-create');
+  const errorElement = document.getElementById('tenant-maintenance-error');
+  button.disabled = true;
+  errorElement.hidden = true;
+  try {
+    const result = await API.issueTenantMaintenancePortal(
+      contract.id,
+      Number(document.getElementById('tenant-maintenance-expiry').value)
+    );
+    activeTenantMaintenancePublicUrl = result.publicUrl || '';
+    document.getElementById('tenant-maintenance-link-url').value = activeTenantMaintenancePublicUrl;
+    document.getElementById('tenant-maintenance-link-result').hidden = !activeTenantMaintenancePublicUrl;
+    showToast('Đã tạo liên kết báo sửa mới ✓', 'success');
+    await loadTenantMaintenancePortalData();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không tạo được liên kết báo sửa';
+    errorElement.hidden = false;
+  } finally {
+    button.disabled = activeTenantMaintenanceContract?.status !== 'active';
+  }
+}
+
+async function revokeTenantMaintenancePortal(portalId, button) {
+  button.disabled = true;
+  try {
+    await API.revokeTenantMaintenancePortal(portalId);
+    activeTenantMaintenancePublicUrl = '';
+    document.getElementById('tenant-maintenance-link-url').value = '';
+    document.getElementById('tenant-maintenance-link-result').hidden = true;
+    showToast('Đã thu hồi liên kết báo sửa', 'success');
+    await loadTenantMaintenancePortalData();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không thu hồi được liên kết', 'error', 4500);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -5100,6 +5289,15 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
     if (depositContract) openTenantDeposit(depositContract.tenantId);
     return;
   }
+  const maintenanceButton = event.target?.closest?.('[data-contract-maintenance]');
+  if (maintenanceButton) {
+    const maintenanceCard = maintenanceButton.closest('.rental-contract-card');
+    const maintenanceContract = rentalContracts.find(
+      item => Number(item.id) === Number(maintenanceCard?.dataset.contractId)
+    );
+    if (maintenanceContract) openTenantMaintenanceModal(maintenanceContract);
+    return;
+  }
   const handoverButton = event.target?.closest?.('[data-contract-handover]');
   if (handoverButton) {
     const handoverCard = handoverButton.closest('.rental-contract-card');
@@ -5144,6 +5342,41 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
   const contract = rentalContracts.find(item => Number(item.id) === Number(card?.dataset.contractId));
   if (!contract) return;
   void changeRentalContractStatus(contract.id, button.dataset.contractStatus, button);
+});
+document.getElementById('tenant-maintenance-close').addEventListener('click', closeTenantMaintenanceModal);
+document.getElementById('tenant-maintenance-close-footer').addEventListener('click', closeTenantMaintenanceModal);
+document.getElementById('tenant-maintenance-refresh').addEventListener('click', () => {
+  void loadTenantMaintenancePortalData();
+});
+document.getElementById('tenant-maintenance-create').addEventListener('click', () => {
+  void createTenantMaintenancePortal();
+});
+document.getElementById('tenant-maintenance-copy').addEventListener('click', () => {
+  void copySubscriptionOrderValue(
+    activeTenantMaintenancePublicUrl,
+    'Đã sao chép liên kết báo sửa ✓'
+  );
+});
+document.getElementById('tenant-maintenance-open').addEventListener('click', () => {
+  if (activeTenantMaintenancePublicUrl) {
+    window.open(activeTenantMaintenancePublicUrl, '_blank', 'noopener,noreferrer');
+  }
+});
+document.getElementById('tenant-maintenance-portal-list').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-maintenance-portal-revoke]');
+  if (!button) return;
+  const item = button.closest('[data-maintenance-portal-id]');
+  const portalId = Number(item?.dataset.maintenancePortalId);
+  if (!portalId) return;
+  showConfirm(
+    'Thu hồi liên kết này? Khách thuê đang mở liên kết sẽ không thể gửi thêm yêu cầu.',
+    () => { void revokeTenantMaintenancePortal(portalId, button); },
+    null,
+    'Thu hồi'
+  );
+});
+document.getElementById('tenant-maintenance-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeTenantMaintenanceModal();
 });
 document.getElementById('rental-lifecycle-form').addEventListener('submit', event => {
   void submitRentalLifecycle(event);

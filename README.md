@@ -142,6 +142,12 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | PATCH  | `/api/room-assets/:id` | Cập nhật hoặc chuyển phòng cho tài sản đang dùng |
 | POST   | `/api/room-assets/:id/archive` | Ngừng sử dụng tài sản và lưu lý do |
 | POST   | `/api/room-assets/:id/restore` | Khôi phục tài sản vào một phòng còn tồn tại |
+| GET    | `/api/rental-contracts/:id/maintenance-portals` | Danh sách liên kết báo sửa của hợp đồng (chủ tài khoản) |
+| POST   | `/api/rental-contracts/:id/maintenance-portals` | Tạo liên kết báo sửa mới và thu hồi liên kết cũ |
+| POST   | `/api/tenant-maintenance-portals/:id/revoke` | Thu hồi một liên kết báo sửa đang dùng |
+| GET    | `/api/rental-contracts/:id/maintenance-requests` | Yêu cầu sửa chữa khách đã gửi cho hợp đồng |
+| POST   | `/api/public/maintenance-portals/resolve` | Mở cổng báo sửa bằng token, không cần tài khoản khách thuê |
+| POST   | `/api/public/maintenance-portals/requests` | Gửi yêu cầu sửa chữa có idempotency và rate limit |
 
 Trình duyệt tự gửi cookie phiên cùng các request cùng origin. JWT không được trả
 về JavaScript và không còn lưu trong `localStorage`. Request thay đổi dữ liệu từ
@@ -164,6 +170,14 @@ nhập lý do và vẫn xuất hiện trong lịch sử; có thể khôi phục 
 tại. Nhân viên có nghiệp vụ phòng chỉ xem được tài sản thuộc các khu đã giao,
 chủ tài khoản mới được thay đổi. Tài sản đang dùng của phòng được dùng làm danh
 sách mặc định khi lập biên bản nhận/trả phòng.
+
+Chủ tài khoản có thể tạo cổng báo sửa riêng cho từng hợp đồng đang hoạt động.
+Liên kết hết hạn tối đa sau 365 ngày, tự mất hiệu lực khi hợp đồng không còn hoạt
+động và mỗi lần tạo mới sẽ thu hồi liên kết trước đó. Token 256-bit nằm trong URL
+fragment rồi được xóa ngay khỏi thanh địa chỉ; database chỉ lưu SHA-256. Trang
+khách thuê không yêu cầu tài khoản TrọBill và chỉ hiển thị phòng, mã hợp đồng,
+thời hạn cùng lịch sử yêu cầu của liên kết — không trả tên, CCCD hoặc hồ sơ khách.
+Mỗi lần gửi có idempotency, rate limit và audit tối giản chỉ chứa tên trường.
 
 Trạng thái phòng do server suy ra, không nhận trạng thái tự khai từ trình duyệt:
 phòng có khách hiện tại hoặc hợp đồng hiệu lực là **đang thuê**, lượt giữ chỗ

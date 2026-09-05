@@ -119,6 +119,17 @@ const SCHEMA_READY_QUERY = `
       SELECT 1 FROM pg_constraint
       WHERE conname='room_assets_archive_valid'
     )
+    AND to_regclass('public.tenant_maintenance_portal_links') IS NOT NULL
+    AND to_regclass('public.tenant_maintenance_requests') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_indexes
+      WHERE schemaname='public'
+        AND indexname='idx_tenant_maintenance_requests_contract_status'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='tenant_maintenance_requests_portal_fk'
+    )
     AND to_regclass('public.rental_final_settlements') IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM information_schema.columns

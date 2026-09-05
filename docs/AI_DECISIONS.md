@@ -306,3 +306,25 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tài khoản được ghi; nhân viên có nghiệp vụ phòng chỉ đọc tài sản thuộc khu đã
   giao. Danh mục tài sản đang hoạt động là nguồn mặc định cho biên bản bàn giao,
   nhưng biên bản đã xác nhận vẫn là snapshot bất biến.
+
+## D-023 — Cổng báo sửa gắn với hợp đồng và không yêu cầu tài khoản khách thuê
+
+- **Trạng thái:** Đang triển khai từ 05/09/2026.
+- **Quyết định:** Mỗi cổng báo sửa gắn với đúng một hợp đồng đang hoạt động. Token
+  có 256-bit entropy, chỉ lưu SHA-256, hết hạn tối đa 365 ngày và nằm trong URL
+  fragment để không đi vào query/referrer; frontend xóa fragment ngay sau khi
+  đọc. Tạo liên kết mới thu hồi liên kết cũ. Khách không cần tài khoản TrọBill,
+  được gửi nhiều yêu cầu append-only bằng idempotency key và chỉ nhận lại phòng,
+  mã hợp đồng, thời hạn cùng lịch sử yêu cầu của chính liên kết. Chỉ chủ workspace
+  được tạo/thu hồi portal và đọc yêu cầu trong hồ sơ hợp đồng.
+- **Lý do:** Ép khách thuê tạo tài khoản làm tăng ma sát cho một thao tác hỗ trợ
+  ngắn, còn token ở query có thể lọt vào log hoặc referrer. Gắn portal với hợp
+  đồng giúp link tự vô hiệu khi quan hệ thuê kết thúc và tránh nhầm phòng/người.
+  Một request append-only giữ nguyên nội dung khách đã báo để việc xử lý sau này
+  có dấu vết rõ ràng.
+- **Hệ quả:** Public API không được trả tên, tenant ID, CCCD hoặc snapshot hồ sơ;
+  không được ghi plaintext token hay nội dung mô tả vào audit. Phải rate-limit
+  theo IP và token hash, dùng idempotency khi gửi, đồng thời giữ cookie cùng origin
+  để tương thích Vercel Preview Protection nhưng tuyệt đối không phụ thuộc phiên
+  TrọBill. Bước phân công/trạng thái tiếp theo cập nhật request qua endpoint hẹp,
+  không mở quyền UPDATE bảng cho runtime chỉ để tiện thao tác.

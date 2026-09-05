@@ -24,6 +24,10 @@ const RULES = {
   invoiceEmail: [
     { scope: 'ip', maxAttempts: 250, windowSeconds: 24 * 60 * 60 },
     { scope: 'account', maxAttempts: 120, windowSeconds: 24 * 60 * 60 }
+  ],
+  maintenanceRequest: [
+    { scope: 'ip', maxAttempts: 20, windowSeconds: 24 * 60 * 60 },
+    { scope: 'account', maxAttempts: 10, windowSeconds: 24 * 60 * 60 }
   ]
 };
 let lastCleanupAt = 0;

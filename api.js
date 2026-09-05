@@ -540,6 +540,35 @@ const API = (() => {
     );
   }
 
+  function getTenantMaintenancePortals(contractId) {
+    return request(
+      'GET',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/maintenance-portals`
+    );
+  }
+
+  function issueTenantMaintenancePortal(contractId, expiresInDays) {
+    return request(
+      'POST',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/maintenance-portals`,
+      { expiresInDays }
+    );
+  }
+
+  function revokeTenantMaintenancePortal(portalId) {
+    return request(
+      'POST',
+      `/api/tenant-maintenance-portals/${encodeURIComponent(portalId)}/revoke`
+    );
+  }
+
+  function getTenantMaintenanceRequests(contractId) {
+    return request(
+      'GET',
+      `/api/rental-contracts/${encodeURIComponent(contractId)}/maintenance-requests`
+    );
+  }
+
   function getRoomMaintenance() {
     return request('GET', '/api/room-maintenance');
   }
@@ -753,6 +782,10 @@ const API = (() => {
     checkoutRentalContract,
     getRentalFinalSettlement,
     createRentalFinalSettlement,
+    getTenantMaintenancePortals,
+    issueTenantMaintenancePortal,
+    revokeTenantMaintenancePortal,
+    getTenantMaintenanceRequests,
     getRoomMaintenance,
     createRoomMaintenance,
     completeRoomMaintenance,

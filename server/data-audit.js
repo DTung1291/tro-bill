@@ -52,7 +52,13 @@ const ALLOWED_FIELDS = new Set([
   'paymentDueDay',
   'monthlyRentVnd',
   'depositVnd',
-  'terms'
+  'terms',
+  // Yêu cầu sửa chữa từ khách thuê (chỉ lưu tên trường, không lưu nội dung)
+  'category',
+  'urgency',
+  'description',
+  'contactPhone',
+  'availableTime'
 ]);
 
 function requestAuditContext(req = {}) {

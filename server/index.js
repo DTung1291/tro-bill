@@ -58,6 +58,7 @@ const rentalLifecycle = require('./rental-lifecycle');
 const rentalFinalSettlements = require('./rental-final-settlements');
 const roomMaintenance = require('./room-maintenance');
 const roomAssets = require('./room-assets');
+const tenantMaintenanceRequests = require('./tenant-maintenance-requests');
 const properties = require('./properties');
 const rentBankAccounts = require('./rent-bank-accounts');
 const teamMembers = require('./team-members');
@@ -215,6 +216,14 @@ app.post(
   '/api/public/rent-invoice-links/payment-proof',
   wrap(rentPaymentProofs.submitPublicPaymentProof)
 );
+app.post(
+  '/api/public/maintenance-portals/resolve',
+  wrap(tenantMaintenanceRequests.resolvePublicMaintenancePortal)
+);
+app.post(
+  '/api/public/maintenance-portals/requests',
+  wrap(tenantMaintenanceRequests.submitPublicMaintenanceRequest)
+);
 app.get(
   '/api/rent-invoices/:invoiceId/payment-proofs',
   requireAuth,
@@ -337,6 +346,30 @@ app.post(
   '/api/rental-contracts/:id/final-settlement',
   requireAuth,
   wrap(rentalFinalSettlements.createFinalSettlement)
+);
+app.post(
+  '/api/rental-contracts/:id/maintenance-portals',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.issueMaintenancePortal)
+);
+app.get(
+  '/api/rental-contracts/:id/maintenance-portals',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.listMaintenancePortals)
+);
+app.get(
+  '/api/rental-contracts/:id/maintenance-requests',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.listMaintenanceRequests)
+);
+app.post(
+  '/api/tenant-maintenance-portals/:id/revoke',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.revokeMaintenancePortal)
 );
 app.get('/api/room-maintenance', requireAuth, wrap(roomMaintenance.listMaintenance));
 app.post('/api/room-maintenance', requireAuth, wrap(roomMaintenance.createMaintenance));

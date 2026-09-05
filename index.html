@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=112" />
+  <link rel="stylesheet" href="style.css?v=113" />
 </head>
 
 <body>
@@ -1189,6 +1189,63 @@
     </div>
   </div>
 
+  <!-- MODAL: Cổng yêu cầu sửa chữa cho khách thuê -->
+  <div class="modal-overlay" id="tenant-maintenance-modal" hidden>
+    <div class="modal tenant-maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-maintenance-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="tenant-maintenance-title">Cổng yêu cầu sửa chữa</h2>
+          <p class="rental-contract-room" id="tenant-maintenance-contract"></p>
+        </div>
+        <button type="button" class="modal-close" id="tenant-maintenance-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="tenant-maintenance-body">
+        <section class="tenant-maintenance-section" aria-labelledby="tenant-maintenance-link-title">
+          <div class="rental-contract-section-head">
+            <div>
+              <h3 id="tenant-maintenance-link-title">Liên kết dành cho khách thuê</h3>
+              <p>Mỗi lần tạo sẽ thu hồi liên kết cũ. Token chỉ hiển thị một lần để bạn gửi cho đúng khách.</p>
+            </div>
+          </div>
+          <div class="tenant-maintenance-create-row">
+            <label class="form-label" for="tenant-maintenance-expiry">Thời hạn liên kết
+              <select class="form-input" id="tenant-maintenance-expiry">
+                <option value="30">30 ngày</option>
+                <option value="90" selected>90 ngày</option>
+                <option value="180">180 ngày</option>
+                <option value="365">365 ngày</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn--primary" id="tenant-maintenance-create">Tạo liên kết</button>
+          </div>
+          <div class="tenant-maintenance-link-result" id="tenant-maintenance-link-result" hidden>
+            <label class="form-label" for="tenant-maintenance-link-url">Liên kết vừa tạo — sao chép ngay</label>
+            <div class="tenant-maintenance-link-actions">
+              <input class="form-input" type="text" id="tenant-maintenance-link-url" readonly autocomplete="off" />
+              <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-copy">Sao chép</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-open">Mở thử</button>
+            </div>
+          </div>
+          <p class="rental-contract-document-error" id="tenant-maintenance-error" role="status" hidden></p>
+          <div class="tenant-maintenance-portal-list" id="tenant-maintenance-portal-list" aria-live="polite"></div>
+        </section>
+        <section class="tenant-maintenance-section" aria-labelledby="tenant-maintenance-request-title">
+          <div class="rental-contract-section-head">
+            <div>
+              <h3 id="tenant-maintenance-request-title">Yêu cầu khách đã gửi</h3>
+              <p>Đây là nội dung khách gửi qua liên kết. Bước tiếp theo của checklist sẽ bổ sung phân công và cập nhật tiến độ.</p>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-refresh">Làm mới</button>
+          </div>
+          <div class="tenant-maintenance-request-list" id="tenant-maintenance-request-list" aria-live="polite"></div>
+        </section>
+      </div>
+      <div class="rental-contract-footer">
+        <button type="button" class="btn btn--ghost" id="tenant-maintenance-close-footer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Chuyển phòng / trả phòng -->
   <div class="modal-overlay" id="rental-lifecycle-modal" hidden>
     <div class="modal rental-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="rental-lifecycle-title">
@@ -1970,7 +2027,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=105"></script>
+  <script src="api.js?v=106"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -1980,7 +2037,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=116"></script>
 </body>
 
 </html>

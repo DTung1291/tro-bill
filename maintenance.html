@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+  <title>Yêu cầu sửa chữa · TrọBill</title>
+  <link rel="stylesheet" href="maintenance-public.css?v=1" />
+</head>
+<body>
+  <main class="maintenance-shell">
+    <header class="maintenance-brand">
+      <span class="maintenance-logo">🏠</span>
+      <div>
+        <strong>TrọBill</strong>
+        <p>Cổng yêu cầu sửa chữa dành cho khách thuê</p>
+      </div>
+    </header>
+
+    <section class="maintenance-card maintenance-state" id="maintenance-loading">
+      <div class="maintenance-spinner" aria-hidden="true"></div>
+      <h1>Đang kiểm tra liên kết…</h1>
+      <p>Vui lòng chờ trong giây lát.</p>
+    </section>
+
+    <section class="maintenance-card maintenance-state maintenance-error" id="maintenance-error" hidden>
+      <span>⚠️</span>
+      <h1>Không mở được cổng báo sửa</h1>
+      <p id="maintenance-error-message">Liên kết không hợp lệ hoặc đã hết hạn.</p>
+    </section>
+
+    <div id="maintenance-content" hidden>
+      <section class="maintenance-card maintenance-heading">
+        <div>
+          <p>Phòng thuê</p>
+          <h1 id="maintenance-room">—</h1>
+          <span id="maintenance-contract">—</span>
+        </div>
+        <dl>
+          <dt>Liên kết dùng đến</dt>
+          <dd id="maintenance-expiry">—</dd>
+        </dl>
+      </section>
+
+      <aside class="maintenance-emergency" role="note">
+        <strong>Trường hợp nguy hiểm tức thời</strong>
+        <p>Nếu có cháy, điện giật, rò khí, ngập lớn hoặc nguy cơ mất an toàn, hãy rời khu vực và gọi chủ trọ hoặc số khẩn cấp phù hợp trước. Biểu mẫu này không thay thế cuộc gọi khẩn cấp.</p>
+      </aside>
+
+      <section class="maintenance-card">
+        <div class="maintenance-section-head">
+          <p>Gửi yêu cầu mới</p>
+          <h2>Mô tả sự cố cần kiểm tra</h2>
+        </div>
+        <form id="maintenance-request-form">
+          <div class="maintenance-form-grid">
+            <label>Nhóm sự cố *
+              <select id="maintenance-category" required>
+                <option value="electricity">Điện</option>
+                <option value="water">Nước</option>
+                <option value="appliance">Thiết bị / nội thất</option>
+                <option value="structure">Kết cấu phòng</option>
+                <option value="security">An ninh / khóa cửa</option>
+                <option value="other">Khác</option>
+              </select>
+            </label>
+            <label>Mức độ *
+              <select id="maintenance-urgency" required>
+                <option value="low">Có thể chờ</option>
+                <option value="normal" selected>Bình thường</option>
+                <option value="high">Cần xử lý sớm</option>
+                <option value="emergency">Khẩn cấp</option>
+              </select>
+            </label>
+          </div>
+          <label>Mô tả chi tiết *
+            <textarea id="maintenance-description" minlength="10" maxlength="2000" rows="5" placeholder="Ví dụ: Ống nước dưới bồn rửa rò liên tục từ tối qua…" required></textarea>
+          </label>
+          <div class="maintenance-form-grid">
+            <label>Số điện thoại liên hệ
+              <input id="maintenance-phone" type="tel" maxlength="50" autocomplete="tel" placeholder="Số có thể gọi khi cần" />
+            </label>
+            <label>Thời gian có thể vào kiểm tra
+              <input id="maintenance-available-time" type="text" maxlength="200" placeholder="Ví dụ: Sau 18 giờ các ngày trong tuần" />
+            </label>
+          </div>
+          <p class="maintenance-form-message" id="maintenance-form-message" role="status" aria-live="polite" hidden></p>
+          <button type="submit" id="maintenance-submit">Gửi yêu cầu</button>
+        </form>
+      </section>
+
+      <section class="maintenance-card">
+        <div class="maintenance-section-head">
+          <p>Lịch sử từ liên kết này</p>
+          <h2>Yêu cầu đã gửi</h2>
+        </div>
+        <div class="maintenance-request-list" id="maintenance-request-list" aria-live="polite"></div>
+      </section>
+
+      <p class="maintenance-privacy">Trang này chỉ hiển thị phòng, hợp đồng và các yêu cầu đã gửi; không hiển thị tên, CCCD hoặc hồ sơ cá nhân của khách thuê.</p>
+    </div>
+  </main>
+  <script src="maintenance-public.js?v=2"></script>
+</body>
+</html>
