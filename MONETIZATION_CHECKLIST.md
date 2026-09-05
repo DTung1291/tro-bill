@@ -387,7 +387,15 @@ scan sạch.
   tạo/sửa/chuyển phòng/ngừng dùng/khôi phục, desktop/mobile và confirm modal.
   Production revision `300c178874d9` đã qua readiness, schema/runtime role,
   static asset pins, toàn vẹn dữ liệu và quét Runtime Errors.
-- [ ] Khách thuê gửi yêu cầu sửa chữa.
+- [x] Khách thuê gửi yêu cầu sửa chữa.
+  Đã phát hành cổng riêng theo hợp đồng: token 256-bit chỉ lưu SHA-256, nằm trong
+  URL fragment và tự mất hiệu lực khi hết hạn/hợp đồng kết thúc. Khách không cần
+  tài khoản TrọBill, có thể gửi nhiều yêu cầu append-only với idempotency và rate
+  limit; trang public không trả tên, CCCD hoặc hồ sơ khách. Chủ tài khoản tạo,
+  thu hồi và xem yêu cầu trong hồ sơ hợp đồng; nhân viên chưa được quản lý portal.
+  Migration staging/production đều đạt 6/6 cờ. Preview đã qua E2E hai phía,
+  audit và cleanup; desktop/mobile không tràn. Production revision
+  `1ee0873bad8e` readiness sạch và endpoint token giả trả lỗi 404 an toàn.
 - [ ] Phân công người xử lý và theo dõi trạng thái.
 - [ ] Ghi nhận chi phí sửa chữa vào báo cáo thực tế.
 

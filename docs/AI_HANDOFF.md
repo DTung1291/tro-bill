@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 01/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng làm — khách thuê gửi yêu cầu sửa chữa |
+| Cập nhật lần cuối | 05/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng làm — phân công người xử lý và theo dõi trạng thái |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `300c178` — quản lý tài sản/nội thất theo phòng |
-| Việc code tiếp theo | Khách thuê gửi yêu cầu sửa chữa |
+| Phần ứng dụng phát hành gần nhất | `1ee0873` — cổng khách thuê gửi yêu cầu sửa chữa |
+| Việc code tiếp theo | Phân công người xử lý và theo dõi trạng thái yêu cầu sửa chữa |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -44,8 +44,10 @@ schema/API/UI hoàn tất; migration staging/production đều đạt 7/7 cờ, 
 qua kiểm thử desktop/mobile/VietQR và production smoke test sạch. Hạng mục quản
 lý tài sản/nội thất theo phòng cũng đã phát hành: schema/API/UI/export, lưu trữ
 mềm và liên kết biên bản bàn giao hoàn tất; migration hai môi trường, Preview
-E2E và production smoke đều đạt. Hạng mục kế tiếp là để khách thuê gửi yêu cầu
-sửa chữa.
+E2E và production smoke đều đạt. Cổng khách thuê gửi yêu cầu sửa chữa đã phát
+hành: portal gắn hợp đồng, token chỉ lưu hash, public UI tối thiểu, request
+append-only, idempotency/rate limit/audit và export hoàn tất. Hạng mục kế tiếp là
+phân công người xử lý và theo dõi trạng thái yêu cầu.
 
 ## Bản đồ hệ thống ngắn
 
@@ -262,6 +264,18 @@ sửa chữa.
   trả revision `300c178874d9`, database/schema `ok`, runtime role `restricted`.
   Static pins đúng `style 112 / api 105 / app 115`; bảng production có 0 tài
   sản và 0 tham chiếu active lỗi; Runtime Errors 30 phút không có lỗi.
+- Cổng báo sửa theo hợp đồng đã phát hành ở commit `1ee0873`. Migration
+  `20260901_tenant_maintenance_requests.sql` đạt 6/6 cờ trên Neon
+  `staging-privacy` và production. Preview E2E đã tạo portal, gửi
+  `YC-2026-000001`, đọc lại ở hồ sơ chủ trọ, xác minh token hash/audit tối giản
+  rồi xóa sạch contract/portal/request/audit test. Desktop và mobile 390×844
+  không tràn, public URL xóa fragment và không lộ tenant. Toàn bộ test đạt
+  369/369, secret scan/diff sạch; CI `33938079089` thành công. Deployment
+  production `tro-bill-c22zved4e-dtung.vercel.app`
+  (`dpl_5RDnEKqLK9t1wWb2KQZ8dXXjCHYK`) READY; alias chính trả revision
+  `1ee0873bad8e`, database/schema `ok`, runtime role `restricted`, static pins
+  `style 113 / api 106 / app 116`. Token giả trả 404 có mã ổn định, desktop và
+  mobile không tràn; Runtime Logs của deployment không có error/fatal.
 
 ## Việc chưa được xem là hoàn tất
 

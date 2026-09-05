@@ -309,7 +309,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-023 — Cổng báo sửa gắn với hợp đồng và không yêu cầu tài khoản khách thuê
 
-- **Trạng thái:** Đang triển khai từ 05/09/2026.
+- **Trạng thái:** Đã phát hành production ngày 05/09/2026.
 - **Quyết định:** Mỗi cổng báo sửa gắn với đúng một hợp đồng đang hoạt động. Token
   có 256-bit entropy, chỉ lưu SHA-256, hết hạn tối đa 365 ngày và nằm trong URL
   fragment để không đi vào query/referrer; frontend xóa fragment ngay sau khi
