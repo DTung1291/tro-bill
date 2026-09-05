@@ -569,6 +569,29 @@ const API = (() => {
     );
   }
 
+  function getTenantMaintenanceWork(roomId) {
+    return request(
+      'GET',
+      `/api/tenant-maintenance-work?roomId=${encodeURIComponent(roomId)}`
+    );
+  }
+
+  function assignTenantMaintenanceRequest(requestId, memberUserId) {
+    return request(
+      'PUT',
+      `/api/tenant-maintenance-requests/${encodeURIComponent(requestId)}/assignment`,
+      { memberUserId: memberUserId || null }
+    );
+  }
+
+  function updateTenantMaintenanceRequestStatus(requestId, status, note = '') {
+    return request(
+      'POST',
+      `/api/tenant-maintenance-requests/${encodeURIComponent(requestId)}/status`,
+      { status, note }
+    );
+  }
+
   function getRoomMaintenance() {
     return request('GET', '/api/room-maintenance');
   }
@@ -786,6 +809,9 @@ const API = (() => {
     issueTenantMaintenancePortal,
     revokeTenantMaintenancePortal,
     getTenantMaintenanceRequests,
+    getTenantMaintenanceWork,
+    assignTenantMaintenanceRequest,
+    updateTenantMaintenanceRequestStatus,
     getRoomMaintenance,
     createRoomMaintenance,
     completeRoomMaintenance,

@@ -21,6 +21,13 @@ const REQUEST_URGENCIES = Object.freeze(['low', 'normal', 'high', 'emergency']);
 const REQUEST_STATUSES = Object.freeze([
   'new', 'acknowledged', 'in_progress', 'resolved', 'cancelled'
 ]);
+const STATUS_TRANSITIONS = Object.freeze({
+  new: Object.freeze(['acknowledged', 'in_progress', 'cancelled']),
+  acknowledged: Object.freeze(['in_progress', 'cancelled']),
+  in_progress: Object.freeze(['resolved', 'cancelled']),
+  resolved: Object.freeze([]),
+  cancelled: Object.freeze([])
+});
 
 class TenantMaintenanceError extends Error {
   constructor(statusCode, code, message) {
@@ -87,6 +94,31 @@ function expiryDays(value) {
     );
   }
   return days;
+}
+
+function optionalMemberId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  return positiveId(value, 'Nhân viên');
+}
+
+function statusTransitionInput(body = {}) {
+  const status = String(body.status || '').trim().toLowerCase();
+  if (!REQUEST_STATUSES.includes(status) || status === 'new') {
+    throw new TenantMaintenanceError(
+      400,
+      'INVALID_MAINTENANCE_STATUS',
+      'Trạng thái xử lý không hợp lệ'
+    );
+  }
+  const note = simpleText(body.note, 'Ghi chú xử lý', { max: 500 });
+  if (['resolved', 'cancelled'].includes(status) && note.length < 3) {
+    throw new TenantMaintenanceError(
+      400,
+      'MAINTENANCE_STATUS_NOTE_REQUIRED',
+      'Hoàn tất hoặc hủy yêu cầu cần ghi chú từ 3 đến 500 ký tự'
+    );
+  }
+  return { status, note };
 }
 
 function generatePortalToken() {
@@ -157,7 +189,7 @@ function portalJson(row) {
 }
 
 function requestJson(row) {
-  return {
+  const result = {
     id: Number(row.id),
     code: row.request_code,
     contractId: Number(row.contract_id),
@@ -173,6 +205,42 @@ function requestJson(row) {
     status: row.status,
     submittedAt: row.submitted_at,
     updatedAt: row.updated_at
+  };
+  result.propertyId = Number(row.property_id) || null;
+  result.assignedTo = row.assigned_member_user_id
+    ? {
+        userId: Number(row.assigned_member_user_id),
+        email: row.assigned_member_email || '',
+        assignedAt: row.assigned_at || null,
+        updatedAt: row.assignment_updated_at || null
+      }
+    : null;
+  if (Array.isArray(row.events)) result.events = row.events.map(eventJson);
+  return result;
+}
+
+function eventJson(row) {
+  return {
+    id: Number(row.id),
+    type: row.event_type,
+    actorUserId: row.actor_user_id ? Number(row.actor_user_id) : null,
+    actorEmail: row.actor_email_snapshot || '',
+    previousAssignee: row.previous_assignee_user_id
+      ? {
+          userId: Number(row.previous_assignee_user_id),
+          email: row.previous_assignee_email_snapshot || ''
+        }
+      : null,
+    newAssignee: row.new_assignee_user_id
+      ? {
+          userId: Number(row.new_assignee_user_id),
+          email: row.new_assignee_email_snapshot || ''
+        }
+      : null,
+    previousStatus: row.previous_status || null,
+    newStatus: row.new_status || null,
+    note: row.note || '',
+    createdAt: row.created_at
   };
 }
 
@@ -208,6 +276,104 @@ function requireOwnerWorkspace(req) {
       403,
       'TENANT_MAINTENANCE_OWNER_REQUIRED',
       'Chỉ chủ tài khoản được quản lý cổng yêu cầu sửa chữa của khách thuê'
+    );
+  }
+}
+
+function actorUserId(req) {
+  return Number(req.actorUserId || req.userId);
+}
+
+function workspacePropertyIds(req) {
+  return Array.isArray(req.workspace?.propertyIds)
+    ? req.workspace.propertyIds.map(Number).filter(Number.isSafeInteger)
+    : [];
+}
+
+async function requestEventsByRequest(query, userId, requestIds) {
+  const ids = requestIds.map(Number).filter(Number.isSafeInteger);
+  if (ids.length === 0) return new Map();
+  const result = await query(
+    `SELECT * FROM tenant_maintenance_request_events
+     WHERE user_id=$1 AND request_id=ANY($2::bigint[])
+     ORDER BY created_at, id`,
+    [userId, ids]
+  );
+  const byRequest = new Map();
+  for (const row of result.rows) {
+    const id = Number(row.request_id);
+    if (!byRequest.has(id)) byRequest.set(id, []);
+    byRequest.get(id).push(row);
+  }
+  return byRequest;
+}
+
+async function requestRowsJson(query, userId, rows) {
+  const events = await requestEventsByRequest(query, userId, rows.map(row => row.id));
+  return rows.map(row => requestJson({
+    ...row,
+    events: events.get(Number(row.id)) || []
+  }));
+}
+
+async function eligibleMaintenanceAssignees(query, userId, propertyId) {
+  const result = await query(
+    `SELECT membership.member_user_id, member.email
+     FROM account_memberships membership
+     JOIN users member ON member.id=membership.member_user_id
+     JOIN account_member_property_access property_access
+       ON property_access.account_user_id=membership.account_user_id
+      AND property_access.member_user_id=membership.member_user_id
+      AND property_access.property_id=$2
+     JOIN account_member_operation_access operation_access
+       ON operation_access.account_user_id=membership.account_user_id
+      AND operation_access.member_user_id=membership.member_user_id
+      AND operation_access.operation='rooms'
+     WHERE membership.account_user_id=$1
+       AND membership.role<>'owner'
+     ORDER BY member.email, membership.member_user_id`,
+    [userId, propertyId]
+  );
+  return result.rows.map(row => ({
+    userId: Number(row.member_user_id),
+    email: row.email
+  }));
+}
+
+async function maintenanceRequestRow(query, userId, requestId, { forUpdate = false } = {}) {
+  const result = await query(
+    `SELECT request.*, room.property_id,
+            assignment.member_user_id AS assigned_member_user_id,
+            assignment.assigned_at,
+            assignment.updated_at AS assignment_updated_at,
+            assigned_member.email AS assigned_member_email
+     FROM tenant_maintenance_requests request
+     JOIN tenant_maintenance_portal_links portal
+       ON portal.user_id=request.user_id
+      AND portal.contract_id=request.contract_id
+      AND portal.id=request.portal_link_id
+     JOIN rooms room ON room.user_id=request.user_id AND room.id=request.room_id
+     LEFT JOIN tenant_maintenance_request_assignments assignment
+       ON assignment.user_id=request.user_id AND assignment.request_id=request.id
+     LEFT JOIN users assigned_member ON assigned_member.id=assignment.member_user_id
+     WHERE request.user_id=$1 AND request.id=$2
+     ${forUpdate ? 'FOR UPDATE OF request' : ''}`,
+    [userId, requestId]
+  );
+  return result.rows[0] || null;
+}
+
+function ensureStaffRequestAccess(req, row) {
+  if (req.workspace?.isOwner !== false) return;
+  const properties = workspacePropertyIds(req);
+  if (
+    !properties.includes(Number(row.property_id))
+    || Number(row.assigned_member_user_id) !== actorUserId(req)
+  ) {
+    throw new TenantMaintenanceError(
+      403,
+      'MAINTENANCE_REQUEST_ACCESS_DENIED',
+      'Yêu cầu này chưa được giao cho bạn trong khu được phép'
     );
   }
 }
@@ -262,13 +428,16 @@ async function issueMaintenancePortal(req, res, dependencies = {}) {
     await client.query('BEGIN');
     await ensureWritable(client.query.bind(client), req.userId);
     const contractResult = await client.query(
-      `SELECT id, contract_code, room_id, room_name_snapshot, tenant_id,
-              tenant_name_snapshot, status, ends_on,
-              (ends_on IS NOT NULL AND
-               ends_on < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS date_expired
-       FROM rental_contracts
-       WHERE user_id=$1 AND id=$2
-       FOR UPDATE`,
+      `SELECT contract.id, contract.contract_code, contract.room_id,
+              contract.room_name_snapshot, contract.tenant_id,
+              contract.tenant_name_snapshot, contract.status, contract.ends_on,
+              (contract.ends_on IS NOT NULL AND
+               contract.ends_on < (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) AS date_expired
+       FROM rental_contracts contract
+       JOIN rooms room
+         ON room.user_id=contract.user_id AND room.id=contract.room_id
+       WHERE contract.user_id=$1 AND contract.id=$2
+       FOR UPDATE OF contract`,
       [req.userId, contractId]
     );
     const contract = contractResult.rows[0];
@@ -432,24 +601,337 @@ async function listMaintenanceRequests(req, res, dependencies = {}) {
   }
   const query = dependencies.query || db.query;
   const contract = await query(
-    'SELECT id FROM rental_contracts WHERE user_id=$1 AND id=$2',
+    `SELECT contract.id, room.property_id
+     FROM rental_contracts contract
+     LEFT JOIN rooms room ON room.user_id=contract.user_id AND room.id=contract.room_id
+     WHERE contract.user_id=$1 AND contract.id=$2`,
     [req.userId, contractId]
   );
   if (!contract.rows[0]) {
     return res.status(404).json({ error: 'Không tìm thấy hợp đồng', code: 'CONTRACT_NOT_FOUND' });
   }
   const result = await query(
-    `SELECT request.*
+    `SELECT request.*, room.property_id,
+            assignment.member_user_id AS assigned_member_user_id,
+            assignment.assigned_at,
+            assignment.updated_at AS assignment_updated_at,
+            assigned_member.email AS assigned_member_email
      FROM tenant_maintenance_requests request
-     JOIN rental_contracts contract
-       ON contract.user_id=request.user_id AND contract.id=request.contract_id
+     JOIN tenant_maintenance_portal_links portal
+       ON portal.user_id=request.user_id
+      AND portal.contract_id=request.contract_id
+      AND portal.id=request.portal_link_id
+     LEFT JOIN rooms room ON room.user_id=request.user_id AND room.id=request.room_id
+     LEFT JOIN tenant_maintenance_request_assignments assignment
+       ON assignment.user_id=request.user_id AND assignment.request_id=request.id
+     LEFT JOIN users assigned_member ON assigned_member.id=assignment.member_user_id
      WHERE request.user_id=$1 AND request.contract_id=$2
      ORDER BY request.submitted_at DESC, request.id DESC
      LIMIT 100`,
     [req.userId, contractId]
   );
+  const [requests, assignees] = await Promise.all([
+    requestRowsJson(query, req.userId, result.rows),
+    eligibleMaintenanceAssignees(query, req.userId, contract.rows[0].property_id)
+  ]);
   res.set('Cache-Control', 'no-store');
-  return res.json({ requests: result.rows.map(requestJson) });
+  return res.json({ requests, assignees });
+}
+
+async function listMaintenanceWork(req, res, dependencies = {}) {
+  const roomId = String(req.query?.roomId || '').trim();
+  if (!roomId || roomId.length > 200) {
+    return res.status(400).json({
+      error: 'Phòng cần xem công việc không hợp lệ',
+      code: 'INVALID_MAINTENANCE_ROOM'
+    });
+  }
+  const query = dependencies.query || db.query;
+  const roomResult = await query(
+    'SELECT id, property_id FROM rooms WHERE user_id=$1 AND id=$2',
+    [req.userId, roomId]
+  );
+  const room = roomResult.rows[0];
+  if (!room) {
+    return res.status(404).json({ error: 'Không tìm thấy phòng', code: 'ROOM_NOT_FOUND' });
+  }
+  const owner = req.workspace?.isOwner !== false;
+  if (!owner && !workspacePropertyIds(req).includes(Number(room.property_id))) {
+    return res.status(403).json({
+      error: 'Bạn chưa được giao khu của phòng này',
+      code: 'MAINTENANCE_PROPERTY_ACCESS_DENIED'
+    });
+  }
+  const params = [req.userId, roomId];
+  let staffClause = '';
+  if (!owner) {
+    params.push(actorUserId(req));
+    staffClause = 'AND assignment.member_user_id=$3';
+  }
+  const result = await query(
+    `SELECT request.*, room.property_id,
+            assignment.member_user_id AS assigned_member_user_id,
+            assignment.assigned_at,
+            assignment.updated_at AS assignment_updated_at,
+            assigned_member.email AS assigned_member_email
+     FROM tenant_maintenance_requests request
+     JOIN tenant_maintenance_portal_links portal
+       ON portal.user_id=request.user_id
+      AND portal.contract_id=request.contract_id
+      AND portal.id=request.portal_link_id
+     JOIN rooms room ON room.user_id=request.user_id AND room.id=request.room_id
+     LEFT JOIN tenant_maintenance_request_assignments assignment
+       ON assignment.user_id=request.user_id AND assignment.request_id=request.id
+     LEFT JOIN users assigned_member ON assigned_member.id=assignment.member_user_id
+     WHERE request.user_id=$1 AND request.room_id=$2
+       ${staffClause}
+     ORDER BY
+       CASE request.status
+         WHEN 'new' THEN 1 WHEN 'acknowledged' THEN 2 WHEN 'in_progress' THEN 3 ELSE 4
+       END,
+       request.submitted_at DESC,
+       request.id DESC
+     LIMIT 100`,
+    params
+  );
+  const [requests, assignees] = await Promise.all([
+    requestRowsJson(query, req.userId, result.rows),
+    owner
+      ? eligibleMaintenanceAssignees(query, req.userId, room.property_id)
+      : Promise.resolve([])
+  ]);
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    requests,
+    assignees,
+    access: { isOwner: owner, actorUserId: actorUserId(req) }
+  });
+}
+
+async function assignMaintenanceRequest(req, res, dependencies = {}) {
+  let requestId;
+  let memberUserId;
+  try {
+    requireOwnerWorkspace(req);
+    requestId = positiveId(req.params?.id, 'Yêu cầu');
+    memberUserId = optionalMemberId(req.body?.memberUserId);
+  } catch (error) {
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  }
+  const client = await (dependencies.getClient || db.getClient)();
+  try {
+    await client.query('BEGIN');
+    await ensureWritable(client.query.bind(client), req.userId);
+    const row = await maintenanceRequestRow(
+      client.query.bind(client),
+      req.userId,
+      requestId,
+      { forUpdate: true }
+    );
+    if (!row) {
+      throw new TenantMaintenanceError(
+        404,
+        'MAINTENANCE_REQUEST_NOT_FOUND',
+        'Không tìm thấy yêu cầu sửa chữa'
+      );
+    }
+    const previousUserId = row.assigned_member_user_id
+      ? Number(row.assigned_member_user_id)
+      : null;
+    if (previousUserId === memberUserId) {
+      const events = await requestEventsByRequest(
+        client.query.bind(client),
+        req.userId,
+        [requestId]
+      );
+      await client.query('COMMIT');
+      res.set('Cache-Control', 'no-store');
+      return res.json({
+        request: requestJson({ ...row, events: events.get(requestId) || [] }),
+        unchanged: true
+      });
+    }
+    let nextMember = null;
+    if (memberUserId !== null) {
+      const eligible = await eligibleMaintenanceAssignees(
+        client.query.bind(client),
+        req.userId,
+        row.property_id
+      );
+      nextMember = eligible.find(member => member.userId === memberUserId) || null;
+      if (!nextMember) {
+        throw new TenantMaintenanceError(
+          409,
+          'MAINTENANCE_ASSIGNEE_NOT_ELIGIBLE',
+          'Nhân viên phải được giao đúng khu và nghiệp vụ phòng'
+        );
+      }
+    }
+    if (memberUserId === null) {
+      await client.query(
+        'DELETE FROM tenant_maintenance_request_assignments WHERE user_id=$1 AND request_id=$2',
+        [req.userId, requestId]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO tenant_maintenance_request_assignments
+           (user_id, request_id, member_user_id, assigned_by_user_id)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (user_id, request_id) DO UPDATE
+         SET member_user_id=EXCLUDED.member_user_id,
+             assigned_by_user_id=EXCLUDED.assigned_by_user_id,
+             updated_at=now()`,
+        [req.userId, requestId, memberUserId, actorUserId(req)]
+      );
+    }
+    await client.query(
+      `INSERT INTO tenant_maintenance_request_events
+         (user_id, request_id, event_type, actor_user_id, actor_email_snapshot,
+          previous_assignee_user_id, previous_assignee_email_snapshot,
+          new_assignee_user_id, new_assignee_email_snapshot)
+       VALUES ($1,$2,'assignment_changed',$3,$4,$5,$6,$7,$8)`,
+      [
+        req.userId,
+        requestId,
+        actorUserId(req),
+        String(req.userEmail || ''),
+        previousUserId,
+        String(row.assigned_member_email || ''),
+        memberUserId,
+        String(nextMember?.email || '')
+      ]
+    );
+    await recordDataAudits(client.query.bind(client), [requestDataAuditEntry(
+      req,
+      'tenant_maintenance_request_assigned',
+      'tenant_maintenance_request',
+      String(requestId),
+      { changedFields: ['assignedMemberUserId'], purpose: 'Phân công yêu cầu sửa chữa' }
+    )]);
+    const refreshed = await maintenanceRequestRow(client.query.bind(client), req.userId, requestId);
+    const events = await requestEventsByRequest(client.query.bind(client), req.userId, [requestId]);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      request: requestJson({ ...refreshed, events: events.get(requestId) || [] }),
+      unchanged: false
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function transitionMaintenanceRequestStatus(req, res, dependencies = {}) {
+  let requestId;
+  let input;
+  try {
+    requestId = positiveId(req.params?.id, 'Yêu cầu');
+    input = statusTransitionInput(req.body);
+  } catch (error) {
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  }
+  const client = await (dependencies.getClient || db.getClient)();
+  try {
+    await client.query('BEGIN');
+    await ensureWritable(client.query.bind(client), req.userId);
+    const row = await maintenanceRequestRow(
+      client.query.bind(client),
+      req.userId,
+      requestId,
+      { forUpdate: true }
+    );
+    if (!row) {
+      throw new TenantMaintenanceError(
+        404,
+        'MAINTENANCE_REQUEST_NOT_FOUND',
+        'Không tìm thấy yêu cầu sửa chữa'
+      );
+    }
+    ensureStaffRequestAccess(req, row);
+    const owner = req.workspace?.isOwner !== false;
+    if (!owner && input.status === 'cancelled') {
+      throw new TenantMaintenanceError(
+        403,
+        'MAINTENANCE_STATUS_OWNER_REQUIRED',
+        'Chỉ chủ tài khoản được hủy yêu cầu sửa chữa'
+      );
+    }
+    if (row.status === input.status) {
+      const events = await requestEventsByRequest(client.query.bind(client), req.userId, [requestId]);
+      await client.query('COMMIT');
+      res.set('Cache-Control', 'no-store');
+      return res.json({
+        request: requestJson({ ...row, events: events.get(requestId) || [] }),
+        unchanged: true
+      });
+    }
+    if (!(STATUS_TRANSITIONS[row.status] || []).includes(input.status)) {
+      throw new TenantMaintenanceError(
+        409,
+        'MAINTENANCE_STATUS_TRANSITION_INVALID',
+        `Không thể chuyển từ ${row.status} sang ${input.status}`
+      );
+    }
+    const updated = await client.query(
+      `UPDATE tenant_maintenance_requests
+       SET status=$3, updated_at=now()
+       WHERE user_id=$1 AND id=$2 AND status=$4
+       RETURNING *`,
+      [req.userId, requestId, input.status, row.status]
+    );
+    if (!updated.rows[0]) {
+      throw new TenantMaintenanceError(
+        409,
+        'MAINTENANCE_STATUS_CHANGED',
+        'Trạng thái đã thay đổi, vui lòng tải lại'
+      );
+    }
+    await client.query(
+      `INSERT INTO tenant_maintenance_request_events
+         (user_id, request_id, event_type, actor_user_id, actor_email_snapshot,
+          previous_status, new_status, note)
+       VALUES ($1,$2,'status_changed',$3,$4,$5,$6,$7)`,
+      [
+        req.userId,
+        requestId,
+        actorUserId(req),
+        String(req.userEmail || ''),
+        row.status,
+        input.status,
+        input.note
+      ]
+    );
+    await recordDataAudits(client.query.bind(client), [requestDataAuditEntry(
+      req,
+      'tenant_maintenance_request_status_changed',
+      'tenant_maintenance_request',
+      String(requestId),
+      { changedFields: ['status', 'note'], purpose: 'Cập nhật tiến độ yêu cầu sửa chữa' }
+    )]);
+    const refreshed = {
+      ...row,
+      ...updated.rows[0]
+    };
+    const events = await requestEventsByRequest(client.query.bind(client), req.userId, [requestId]);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      request: requestJson({ ...refreshed, events: events.get(requestId) || [] }),
+      unchanged: false
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function publicPortalRow(query, token, { forUpdate = false } = {}) {
@@ -613,7 +1095,7 @@ async function submitPublicMaintenanceRequest(req, res, dependencies = {}) {
 }
 
 async function loadTenantMaintenanceExport(userId, query = db.query) {
-  const [portalResult, requestResult] = await Promise.all([
+  const [portalResult, requestResult, assignmentResult, eventResult] = await Promise.all([
     query(
       `SELECT link.*, contract.contract_code
        FROM tenant_maintenance_portal_links link
@@ -624,15 +1106,54 @@ async function loadTenantMaintenanceExport(userId, query = db.query) {
       [userId]
     ),
     query(
-      `SELECT * FROM tenant_maintenance_requests
+      `SELECT request.*, room.property_id,
+              assignment.member_user_id AS assigned_member_user_id,
+              assignment.assigned_at,
+              assignment.updated_at AS assignment_updated_at,
+              assigned_member.email AS assigned_member_email
+       FROM tenant_maintenance_requests request
+       JOIN tenant_maintenance_portal_links portal
+         ON portal.user_id=request.user_id
+        AND portal.contract_id=request.contract_id
+        AND portal.id=request.portal_link_id
+       LEFT JOIN rooms room ON room.user_id=request.user_id AND room.id=request.room_id
+       LEFT JOIN tenant_maintenance_request_assignments assignment
+         ON assignment.user_id=request.user_id AND assignment.request_id=request.id
+       LEFT JOIN users assigned_member ON assigned_member.id=assignment.member_user_id
+       WHERE request.user_id=$1
+       ORDER BY request.submitted_at DESC, request.id DESC`,
+      [userId]
+    ),
+    query(
+      `SELECT assignment.*, member.email AS member_email,
+              assigned_by.email AS assigned_by_email
+       FROM tenant_maintenance_request_assignments assignment
+       JOIN users member ON member.id=assignment.member_user_id
+       LEFT JOIN users assigned_by ON assigned_by.id=assignment.assigned_by_user_id
+       WHERE assignment.user_id=$1
+       ORDER BY assignment.updated_at DESC, assignment.request_id`,
+      [userId]
+    ),
+    query(
+      `SELECT * FROM tenant_maintenance_request_events
        WHERE user_id=$1
-       ORDER BY submitted_at DESC, id DESC`,
+       ORDER BY created_at, id`,
       [userId]
     )
   ]);
   return {
     portals: portalResult.rows.map(portalJson),
-    requests: requestResult.rows.map(requestJson)
+    requests: requestResult.rows.map(requestJson),
+    assignments: assignmentResult.rows.map(row => ({
+      requestId: Number(row.request_id),
+      memberUserId: Number(row.member_user_id),
+      memberEmail: row.member_email,
+      assignedByUserId: row.assigned_by_user_id ? Number(row.assigned_by_user_id) : null,
+      assignedByEmail: row.assigned_by_email || '',
+      assignedAt: row.assigned_at,
+      updatedAt: row.updated_at
+    })),
+    events: eventResult.rows.map(eventJson)
   };
 }
 
@@ -645,10 +1166,15 @@ module.exports = {
   REQUEST_URGENCIES,
   TenantMaintenanceError,
   expiryDays,
+  eventJson,
   generatePortalToken,
+  assignMaintenanceRequest,
+  eligibleMaintenanceAssignees,
+  ensureStaffRequestAccess,
   issueMaintenancePortal,
   listMaintenancePortals,
   listMaintenanceRequests,
+  listMaintenanceWork,
   loadTenantMaintenanceExport,
   portalJson,
   portalTokenHash,
@@ -662,5 +1188,7 @@ module.exports = {
   revokeMaintenancePortal,
   sendMaintenanceRequestError,
   submitPublicMaintenanceRequest,
+  statusTransitionInput,
+  transitionMaintenanceRequestStatus,
   validatePortalRow
 };

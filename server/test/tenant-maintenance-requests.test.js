@@ -67,6 +67,7 @@ function portalRow(overrides = {}) {
     view_count: '0',
     last_viewed_at: null,
     created_at: '2026-09-01T00:00:00.000Z',
+    property_id: 4,
     contract_status: 'active',
     contract_date_expired: false,
     ...overrides
@@ -324,7 +325,7 @@ test('schema, quyền runtime, routes và trang công khai giữ token ngoài qu
   assert.match(apiSource, /function getTenantMaintenanceRequests/);
   assert.match(appSource, /function openTenantMaintenanceModal/);
   assert.match(htmlSource, /id="tenant-maintenance-modal"/);
-  assert.match(htmlSource, /style\.css\?v=113[\s\S]*api\.js\?v=106[\s\S]*app\.js\?v=116/);
+  assert.match(htmlSource, /style\.css\?v=114[\s\S]*api\.js\?v=107[\s\S]*app\.js\?v=117/);
   assert.match(publicHtml, /name="referrer" content="no-referrer"/);
   assert.match(publicHtml, /Content-Security-Policy/);
   assert.match(publicHtml, /maintenance-public\.css\?v=1[\s\S]*maintenance-public\.js\?v=2/);

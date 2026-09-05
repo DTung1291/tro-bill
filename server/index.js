@@ -371,6 +371,24 @@ app.post(
   wrap(accountAccess.requireWorkspace('rooms')),
   wrap(tenantMaintenanceRequests.revokeMaintenancePortal)
 );
+app.get(
+  '/api/tenant-maintenance-work',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.listMaintenanceWork)
+);
+app.put(
+  '/api/tenant-maintenance-requests/:id/assignment',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.assignMaintenanceRequest)
+);
+app.post(
+  '/api/tenant-maintenance-requests/:id/status',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.transitionMaintenanceRequestStatus)
+);
 app.get('/api/room-maintenance', requireAuth, wrap(roomMaintenance.listMaintenance));
 app.post('/api/room-maintenance', requireAuth, wrap(roomMaintenance.createMaintenance));
 app.post(

@@ -58,7 +58,9 @@ const ALLOWED_FIELDS = new Set([
   'urgency',
   'description',
   'contactPhone',
-  'availableTime'
+  'availableTime',
+  'assignedMemberUserId',
+  'note'
 ]);
 
 function requestAuditContext(req = {}) {

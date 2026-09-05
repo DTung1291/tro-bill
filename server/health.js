@@ -130,6 +130,12 @@ const SCHEMA_READY_QUERY = `
       SELECT 1 FROM pg_constraint
       WHERE conname='tenant_maintenance_requests_portal_fk'
     )
+    AND to_regclass('public.tenant_maintenance_request_assignments') IS NOT NULL
+    AND to_regclass('public.tenant_maintenance_request_events') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='tenant_maintenance_assignment_membership_fk'
+    )
     AND to_regclass('public.rental_final_settlements') IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM information_schema.columns

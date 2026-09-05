@@ -328,3 +328,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   để tương thích Vercel Preview Protection nhưng tuyệt đối không phụ thuộc phiên
   TrọBill. Bước phân công/trạng thái tiếp theo cập nhật request qua endpoint hẹp,
   không mở quyền UPDATE bảng cho runtime chỉ để tiện thao tác.
+
+## D-024 — Công việc sửa chữa khóa theo người được giao và khu hiện tại của phòng
+
+- **Trạng thái:** Đang áp dụng từ 05/09/2026.
+- **Quyết định:** Chỉ chủ tài khoản được giao hoặc thu hồi người xử lý. Người
+  nhận việc phải là thành viên có đồng thời quyền khu hiện tại của phòng và
+  nghiệp vụ `rooms`. Nhân viên chỉ đọc/cập nhật yêu cầu đang giao cho chính mình
+  trong khu được phép; chỉ chủ tài khoản được hủy. Trạng thái đi theo chuỗi hữu
+  hạn `new -> acknowledged -> in_progress -> resolved`, cho phép chủ hủy từ
+  trạng thái chưa kết thúc và bắt buộc ghi chú khi hoàn tất/hủy.
+- **Lý do:** Vai trò chung không chứng minh một nhân viên chịu trách nhiệm cho sự
+  cố cụ thể. Khóa theo assignment, khu và nghiệp vụ ở mỗi request ngăn xem/sửa
+  chéo khi đổi workspace hoặc khi quyền thành viên đã bị thu hồi.
+- **Hệ quả:** Assignment hiện tại có thể thay đổi nhưng mỗi lần đổi người và đổi
+  trạng thái phải tạo event append-only cùng audit trong transaction. Nội dung
+  gốc khách gửi không được sửa. Nếu phòng chuyển khu, quyền xem công việc theo
+  khu mới có hiệu lực ngay; assignment cũ không tự cấp lại quyền đã mất.

@@ -1450,6 +1450,10 @@ function clearSensitiveStateFromMemory() {
   activeTenantMaintenanceContract = null;
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
+  tenantMaintenanceAssignees = [];
+  ROOM_TENANT_MAINTENANCE_REQUESTS = [];
+  ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
+  ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
   activeTenantMaintenancePublicUrl = '';
   const maintenanceUrlInput = document.getElementById('tenant-maintenance-link-url');
   if (maintenanceUrlInput) maintenanceUrlInput.value = '';
@@ -3398,7 +3402,11 @@ let activeRentalFinalSettlement = null;
 let activeTenantMaintenanceContract = null;
 let tenantMaintenancePortals = [];
 let tenantMaintenanceRequests = [];
+let tenantMaintenanceAssignees = [];
 let activeTenantMaintenancePublicUrl = '';
+let ROOM_TENANT_MAINTENANCE_REQUESTS = [];
+let ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
+let ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -3734,18 +3742,75 @@ function renderTenantMaintenancePortals() {
     </article>`).join('');
 }
 
-function renderTenantMaintenanceRequests() {
-  const list = document.getElementById('tenant-maintenance-request-list');
-  if (!tenantMaintenanceRequests.length) {
-    list.innerHTML = '<p class="tenant-maintenance-empty">Khách thuê chưa gửi yêu cầu sửa chữa.</p>';
-    return;
-  }
-  list.innerHTML = tenantMaintenanceRequests.map(request => `
-    <article class="tenant-maintenance-request-item">
+function tenantMaintenanceNextStatuses(status, owner) {
+  const transitions = {
+    new: ['acknowledged', 'in_progress', 'cancelled'],
+    acknowledged: ['in_progress', 'cancelled'],
+    in_progress: ['resolved', 'cancelled'],
+    resolved: [],
+    cancelled: []
+  };
+  return (transitions[status] || []).filter(value => owner || value !== 'cancelled');
+}
+
+function tenantMaintenanceStatusActionLabel(status) {
+  return ({
+    acknowledged: '✓ Tiếp nhận',
+    in_progress: '▶ Bắt đầu xử lý',
+    resolved: '✓ Hoàn tất',
+    cancelled: 'Hủy yêu cầu'
+  })[status] || status;
+}
+
+function renderTenantMaintenanceEvents(events = []) {
+  if (!events.length) return '';
+  return `
+    <details class="tenant-maintenance-events">
+      <summary>Lịch sử xử lý (${events.length})</summary>
+      <ol>${events.map(event => {
+        const actor = escapeHtml(event.actorEmail || 'Hệ thống');
+        let text = '';
+        if (event.type === 'assignment_changed') {
+          text = event.newAssignee
+            ? `${actor} phân công cho ${escapeHtml(event.newAssignee.email || 'nhân viên')}`
+            : `${actor} bỏ phân công${event.previousAssignee ? ` của ${escapeHtml(event.previousAssignee.email || 'nhân viên')}` : ''}`;
+        } else {
+          text = `${actor}: ${escapeHtml(tenantMaintenanceStatusLabel(event.previousStatus))} → ${escapeHtml(tenantMaintenanceStatusLabel(event.newStatus))}`;
+        }
+        return `<li><span>${text}</span><time>${escapeHtml(tenantMaintenanceDateTime(event.createdAt))}</time>${event.note ? `<p>${escapeHtml(event.note)}</p>` : ''}</li>`;
+      }).join('')}</ol>
+    </details>`;
+}
+
+function renderTenantMaintenanceWorkflow(request, assignees, owner) {
+  const currentAssigneeEligible = request.assignedTo
+    && assignees.some(member => Number(member.userId) === Number(request.assignedTo.userId));
+  const assignment = owner ? `
+    <label class="form-label tenant-maintenance-assignment-label">Người xử lý
+      <select class="form-input" data-maintenance-assignment="${Number(request.id)}">
+        <option value="">Chưa phân công</option>
+        ${request.assignedTo && !currentAssigneeEligible ? `<option value="${Number(request.assignedTo.userId)}" selected disabled>${escapeHtml(request.assignedTo.email || 'Nhân viên')} · không còn quyền</option>` : ''}
+        ${assignees.map(member => `<option value="${Number(member.userId)}" ${Number(request.assignedTo?.userId) === Number(member.userId) ? 'selected' : ''}>${escapeHtml(member.email)}</option>`).join('')}
+      </select>
+    </label>` : `
+    <p class="tenant-maintenance-assignee"><strong>Người xử lý:</strong> ${escapeHtml(request.assignedTo?.email || 'Chưa phân công')}</p>`;
+  const nextStatuses = tenantMaintenanceNextStatuses(request.status, owner);
+  const statusControls = nextStatuses.length ? `
+    <div class="tenant-maintenance-status-controls">
+      <input class="form-input" type="text" maxlength="500" data-maintenance-status-note placeholder="Ghi chú xử lý; bắt buộc khi hoàn tất/hủy" />
+      <div>${nextStatuses.map(status => `<button type="button" class="btn ${status === 'cancelled' ? 'btn--danger' : 'btn--ghost'} btn--sm" data-maintenance-status="${escapeHtml(status)}" data-maintenance-request-id="${Number(request.id)}">${escapeHtml(tenantMaintenanceStatusActionLabel(status))}</button>`).join('')}</div>
+    </div>` : '<p class="tenant-maintenance-terminal">Yêu cầu đã kết thúc.</p>';
+  return `<div class="tenant-maintenance-workflow">${assignment}${statusControls}${renderTenantMaintenanceEvents(request.events)}</div>`;
+}
+
+function tenantMaintenanceRequestCard(request, assignees, owner, { showRoom = false } = {}) {
+  return `
+    <article class="tenant-maintenance-request-item" data-maintenance-request-card="${Number(request.id)}">
       <div class="tenant-maintenance-request-head">
         <strong>${escapeHtml(request.code)}</strong>
         <span>${escapeHtml(tenantMaintenanceDateTime(request.submittedAt))}</span>
       </div>
+      ${showRoom ? `<p class="tenant-maintenance-room-reference">${escapeHtml(request.roomName || '')}</p>` : ''}
       <div class="tenant-maintenance-request-badges">
         <span class="tenant-maintenance-badge">${escapeHtml(tenantMaintenanceCategoryLabel(request.category))}</span>
         <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.urgency)}">${escapeHtml(tenantMaintenanceUrgencyLabel(request.urgency))}</span>
@@ -3753,7 +3818,23 @@ function renderTenantMaintenanceRequests() {
       </div>
       <p>${escapeHtml(request.description)}</p>
       ${(request.contactPhone || request.availableTime) ? `<p class="tenant-maintenance-contact">${request.contactPhone ? `Liên hệ: ${escapeHtml(request.contactPhone)}` : ''}${request.contactPhone && request.availableTime ? ' · ' : ''}${request.availableTime ? `Có thể kiểm tra: ${escapeHtml(request.availableTime)}` : ''}</p>` : ''}
-    </article>`).join('');
+      ${renderTenantMaintenanceWorkflow(request, assignees, owner)}
+    </article>`;
+}
+
+function renderTenantMaintenanceRequests() {
+  const list = document.getElementById('tenant-maintenance-request-list');
+  if (!tenantMaintenanceRequests.length) {
+    list.innerHTML = '<p class="tenant-maintenance-empty">Khách thuê chưa gửi yêu cầu sửa chữa.</p>';
+    return;
+  }
+  list.innerHTML = tenantMaintenanceRequests
+    .map(request => tenantMaintenanceRequestCard(
+      request,
+      tenantMaintenanceAssignees,
+      true
+    ))
+    .join('');
 }
 
 async function loadTenantMaintenancePortalData() {
@@ -3773,6 +3854,7 @@ async function loadTenantMaintenancePortalData() {
     if (Number(activeTenantMaintenanceContract?.id) !== Number(contract.id)) return;
     tenantMaintenancePortals = Array.isArray(portalData.portals) ? portalData.portals : [];
     tenantMaintenanceRequests = Array.isArray(requestData.requests) ? requestData.requests : [];
+    tenantMaintenanceAssignees = Array.isArray(requestData.assignees) ? requestData.assignees : [];
     renderTenantMaintenancePortals();
     renderTenantMaintenanceRequests();
   } catch (error) {
@@ -3788,6 +3870,7 @@ function openTenantMaintenanceModal(contract) {
   activeTenantMaintenanceContract = contract;
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
+  tenantMaintenanceAssignees = [];
   activeTenantMaintenancePublicUrl = '';
   document.getElementById('tenant-maintenance-contract').textContent = `${contract.code} · ${contract.roomName || document.getElementById('rental-contract-room').textContent} · ${contract.tenantName}`;
   document.getElementById('tenant-maintenance-link-url').value = '';
@@ -3807,6 +3890,7 @@ function closeTenantMaintenanceModal() {
   activeTenantMaintenanceContract = null;
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
+  tenantMaintenanceAssignees = [];
   activeTenantMaintenancePublicUrl = '';
   document.getElementById('tenant-maintenance-link-url').value = '';
   document.getElementById('tenant-maintenance-link-result').hidden = true;
@@ -3853,6 +3937,60 @@ async function revokeTenantMaintenancePortal(portalId, button) {
     showToast(error.message || 'Không thu hồi được liên kết', 'error', 4500);
   } finally {
     button.disabled = false;
+  }
+}
+
+async function refreshVisibleTenantMaintenance() {
+  const tasks = [];
+  if (activeTenantMaintenanceContract && !document.getElementById('tenant-maintenance-modal').hidden) {
+    tasks.push(loadTenantMaintenancePortalData());
+  }
+  if (ACTIVE_ROOM_LIFECYCLE_ROOM_ID && document.getElementById('room-lifecycle-mgmt-modal')) {
+    tasks.push(loadRoomTenantMaintenanceWork(ACTIVE_ROOM_LIFECYCLE_ROOM_ID));
+  }
+  await Promise.all(tasks);
+}
+
+async function assignTenantMaintenanceFromControl(control) {
+  const requestId = Number(control.dataset.maintenanceAssignment);
+  if (!requestId) return;
+  control.disabled = true;
+  try {
+    await API.assignTenantMaintenanceRequest(requestId, Number(control.value) || null);
+    showToast(control.value ? 'Đã phân công người xử lý ✓' : 'Đã bỏ phân công', 'success');
+    await refreshVisibleTenantMaintenance();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không cập nhật được người xử lý', 'error', 4500);
+    await refreshVisibleTenantMaintenance();
+  } finally {
+    control.disabled = false;
+  }
+}
+
+async function transitionTenantMaintenanceFromButton(button) {
+  const requestId = Number(button.dataset.maintenanceRequestId);
+  const status = button.dataset.maintenanceStatus;
+  const card = button.closest('[data-maintenance-request-card]');
+  const noteInput = card?.querySelector('[data-maintenance-status-note]');
+  const note = noteInput?.value.trim() || '';
+  if (['resolved', 'cancelled'].includes(status) && note.length < 3) {
+    showToast('Hãy nhập ghi chú ít nhất 3 ký tự khi hoàn tất hoặc hủy', 'error', 4500);
+    noteInput?.focus();
+    return;
+  }
+  const buttons = [...(card?.querySelectorAll('[data-maintenance-status]') || [])];
+  buttons.forEach(item => { item.disabled = true; });
+  try {
+    await API.updateTenantMaintenanceRequestStatus(requestId, status, note);
+    showToast(`Đã chuyển sang ${tenantMaintenanceStatusLabel(status)} ✓`, 'success');
+    await refreshVisibleTenantMaintenance();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không cập nhật được trạng thái xử lý', 'error', 4500);
+    await refreshVisibleTenantMaintenance();
+  } finally {
+    buttons.forEach(item => { item.disabled = false; });
   }
 }
 
@@ -5374,6 +5512,14 @@ document.getElementById('tenant-maintenance-portal-list').addEventListener('clic
     null,
     'Thu hồi'
   );
+});
+document.getElementById('tenant-maintenance-request-list').addEventListener('change', event => {
+  const control = event.target?.closest?.('[data-maintenance-assignment]');
+  if (control) void assignTenantMaintenanceFromControl(control);
+});
+document.getElementById('tenant-maintenance-request-list').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-maintenance-status]');
+  if (button) void transitionTenantMaintenanceFromButton(button);
 });
 document.getElementById('tenant-maintenance-modal').addEventListener('click', event => {
   if (event.target === event.currentTarget) closeTenantMaintenanceModal();
@@ -8942,6 +9088,9 @@ async function openRoomLifecycleModal(roomId) {
   const room = STATE.rooms.find(r => r.id === roomId);
   if (!room) return;
   ACTIVE_ROOM_LIFECYCLE_ROOM_ID = roomId;
+  ROOM_TENANT_MAINTENANCE_REQUESTS = [];
+  ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
+  ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: isOwnerWorkspace(), actorUserId: null };
   const modalHtml = `
     <div class="modal-overlay" id="room-lifecycle-mgmt-modal">
       <div class="modal room-lifecycle-mgmt-modal" role="dialog" aria-modal="true" aria-labelledby="room-lifecycle-mgmt-title">
@@ -8998,16 +9147,33 @@ async function openRoomLifecycleModal(roomId) {
       restoreRoomAssetFromModal(Number(restoreAssetButton.dataset.roomAssetRestore));
       return;
     }
+    const statusButton = event.target.closest('[data-maintenance-status]');
+    if (statusButton) {
+      void transitionTenantMaintenanceFromButton(statusButton);
+      return;
+    }
     if (event.target.closest('[data-room-asset-cancel]')) renderRoomLifecycleContent();
+  });
+  modal.addEventListener('change', event => {
+    const control = event.target.closest('[data-maintenance-assignment]');
+    if (control) void assignTenantMaintenanceFromControl(control);
   });
   syncModalScrollLock();
   try {
-    const [result, assetResult] = await Promise.all([
+    const [result, assetResult, maintenanceWork] = await Promise.all([
       isOwnerWorkspace() ? API.getRoomMaintenance() : Promise.resolve(null),
-      API.getRoomAssets(roomId, 'all')
+      API.getRoomAssets(roomId, 'all'),
+      API.getTenantMaintenanceWork(roomId)
     ]);
     if (result) applyRoomOperationalStatusPayload(result);
     ROOM_ASSETS = Array.isArray(assetResult.assets) ? assetResult.assets : [];
+    ROOM_TENANT_MAINTENANCE_REQUESTS = Array.isArray(maintenanceWork.requests)
+      ? maintenanceWork.requests
+      : [];
+    ROOM_TENANT_MAINTENANCE_ASSIGNEES = Array.isArray(maintenanceWork.assignees)
+      ? maintenanceWork.assignees
+      : [];
+    ROOM_TENANT_MAINTENANCE_ACCESS = maintenanceWork.access || ROOM_TENANT_MAINTENANCE_ACCESS;
     renderRooms();
     renderRoomLifecycleContent();
   } catch (error) {
@@ -9015,6 +9181,48 @@ async function openRoomLifecycleModal(roomId) {
     document.getElementById('room-lifecycle-mgmt-content').innerHTML =
       `<p class="rental-contract-document-error">${escapeHtml(error.message || 'Không tải được trạng thái phòng')}</p>`;
   }
+}
+
+async function loadRoomTenantMaintenanceWork(roomId) {
+  const modal = document.getElementById('room-lifecycle-mgmt-modal');
+  if (!modal || ACTIVE_ROOM_LIFECYCLE_ROOM_ID !== roomId) return;
+  try {
+    const result = await API.getTenantMaintenanceWork(roomId);
+    if (ACTIVE_ROOM_LIFECYCLE_ROOM_ID !== roomId) return;
+    ROOM_TENANT_MAINTENANCE_REQUESTS = Array.isArray(result.requests) ? result.requests : [];
+    ROOM_TENANT_MAINTENANCE_ASSIGNEES = Array.isArray(result.assignees) ? result.assignees : [];
+    ROOM_TENANT_MAINTENANCE_ACCESS = result.access || ROOM_TENANT_MAINTENANCE_ACCESS;
+    renderRoomLifecycleContent();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không tải được yêu cầu khách thuê', 'error', 4500);
+  }
+}
+
+function renderRoomTenantMaintenanceWorkSection(owner) {
+  const requests = ROOM_TENANT_MAINTENANCE_REQUESTS;
+  const scopeText = owner
+    ? 'Tất cả yêu cầu của phòng; có thể phân công cho nhân viên đủ quyền khu và nghiệp vụ phòng.'
+    : 'Chỉ hiển thị các yêu cầu đang được giao cho bạn trong khu được phép.';
+  return `
+    <section class="room-lifecycle-section room-tenant-maintenance-section">
+      <div class="room-assets-heading">
+        <div>
+          <h3>Yêu cầu sửa chữa từ khách thuê</h3>
+          <p>${escapeHtml(scopeText)}</p>
+        </div>
+        <span class="tenant-maintenance-badge">${requests.length} yêu cầu</span>
+      </div>
+      <div class="tenant-maintenance-request-list">
+        ${requests.length
+          ? requests.map(request => tenantMaintenanceRequestCard(
+              request,
+              ROOM_TENANT_MAINTENANCE_ASSIGNEES,
+              owner
+            )).join('')
+          : `<p class="tenant-maintenance-empty">${owner ? 'Phòng chưa có yêu cầu sửa chữa từ khách.' : 'Bạn chưa được giao yêu cầu nào tại phòng này.'}</p>`}
+      </div>
+    </section>`;
 }
 
 function renderRoomLifecycleContent() {
@@ -9088,6 +9296,7 @@ function renderRoomLifecycleContent() {
     }
     html += '</section>';
   }
+  html += renderRoomTenantMaintenanceWorkSection(owner);
   html += renderRoomAssetSection(room);
   content.innerHTML = html;
 }
@@ -9410,6 +9619,9 @@ function closeRoomLifecycleMgmtModal() {
   ACTIVE_ROOM_LIFECYCLE_ROOM_ID = '';
   ACTIVE_ROOM_ASSET_ID = null;
   ROOM_ASSETS = [];
+  ROOM_TENANT_MAINTENANCE_REQUESTS = [];
+  ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
+  ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
   syncModalScrollLock();
 }
 

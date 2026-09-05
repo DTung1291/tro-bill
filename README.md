@@ -146,6 +146,9 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | POST   | `/api/rental-contracts/:id/maintenance-portals` | Tạo liên kết báo sửa mới và thu hồi liên kết cũ |
 | POST   | `/api/tenant-maintenance-portals/:id/revoke` | Thu hồi một liên kết báo sửa đang dùng |
 | GET    | `/api/rental-contracts/:id/maintenance-requests` | Yêu cầu sửa chữa khách đã gửi cho hợp đồng |
+| GET    | `/api/tenant-maintenance-work?roomId=...` | Công việc sửa chữa theo phòng, lọc theo người được giao |
+| PUT    | `/api/tenant-maintenance-requests/:id/assignment` | Chủ tài khoản giao hoặc thu hồi người xử lý |
+| POST   | `/api/tenant-maintenance-requests/:id/status` | Chủ/nhân viên được giao cập nhật tiến độ hợp lệ |
 | POST   | `/api/public/maintenance-portals/resolve` | Mở cổng báo sửa bằng token, không cần tài khoản khách thuê |
 | POST   | `/api/public/maintenance-portals/requests` | Gửi yêu cầu sửa chữa có idempotency và rate limit |
 
@@ -178,6 +181,10 @@ fragment rồi được xóa ngay khỏi thanh địa chỉ; database chỉ lưu
 khách thuê không yêu cầu tài khoản TrọBill và chỉ hiển thị phòng, mã hợp đồng,
 thời hạn cùng lịch sử yêu cầu của liên kết — không trả tên, CCCD hoặc hồ sơ khách.
 Mỗi lần gửi có idempotency, rate limit và audit tối giản chỉ chứa tên trường.
+Chủ tài khoản có thể giao từng yêu cầu cho nhân viên có đồng thời quyền khu và
+nghiệp vụ phòng. Nhân viên chỉ thấy công việc được giao cho chính mình, không
+được hủy yêu cầu và chỉ cập nhật theo chuỗi trạng thái hợp lệ. Mọi lần đổi người
+xử lý hoặc trạng thái được lưu append-only; hoàn tất/hủy bắt buộc có ghi chú.
 
 Trạng thái phòng do server suy ra, không nhận trạng thái tự khai từ trình duyệt:
 phòng có khách hiện tại hoặc hợp đồng hiệu lực là **đang thuê**, lượt giữ chỗ
