@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 05/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng làm — phân công người xử lý và theo dõi trạng thái |
+| Trạng thái | Sẵn sàng làm — ghi nhận chi phí sửa chữa vào báo cáo thực tế |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `1ee0873` — cổng khách thuê gửi yêu cầu sửa chữa |
-| Việc code tiếp theo | Phân công người xử lý và theo dõi trạng thái yêu cầu sửa chữa |
+| Phần ứng dụng phát hành gần nhất | `d952d9c` — phân công và theo dõi yêu cầu sửa chữa |
+| Việc code tiếp theo | Ghi nhận chi phí sửa chữa vào báo cáo thực tế |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -46,8 +46,10 @@ lý tài sản/nội thất theo phòng cũng đã phát hành: schema/API/UI/ex
 mềm và liên kết biên bản bàn giao hoàn tất; migration hai môi trường, Preview
 E2E và production smoke đều đạt. Cổng khách thuê gửi yêu cầu sửa chữa đã phát
 hành: portal gắn hợp đồng, token chỉ lưu hash, public UI tối thiểu, request
-append-only, idempotency/rate limit/audit và export hoàn tất. Hạng mục kế tiếp là
-phân công người xử lý và theo dõi trạng thái yêu cầu.
+append-only, idempotency/rate limit/audit và export hoàn tất. Phân công và theo
+dõi trạng thái yêu cầu cũng đã phát hành: owner giao đúng nhân viên theo khu và
+nghiệp vụ, staff chỉ thấy việc của mình, event append-only và audit tách
+actor/subject. Hạng mục kế tiếp là ghi nhận chi phí sửa chữa vào báo cáo thực tế.
 
 ## Bản đồ hệ thống ngắn
 
@@ -276,6 +278,22 @@ phân công người xử lý và theo dõi trạng thái yêu cầu.
   `1ee0873bad8e`, database/schema `ok`, runtime role `restricted`, static pins
   `style 113 / api 106 / app 116`. Token giả trả 404 có mã ổn định, desktop và
   mobile không tràn; Runtime Logs của deployment không có error/fatal.
+- Phân công và theo dõi yêu cầu sửa chữa đã phát hành ở commit `d952d9c`.
+  Migration `20260905_tenant_maintenance_workflow.sql` chạy đúng Neon staging
+  `br-ancient-wave-azwc43to` và production `br-fancy-star-azyclc1h`, cả hai đạt
+  6/6 cờ bảng, index, membership FK, least privilege và ownership. Preview
+  `tro-bill-cwembbugw-dtung.vercel.app` đã qua E2E: owner phân công cho manager
+  chỉ có quyền `rooms` tại Khu trọ chính; staff chỉ thấy A101, không thấy B201,
+  chuyển đủ `new -> acknowledged -> in_progress -> resolved`; owner đọc lại đủ
+  4 sự kiện, audit ghi actor owner/staff và subject owner. Popup desktop/mobile
+  390×844 không tràn, nền khóa scroll. User, contract, request và audit test đã
+  dọn về 0; owner trở lại Free. Bộ đầy đủ đạt 377/377, secret scan/diff sạch; CI
+  `33954279257` thành công. Production deployment
+  `tro-bill-bx25wn0bk-dtung.vercel.app`
+  (`dpl_3z9ANi3LJWGvQUgeiWKqZcQHoVgJ`) READY; alias readiness HTTP 200 revision
+  `d952d9c36f3b`, database/schema `ok`, runtime role `restricted`, asset pins
+  `style 114 / api 107 / app 117`. Endpoint công việc trả 401 khi chưa đăng nhập;
+  Runtime Logs đầu phát hành chỉ có readiness 200, không có error/fatal.
 
 ## Việc chưa được xem là hoàn tất
 

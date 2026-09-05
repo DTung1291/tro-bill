@@ -396,12 +396,24 @@ scan sạch.
   Migration staging/production đều đạt 6/6 cờ. Preview đã qua E2E hai phía,
   audit và cleanup; desktop/mobile không tràn. Production revision
   `1ee0873bad8e` readiness sạch và endpoint token giả trả lỗi 404 an toàn.
-- [ ] Phân công người xử lý và theo dõi trạng thái.
+- [x] Phân công người xử lý và theo dõi trạng thái.
+  Đã phát hành: chủ tài khoản chỉ phân công thành viên có đồng thời quyền khu
+  hiện tại của phòng và nghiệp vụ `rooms`; nhân viên chỉ thấy yêu cầu giao cho
+  chính mình, không được hủy và chỉ chuyển theo vòng đời hợp lệ. Assignment hiện
+  tại đi cùng event append-only và audit tách actor/subject; nội dung khách gửi
+  không được sửa, hoàn tất/hủy bắt buộc ghi chú. Migration staging/production
+  đều đạt 6/6 cờ. Preview E2E xác nhận owner phân công, staff chỉ thấy A101 trong
+  một khu, chuyển `new -> acknowledged -> in_progress -> resolved`, owner đọc lại
+  đủ 4 sự kiện; dữ liệu test đã dọn về 0 và gói owner trả Free. Desktop/mobile
+  390px không tràn và khóa scroll nền. Bộ đầy đủ đạt 377/377, CI `33954279257`
+  thành công; production revision `d952d9c36f3b` ready với database/schema `ok`,
+  runtime role `restricted`, asset pins `style 114 / api 107 / app 117` và route
+  mới trả 401 khi chưa đăng nhập.
 - [ ] Ghi nhận chi phí sửa chữa vào báo cáo thực tế.
 
 ### Hoàn thành giai đoạn khi
 
-- [ ] Một chủ trọ có thể giao việc cho nhân viên mà không phải cấp toàn quyền tài khoản.
+- [x] Một chủ trọ có thể giao việc cho nhân viên mà không phải cấp toàn quyền tài khoản.
 
 ## Giai đoạn 5 — Báo cáo tài chính, thuế và mở rộng doanh thu
 
