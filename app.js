@@ -7243,6 +7243,22 @@ function occupancyStatusLabel(status) {
 }
 
 function renderOccupancyReport(report = null) {
+  const list = document.getElementById('occupancy-room-list');
+  if (!report) {
+    document.getElementById('occupancy-report-rate').textContent = '—';
+    document.getElementById('occupancy-report-rate-note').textContent = 'Đang tính ngày-phòng…';
+    document.getElementById('occupancy-report-occupied').textContent = '—';
+    document.getElementById('occupancy-report-vacant').textContent = '—';
+    document.getElementById('occupancy-report-vacant-note').textContent = 'Đang tính phòng trống cuối kỳ';
+    document.getElementById('occupancy-report-reserved').textContent = '—';
+    document.getElementById('occupancy-report-maintenance').textContent = '—';
+    document.getElementById('occupancy-report-note').textContent =
+      'Đang tổng hợp dữ liệu lấp đầy và thời gian phòng trống…';
+    if (list) {
+      list.innerHTML = '<p class="occupancy-room-empty">Đang tải dữ liệu phòng…</p>';
+    }
+    return;
+  }
   const occupancy = report?.occupancy || {};
   const roomCount = Math.max(0, Number(occupancy.roomCount) || 0);
   const calendarDays = Math.max(0, Number(occupancy.calendarDays) || 0);
@@ -7273,7 +7289,6 @@ function renderOccupancyReport(report = null) {
         : '')
     : 'Không có phòng trong phạm vi đã chọn.';
 
-  const list = document.getElementById('occupancy-room-list');
   if (!list) return;
   if (!rooms.length) {
     list.innerHTML = '<p class="occupancy-room-empty">Chưa có dữ liệu phòng trong kỳ này.</p>';

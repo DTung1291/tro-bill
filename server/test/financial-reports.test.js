@@ -367,6 +367,7 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(appSource, /reloadFinancialReportFromFilters/);
   assert.match(appSource, /function renderFinancialBreakdown/);
   assert.match(appSource, /function renderOccupancyReport/);
+  assert.match(appSource, /Đang tổng hợp dữ liệu lấp đầy và thời gian phòng trống/);
   assert.match(appSource, /occupancy\.occupancyRatePercent/);
   assert.match(appSource, /deposit\.netCashflowVnd/);
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.propertyId/);
@@ -378,5 +379,5 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(indexSource, /style\.css\?v=119/);
   assert.match(indexSource, /api\.js\?v=110/);
-  assert.match(indexSource, /app\.js\?v=124/);
+  assert.match(indexSource, /app\.js\?v=125/);
 });
