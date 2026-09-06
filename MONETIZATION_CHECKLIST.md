@@ -456,7 +456,17 @@ scan sạch.
   `41314eb84b01` ready với database/schema `ok`, runtime role `restricted`, asset
   pins `style 117 / api 110 / app 122`; lọc phòng và quý đã smoke test bằng dữ
   liệu thật, endpoint chưa đăng nhập trả 401 và Runtime Logs không có lỗi.
-- [ ] Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh.
+- [x] Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh.
+  Cơ cấu doanh thu dùng snapshot chi tiết hiệu lực của hóa đơn: tiền thuê,
+  điện, nước, dịch vụ và điều chỉnh ròng (phụ thu + phí chậm - giảm giá) luôn
+  đối soát về tổng doanh thu; hóa đơn legacy thiếu chi tiết được đưa vào nhóm
+  chưa phân loại. Tiền cọc hiển thị thành dòng tiền riêng gồm thu, hoàn, khấu
+  trừ và dòng tiền thuần; khấu trừ là chuyển số dư nội bộ nên không tính là tiền
+  mới nhận. Preview `tro-bill-kgh0234o3-dtung.vercel.app` đã kiểm tra tháng,
+  quý, hai khu/phòng và mobile 390×844 không tràn ngang. Production revision
+  `679995ecb255` đã đối soát dữ liệu thật toàn khu và phòng 101, endpoint chưa
+  đăng nhập trả 401, database/schema `ok`, runtime role `restricted`, console
+  và Runtime Logs sạch; không cần migration.
 - [ ] Báo cáo tỷ lệ lấp đầy và thời gian phòng trống.
 - [ ] Xuất Excel/PDF cho kế toán.
 - [ ] Có báo cáo doanh thu năm phục vụ kê khai thuế.

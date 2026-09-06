@@ -400,3 +400,22 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   nhuận đầy đủ từng phòng, phải bổ sung bút toán/quy tắc phân bổ riêng có audit;
   không được âm thầm thay đổi truy vấn hiện tại. Staff vẫn cần nghiệp vụ
   `overview` và mọi khu/phòng phải nằm trong assignment của họ.
+
+## D-028 — Cơ cấu hóa đơn phải đối soát, tiền cọc là dòng tiền riêng
+
+- **Trạng thái:** Đã phát hành production ngày 06/09/2026.
+- **Quyết định:** Cơ cấu doanh thu lấy snapshot chi tiết hiệu lực của mỗi hóa
+  đơn. Tiền thuê, điện, nước và dịch vụ là các nhóm dương; điều chỉnh ròng bằng
+  phụ thu cộng phí chậm trừ giảm giá. Nếu hóa đơn legacy không đủ chi tiết,
+  phần chênh lệch được ghi rõ là chưa phân loại để tổng các nhóm ròng luôn bằng
+  doanh thu hóa đơn. Giao dịch cọc được tổng hợp riêng thành thu, hoàn, khấu trừ
+  và dòng tiền thuần; giao dịch đảo được phân loại theo bút toán gốc.
+- **Lý do:** Cộng tiền cọc vào doanh thu hoặc thực thu hóa đơn sẽ đếm tiền giữ
+  hộ như tiền bán dịch vụ. Khấu trừ cọc chỉ chuyển số dư đang giữ sang thanh
+  toán/công nợ, không tạo tiền mặt mới. Ép dữ liệu hóa đơn cũ vào một nhóm bất kỳ
+  sẽ làm báo cáo trông chi tiết nhưng không còn khả năng đối soát.
+- **Hệ quả:** `deposit.netCashflowVnd` chỉ bằng tiền cọc thu trừ tiền cọc hoàn;
+  khấu trừ vẫn hiển thị để kiểm toán nhưng không cộng vào dòng tiền thuần. Mọi
+  bộ lọc kỳ/khu/phòng phải áp dụng đồng thời cho hóa đơn và tài khoản cọc trong
+  đúng ownership/assignment. Không được bỏ nhóm chưa phân loại nếu chưa có quy
+  trình backfill snapshot được kiểm chứng.

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 06/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành bộ lọc báo cáo tài chính; tiếp tục tách nhóm doanh thu |
+| Trạng thái | Đã phát hành cơ cấu doanh thu và tiền cọc; tiếp tục báo cáo tỷ lệ lấp đầy |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `41314eb` — lọc báo cáo theo tháng, quý, năm, khu và phòng |
-| Việc code tiếp theo | Triển khai “Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh” |
+| Phần ứng dụng phát hành gần nhất | `679995e` — tách tiền thuê, điện nước, dịch vụ, điều chỉnh và tiền cọc |
+| Việc code tiếp theo | Triển khai “Báo cáo tỷ lệ lấp đầy và thời gian phòng trống” |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -345,6 +345,21 @@ chính tổng hợp ở giai đoạn 5.
   `style 117 / api 110 / app 122`. Production đã smoke test phòng 101 và quý
   III/2026 bằng dữ liệu thật, console sạch; endpoint chưa đăng nhập trả 401 và
   Runtime Logs sau phát hành không có error. Không có migration cho hạng mục này.
+- Cơ cấu doanh thu và tiền cọc đã phát hành ở commit `679995e`. Báo cáo dùng
+  snapshot chi tiết hiệu lực để tách tiền thuê, điện, nước, dịch vụ, giảm giá,
+  phụ thu, phí chậm và phần legacy chưa phân loại; tổng các nhóm ròng đối soát
+  về doanh thu hóa đơn. Ledger cọc được tổng hợp riêng theo thu/hoàn/khấu trừ,
+  đảo giao dịch được quy về loại gốc và khấu trừ không tính là tiền mới nhận.
+  Preview `tro-bill-kgh0234o3-dtung.vercel.app`
+  (`dpl_FLHJwv1vedLYkMNMW5sQZspbhCsT`) đã kiểm tra tháng/quý, hai khu/phòng và
+  mobile 390×844 không tràn ngang. Bộ đầy đủ đạt 391/391, secret scan/diff sạch;
+  CI `34020839977` thành công. Artifact Preview được promote nguyên trạng thành
+  Production `tro-bill-1rbj6013z-dtung.vercel.app`
+  (`dpl_HrJxgfaQHaw7zdQxUNt5ABtPS4YK`); alias chính trả revision
+  `679995ecb255`, database/schema `ok`, runtime role `restricted`, pins
+  `style 118 / api 110 / app 123`. Production đã đối soát toàn khu và phòng 101
+  bằng dữ liệu thật, console sạch; endpoint chưa đăng nhập trả 401 và Runtime
+  Logs không có lỗi. Không có migration cho hạng mục này.
 
 ## Việc chưa được xem là hoàn tất
 
