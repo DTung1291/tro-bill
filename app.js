@@ -7228,6 +7228,80 @@ function renderFinancialBreakdown(report = null) {
   document.getElementById('financial-breakdown-uncategorized').textContent = fmt(uncategorizedVnd);
 }
 
+function occupancyPercent(value) {
+  const percent = Number(value) || 0;
+  return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(percent)}%`;
+}
+
+function occupancyStatusLabel(status) {
+  return ({
+    occupied: 'Có khách',
+    reserved: 'Giữ chỗ',
+    maintenance: 'Đang sửa',
+    vacant: 'Trống'
+  })[status] || 'Trống';
+}
+
+function renderOccupancyReport(report = null) {
+  const occupancy = report?.occupancy || {};
+  const roomCount = Math.max(0, Number(occupancy.roomCount) || 0);
+  const calendarDays = Math.max(0, Number(occupancy.calendarDays) || 0);
+  const rentableRoomDays = Math.max(0, Number(occupancy.rentableRoomDays) || 0);
+  const occupiedRoomDays = Math.max(0, Number(occupancy.occupiedRoomDays) || 0);
+  const vacantRoomDays = Math.max(0, Number(occupancy.vacantRoomDays) || 0);
+  const reservedRoomDays = Math.max(0, Number(occupancy.reservedRoomDays) || 0);
+  const maintenanceRoomDays = Math.max(0, Number(occupancy.maintenanceRoomDays) || 0);
+  const endingVacantRoomCount = Math.max(0, Number(occupancy.endingVacantRoomCount) || 0);
+  const inferredStartRoomCount = Math.max(0, Number(occupancy.inferredStartRoomCount) || 0);
+  const rooms = Array.isArray(occupancy.rooms) ? occupancy.rooms : [];
+
+  document.getElementById('occupancy-report-rate').textContent =
+    occupancyPercent(occupancy.occupancyRatePercent);
+  document.getElementById('occupancy-report-rate-note').textContent =
+    `${occupiedRoomDays}/${rentableRoomDays} ngày-phòng có thể cho thuê`;
+  document.getElementById('occupancy-report-occupied').textContent = occupiedRoomDays.toLocaleString('vi-VN');
+  document.getElementById('occupancy-report-vacant').textContent = vacantRoomDays.toLocaleString('vi-VN');
+  document.getElementById('occupancy-report-vacant-note').textContent =
+    `${endingVacantRoomCount} phòng còn trống cuối kỳ`;
+  document.getElementById('occupancy-report-reserved').textContent = reservedRoomDays.toLocaleString('vi-VN');
+  document.getElementById('occupancy-report-maintenance').textContent =
+    maintenanceRoomDays.toLocaleString('vi-VN');
+  document.getElementById('occupancy-report-note').textContent = roomCount
+    ? `${roomCount} phòng hiện tại × ${calendarDays} ngày đã quan sát; thời gian sửa chữa không tính vào khả năng cho thuê.`
+      + (inferredStartRoomCount
+        ? ` ${inferredStartRoomCount} phòng thiếu ngày bắt đầu thuê nên số ngày có khách được suy từ đầu kỳ.`
+        : '')
+    : 'Không có phòng trong phạm vi đã chọn.';
+
+  const list = document.getElementById('occupancy-room-list');
+  if (!list) return;
+  if (!rooms.length) {
+    list.innerHTML = '<p class="occupancy-room-empty">Chưa có dữ liệu phòng trong kỳ này.</p>';
+    return;
+  }
+  list.innerHTML = `
+    <div class="occupancy-room-row occupancy-room-row--head" aria-hidden="true">
+      <span>Phòng</span><span>Lấp đầy</span><span>Có khách</span><span>Trống</span>
+      <span>Chuỗi trống dài nhất</span><span>Cuối kỳ</span>
+    </div>
+    ${rooms.map(room => {
+      const longestVacantDays = Math.max(0, Number(room.longestVacantDays) || 0);
+      const endingVacantDays = Math.max(0, Number(room.endingVacantDays) || 0);
+      const property = room.propertyName ? `<small>${escapeHtml(room.propertyName)}</small>` : '';
+      const endingNote = room.endingStatus === 'vacant' && endingVacantDays
+        ? `<small>${endingVacantDays} ngày liên tục</small>`
+        : '';
+      return `<div class="occupancy-room-row">
+        <span data-label="Phòng"><strong>${escapeHtml(room.roomName || room.roomId)}</strong>${property}</span>
+        <span data-label="Lấp đầy"><strong>${occupancyPercent(room.occupancyRatePercent)}</strong></span>
+        <span data-label="Có khách">${Math.max(0, Number(room.occupiedRoomDays) || 0)} ngày</span>
+        <span data-label="Trống">${Math.max(0, Number(room.vacantRoomDays) || 0)} ngày</span>
+        <span data-label="Chuỗi trống dài nhất">${longestVacantDays} ngày</span>
+        <span data-label="Cuối kỳ"><em class="occupancy-status occupancy-status--${escapeHtml(room.endingStatus)}">${escapeHtml(occupancyStatusLabel(room.endingStatus))}</em>${endingNote}</span>
+      </div>`;
+    }).join('')}`;
+}
+
 function renderFinancialReport() {
   const panel = document.querySelector('.financial-report');
   const status = document.getElementById('financial-report-status');
@@ -7256,6 +7330,7 @@ function renderFinancialReport() {
     document.getElementById('financial-report-debt-note').textContent =
       'Các hóa đơn còn thiếu đến cuối kỳ';
     renderFinancialBreakdown();
+    renderOccupancyReport();
     return;
   }
 
@@ -7272,6 +7347,7 @@ function renderFinancialReport() {
     Number(report.profitVnd) < 0
   );
   renderFinancialBreakdown(report);
+  renderOccupancyReport(report);
   const generatedAt = report.generatedAt ? subscriptionDateTime(report.generatedAt) : '';
   const selectedProperty = STATE.properties.find(
     property => Number(property.id) === Number(report.filters?.propertyId)

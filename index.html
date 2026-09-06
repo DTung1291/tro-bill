@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=118" />
+  <link rel="stylesheet" href="style.css?v=119" />
 </head>
 
 <body>
@@ -469,10 +469,46 @@
             </article>
           </div>
         </section>
+        <section class="occupancy-report" aria-labelledby="occupancy-report-title">
+          <div class="occupancy-report-header">
+            <div>
+              <h3 id="occupancy-report-title">Lấp đầy và thời gian phòng trống</h3>
+              <p id="occupancy-report-note">Tính theo ngày đã quan sát trên danh sách phòng hiện tại.</p>
+            </div>
+          </div>
+          <div class="occupancy-report-grid" aria-live="polite">
+            <article class="occupancy-metric occupancy-metric--rate">
+              <span>Tỷ lệ lấp đầy</span>
+              <strong id="occupancy-report-rate">0%</strong>
+              <small id="occupancy-report-rate-note">0/0 ngày-phòng có thể cho thuê</small>
+            </article>
+            <article class="occupancy-metric occupancy-metric--occupied">
+              <span>Có khách</span>
+              <strong id="occupancy-report-occupied">0</strong>
+              <small>Ngày-phòng có người thuê</small>
+            </article>
+            <article class="occupancy-metric occupancy-metric--vacant">
+              <span>Phòng trống</span>
+              <strong id="occupancy-report-vacant">0</strong>
+              <small id="occupancy-report-vacant-note">0 phòng còn trống cuối kỳ</small>
+            </article>
+            <article class="occupancy-metric occupancy-metric--reserved">
+              <span>Giữ chỗ</span>
+              <strong id="occupancy-report-reserved">0</strong>
+              <small>Ngày-phòng đã giữ chỗ</small>
+            </article>
+            <article class="occupancy-metric occupancy-metric--maintenance">
+              <span>Đang sửa</span>
+              <strong id="occupancy-report-maintenance">0</strong>
+              <small>Ngày-phòng tạm ngừng cho thuê</small>
+            </article>
+          </div>
+          <div class="occupancy-room-list" id="occupancy-room-list"></div>
+        </section>
         <p class="financial-report-status" id="financial-report-status">Đang tổng hợp số liệu…</p>
         <details class="financial-report-definition">
           <summary>Cách tính các chỉ số</summary>
-          <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong kỳ, không tính tiền cọc chuyển sang bù công nợ. Cọc thuần bằng tiền thu cọc trừ tiền hoàn cọc; khấu trừ cọc được trình bày riêng vì là chuyển số dư, không phải dòng tiền mới. Công nợ được chốt tại cuối kỳ và mỗi hóa đơn chỉ được tính một lần. Khi lọc một khu, chi phí chỉ gồm khoản gắn trực tiếp với khu đó. Khi lọc một phòng, chi phí chỉ gồm khoản sửa chữa đã liên kết trực tiếp với phòng; hệ thống không tự phân bổ chi phí chung.</p>
+          <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong kỳ, không tính tiền cọc chuyển sang bù công nợ. Cọc thuần bằng tiền thu cọc trừ tiền hoàn cọc; khấu trừ cọc được trình bày riêng vì là chuyển số dư, không phải dòng tiền mới. Công nợ được chốt tại cuối kỳ và mỗi hóa đơn chỉ được tính một lần. Tỷ lệ lấp đầy bằng ngày-phòng có khách chia cho ngày-phòng có thể cho thuê; ngày sửa chữa được loại khỏi mẫu số, còn giữ chỗ được trình bày riêng và vẫn thuộc quỹ phòng có thể cho thuê. Trạng thái từng ngày ưu tiên có khách, rồi giữ chỗ, sửa chữa và cuối cùng là trống. Báo cáo lịch sử dùng danh sách phòng hiện tại. Khi lọc một khu, chi phí chỉ gồm khoản gắn trực tiếp với khu đó. Khi lọc một phòng, chi phí chỉ gồm khoản sửa chữa đã liên kết trực tiếp với phòng; hệ thống không tự phân bổ chi phí chung.</p>
         </details>
       </section>
       <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
@@ -2193,7 +2229,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=123"></script>
+  <script src="app.js?v=124"></script>
 </body>
 
 </html>

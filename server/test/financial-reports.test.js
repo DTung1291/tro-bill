@@ -11,6 +11,8 @@ const {
   financialReportJson,
   getFinancialReport,
   getMonthlyFinancialReport,
+  occupancyReportJson,
+  occupancyReportSql,
   reportFilters,
   reportPeriod,
   reportRange,
@@ -48,6 +50,25 @@ function metricRow(overrides = {}) {
     invoice_count: 2,
     unpaid_invoice_count: 1,
     generated_at: new Date('2026-09-06T03:00:00.000Z'),
+    ...overrides
+  };
+}
+
+function occupancyRow(overrides = {}) {
+  return {
+    room_id: 'room-a101',
+    room_name: 'A101',
+    property_id: 12,
+    property_name: 'Khu A',
+    total_room_days: 92,
+    occupied_room_days: 60,
+    vacant_room_days: 20,
+    reserved_room_days: 5,
+    maintenance_room_days: 7,
+    longest_vacant_days: 12,
+    ending_vacant_days: 4,
+    ending_status: 'vacant',
+    inferred_occupancy_start: false,
     ...overrides
   };
 }
@@ -118,6 +139,61 @@ test('chấp nhận tháng, quý, năm và quy đổi đúng khoảng tháng', (
   ));
 });
 
+test('tổng hợp tỷ lệ lấp đầy theo ngày-phòng và chuỗi phòng trống', () => {
+  const range = reportRange({ periodType: 'quarter', period: '2026-Q3' });
+  const result = occupancyReportJson([
+    occupancyRow(),
+    occupancyRow({
+      room_id: 'room-b201',
+      room_name: 'B201',
+      property_id: 13,
+      property_name: 'Khu B',
+      occupied_room_days: 30,
+      vacant_room_days: 52,
+      reserved_room_days: 10,
+      maintenance_room_days: 0,
+      longest_vacant_days: 35,
+      ending_vacant_days: 0,
+      ending_status: 'occupied',
+      inferred_occupancy_start: true
+    })
+  ], range);
+
+  assert.equal(result.calendarDays, 92);
+  assert.equal(result.roomCount, 2);
+  assert.equal(result.totalRoomDays, 184);
+  assert.equal(result.rentableRoomDays, 177);
+  assert.equal(result.occupiedRoomDays, 90);
+  assert.equal(result.vacantRoomDays, 72);
+  assert.equal(result.reservedRoomDays, 15);
+  assert.equal(result.maintenanceRoomDays, 7);
+  assert.equal(result.occupancyRatePercent, 50.85);
+  assert.equal(result.longestVacantDays, 35);
+  assert.equal(result.endingVacantRoomCount, 1);
+  assert.equal(result.inferredStartRoomCount, 1);
+  assert.equal(result.inventoryMode, 'current_rooms');
+  assert.equal(result.rooms[0].occupancyRatePercent, 70.59);
+  assert.equal(result.rooms[0].endingVacantDays, 4);
+  assert.equal(result.rooms[1].endingVacantDays, 0);
+});
+
+test('SQL lấp đầy dùng lịch sử hợp đồng, giữ chỗ, sửa chữa và ưu tiên trạng thái', () => {
+  const sql = occupancyReportSql();
+  assert.match(sql, /FROM rooms room/);
+  assert.match(sql, /LEAST\(requested_end_date, CURRENT_DATE \+ INTERVAL '1 day'\)/);
+  assert.match(sql, /room\.property_id=ANY\(\$6::bigint\[\]\)/);
+  assert.match(sql, /contract\.status IN \('active','ended'\)/);
+  assert.match(sql, /event\.event_type IN \('checked_out','room_transferred'\)/);
+  assert.match(sql, /legacy_occupancy_spans/);
+  assert.match(sql, /FROM rental_reservations reservation/);
+  assert.match(sql, /FROM room_maintenance_periods maintenance/);
+  assert.match(sql, /WHEN occupied\.room_id IS NOT NULL THEN 'occupied'/);
+  assert.match(sql, /WHEN reserved\.room_id IS NOT NULL THEN 'reserved'/);
+  assert.match(sql, /WHEN maintenance\.room_id IS NOT NULL THEN 'maintenance'/);
+  assert.match(sql, /ROW_NUMBER\(\) OVER \(PARTITION BY room_id ORDER BY day\)/);
+  assert.match(sql, /ending_vacant_days/);
+});
+
 test('chuẩn hóa bộ lọc khu và phòng, từ chối định danh sai', () => {
   assert.deepEqual(reportFilters({ propertyId: '12', roomId: ' A101 ' }), {
     propertyId: 12,
@@ -165,6 +241,7 @@ test('API chủ sở hữu tổng hợp theo quý và lọc khu đã xác thực
   const query = async (sql, params) => {
     calls.push({ sql, params });
     if (/SELECT id FROM properties/.test(sql)) return { rows: [{ id: 12 }] };
+    if (/classified_days/.test(sql)) return { rows: [occupancyRow()] };
     return { rows: [metricRow()] };
   };
   const response = responseRecorder();
@@ -176,11 +253,14 @@ test('API chủ sở hữu tổng hợp theo quý và lọc khu đã xác thực
 
   assert.deepEqual(calls[0].params, [7, 12]);
   assert.deepEqual(calls[1].params, [7, '2026-07', '2026-09', 12, null, null]);
+  assert.deepEqual(calls[2].params, [7, '2026-07', '2026-09', 12, null, null]);
   assert.equal(response.record.headers['cache-control'], 'no-store');
   assert.equal(response.record.body.report.period, '2026-Q3');
   assert.equal(response.record.body.report.filters.propertyId, 12);
   assert.equal(response.record.body.report.profitVnd, 3500000);
   assert.equal(response.record.body.report.breakdown.deposit.netCashflowVnd, 800000);
+  assert.equal(response.record.body.report.occupancy.roomCount, 1);
+  assert.equal(response.record.body.report.occupancy.longestVacantDays, 12);
 });
 
 test('API xác thực phòng thuộc khu và trả lỗi khi bộ lọc không khớp', async () => {
@@ -207,6 +287,7 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
   const calls = [];
   const query = async (sql, params) => {
     calls.push({ sql, params });
+    if (/classified_days/.test(sql)) return { rows: [occupancyRow()] };
     return { rows: [metricRow()] };
   };
   const response = responseRecorder();
@@ -217,6 +298,7 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
   }, response.res, { query });
 
   assert.deepEqual(calls[0].params, [7, '2026-01', '2026-12', null, null, [12, 13]]);
+  assert.deepEqual(calls[1].params, [7, '2026-01', '2026-12', null, null, [12, 13]]);
   assert.match(calls[0].sql, /scoped_room\.property_id=ANY\(\$6::bigint\[\]\)/);
   assert.match(calls[0].sql, /unassigned_property\.id=ANY\(\$6::bigint\[\]\)/);
 
@@ -226,7 +308,7 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
     query: { periodType: 'month', period: '2026-09', propertyId: '99' },
     workspace: { isOwner: false, propertyIds: [12, 13] }
   }, forbidden.res, { query });
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.equal(forbidden.record.statusCode, 403);
   assert.equal(forbidden.record.body.code, 'REPORT_PROPERTY_FORBIDDEN');
 });
@@ -243,7 +325,7 @@ test('route tháng cũ vẫn tương thích và lỗi kỳ sai không query data
     query: { period: '2026-09' },
     workspace: { isOwner: true }
   }, legacy.res, { query });
-  assert.equal(queryCount, 1);
+  assert.equal(queryCount, 2);
   assert.equal(legacy.record.body.report.range.type, 'month');
 
   const invalid = responseRecorder();
@@ -252,7 +334,7 @@ test('route tháng cũ vẫn tương thích và lỗi kỳ sai không query data
     query: { periodType: 'quarter', period: '09/2026' },
     workspace: { isOwner: true }
   }, invalid.res, { query });
-  assert.equal(queryCount, 1);
+  assert.equal(queryCount, 2);
   assert.equal(invalid.record.statusCode, 400);
   assert.equal(invalid.record.body.code, 'INVALID_REPORT_PERIOD');
 });
@@ -280,15 +362,21 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(indexSource, /id="financial-breakdown-services"/);
   assert.match(indexSource, /id="financial-breakdown-adjustments"/);
   assert.match(indexSource, /id="financial-breakdown-deposit"/);
+  assert.match(indexSource, /id="occupancy-report-rate"/);
+  assert.match(indexSource, /id="occupancy-room-list"/);
   assert.match(appSource, /reloadFinancialReportFromFilters/);
   assert.match(appSource, /function renderFinancialBreakdown/);
+  assert.match(appSource, /function renderOccupancyReport/);
+  assert.match(appSource, /occupancy\.occupancyRatePercent/);
   assert.match(appSource, /deposit\.netCashflowVnd/);
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.propertyId/);
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.roomId/);
   assert.match(cssSource, /\.financial-report-filters\s*\{/);
   assert.match(cssSource, /\.financial-breakdown-grid\s*\{/);
+  assert.match(cssSource, /\.occupancy-report-grid\s*\{/);
+  assert.match(cssSource, /\.occupancy-room-row\s*\{/);
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(indexSource, /style\.css\?v=118/);
+  assert.match(indexSource, /style\.css\?v=119/);
   assert.match(indexSource, /api\.js\?v=110/);
-  assert.match(indexSource, /app\.js\?v=123/);
+  assert.match(indexSource, /app\.js\?v=124/);
 });

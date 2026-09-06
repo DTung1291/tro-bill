@@ -83,6 +83,77 @@ function amount(value) {
   return Math.round(Number(value) || 0);
 }
 
+function percentage(numerator, denominator) {
+  if (!Number.isFinite(Number(denominator)) || Number(denominator) <= 0) return 0;
+  return Math.round((Number(numerator) / Number(denominator)) * 10000) / 100;
+}
+
+function occupancyRoomJson(row) {
+  const totalRoomDays = Math.max(0, Number(row.total_room_days) || 0);
+  const occupiedRoomDays = Math.max(0, Number(row.occupied_room_days) || 0);
+  const vacantRoomDays = Math.max(0, Number(row.vacant_room_days) || 0);
+  const reservedRoomDays = Math.max(0, Number(row.reserved_room_days) || 0);
+  const maintenanceRoomDays = Math.max(0, Number(row.maintenance_room_days) || 0);
+  const rentableRoomDays = Math.max(0, totalRoomDays - maintenanceRoomDays);
+  const endingStatus = ['occupied', 'reserved', 'maintenance', 'vacant'].includes(row.ending_status)
+    ? row.ending_status
+    : 'vacant';
+  return {
+    roomId: String(row.room_id || ''),
+    roomName: String(row.room_name || ''),
+    propertyId: Number(row.property_id) || null,
+    propertyName: String(row.property_name || ''),
+    totalRoomDays,
+    rentableRoomDays,
+    occupiedRoomDays,
+    vacantRoomDays,
+    reservedRoomDays,
+    maintenanceRoomDays,
+    occupancyRatePercent: percentage(occupiedRoomDays, rentableRoomDays),
+    longestVacantDays: Math.max(0, Number(row.longest_vacant_days) || 0),
+    endingVacantDays: endingStatus === 'vacant'
+      ? Math.max(0, Number(row.ending_vacant_days) || 0)
+      : 0,
+    endingStatus,
+    inferredOccupancyStart: row.inferred_occupancy_start === true
+      || row.inferred_occupancy_start === 'true'
+  };
+}
+
+function occupancyReportJson(rows = [], range) {
+  const rooms = rows.map(occupancyRoomJson);
+  const totals = rooms.reduce((result, room) => {
+    result.totalRoomDays += room.totalRoomDays;
+    result.rentableRoomDays += room.rentableRoomDays;
+    result.occupiedRoomDays += room.occupiedRoomDays;
+    result.vacantRoomDays += room.vacantRoomDays;
+    result.reservedRoomDays += room.reservedRoomDays;
+    result.maintenanceRoomDays += room.maintenanceRoomDays;
+    result.longestVacantDays = Math.max(result.longestVacantDays, room.longestVacantDays);
+    if (room.endingStatus === 'vacant') result.endingVacantRoomCount += 1;
+    if (room.inferredOccupancyStart) result.inferredStartRoomCount += 1;
+    return result;
+  }, {
+    totalRoomDays: 0,
+    rentableRoomDays: 0,
+    occupiedRoomDays: 0,
+    vacantRoomDays: 0,
+    reservedRoomDays: 0,
+    maintenanceRoomDays: 0,
+    longestVacantDays: 0,
+    endingVacantRoomCount: 0,
+    inferredStartRoomCount: 0
+  });
+  return {
+    calendarDays: rooms.reduce((days, room) => Math.max(days, room.totalRoomDays), 0),
+    roomCount: rooms.length,
+    ...totals,
+    occupancyRatePercent: percentage(totals.occupiedRoomDays, totals.rentableRoomDays),
+    inventoryMode: 'current_rooms',
+    rooms
+  };
+}
+
 function financialReportJson(row, rangeOrPeriod, filters = {}) {
   const range = typeof rangeOrPeriod === 'string'
     ? reportRange({ periodType: 'month', period: rangeOrPeriod })
@@ -309,6 +380,231 @@ function reportSql() {
     FROM invoice_metrics, collection_metrics, deposit_metrics, expense_metrics`;
 }
 
+function occupancyReportSql() {
+  return `
+    WITH requested_bounds AS (
+      SELECT to_date($2 || '-01', 'YYYY-MM-DD') AS start_date,
+             to_date($3 || '-01', 'YYYY-MM-DD') + INTERVAL '1 month' AS requested_end_date
+    ),
+    bounds AS (
+      SELECT start_date,
+             LEAST(requested_end_date, CURRENT_DATE + INTERVAL '1 day') AS end_date
+      FROM requested_bounds
+    ),
+    filtered_rooms AS (
+      SELECT room.id AS room_id,
+             room.name AS room_name,
+             room.property_id,
+             property.name AS property_name,
+             EXISTS (
+               SELECT 1 FROM tenants tenant
+               WHERE tenant.user_id=room.user_id AND tenant.room_id=room.id
+             ) AS has_current_tenant,
+             CASE
+               WHEN room.rent_start_date ~ '^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$'
+                AND to_char(to_date(room.rent_start_date, 'YYYY-MM-DD'), 'YYYY-MM-DD')
+                    = room.rent_start_date
+               THEN to_date(room.rent_start_date, 'YYYY-MM-DD')
+               ELSE NULL
+             END AS legacy_starts_on
+      FROM rooms room
+      JOIN properties property
+        ON property.user_id=room.user_id AND property.id=room.property_id
+      WHERE room.user_id=$1
+        AND ($5::text IS NULL OR room.id=$5)
+        AND ($4::bigint IS NULL OR room.property_id=$4)
+        AND ($6::bigint[] IS NULL OR room.property_id=ANY($6::bigint[]))
+    ),
+    contract_spans AS (
+      SELECT contract.room_id,
+             GREATEST(contract.starts_on, bounds.start_date)::date AS starts_on,
+             LEAST(
+               CASE
+                 WHEN contract.status='active' THEN (bounds.end_date - INTERVAL '1 day')::date
+                 ELSE COALESCE(
+                   lifecycle_end.occurred_on,
+                   (COALESCE(contract.ended_at, contract.cancelled_at)
+                     AT TIME ZONE '${REPORT_TIME_ZONE}')::date,
+                   contract.ends_on,
+                   (bounds.end_date - INTERVAL '1 day')::date
+                 )
+               END,
+               (bounds.end_date - INTERVAL '1 day')::date
+             ) AS ends_on
+      FROM rental_contracts contract
+      JOIN filtered_rooms room ON room.room_id=contract.room_id
+      CROSS JOIN bounds
+      LEFT JOIN LATERAL (
+        SELECT MIN(event.occurred_on) AS occurred_on
+        FROM rental_lifecycle_events event
+        WHERE event.user_id=contract.user_id
+          AND event.contract_id=contract.id
+          AND event.event_type IN ('checked_out','room_transferred')
+      ) lifecycle_end ON TRUE
+      WHERE contract.user_id=$1
+        AND (
+          contract.status IN ('active','ended')
+          OR (contract.status='cancelled' AND contract.activated_at IS NOT NULL)
+        )
+        AND contract.starts_on < bounds.end_date
+        AND (
+          contract.status='active'
+          OR COALESCE(
+            lifecycle_end.occurred_on,
+            (COALESCE(contract.ended_at, contract.cancelled_at)
+              AT TIME ZONE '${REPORT_TIME_ZONE}')::date,
+            contract.ends_on,
+            (bounds.end_date - INTERVAL '1 day')::date
+          ) >= bounds.start_date
+        )
+    ),
+    legacy_occupancy_spans AS (
+      SELECT room.room_id,
+             GREATEST(COALESCE(room.legacy_starts_on, bounds.start_date), bounds.start_date)::date
+               AS starts_on,
+             (bounds.end_date - INTERVAL '1 day')::date AS ends_on
+      FROM filtered_rooms room
+      CROSS JOIN bounds
+      WHERE room.has_current_tenant
+    ),
+    occupied_days AS (
+      SELECT DISTINCT span.room_id, day::date AS day
+      FROM (
+        SELECT * FROM contract_spans WHERE ends_on >= starts_on
+        UNION ALL
+        SELECT * FROM legacy_occupancy_spans WHERE ends_on >= starts_on
+      ) span
+      CROSS JOIN LATERAL generate_series(span.starts_on, span.ends_on, INTERVAL '1 day') day
+    ),
+    reservation_spans AS (
+      SELECT reservation.room_id,
+             GREATEST(reservation.reserved_on, bounds.start_date)::date AS starts_on,
+             LEAST(
+               CASE reservation.status
+                 WHEN 'converted' THEN COALESCE(lifecycle_end.occurred_on,
+                   (reservation.converted_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date)
+                 WHEN 'cancelled' THEN COALESCE(lifecycle_end.occurred_on,
+                   (reservation.cancelled_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date)
+                 WHEN 'expired' THEN reservation.expires_on
+                 ELSE reservation.expires_on
+               END,
+               (bounds.end_date - INTERVAL '1 day')::date
+             ) AS ends_on
+      FROM rental_reservations reservation
+      JOIN filtered_rooms room ON room.room_id=reservation.room_id
+      CROSS JOIN bounds
+      LEFT JOIN LATERAL (
+        SELECT MIN(event.occurred_on) AS occurred_on
+        FROM rental_lifecycle_events event
+        WHERE event.user_id=reservation.user_id
+          AND event.reservation_id=reservation.id
+          AND event.event_type IN ('reservation_cancelled','reservation_converted')
+      ) lifecycle_end ON TRUE
+      WHERE reservation.user_id=$1
+        AND reservation.reserved_on < bounds.end_date
+        AND reservation.expires_on >= bounds.start_date
+    ),
+    reserved_days AS (
+      SELECT DISTINCT span.room_id, day::date AS day
+      FROM reservation_spans span
+      CROSS JOIN LATERAL generate_series(span.starts_on, span.ends_on, INTERVAL '1 day') day
+      WHERE span.ends_on >= span.starts_on
+    ),
+    maintenance_spans AS (
+      SELECT maintenance.room_id,
+             GREATEST(maintenance.starts_on, bounds.start_date)::date AS starts_on,
+             LEAST(
+               CASE WHEN maintenance.status='active'
+                 THEN (bounds.end_date - INTERVAL '1 day')::date
+                 ELSE maintenance.ended_on
+               END,
+               (bounds.end_date - INTERVAL '1 day')::date
+             ) AS ends_on
+      FROM room_maintenance_periods maintenance
+      JOIN filtered_rooms room ON room.room_id=maintenance.room_id
+      CROSS JOIN bounds
+      WHERE maintenance.user_id=$1
+        AND maintenance.starts_on < bounds.end_date
+        AND (maintenance.status='active' OR maintenance.ended_on >= bounds.start_date)
+    ),
+    maintenance_days AS (
+      SELECT DISTINCT span.room_id, day::date AS day
+      FROM maintenance_spans span
+      CROSS JOIN LATERAL generate_series(span.starts_on, span.ends_on, INTERVAL '1 day') day
+      WHERE span.ends_on >= span.starts_on
+    ),
+    room_days AS (
+      SELECT room.*, day::date AS day
+      FROM filtered_rooms room
+      CROSS JOIN bounds
+      CROSS JOIN LATERAL generate_series(
+        bounds.start_date,
+        bounds.end_date - INTERVAL '1 day',
+        INTERVAL '1 day'
+      ) day
+    ),
+    classified_days AS (
+      SELECT room_day.*,
+             CASE
+               WHEN occupied.room_id IS NOT NULL THEN 'occupied'
+               WHEN reserved.room_id IS NOT NULL THEN 'reserved'
+               WHEN maintenance.room_id IS NOT NULL THEN 'maintenance'
+               ELSE 'vacant'
+             END AS operational_status
+      FROM room_days room_day
+      LEFT JOIN occupied_days occupied
+        ON occupied.room_id=room_day.room_id AND occupied.day=room_day.day
+      LEFT JOIN reserved_days reserved
+        ON reserved.room_id=room_day.room_id AND reserved.day=room_day.day
+      LEFT JOIN maintenance_days maintenance
+        ON maintenance.room_id=room_day.room_id AND maintenance.day=room_day.day
+    ),
+    vacant_numbered AS (
+      SELECT room_id, day,
+             day - (ROW_NUMBER() OVER (PARTITION BY room_id ORDER BY day))::int AS streak_group
+      FROM classified_days
+      WHERE operational_status='vacant'
+    ),
+    vacant_streaks AS (
+      SELECT room_id, COUNT(*)::int AS vacant_days, MAX(day) AS last_vacant_on
+      FROM vacant_numbered
+      GROUP BY room_id, streak_group
+    ),
+    vacant_metrics AS (
+      SELECT streak.room_id,
+             MAX(streak.vacant_days)::int AS longest_vacant_days,
+             COALESCE(MAX(streak.vacant_days) FILTER (
+               WHERE streak.last_vacant_on=(bounds.end_date - INTERVAL '1 day')::date
+             ), 0)::int AS ending_vacant_days
+      FROM vacant_streaks streak
+      CROSS JOIN bounds
+      GROUP BY streak.room_id
+    )
+    SELECT room_day.room_id,
+           room_day.room_name,
+           room_day.property_id,
+           room_day.property_name,
+           COUNT(*)::int AS total_room_days,
+           COUNT(*) FILTER (WHERE operational_status='occupied')::int AS occupied_room_days,
+           COUNT(*) FILTER (WHERE operational_status='vacant')::int AS vacant_room_days,
+           COUNT(*) FILTER (WHERE operational_status='reserved')::int AS reserved_room_days,
+           COUNT(*) FILTER (WHERE operational_status='maintenance')::int AS maintenance_room_days,
+           COALESCE(vacancy.longest_vacant_days, 0)::int AS longest_vacant_days,
+           COALESCE(vacancy.ending_vacant_days, 0)::int AS ending_vacant_days,
+           MAX(operational_status) FILTER (
+             WHERE day=(bounds.end_date - INTERVAL '1 day')::date
+           ) AS ending_status,
+           BOOL_OR(room_day.has_current_tenant AND room_day.legacy_starts_on IS NULL)
+             AS inferred_occupancy_start
+    FROM classified_days room_day
+    CROSS JOIN bounds
+    LEFT JOIN vacant_metrics vacancy ON vacancy.room_id=room_day.room_id
+    GROUP BY room_day.room_id, room_day.room_name, room_day.property_id,
+             room_day.property_name, vacancy.longest_vacant_days,
+             vacancy.ending_vacant_days
+    ORDER BY room_day.property_name, room_day.room_name, room_day.room_id`;
+}
+
 function sendFinancialReportError(res, error) {
   if (!(error instanceof FinancialReportError)) return false;
   res.status(error.statusCode).json({ error: error.message, code: error.code });
@@ -377,9 +673,17 @@ async function getFinancialReport(req, res, dependencies = {}) {
     filters.roomId,
     allowedPropertyIds
   ];
-  const result = await query(reportSql(), params);
+  const [result, occupancyResult] = await Promise.all([
+    query(reportSql(), params),
+    query(occupancyReportSql(), params)
+  ]);
   res.set('Cache-Control', 'no-store');
-  return res.json({ report: financialReportJson(result.rows[0] || {}, range, filters) });
+  return res.json({
+    report: {
+      ...financialReportJson(result.rows[0] || {}, range, filters),
+      occupancy: occupancyReportJson(occupancyResult.rows || [], range)
+    }
+  });
 }
 
 async function getMonthlyFinancialReport(req, res, dependencies = {}) {
@@ -394,8 +698,12 @@ module.exports = {
   financialReportJson,
   getFinancialReport,
   getMonthlyFinancialReport,
+  occupancyReportJson,
+  occupancyReportSql,
+  occupancyRoomJson,
   optionalPropertyId,
   optionalRoomId,
+  percentage,
   reportFilters,
   reportPeriod,
   reportRange,

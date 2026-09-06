@@ -2129,6 +2129,115 @@ body.workspace-staff-active .main { padding-top: 112px; }
   line-height: 1.35;
 }
 .financial-breakdown-card.is-negative > strong { color: var(--red); }
+.occupancy-report {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.occupancy-report-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.occupancy-report-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: .88rem;
+}
+.occupancy-report-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+.occupancy-report-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.occupancy-metric {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.occupancy-metric--occupied { border-top-color: var(--green); }
+.occupancy-metric--vacant { border-top-color: #64748b; }
+.occupancy-metric--reserved { border-top-color: #d97706; }
+.occupancy-metric--maintenance { border-top-color: var(--red); }
+.occupancy-metric > span,
+.occupancy-metric > strong,
+.occupancy-metric > small { display: block; }
+.occupancy-metric > span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.occupancy-metric > strong {
+  margin: 6px 0 4px;
+  font-size: .98rem;
+  overflow-wrap: anywhere;
+}
+.occupancy-metric > small {
+  color: var(--text-muted);
+  font-size: .63rem;
+  line-height: 1.35;
+}
+.occupancy-room-list {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.occupancy-room-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.3fr) repeat(5, minmax(90px, 1fr));
+  gap: 10px;
+  align-items: center;
+  padding: 9px 11px;
+  border-top: 1px solid var(--border);
+  font-size: .7rem;
+}
+.occupancy-room-row:first-child { border-top: 0; }
+.occupancy-room-row--head {
+  color: var(--text-muted);
+  background: var(--bg3);
+  font-size: .64rem;
+  font-weight: 800;
+}
+.occupancy-room-row > span { min-width: 0; }
+.occupancy-room-row strong,
+.occupancy-room-row small { display: block; }
+.occupancy-room-row small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: .62rem;
+  line-height: 1.3;
+}
+.occupancy-status {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #64748b;
+  color: #fff;
+  font-size: .62rem;
+  font-style: normal;
+  font-weight: 800;
+}
+.occupancy-status--occupied { background: #059669; }
+.occupancy-status--reserved { background: #d97706; }
+.occupancy-status--maintenance { background: #dc2626; }
+.occupancy-room-empty {
+  margin: 0;
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: .72rem;
+  text-align: center;
+}
 .financial-report-status {
   margin-top: 12px;
   color: var(--text-muted);
@@ -5040,6 +5149,37 @@ body.workspace-staff-active .main { padding-top: 112px; }
   }
   .financial-breakdown-card--deposit,
   .financial-breakdown-card--uncategorized {
+    grid-column: 1 / -1;
+  }
+  .occupancy-report-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .occupancy-metric--maintenance {
+    grid-column: 1 / -1;
+  }
+  .occupancy-room-list {
+    overflow: visible;
+    border: 0;
+  }
+  .occupancy-room-row--head { display: none; }
+  .occupancy-room-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    margin-top: 8px;
+    padding: 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg3);
+  }
+  .occupancy-room-row > span::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: var(--text-muted);
+    font-size: .6rem;
+    font-weight: 700;
+  }
+  .occupancy-room-row > span:first-child {
     grid-column: 1 / -1;
   }
   .financial-metric--profit {
