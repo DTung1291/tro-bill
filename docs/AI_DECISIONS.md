@@ -383,3 +383,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   quý/năm/khu/phòng tiếp theo phải giữ nguyên định nghĩa năm chỉ số này. Staff
   chỉ được gọi báo cáo khi có nghiệp vụ `overview`, số liệu phải lọc theo khu;
   chi phí chung chỉ được trả khi staff được giao toàn bộ khu của tài khoản.
+
+## D-027 — Bộ lọc báo cáo chỉ quy thuộc chi phí có liên kết trực tiếp
+
+- **Trạng thái:** Đã phát hành production ngày 06/09/2026.
+- **Quyết định:** Kỳ quý/năm là tổng các tháng dương lịch tương ứng; doanh thu,
+  thực thu và chi phí lấy trong khoảng, còn công nợ được chốt tại cuối tháng cuối
+  kỳ theo D-026. Lọc khu chỉ nhận hóa đơn/phòng thuộc khu và dòng chi có
+  `property_id` đúng khu. Lọc phòng nhận hóa đơn/giao dịch theo room ID, nhưng
+  chi phí chỉ nhận khoản sửa chữa có `maintenance_room_id_snapshot` đúng phòng.
+  Chi phí chung hoặc chi phí khu không được tự chia xuống phòng.
+- **Lý do:** Dữ liệu hiện có không lưu một quy tắc phân bổ chi phí chung đáng tin
+  cậy. Tự chia theo số phòng hoặc doanh thu tạo con số lợi nhuận nhìn hợp lý nhưng
+  không thể đối chiếu với chứng từ gốc.
+- **Hệ quả:** UI phải giải thích phạm vi chi phí khi lọc. Nếu cần báo cáo lợi
+  nhuận đầy đủ từng phòng, phải bổ sung bút toán/quy tắc phân bổ riêng có audit;
+  không được âm thầm thay đổi truy vấn hiện tại. Staff vẫn cần nghiệp vụ
+  `overview` và mọi khu/phòng phải nằm trong assignment của họ.

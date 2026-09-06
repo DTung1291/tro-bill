@@ -444,7 +444,18 @@ scan sạch.
   Production revision `ea8cfa2af7ed` ready với database/schema `ok`, runtime
   role `restricted`, asset pins `style 116 / api 109 / app 120`; endpoint mới
   trả 401 khi chưa đăng nhập và runtime error scan sau deploy không có lỗi.
-- [ ] Lọc theo tháng, quý, năm, khu và phòng.
+- [x] Lọc theo tháng, quý, năm, khu và phòng.
+  Bộ lọc dùng cùng định nghĩa năm chỉ số của báo cáo tài chính, hỗ trợ tháng,
+  quý, năm và kết hợp khu/phòng. Khu chỉ tính chi phí gắn trực tiếp; phòng chỉ
+  tính chi phí sửa chữa đã liên kết, không tự phân bổ chi phí chung. Server xác
+  thực ownership và phạm vi khu của staff trước khi tổng hợp. Preview
+  `tro-bill-qf9llywns-dtung.vercel.app` đã kiểm tra dữ liệu staging cho tháng,
+  quý, năm, hai khu và hai phòng; đổi khu tự loại phòng không phù hợp. Mobile
+  390×844 không tràn ngang, console sạch. Bộ đầy đủ đạt 391/391, secret scan và
+  diff sạch; CI `34020348803` thành công. Production revision
+  `41314eb84b01` ready với database/schema `ok`, runtime role `restricted`, asset
+  pins `style 117 / api 110 / app 122`; lọc phòng và quý đã smoke test bằng dữ
+  liệu thật, endpoint chưa đăng nhập trả 401 và Runtime Logs không có lỗi.
 - [ ] Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh.
 - [ ] Báo cáo tỷ lệ lấp đầy và thời gian phòng trống.
 - [ ] Xuất Excel/PDF cho kế toán.

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 06/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành báo cáo tài chính tháng; tiếp tục bộ lọc báo cáo |
+| Trạng thái | Đã phát hành bộ lọc báo cáo tài chính; tiếp tục tách nhóm doanh thu |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `ea8cfa2` — báo cáo doanh thu, thực thu, công nợ, chi phí và lợi nhuận |
-| Việc code tiếp theo | Triển khai “Lọc theo tháng, quý, năm, khu và phòng” trên báo cáo tài chính |
+| Phần ứng dụng phát hành gần nhất | `41314eb` — lọc báo cáo theo tháng, quý, năm, khu và phòng |
+| Việc code tiếp theo | Triển khai “Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh” |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -329,6 +329,22 @@ chính tổng hợp ở giai đoạn 5.
   `ea8cfa2af7ed`, database/schema `ok`, runtime role `restricted`, pins
   `style 116 / api 109 / app 120`; endpoint chưa đăng nhập trả 401 và error log
   15 phút sau phát hành sạch.
+- Bộ lọc báo cáo tài chính đã phát hành qua commit `70efe84` và bản chỉnh nhãn
+  `41314eb`. Endpoint `/api/financial-reports/summary` nhận tháng/quý/năm,
+  khu/phòng; xác thực ownership và assignment trước truy vấn. Khoảng kỳ giữ cùng
+  định nghĩa D-026; chi phí khu chỉ lấy dòng gắn trực tiếp, chi phí phòng chỉ lấy
+  dòng sửa chữa có snapshot phòng, không phân bổ chi phí chung. Preview
+  `tro-bill-qf9llywns-dtung.vercel.app` (`dpl_8LRmBhgi8U4wvTuDFuSvRHFcokHs`)
+  đã kiểm tra staging với tháng/quý/năm, hai khu/hai phòng, đổi khu xóa room
+  filter không phù hợp và mobile 390×844 không tràn; console sạch. Preview cuối
+  `tro-bill-540ekhx1v-dtung.vercel.app` (`dpl_8HEGdEZpA91TPrXfj8mfDWT1uD32`)
+  READY. Bộ test đầy đủ đạt 391/391, secret scan/diff sạch; CI `34020348803`
+  thành công. Production `tro-bill-9k02yv083-dtung.vercel.app`
+  (`dpl_DGyEWXpzK1LzCnkkm3DxoXe8mkL8`) READY; alias chính trả revision
+  `41314eb84b01`, database/schema `ok`, runtime role `restricted`, pins
+  `style 117 / api 110 / app 122`. Production đã smoke test phòng 101 và quý
+  III/2026 bằng dữ liệu thật, console sạch; endpoint chưa đăng nhập trả 401 và
+  Runtime Logs sau phát hành không có error. Không có migration cho hạng mục này.
 
 ## Việc chưa được xem là hoàn tất
 
