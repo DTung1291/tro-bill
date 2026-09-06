@@ -271,6 +271,13 @@ const API = (() => {
     return request('GET', `/api/rent-payments/summary${query}`);
   }
 
+  function getMonthlyFinancialReport(period) {
+    return request(
+      'GET',
+      `/api/financial-reports/monthly?period=${encodeURIComponent(period)}`
+    );
+  }
+
   function settleRentInvoice(input) {
     return request('POST', '/api/rent-payments/settle', input);
   }
@@ -773,6 +780,7 @@ const API = (() => {
     createSubscriptionRefundRequest,
     cancelSubscriptionRefundRequest,
     getRentPaymentSummaries,
+    getMonthlyFinancialReport,
     settleRentInvoice,
     syncRentInvoices,
     migrateLegacyRentPayments,

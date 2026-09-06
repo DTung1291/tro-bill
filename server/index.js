@@ -42,6 +42,7 @@ const { paymentWebhook } = require('./payment-webhook');
 const paymentHistory = require('./subscription-payment-history');
 const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
+const financialReports = require('./financial-reports');
 const rentPayments = require('./rent-payments');
 const deposits = require('./deposits');
 const rentPaymentChannels = require('./rent-payment-channels');
@@ -155,6 +156,12 @@ app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.get('/api/workspaces', requireAuth, wrap(accountAccess.listWorkspaces));
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));
+app.get(
+  '/api/financial-reports/monthly',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('overview')),
+  wrap(financialReports.getMonthlyFinancialReport)
+);
 app.post('/api/rent-payments/sync', requireAuth, wrap(rentPayments.syncInvoices));
 app.post('/api/rent-payments/settle', requireAuth, wrap(rentPayments.settleInvoice));
 app.post('/api/rent-payments/migrate-legacy', requireAuth, wrap(rentPayments.migrateLegacyPaid));

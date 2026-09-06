@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=115" />
+  <link rel="stylesheet" href="style.css?v=116" />
 </head>
 
 <body>
@@ -357,6 +357,47 @@
           </div>
         </div>
       </div>
+      <section class="financial-report" aria-labelledby="financial-report-title">
+        <div class="financial-report-header">
+          <div>
+            <h2 class="section-title" id="financial-report-title">Báo cáo tài chính</h2>
+            <p class="financial-report-subtitle">Số liệu từ hóa đơn, sổ thu tiền và chi phí đã lưu trên máy chủ.</p>
+          </div>
+          <button class="btn btn--sm btn--ghost" id="financial-report-refresh" type="button">↻ Làm mới</button>
+        </div>
+        <div class="financial-report-grid" id="financial-report-grid" aria-live="polite">
+          <article class="financial-metric financial-metric--revenue">
+            <span class="financial-metric-label">Doanh thu hóa đơn</span>
+            <strong class="financial-metric-value" id="financial-report-revenue">—</strong>
+            <small>Hóa đơn phát hành trong tháng</small>
+          </article>
+          <article class="financial-metric financial-metric--collected">
+            <span class="financial-metric-label">Thực thu</span>
+            <strong class="financial-metric-value" id="financial-report-collected">—</strong>
+            <small>Tiền thực nhận trong tháng</small>
+          </article>
+          <article class="financial-metric financial-metric--debt">
+            <span class="financial-metric-label">Công nợ cuối tháng</span>
+            <strong class="financial-metric-value" id="financial-report-outstanding">—</strong>
+            <small id="financial-report-debt-note">Các hóa đơn còn thiếu đến cuối tháng</small>
+          </article>
+          <article class="financial-metric financial-metric--expenses">
+            <span class="financial-metric-label">Chi phí thực tế</span>
+            <strong class="financial-metric-value" id="financial-report-expenses">—</strong>
+            <small>Khoản đã trả được ghi trong tháng</small>
+          </article>
+          <article class="financial-metric financial-metric--profit">
+            <span class="financial-metric-label">Lợi nhuận tiền mặt</span>
+            <strong class="financial-metric-value" id="financial-report-profit">—</strong>
+            <small>Thực thu trừ chi phí thực tế</small>
+          </article>
+        </div>
+        <p class="financial-report-status" id="financial-report-status">Đang tổng hợp số liệu…</p>
+        <details class="financial-report-definition">
+          <summary>Cách tính các chỉ số</summary>
+          <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong tháng, không tính tiền cọc chuyển sang bù công nợ. Công nợ được chốt tại cuối tháng và mỗi hóa đơn chỉ được tính một lần.</p>
+        </details>
+      </section>
       <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
       <div class="report-list" id="report-list">
         <div class="empty-state">
@@ -2065,7 +2106,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=108"></script>
+  <script src="api.js?v=109"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -2075,7 +2116,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=119"></script>
+  <script src="app.js?v=120"></script>
 </body>
 
 </html>

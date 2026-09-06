@@ -85,6 +85,8 @@ let CURRENT_SUBSCRIPTION_ORDER = null;
 let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
+let FINANCIAL_REPORT_CACHE = new Map();
+let FINANCIAL_REPORT_REQUEST_SEQUENCE = 0;
 let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 let ACTIVE_RENT_PAYMENT_ENTRY = null;
 let ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -1420,6 +1422,8 @@ function clearSensitiveStateFromMemory() {
   STATE.currentPeriod = null;
   STATE.history = [];
   RENT_INVOICE_SUMMARIES = new Map();
+  FINANCIAL_REPORT_CACHE = new Map();
+  FINANCIAL_REPORT_REQUEST_SEQUENCE += 1;
   ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
   ACTIVE_RENT_PAYMENT_ENTRY = null;
   ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -3052,6 +3056,8 @@ function applyWorkspaceUiAccess() {
     const transfer = document.getElementById('btn-transfer-expenses');
     if (transfer) transfer.hidden = staffWorkspace;
   }
+  const financialReport = document.querySelector('.financial-report');
+  if (financialReport) financialReport.hidden = !hasWorkspaceOperation('overview');
   const settings = document.getElementById('page-settings');
   if (settings) settings.setAttribute('aria-hidden', staffWorkspace ? 'true' : 'false');
   [
@@ -3112,11 +3118,18 @@ function navigate(page) {
   renderPage(page);
   if (isOwnerWorkspace() && (page === 'report' || page === 'history')) {
     ensureRentInvoicesSynced().then(() => {
-      if (activePage === page) renderPage(page);
+      if (activePage === page) {
+        renderPage(page);
+        if (page === 'report' && hasWorkspaceOperation('overview')) {
+          loadFinancialReport(STATE.currentPeriod, { force: true });
+        }
+      }
     }).catch((error) => {
       console.warn('Không tạo được mã chuyển khoản riêng:', error.message);
       showToast('Chưa tạo được mã chuyển khoản. Vui lòng thử lại.', 'error', 3000);
     });
+  } else if (page === 'report' && hasWorkspaceOperation('overview')) {
+    loadFinancialReport(STATE.currentPeriod);
   }
 }
 
@@ -7089,12 +7102,99 @@ document.getElementById('rent-payment-modal')?.addEventListener('click', event =
   if (event.target === event.currentTarget) closeRentPaymentLedger();
 });
 
+function renderFinancialReport(period) {
+  const panel = document.querySelector('.financial-report');
+  const status = document.getElementById('financial-report-status');
+  if (!panel || !status) return;
+  panel.hidden = !hasWorkspaceOperation('overview');
+  if (panel.hidden) return;
+  const report = FINANCIAL_REPORT_CACHE.get(period);
+  const valueIds = [
+    'financial-report-revenue',
+    'financial-report-collected',
+    'financial-report-outstanding',
+    'financial-report-expenses',
+    'financial-report-profit'
+  ];
+  status.classList.remove('is-error');
+  panel.querySelector('.financial-metric--profit')?.classList.remove('is-negative');
+  if (!report) {
+    panel.classList.add('is-loading');
+    valueIds.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = '0 đ';
+    });
+    status.textContent = `Đang tổng hợp ${periodLabel(period)}…`;
+    document.getElementById('financial-report-debt-note').textContent =
+      'Các hóa đơn còn thiếu đến cuối tháng';
+    return;
+  }
+
+  panel.classList.remove('is-loading');
+  document.getElementById('financial-report-revenue').textContent = fmt(report.revenueVnd);
+  document.getElementById('financial-report-collected').textContent = fmt(report.collectedVnd);
+  document.getElementById('financial-report-outstanding').textContent = fmt(report.outstandingVnd);
+  document.getElementById('financial-report-expenses').textContent = fmt(report.expensesVnd);
+  document.getElementById('financial-report-profit').textContent = fmt(report.profitVnd);
+  document.getElementById('financial-report-debt-note').textContent =
+    `${report.unpaidInvoiceCount} hóa đơn còn thiếu đến cuối tháng`;
+  panel.querySelector('.financial-metric--profit')?.classList.toggle(
+    'is-negative',
+    Number(report.profitVnd) < 0
+  );
+  const generatedAt = report.generatedAt ? subscriptionDateTime(report.generatedAt) : '';
+  status.textContent = `${report.invoiceCount} hóa đơn phát hành trong ${periodLabel(period)}`
+    + (generatedAt ? ` · cập nhật ${generatedAt}` : '');
+}
+
+async function loadFinancialReport(period, options = {}) {
+  if (!period || (!options.force && FINANCIAL_REPORT_CACHE.has(period))) {
+    renderFinancialReport(period);
+    return FINANCIAL_REPORT_CACHE.get(period) || null;
+  }
+  const requestSequence = ++FINANCIAL_REPORT_REQUEST_SEQUENCE;
+  const refreshButton = document.getElementById('financial-report-refresh');
+  if (activePage === 'report' && STATE.currentPeriod === period) {
+    FINANCIAL_REPORT_CACHE.delete(period);
+    renderFinancialReport(period);
+    if (refreshButton) refreshButton.disabled = true;
+  }
+  try {
+    const result = await API.getMonthlyFinancialReport(period);
+    if (requestSequence !== FINANCIAL_REPORT_REQUEST_SEQUENCE) return null;
+    if (result.report?.period !== period) throw new Error('Kỳ báo cáo trả về không khớp');
+    FINANCIAL_REPORT_CACHE.set(period, result.report);
+    if (activePage === 'report' && STATE.currentPeriod === period) {
+      renderFinancialReport(period);
+    }
+    return result.report;
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    if (requestSequence === FINANCIAL_REPORT_REQUEST_SEQUENCE
+        && activePage === 'report' && STATE.currentPeriod === period) {
+      const panel = document.querySelector('.financial-report');
+      const status = document.getElementById('financial-report-status');
+      panel?.classList.remove('is-loading');
+      if (status) {
+        status.classList.add('is-error');
+        status.textContent = error.message || 'Không tải được báo cáo tài chính';
+      }
+    }
+    return null;
+  } finally {
+    if (requestSequence === FINANCIAL_REPORT_REQUEST_SEQUENCE && refreshButton) {
+      refreshButton.disabled = false;
+    }
+  }
+}
+
 function renderReport() {
   const period = STATE.currentPeriod;
   const listEl = document.getElementById('report-list');
   const summaryEl = document.getElementById('report-summary-bar');
   document.getElementById('report-period-label').textContent = periodLabel(period);
   document.getElementById('report-month-input').value = periodInputValue(period);
+  renderFinancialReport(period);
   listEl.innerHTML = '';
   if (summaryEl) summaryEl.innerHTML = '';
 
@@ -7130,9 +7230,6 @@ function renderReport() {
     activeBills.push({ room, rec, bill, payment });
   }
 
-  const deduction = STATE.settings.deduction ?? 450000;
-  const netRevenue = totalPaid - deduction;
-
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div class="report-summary-item">
@@ -7140,8 +7237,8 @@ function renderReport() {
         <span class="report-summary-val">${fmt(totalRevenue)}</span>
       </div>
       <div class="report-summary-item">
-        <span>📈 Thực thu (đã trừ khấu hao):</span>
-        <span class="report-summary-val" style="color: var(--green)">${fmt(netRevenue)}</span>
+        <span>✅ Đã phân bổ vào hóa đơn:</span>
+        <span class="report-summary-val" style="color: var(--green)">${fmt(totalPaid)}</span>
       </div>
       <div class="report-summary-item">
         <span>🧾 Trạng thái:</span>
@@ -7936,6 +8033,9 @@ function shiftPeriod(delta) {
   if (m < 1)  { m = 12; y--; }
   STATE.currentPeriod = periodKey(y, m);
   renderPage(activePage);
+  if (activePage === 'report' && hasWorkspaceOperation('overview')) {
+    loadFinancialReport(STATE.currentPeriod);
+  }
 }
 
 document.getElementById('prev-month').addEventListener('click', () => shiftPeriod(-1));
@@ -7958,6 +8058,19 @@ document.getElementById('report-month-input').addEventListener('change', (e) => 
   if (!e.target.value) return;
   STATE.currentPeriod = e.target.value;
   renderPage(activePage);
+  if (hasWorkspaceOperation('overview')) loadFinancialReport(STATE.currentPeriod);
+});
+document.getElementById('financial-report-refresh')?.addEventListener('click', async () => {
+  if (!hasWorkspaceOperation('overview')) return;
+  if (isOwnerWorkspace()) {
+    try {
+      await ensureRentInvoicesSynced();
+    } catch (error) {
+      showToast(error.message || 'Không đồng bộ được hóa đơn', 'error');
+      return;
+    }
+  }
+  await loadFinancialReport(STATE.currentPeriod, { force: true });
 });
 document.getElementById('btn-transfer-period').addEventListener('click', openTransferPeriodModal);
 document.getElementById('btn-transfer-expenses').addEventListener('click', openTransferExpensesModal);

@@ -324,9 +324,9 @@ test('schema, migration, API, privacy export và UI giữ lịch sử tài sản
   assert.match(app, /rentalHandoverItemsText\(assetResult\.assets\)/);
   assert.match(app, /data-room-asset-add/);
   assert.match(app, /isOwnerWorkspace\(\) \? API\.getRoomMaintenance\(\) : Promise\.resolve\(null\)/);
-  assert.match(html, /api\.js\?v=108/);
-  assert.match(html, /app\.js\?v=119/);
-  assert.match(html, /style\.css\?v=115/);
+  assert.match(html, /api\.js\?v=109/);
+  assert.match(html, /app\.js\?v=120/);
+  assert.match(html, /style\.css\?v=116/);
   assert.match(fs.readFileSync(path.join(root, 'style.css'), 'utf8'), /#confirm-modal \{ z-index: 1500; \}/);
   assert.doesNotMatch(server, /app\.delete\('\/api\/room-assets/);
 });
