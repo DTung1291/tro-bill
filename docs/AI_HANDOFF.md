@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 06/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành cơ cấu doanh thu và tiền cọc; tiếp tục báo cáo tỷ lệ lấp đầy |
+| Trạng thái | Đã phát hành báo cáo tỷ lệ lấp đầy; tiếp tục xuất Excel/PDF cho kế toán |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `679995e` — tách tiền thuê, điện nước, dịch vụ, điều chỉnh và tiền cọc |
-| Việc code tiếp theo | Triển khai “Báo cáo tỷ lệ lấp đầy và thời gian phòng trống” |
+| Phần ứng dụng phát hành gần nhất | `9c3461e` — báo cáo lấp đầy/phòng trống và trạng thái tải rõ ràng |
+| Việc code tiếp theo | Triển khai “Xuất Excel/PDF cho kế toán” |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -89,6 +89,14 @@ chính tổng hợp ở giai đoạn 5.
 
 ## Mốc đã giao gần đây
 
+- `feda910` + hotfix `9c3461e`: báo cáo lấp đầy theo ngày-phòng đã quan sát,
+  chuỗi trống dài nhất/cuối kỳ và lọc kỳ/khu/phòng. Preview
+  `dpl_3NkxKRKjMFqjSDNVFNm4nabtXEwc` qua E2E; Production
+  `dpl_DxYifFP3JUUqXkVvD6p17XBwJ7nw` trả revision `9c3461ec4a63`,
+  database/schema `ok`, runtime role `restricted`, asset pins
+  `style 119 / api 110 / app 125`. Production đối soát tháng 9 là 42/42
+  ngày-phòng (100%), Q3 là 436/476 (91,6%); CI `34044169080`, 393/393 test,
+  console và Runtime Logs sạch. Không có migration mới.
 - `772ce86`: tạo hợp đồng từ mẫu DOCX đã cung cấp và luồng xem/in.
 - `08a206f`: chu kỳ thanh toán hợp đồng 1/3/6/12 tháng và ngày đến hạn.
 - `696bea5`: cảnh báo + email nhắc hợp đồng hết hạn ở mốc 30/14/7/3/1 ngày.

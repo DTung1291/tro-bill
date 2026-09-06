@@ -467,7 +467,15 @@ scan sạch.
   `679995ecb255` đã đối soát dữ liệu thật toàn khu và phòng 101, endpoint chưa
   đăng nhập trả 401, database/schema `ok`, runtime role `restricted`, console
   và Runtime Logs sạch; không cần migration.
-- [ ] Báo cáo tỷ lệ lấp đầy và thời gian phòng trống.
+- [x] Báo cáo tỷ lệ lấp đầy và thời gian phòng trống.
+  Báo cáo tháng/quý/năm tính theo ngày-phòng đã quan sát, ưu tiên trạng thái có
+  khách > giữ chỗ > đang sửa > trống; thời gian sửa chữa không nằm trong mẫu số
+  có thể cho thuê. UI có tổng tỷ lệ, số ngày-phòng từng trạng thái, chuỗi trống
+  dài nhất/cuối kỳ và lọc khu/phòng; trạng thái tải không giả báo “không có dữ
+  liệu”. Preview `dpl_3NkxKRKjMFqjSDNVFNm4nabtXEwc` và Production revision
+  `9c3461ec4a63` đã kiểm tra dữ liệu thật: tháng 9 là 42/42 (100%), Q3 là
+  436/476 (91,6%); CI `34044169080`, 393/393 test, console/Runtime Logs sạch,
+  database/schema `ok`, runtime role `restricted`; không cần migration.
 - [ ] Xuất Excel/PDF cho kế toán.
 - [ ] Có báo cáo doanh thu năm phục vụ kê khai thuế.
 

@@ -419,3 +419,24 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   bộ lọc kỳ/khu/phòng phải áp dụng đồng thời cho hóa đơn và tài khoản cọc trong
   đúng ownership/assignment. Không được bỏ nhóm chưa phân loại nếu chưa có quy
   trình backfill snapshot được kiểm chứng.
+
+## D-029 — Lấp đầy tính theo ngày-phòng đã quan sát của danh sách phòng hiện tại
+
+- **Trạng thái:** Đã phát hành production ngày 06/09/2026.
+- **Quyết định:** Báo cáo chỉ tính từ đầu kỳ đến hết ngày hiện tại, không dự báo
+  những ngày tương lai. Mỗi phòng-ngày nhận đúng một trạng thái theo ưu tiên có
+  khách, giữ chỗ, đang sửa, rồi trống. Tỷ lệ lấp đầy bằng ngày-phòng có khách
+  chia cho ngày-phòng có thể cho thuê; ngày sửa chữa bị loại khỏi mẫu số, còn
+  ngày giữ chỗ vẫn là khả năng cho thuê đã được giữ và được trình bày riêng.
+  Ngày nhận/trả phòng được tính bao gồm ngày phát sinh vì dữ liệu hiện chưa có
+  thời điểm trong ngày.
+- **Lý do:** Dùng toàn bộ số ngày của kỳ hiện tại sẽ biến ngày tương lai thành
+  phòng trống và hạ sai tỷ lệ. Tính đồng thời nhiều trạng thái cho cùng ngày sẽ
+  làm tổng ngày-phòng vượt sức chứa thực. Thời gian sửa chữa không phải hàng tồn
+  có thể bán nên không phù hợp trong mẫu số lấp đầy.
+- **Hệ quả:** Phạm vi phòng hiện dùng danh sách phòng còn tồn tại tại thời điểm
+  chạy báo cáo; phòng đã xóa trong quá khứ chưa thể tái dựng cho tới khi có lịch
+  sử inventory. Khách legacy thiếu ngày bắt đầu thuê được suy từ đầu kỳ và UI
+  phải cảnh báo. Một ngày chuyển phòng có thể ghi nhận cả phòng nguồn và phòng
+  đích đã được sử dụng vì chưa có timestamp để chia theo giờ; không được âm thầm
+  đổi quy tắc này nếu chưa bổ sung dữ liệu chi tiết và migration tương ứng.
