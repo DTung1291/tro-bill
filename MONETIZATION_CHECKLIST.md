@@ -431,7 +431,19 @@ scan sạch.
 
 ### Báo cáo
 
-- [ ] Báo cáo doanh thu, thực thu, công nợ, chi phí và lợi nhuận.
+- [x] Báo cáo doanh thu, thực thu, công nợ, chi phí và lợi nhuận.
+  Báo cáo tháng lấy trực tiếp từ ledger server: doanh thu là tổng hóa đơn hiệu
+  lực phát hành trong kỳ; thực thu là giao dịch thu/hoàn tác phát sinh trong kỳ
+  theo giờ Việt Nam và loại tiền cọc chuyển bù nợ; công nợ là tổng số còn thiếu
+  của từng hóa đơn tại cuối kỳ; lợi nhuận tiền mặt bằng thực thu trừ chi phí đã
+  trả. API khóa theo workspace `overview`, lọc khu được giao cho staff và không
+  lộ chi phí chung nếu staff chưa được giao toàn bộ khu. Preview
+  `tro-bill-a1pvogbp8-dtung.vercel.app` đã đối chiếu đúng số liệu staging, đổi
+  tháng/làm mới thành công; desktop và mobile 390×844 không tràn, console sạch.
+  Bộ đầy đủ đạt 388/388, secret scan/diff sạch; CI `34007985181` thành công.
+  Production revision `ea8cfa2af7ed` ready với database/schema `ok`, runtime
+  role `restricted`, asset pins `style 116 / api 109 / app 120`; endpoint mới
+  trả 401 khi chưa đăng nhập và runtime error scan sau deploy không có lỗi.
 - [ ] Lọc theo tháng, quý, năm, khu và phòng.
 - [ ] Tách tiền thuê, điện nước, dịch vụ, cọc và khoản điều chỉnh.
 - [ ] Báo cáo tỷ lệ lấp đầy và thời gian phòng trống.

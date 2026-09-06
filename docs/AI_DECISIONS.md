@@ -362,3 +362,24 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   diện chi phí hiển thị nguồn liên kết ở chế độ chỉ đọc, và thao tác chuyển tháng
   chỉ áp dụng cho khoản nhập thủ công vì kỳ của khoản sửa chữa phải theo ngày
   thanh toán thực tế.
+
+## D-026 — Báo cáo tài chính tháng tách dòng tiền khỏi doanh thu dồn tích
+
+- **Trạng thái:** Đã phát hành production ngày 06/09/2026.
+- **Quyết định:** Doanh thu tháng là tổng giá trị hiệu lực của hóa đơn có kỳ đó.
+  Thực thu là tổng bút toán `payment` và `reversal` phát sinh trong tháng theo
+  `Asia/Ho_Chi_Minh`, không gồm payment method `deposit`; adjustment chỉ sửa số
+  dư, không được coi là dòng tiền. Công nợ cuối tháng tính từng hóa đơn có kỳ
+  không muộn hơn tháng báo cáo, trừ mọi bút toán đến hết tháng rồi chặn tại 0.
+  Chi phí lấy khoản thực tế đã ghi đúng kỳ; lợi nhuận tiền mặt bằng thực thu trừ
+  chi phí.
+- **Lý do:** Lấy số tiền đã phân bổ cho hóa đơn của tháng làm thực thu sẽ bỏ sót
+  tiền thu nợ cũ và ghi sai kỳ của khoản thu trễ. Cộng `prior_debt` từ mỗi hóa
+  đơn vào báo cáo sẽ đếm cùng một khoản nợ nhiều lần. Tiền cọc chuyển sang thanh
+  toán là chuyển loại số dư đã giữ từ trước, không phải tiền mới nhận trong
+  tháng chốt hợp đồng.
+- **Hệ quả:** Báo cáo lịch sử chốt giao dịch theo thời điểm cuối kỳ nhưng dùng
+  giá trị hóa đơn hiệu lực hiện tại, kể cả snapshot chốt trả phòng. Mọi bộ lọc
+  quý/năm/khu/phòng tiếp theo phải giữ nguyên định nghĩa năm chỉ số này. Staff
+  chỉ được gọi báo cáo khi có nghiệp vụ `overview`, số liệu phải lọc theo khu;
+  chi phí chung chỉ được trả khi staff được giao toàn bộ khu của tài khoản.

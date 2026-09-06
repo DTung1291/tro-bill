@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 06/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành chi phí sửa chữa; bắt đầu báo cáo tài chính giai đoạn 5 |
+| Trạng thái | Đã phát hành báo cáo tài chính tháng; tiếp tục bộ lọc báo cáo |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `6f0ec26` — ghi nhận chi phí sửa chữa vào báo cáo thực tế |
-| Việc code tiếp theo | Triển khai theo thứ tự “Báo cáo doanh thu, thực thu, công nợ, chi phí và lợi nhuận” |
+| Phần ứng dụng phát hành gần nhất | `ea8cfa2` — báo cáo doanh thu, thực thu, công nợ, chi phí và lợi nhuận |
+| Việc code tiếp theo | Triển khai “Lọc theo tháng, quý, năm, khu và phòng” trên báo cáo tài chính |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -314,6 +314,21 @@ chính tổng hợp ở giai đoạn 5.
   `d952d9c36f3b`, database/schema `ok`, runtime role `restricted`, asset pins
   `style 114 / api 107 / app 117`. Endpoint công việc trả 401 khi chưa đăng nhập;
   Runtime Logs đầu phát hành chỉ có readiness 200, không có error/fatal.
+- Báo cáo tài chính tháng đã phát hành ở commit `ea8cfa2`. Endpoint
+  `/api/financial-reports/monthly` tổng hợp hóa đơn, dòng tiền, công nợ cuối kỳ
+  và chi phí trên server theo `Asia/Ho_Chi_Minh`; lợi nhuận tiền mặt dùng thực
+  thu trừ chi phí, loại cọc chuyển bù nợ khỏi dòng tiền tháng và không cộng lại
+  nợ cũ. Staff cần nghiệp vụ `overview`, chỉ nhận các khu được giao; chi phí
+  chung chỉ hiện khi được giao toàn bộ khu. Preview
+  `tro-bill-a1pvogbp8-dtung.vercel.app`
+  (`dpl_ALZKa7MdV26hihXVEpEg3WG4wAua`) đã đối chiếu dữ liệu staging, đổi tháng,
+  làm mới, desktop/mobile 390×844 và console đều đạt. Bộ test đầy đủ 388/388;
+  CI `34007985181` thành công. Production
+  `tro-bill-pyr6eqfs7-dtung.vercel.app`
+  (`dpl_7jWGwCJAWgHTByyzex2fjZzaM3rq`) READY; alias chính trả revision
+  `ea8cfa2af7ed`, database/schema `ok`, runtime role `restricted`, pins
+  `style 116 / api 109 / app 120`; endpoint chưa đăng nhập trả 401 và error log
+  15 phút sau phát hành sạch.
 
 ## Việc chưa được xem là hoàn tất
 
