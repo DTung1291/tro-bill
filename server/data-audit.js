@@ -60,7 +60,10 @@ const ALLOWED_FIELDS = new Set([
   'contactPhone',
   'availableTime',
   'assignedMemberUserId',
-  'note'
+  'note',
+  'paidDate',
+  'name',
+  'propertyId'
 ]);
 
 function requestAuditContext(req = {}) {

@@ -1455,8 +1455,12 @@ function clearSensitiveStateFromMemory() {
   ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
   ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
   activeTenantMaintenancePublicUrl = '';
+  activeTenantMaintenanceExpenseRequest = null;
+  activeTenantMaintenanceExpenseIdempotencyKey = '';
   const maintenanceUrlInput = document.getElementById('tenant-maintenance-link-url');
   if (maintenanceUrlInput) maintenanceUrlInput.value = '';
+  const maintenanceExpenseModal = document.getElementById('tenant-maintenance-expense-modal');
+  if (maintenanceExpenseModal) maintenanceExpenseModal.hidden = true;
 }
 
 function saveState() {
@@ -1564,7 +1568,14 @@ function loadState(savedObj) {
         name: item.name || '',
         amount: item.amount !== undefined ? Number(item.amount) : 0,
         paidDate: item.paidDate || '',
-        note: item.note || ''
+        note: item.note || '',
+        maintenanceRequestId: Number.isSafeInteger(Number(item.maintenanceRequestId))
+          && Number(item.maintenanceRequestId) > 0
+          ? Number(item.maintenanceRequestId)
+          : null,
+        maintenanceRequestCode: String(item.maintenanceRequestCode || ''),
+        maintenanceRoomId: String(item.maintenanceRoomId || ''),
+        maintenanceRoomName: String(item.maintenanceRoomName || '')
       }))
     ]));
     STATE.settings = { ...STATE.settings, ...(saved.settings || {}) };
@@ -2738,22 +2749,41 @@ function closeTransferExpensesModal() {
 }
 
 function executeTransferExpenses(sourcePeriod, targetPeriod, mode) {
+  const sourceExpenses = getPeriodExpenses(sourcePeriod);
+  const movableExpenses = sourceExpenses.filter(item => !item.maintenanceRequestCode);
+  const linkedSourceExpenses = sourceExpenses.filter(item => item.maintenanceRequestCode);
+  const linkedTargetExpenses = getPeriodExpenses(targetPeriod)
+    .filter(item => item.maintenanceRequestCode);
   // Bản sao cần mã mới vì id khoản chi là khóa duy nhất trong cơ sở dữ liệu.
-  STATE.expenses[targetPeriod] = cloneExpenseRecords(STATE.expenses[sourcePeriod], mode === 'copy');
-  if (mode === 'move') delete STATE.expenses[sourcePeriod];
+  STATE.expenses[targetPeriod] = [
+    ...linkedTargetExpenses,
+    ...cloneExpenseRecords(movableExpenses, mode === 'copy')
+  ];
+  if (mode === 'move') {
+    if (linkedSourceExpenses.length > 0) STATE.expenses[sourcePeriod] = linkedSourceExpenses;
+    else delete STATE.expenses[sourcePeriod];
+  }
   STATE.currentPeriod = targetPeriod;
   saveState();
   closeTransferExpensesModal();
   resetExpenseForm();
   renderPage(activePage);
   renderDashboard();
-  showToast(`Đã ${mode === 'move' ? 'chuyển' : 'sao chép'} chi phí sang ${periodLabel(targetPeriod)} ✓`, 'success');
+  const linkedNotice = linkedSourceExpenses.length > 0
+    ? `; giữ nguyên ${linkedSourceExpenses.length} khoản gắn yêu cầu sửa chữa`
+    : '';
+  showToast(`Đã ${mode === 'move' ? 'chuyển' : 'sao chép'} chi phí sang ${periodLabel(targetPeriod)}${linkedNotice} ✓`, 'success', 4500);
 }
 
 function openTransferExpensesModal() {
   const sourcePeriod = STATE.currentPeriod;
   const sourceData = getPeriodExpenses(sourcePeriod);
-  if (sourceData.length === 0) {
+  const movableData = sourceData.filter(item => !item.maintenanceRequestCode);
+  if (movableData.length === 0) {
+    if (sourceData.length > 0) {
+      showToast('Khoản gắn yêu cầu sửa chữa dùng ngày thanh toán thực tế nên không thể chuyển tháng', 'error', 4500);
+      return;
+    }
     showToast('Tháng này chưa có chi phí để chuyển', 'error');
     return;
   }
@@ -2790,7 +2820,7 @@ function openTransferExpensesModal() {
     }
 
     const transfer = () => executeTransferExpenses(sourcePeriod, targetPeriod, mode);
-    if (getPeriodExpenses(targetPeriod).length > 0) {
+    if (getPeriodExpenses(targetPeriod).some(item => !item.maintenanceRequestCode)) {
       const action = mode === 'move' ? 'chuyển' : 'sao chép';
       showConfirm(
         `${periodLabel(targetPeriod)} đã có chi phí. Bạn có muốn ghi đè bằng dữ liệu từ ${periodLabel(sourcePeriod)} không?`,
@@ -2897,6 +2927,7 @@ const EXPENSE_CATEGORIES = {
   water: { icon: '💧', label: 'Tiền nước nhà nước' },
   trash: { icon: '🗑️', label: 'Phí rác' },
   internet: { icon: '📶', label: 'Tiền Internet' },
+  maintenance: { icon: '🔧', label: 'Sửa chữa / bảo trì' },
   other: { icon: '➕', label: 'Chi phí khác' }
 };
 
@@ -3283,6 +3314,8 @@ function resetExpenseForm() {
   document.getElementById('expense-name-row').hidden = true;
   document.getElementById('expense-form-cancel').hidden = true;
   document.getElementById('expense-form-submit').textContent = '+ Lưu chi phí';
+  document.getElementById('expense-category').disabled = false;
+  document.getElementById('expense-property').disabled = false;
   renderExpensePropertyOptions('');
 }
 
@@ -3324,7 +3357,9 @@ function renderExpenses() {
 
   listEl.innerHTML = expenses.map(item => {
     const meta = getExpenseMeta(item.category);
-    const name = item.category === 'other' && item.name ? item.name : meta.label;
+    const name = ['other', 'maintenance'].includes(item.category) && item.name
+      ? item.name
+      : meta.label;
     const details = [item.paidDate ? `Ngày trả: ${new Date(`${item.paidDate}T00:00:00`).toLocaleDateString('vi-VN')}` : '', item.note]
       .filter(Boolean).join(' | ') || 'Chưa có ghi chú';
     const property = STATE.properties.find(entry => Number(entry.id) === Number(item.propertyId));
@@ -3335,13 +3370,18 @@ function renderExpenses() {
         <div class="expense-item-main">
           <div class="expense-item-name">${escapeHtml(name)}</div>
           <div class="expense-item-property">${escapeHtml(propertyLabel)}</div>
+          ${item.maintenanceRequestCode ? `<div class="expense-item-maintenance">🔧 ${escapeHtml(item.maintenanceRequestCode)}${item.maintenanceRoomName ? ` · ${escapeHtml(item.maintenanceRoomName)}` : ''}</div>` : ''}
           <div class="expense-item-meta">${escapeHtml(details)}</div>
         </div>
         <div class="expense-item-amount">${fmt(item.amount)}</div>
-        <div class="expense-item-actions">
-          <button class="btn btn--ghost btn--sm" data-edit-expense="${item.id}" title="Sửa">✏️</button>
-          <button class="btn btn--danger btn--sm" data-delete-expense="${item.id}" title="Xóa">🗑️</button>
-        </div>
+        ${item.maintenanceRequestCode ? `
+          <div class="expense-item-actions">
+            <span class="tenant-maintenance-badge" title="Khoản này được quản lý từ yêu cầu sửa chữa">Đã liên kết</span>
+          </div>` : `
+          <div class="expense-item-actions">
+            <button class="btn btn--ghost btn--sm" data-edit-expense="${item.id}" title="Sửa">✏️</button>
+            <button class="btn btn--danger btn--sm" data-delete-expense="${item.id}" title="Xóa">🗑️</button>
+          </div>`}
       </div>`;
   }).join('');
 
@@ -3363,7 +3403,9 @@ function editExpense(id) {
   document.getElementById('expense-amount').value = item.amount;
   document.getElementById('expense-date').value = item.paidDate || '';
   document.getElementById('expense-note').value = item.note || '';
-  document.getElementById('expense-name-row').hidden = item.category !== 'other';
+  document.getElementById('expense-name-row').hidden = !['other', 'maintenance'].includes(item.category);
+  document.getElementById('expense-category').disabled = !!item.maintenanceRequestCode;
+  document.getElementById('expense-property').disabled = !!item.maintenanceRequestCode;
   document.getElementById('expense-form-cancel').hidden = false;
   document.getElementById('expense-form-submit').textContent = 'Lưu thay đổi';
   document.getElementById('expense-amount').focus();
@@ -3407,6 +3449,8 @@ let activeTenantMaintenancePublicUrl = '';
 let ROOM_TENANT_MAINTENANCE_REQUESTS = [];
 let ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
 let ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
+let activeTenantMaintenanceExpenseRequest = null;
+let activeTenantMaintenanceExpenseIdempotencyKey = '';
 
 function rentalContractStatusLabel(status) {
   return ({
@@ -3800,7 +3844,100 @@ function renderTenantMaintenanceWorkflow(request, assignees, owner) {
       <input class="form-input" type="text" maxlength="500" data-maintenance-status-note placeholder="Ghi chú xử lý; bắt buộc khi hoàn tất/hủy" />
       <div>${nextStatuses.map(status => `<button type="button" class="btn ${status === 'cancelled' ? 'btn--danger' : 'btn--ghost'} btn--sm" data-maintenance-status="${escapeHtml(status)}" data-maintenance-request-id="${Number(request.id)}">${escapeHtml(tenantMaintenanceStatusActionLabel(status))}</button>`).join('')}</div>
     </div>` : '<p class="tenant-maintenance-terminal">Yêu cầu đã kết thúc.</p>';
-  return `<div class="tenant-maintenance-workflow">${assignment}${statusControls}${renderTenantMaintenanceEvents(request.events)}</div>`;
+  const expenses = owner && Array.isArray(request.expenses) ? request.expenses : [];
+  const expenseTotal = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+  const expenseControls = owner ? `
+    <div class="tenant-maintenance-expense-summary">
+      <div>
+        <strong>Chi phí thực tế: ${fmt(expenseTotal)}</strong>
+        <span>${expenses.length} khoản đã thanh toán</span>
+      </div>
+      <button type="button" class="btn btn--primary btn--sm" data-maintenance-expense="${Number(request.id)}">+ Ghi chi phí</button>
+    </div>` : '';
+  return `<div class="tenant-maintenance-workflow">${assignment}${statusControls}${expenseControls}${renderTenantMaintenanceEvents(request.events)}</div>`;
+}
+
+function findVisibleTenantMaintenanceRequest(requestId) {
+  return [...tenantMaintenanceRequests, ...ROOM_TENANT_MAINTENANCE_REQUESTS]
+    .find(request => Number(request.id) === Number(requestId)) || null;
+}
+
+function openTenantMaintenanceExpenseModal(requestId) {
+  if (!isOwnerWorkspace()) return;
+  const request = findVisibleTenantMaintenanceRequest(requestId);
+  if (!request) {
+    showToast('Không tìm thấy yêu cầu sửa chữa', 'error');
+    return;
+  }
+  activeTenantMaintenanceExpenseRequest = request;
+  activeTenantMaintenanceExpenseIdempotencyKey = uuid();
+  const form = document.getElementById('tenant-maintenance-expense-form');
+  form.reset();
+  document.getElementById('tenant-maintenance-expense-context').textContent = `${request.code} · ${request.roomName || 'Phòng'}`;
+  document.getElementById('tenant-maintenance-expense-name').value = `Sửa chữa ${request.code}`;
+  document.getElementById('tenant-maintenance-expense-date').value = vietnamCalendarDate();
+  document.getElementById('tenant-maintenance-expense-error').hidden = true;
+  document.getElementById('tenant-maintenance-expense-modal').hidden = false;
+  document.getElementById('tenant-maintenance-expense-amount').focus();
+}
+
+function closeTenantMaintenanceExpenseModal() {
+  activeTenantMaintenanceExpenseRequest = null;
+  activeTenantMaintenanceExpenseIdempotencyKey = '';
+  document.getElementById('tenant-maintenance-expense-form').reset();
+  document.getElementById('tenant-maintenance-expense-error').hidden = true;
+  document.getElementById('tenant-maintenance-expense-modal').hidden = true;
+}
+
+function mergeTenantMaintenanceExpense(expense) {
+  if (!expense?.id || !expense.period) return;
+  const periodExpenses = Array.isArray(STATE.expenses[expense.period])
+    ? STATE.expenses[expense.period]
+    : [];
+  const index = periodExpenses.findIndex(item => item.id === expense.id);
+  if (index >= 0) periodExpenses[index] = expense;
+  else periodExpenses.push(expense);
+  STATE.expenses[expense.period] = periodExpenses;
+}
+
+async function submitTenantMaintenanceExpense(event) {
+  event.preventDefault();
+  const request = activeTenantMaintenanceExpenseRequest;
+  if (!request || !isOwnerWorkspace()) return;
+  const amountVnd = Number(document.getElementById('tenant-maintenance-expense-amount').value);
+  const name = document.getElementById('tenant-maintenance-expense-name').value.trim();
+  const paidDate = document.getElementById('tenant-maintenance-expense-date').value;
+  const note = document.getElementById('tenant-maintenance-expense-note').value.trim();
+  const errorElement = document.getElementById('tenant-maintenance-expense-error');
+  if (!Number.isSafeInteger(amountVnd) || amountVnd < 1) {
+    errorElement.textContent = 'Số tiền phải là số VND nguyên dương.';
+    errorElement.hidden = false;
+    return;
+  }
+  const submit = document.getElementById('tenant-maintenance-expense-submit');
+  submit.disabled = true;
+  errorElement.hidden = true;
+  try {
+    const result = await API.createTenantMaintenanceExpense(request.id, {
+      amountVnd,
+      paidDate,
+      name,
+      note,
+      idempotencyKey: activeTenantMaintenanceExpenseIdempotencyKey
+    });
+    mergeTenantMaintenanceExpense(result.expense);
+    closeTenantMaintenanceExpenseModal();
+    renderDashboard();
+    if (activePage === 'expenses') renderExpenses();
+    showToast(result.unchanged ? 'Khoản chi đã được ghi trước đó' : 'Đã ghi chi phí sửa chữa ✓', 'success');
+    await refreshVisibleTenantMaintenance();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    errorElement.textContent = error.message || 'Không ghi được chi phí sửa chữa';
+    errorElement.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 function tenantMaintenanceRequestCard(request, assignees, owner, { showRoom = false } = {}) {
@@ -5518,11 +5655,24 @@ document.getElementById('tenant-maintenance-request-list').addEventListener('cha
   if (control) void assignTenantMaintenanceFromControl(control);
 });
 document.getElementById('tenant-maintenance-request-list').addEventListener('click', event => {
+  const expenseButton = event.target?.closest?.('[data-maintenance-expense]');
+  if (expenseButton) {
+    openTenantMaintenanceExpenseModal(Number(expenseButton.dataset.maintenanceExpense));
+    return;
+  }
   const button = event.target?.closest?.('[data-maintenance-status]');
   if (button) void transitionTenantMaintenanceFromButton(button);
 });
 document.getElementById('tenant-maintenance-modal').addEventListener('click', event => {
   if (event.target === event.currentTarget) closeTenantMaintenanceModal();
+});
+document.getElementById('tenant-maintenance-expense-form').addEventListener('submit', event => {
+  void submitTenantMaintenanceExpense(event);
+});
+document.getElementById('tenant-maintenance-expense-close').addEventListener('click', closeTenantMaintenanceExpenseModal);
+document.getElementById('tenant-maintenance-expense-cancel').addEventListener('click', closeTenantMaintenanceExpenseModal);
+document.getElementById('tenant-maintenance-expense-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeTenantMaintenanceExpenseModal();
 });
 document.getElementById('rental-lifecycle-form').addEventListener('submit', event => {
   void submitRentalLifecycle(event);
@@ -7819,7 +7969,7 @@ document.getElementById('expenses-month-input').addEventListener('change', (e) =
   renderPage(activePage);
 });
 document.getElementById('expense-category').addEventListener('change', (e) => {
-  document.getElementById('expense-name-row').hidden = e.target.value !== 'other';
+  document.getElementById('expense-name-row').hidden = !['other', 'maintenance'].includes(e.target.value);
 });
 document.getElementById('expense-form-cancel').addEventListener('click', resetExpenseForm);
 document.getElementById('expense-form').addEventListener('submit', (e) => {
@@ -7830,12 +7980,13 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
   const propertyId = propertyValue ? Number(propertyValue) : null;
   const amount = Number(document.getElementById('expense-amount').value);
   const name = document.getElementById('expense-name').value.trim();
+  const existingItem = id ? getPeriodExpenses().find(expense => expense.id === id) : null;
   if (!Number.isFinite(amount) || amount < 0) {
     showToast('Vui lòng nhập số tiền hợp lệ', 'error');
     return;
   }
-  if (category === 'other' && !name) {
-    showToast('Vui lòng nhập tên chi phí khác', 'error');
+  if (['other', 'maintenance'].includes(category) && !name) {
+    showToast('Vui lòng nhập tên chi phí', 'error');
     return;
   }
   if (propertyId !== null
@@ -7848,10 +7999,16 @@ document.getElementById('expense-form').addEventListener('submit', (e) => {
     id: id || uuid(),
     propertyId,
     category,
-    name: category === 'other' ? name : '',
+    name: ['other', 'maintenance'].includes(category) ? name : '',
     amount,
     paidDate: document.getElementById('expense-date').value,
-    note: document.getElementById('expense-note').value.trim()
+    note: document.getElementById('expense-note').value.trim(),
+    ...(existingItem?.maintenanceRequestCode ? {
+      maintenanceRequestId: existingItem.maintenanceRequestId,
+      maintenanceRequestCode: existingItem.maintenanceRequestCode,
+      maintenanceRoomId: existingItem.maintenanceRoomId,
+      maintenanceRoomName: existingItem.maintenanceRoomName
+    } : {})
   };
   const expenses = getPeriodExpenses();
   const index = expenses.findIndex(expense => expense.id === item.id);
@@ -9150,6 +9307,11 @@ async function openRoomLifecycleModal(roomId) {
     const statusButton = event.target.closest('[data-maintenance-status]');
     if (statusButton) {
       void transitionTenantMaintenanceFromButton(statusButton);
+      return;
+    }
+    const expenseButton = event.target.closest('[data-maintenance-expense]');
+    if (expenseButton) {
+      openTenantMaintenanceExpenseModal(Number(expenseButton.dataset.maintenanceExpense));
       return;
     }
     if (event.target.closest('[data-room-asset-cancel]')) renderRoomLifecycleContent();

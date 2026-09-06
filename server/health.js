@@ -136,6 +136,25 @@ const SCHEMA_READY_QUERY = `
       SELECT 1 FROM pg_constraint
       WHERE conname='tenant_maintenance_assignment_membership_fk'
     )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema='public'
+        AND table_name='expense_entries'
+        AND column_name IN (
+          'maintenance_request_user_id',
+          'maintenance_request_id',
+          'maintenance_request_code_snapshot',
+          'maintenance_room_id_snapshot',
+          'maintenance_room_name_snapshot'
+        )
+      GROUP BY table_schema, table_name
+      HAVING count(*)=5
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='expense_entries_maintenance_request_owner_fk'
+    )
     AND to_regclass('public.rental_final_settlements') IS NOT NULL
     AND EXISTS (
       SELECT 1 FROM information_schema.columns

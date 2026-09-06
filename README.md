@@ -149,6 +149,7 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | GET    | `/api/tenant-maintenance-work?roomId=...` | Công việc sửa chữa theo phòng, lọc theo người được giao |
 | PUT    | `/api/tenant-maintenance-requests/:id/assignment` | Chủ tài khoản giao hoặc thu hồi người xử lý |
 | POST   | `/api/tenant-maintenance-requests/:id/status` | Chủ/nhân viên được giao cập nhật tiến độ hợp lệ |
+| POST   | `/api/tenant-maintenance-requests/:id/expenses` | Chủ tài khoản ghi khoản sửa chữa đã trả vào chi phí thực tế |
 | POST   | `/api/public/maintenance-portals/resolve` | Mở cổng báo sửa bằng token, không cần tài khoản khách thuê |
 | POST   | `/api/public/maintenance-portals/requests` | Gửi yêu cầu sửa chữa có idempotency và rate limit |
 

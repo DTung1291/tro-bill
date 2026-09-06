@@ -3266,6 +3266,24 @@ body.workspace-staff-active .main { padding-top: 112px; }
   padding: 18px 20px;
   overflow-y: auto;
 }
+#tenant-maintenance-expense-modal { z-index: 1400; }
+.modal.tenant-maintenance-expense-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+.tenant-maintenance-expense-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 20px 20px;
+  overflow-y: auto;
+}
+.tenant-maintenance-expense-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
 .tenant-maintenance-section {
   padding: 16px;
   border: 1px solid var(--border);
@@ -3334,6 +3352,34 @@ body.workspace-staff-active .main { padding-top: 112px; }
   color: var(--text-muted);
   font-size: .74rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tenant-maintenance-expense-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(79, 110, 247, .28);
+  border-radius: 10px;
+  background: rgba(79, 110, 247, .06);
+}
+.tenant-maintenance-expense-summary > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.tenant-maintenance-expense-summary strong { font-size: .8rem; }
+.tenant-maintenance-expense-summary span {
+  color: var(--text-muted);
+  font-size: .7rem;
+}
+.expense-item-maintenance {
+  margin-top: 4px;
+  color: var(--primary);
+  font-size: .72rem;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 .tenant-maintenance-request-item { display: block; }
@@ -3905,6 +3951,11 @@ body.workspace-staff-active .main { padding-top: 112px; }
     max-height: calc(100dvh - 16px);
   }
   .tenant-maintenance-body { padding: 14px; }
+  #tenant-maintenance-expense-modal { padding: 8px; }
+  .modal.tenant-maintenance-expense-modal {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+  }
   #rental-contract-document-modal { padding: 8px; }
   .modal.rental-contract-document-modal { max-height: calc(100dvh - 16px); }
   .rental-contract-document-form,
@@ -3925,6 +3976,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 
 @media (max-width: 480px) {
+  .tenant-maintenance-expense-grid { grid-template-columns: minmax(0, 1fr); }
+  .tenant-maintenance-expense-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tenant-maintenance-expense-summary .btn { width: 100%; justify-content: center; }
   .rental-contract-form-grid,
   .rental-contract-amendment-grid,
   .rental-contract-meta { grid-template-columns: minmax(0, 1fr); }

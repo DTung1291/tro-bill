@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=114" />
+  <link rel="stylesheet" href="style.css?v=115" />
 </head>
 
 <body>
@@ -293,6 +293,7 @@
               <option value="water">💧 Tiền nước nhà nước</option>
               <option value="trash">🗑️ Phí rác</option>
               <option value="internet">📶 Tiền Internet</option>
+              <option value="maintenance">🔧 Sửa chữa / bảo trì</option>
               <option value="other">➕ Chi phí khác</option>
             </select>
           </div>
@@ -1246,6 +1247,43 @@
     </div>
   </div>
 
+  <!-- MODAL: Ghi chi phí cho yêu cầu sửa chữa -->
+  <div class="modal-overlay" id="tenant-maintenance-expense-modal" hidden>
+    <div class="modal tenant-maintenance-expense-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-maintenance-expense-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="tenant-maintenance-expense-title">Ghi chi phí sửa chữa</h2>
+          <p class="rental-contract-room" id="tenant-maintenance-expense-context"></p>
+        </div>
+        <button type="button" class="modal-close" id="tenant-maintenance-expense-close" aria-label="Đóng">✕</button>
+      </div>
+      <form class="tenant-maintenance-expense-form" id="tenant-maintenance-expense-form">
+        <div class="rental-contract-document-notice">
+          Khoản đã thanh toán sẽ tự động vào <strong>Chi phí thực tế</strong> và được trừ khỏi lợi nhuận đúng khu, đúng tháng.
+        </div>
+        <label class="form-label" for="tenant-maintenance-expense-name">Tên chi phí *
+          <input class="form-input" type="text" id="tenant-maintenance-expense-name" minlength="2" maxlength="200" required />
+        </label>
+        <div class="tenant-maintenance-expense-grid">
+          <label class="form-label" for="tenant-maintenance-expense-amount">Số tiền (đ) *
+            <input class="form-input" type="number" id="tenant-maintenance-expense-amount" min="1" step="1" required />
+          </label>
+          <label class="form-label" for="tenant-maintenance-expense-date">Ngày thanh toán *
+            <input class="form-input" type="date" id="tenant-maintenance-expense-date" required />
+          </label>
+        </div>
+        <label class="form-label" for="tenant-maintenance-expense-note">Ghi chú
+          <textarea class="form-input" id="tenant-maintenance-expense-note" maxlength="500" rows="3" placeholder="Nhà cung cấp, nội dung sửa hoặc số chứng từ…"></textarea>
+        </label>
+        <p class="rental-contract-document-error" id="tenant-maintenance-expense-error" role="status" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="tenant-maintenance-expense-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="tenant-maintenance-expense-submit">Lưu chi phí</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: Chuyển phòng / trả phòng -->
   <div class="modal-overlay" id="rental-lifecycle-modal" hidden>
     <div class="modal rental-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="rental-lifecycle-title">
@@ -1758,7 +1796,7 @@
             <span>Sao chép sang tháng mới và giữ lại tháng cũ</span>
           </label>
         </div>
-        <p class="transfer-period-note">Dùng khi bạn đã nhập chi phí đúng nhưng lỡ chọn sai tháng.</p>
+        <p class="transfer-period-note">Dùng khi bạn đã nhập chi phí đúng nhưng lỡ chọn sai tháng. Khoản gắn yêu cầu sửa chữa luôn giữ theo ngày thanh toán thực tế.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn--ghost" id="transfer-expenses-cancel">Hủy</button>
           <button type="button" class="btn btn--primary" id="transfer-expenses-submit">Thực hiện</button>
@@ -2027,7 +2065,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=107"></script>
+  <script src="api.js?v=108"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -2037,7 +2075,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=119"></script>
 </body>
 
 </html>

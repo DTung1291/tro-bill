@@ -437,7 +437,14 @@ async function buildState(uid, options = {}) {
       name: expense.name || '',
       amount: num(expense.amount),
       paidDate: expense.paid_date || '',
-      note: expense.note || ''
+      note: expense.note || '',
+      maintenanceRequestId: expense.maintenance_request_id === null
+        || expense.maintenance_request_id === undefined
+        ? null
+        : Number(expense.maintenance_request_id),
+      maintenanceRequestCode: expense.maintenance_request_code_snapshot || '',
+      maintenanceRoomId: expense.maintenance_room_id_snapshot || '',
+      maintenanceRoomName: expense.maintenance_room_name_snapshot || ''
     });
   }
 
@@ -548,6 +555,7 @@ async function putState(req, res) {
   const tenantIds = new Set();
   const tenantRoomIds = new Map();
   const expensePropertyIds = [];
+  const expenseMaintenanceRequestIds = [];
   for (const room of rooms) {
     const roomId = String(room && room.id || '').trim();
     if (!roomId || roomId.length > 200 || roomIds.has(roomId)) {
@@ -586,6 +594,46 @@ async function putState(req, res) {
   for (const period of Object.keys(expenses)) {
     const items = Array.isArray(expenses[period]) ? expenses[period] : [];
     for (const expense of items) {
+      if (String(expense?.maintenanceRequestCode || '').length > 50
+          || String(expense?.maintenanceRoomId || '').length > 200
+          || String(expense?.maintenanceRoomName || '').length > 200) {
+        return res.status(400).json({
+          error: 'Thông tin liên kết chi phí sửa chữa quá dài',
+          code: 'INVALID_EXPENSE_MAINTENANCE_SNAPSHOT'
+        });
+      }
+      if (expense?.maintenanceRequestId !== undefined
+          && expense?.maintenanceRequestId !== null
+          && expense?.maintenanceRequestId !== '') {
+        const maintenanceRequestId = Number(expense.maintenanceRequestId);
+        if (!Number.isSafeInteger(maintenanceRequestId) || maintenanceRequestId <= 0) {
+          return res.status(400).json({
+            error: 'Chi phí chứa yêu cầu sửa chữa không hợp lệ',
+            code: 'INVALID_EXPENSE_MAINTENANCE_REQUEST'
+          });
+        }
+        const maintenanceName = String(expense.name || '').trim();
+        const maintenanceDate = String(expense.paidDate || '').trim();
+        const parsedMaintenanceDate = /^\d{4}-\d{2}-\d{2}$/.test(maintenanceDate)
+          ? new Date(`${maintenanceDate}T00:00:00.000Z`)
+          : null;
+        const maintenanceAmount = Number(expense.amount);
+        if (expense.category !== 'maintenance'
+            || maintenanceName.length < 2
+            || maintenanceName.length > 200
+            || !Number.isSafeInteger(maintenanceAmount)
+            || maintenanceAmount < 1
+            || !parsedMaintenanceDate
+            || Number.isNaN(parsedMaintenanceDate.getTime())
+            || parsedMaintenanceDate.toISOString().slice(0, 10) !== maintenanceDate
+            || maintenanceDate.slice(0, 7) !== period) {
+          return res.status(400).json({
+            error: 'Nội dung chi phí sửa chữa được liên kết không hợp lệ',
+            code: 'INVALID_EXPENSE_MAINTENANCE_CONTENT'
+          });
+        }
+        expenseMaintenanceRequestIds.push(maintenanceRequestId);
+      }
       if (expense?.propertyId === undefined || expense?.propertyId === null || expense?.propertyId === '') {
         continue;
       }
@@ -671,6 +719,50 @@ async function putState(req, res) {
         error: 'Chi phí chứa khu không thuộc tài khoản',
         code: 'INVALID_EXPENSE_PROPERTY'
       });
+    }
+    const uniqueMaintenanceRequestIds = [...new Set(expenseMaintenanceRequestIds)];
+    let maintenanceRequestsById = new Map();
+    if (uniqueMaintenanceRequestIds.length > 0) {
+      const maintenanceResult = await client.query(
+        `SELECT request.id, request.request_code, request.room_id,
+                request.room_name_snapshot, room.property_id
+         FROM tenant_maintenance_requests request
+         LEFT JOIN rooms room
+           ON room.user_id=request.user_id AND room.id=request.room_id
+         WHERE request.user_id=$1 AND request.id=ANY($2::bigint[])
+         FOR UPDATE OF request`,
+        [uid, uniqueMaintenanceRequestIds]
+      );
+      maintenanceRequestsById = new Map(maintenanceResult.rows.map(row => [Number(row.id), row]));
+      if (maintenanceRequestsById.size !== uniqueMaintenanceRequestIds.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Chi phí chứa yêu cầu sửa chữa không thuộc tài khoản',
+          code: 'INVALID_EXPENSE_MAINTENANCE_REQUEST'
+        });
+      }
+    }
+    for (const period of Object.keys(expenses)) {
+      for (const expense of Array.isArray(expenses[period]) ? expenses[period] : []) {
+        if (expense?.maintenanceRequestId === undefined
+            || expense?.maintenanceRequestId === null
+            || expense?.maintenanceRequestId === '') continue;
+        const request = maintenanceRequestsById.get(Number(expense.maintenanceRequestId));
+        const expensePropertyId = expense?.propertyId === undefined
+          || expense?.propertyId === null
+          || expense?.propertyId === ''
+          ? null
+          : Number(expense.propertyId);
+        if (request?.property_id !== null
+            && request?.property_id !== undefined
+            && expensePropertyId !== Number(request.property_id)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'Khu của chi phí không khớp phòng trong yêu cầu sửa chữa',
+            code: 'EXPENSE_MAINTENANCE_PROPERTY_MISMATCH'
+          });
+        }
+      }
     }
 
     // PUT /state thay lại toàn bộ rooms/tenants. Khóa chúng cùng hợp đồng active
@@ -924,7 +1016,12 @@ async function putState(req, res) {
 
     // Xóa dữ liệu con của user (cascade sẽ dọn tenants/history_bills)
     await client.query('DELETE FROM billing_entries WHERE user_id=$1', [uid]);
-    await client.query('DELETE FROM expense_entries WHERE user_id=$1', [uid]);
+    // Khoản chi gắn với yêu cầu sửa chữa được ghi qua endpoint append-only.
+    // Tab state cũ không được xóa chúng chỉ vì chưa tải khoản vừa phát sinh.
+    await client.query(
+      'DELETE FROM expense_entries WHERE user_id=$1 AND maintenance_request_id IS NULL',
+      [uid]
+    );
     await client.query('DELETE FROM history_snapshots WHERE user_id=$1', [uid]);
     await client.query('DELETE FROM rooms WHERE user_id=$1', [uid]);
 
@@ -1012,15 +1109,30 @@ async function putState(req, res) {
       for (const expense of items) {
         await client.query(
           `INSERT INTO expense_entries
-             (id, user_id, property_id, period, category, name, amount, paid_date, note, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+             (id, user_id, property_id, period, category, name, amount, paid_date, note,
+              sort_order, maintenance_request_user_id, maintenance_request_id,
+              maintenance_request_code_snapshot, maintenance_room_id_snapshot,
+              maintenance_room_name_snapshot)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+           ON CONFLICT (id) DO NOTHING`,
           [
             expense.id, uid,
             expense.propertyId === undefined || expense.propertyId === null || expense.propertyId === ''
               ? null
               : Number(expense.propertyId),
             period, expense.category || 'other', expense.name || '',
-            num(expense.amount), expense.paidDate || '', expense.note || '', expenseIndex++
+            num(expense.amount), expense.paidDate || '', expense.note || '', expenseIndex++,
+            expense.maintenanceRequestId ? uid : null,
+            expense.maintenanceRequestId ? Number(expense.maintenanceRequestId) : null,
+            expense.maintenanceRequestId
+              ? String(maintenanceRequestsById.get(Number(expense.maintenanceRequestId))?.request_code || '')
+              : String(expense.maintenanceRequestCode || ''),
+            expense.maintenanceRequestId
+              ? String(maintenanceRequestsById.get(Number(expense.maintenanceRequestId))?.room_id || '')
+              : String(expense.maintenanceRoomId || ''),
+            expense.maintenanceRequestId
+              ? String(maintenanceRequestsById.get(Number(expense.maintenanceRequestId))?.room_name_snapshot || '')
+              : String(expense.maintenanceRoomName || '')
           ]
         );
       }

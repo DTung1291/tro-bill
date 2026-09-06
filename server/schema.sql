@@ -1926,6 +1926,11 @@ CREATE TABLE IF NOT EXISTS expense_entries (
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS property_id BIGINT;
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS maintenance_request_user_id BIGINT;
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS maintenance_request_id BIGINT;
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS maintenance_request_code_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS maintenance_room_id_snapshot TEXT NOT NULL DEFAULT '';
+ALTER TABLE expense_entries ADD COLUMN IF NOT EXISTS maintenance_room_name_snapshot TEXT NOT NULL DEFAULT '';
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -1936,9 +1941,47 @@ BEGIN
       REFERENCES properties(user_id, id) ON DELETE RESTRICT;
   END IF;
 END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='expense_entries_user_id_id_unique'
+  ) THEN
+    ALTER TABLE expense_entries ADD CONSTRAINT expense_entries_user_id_id_unique
+      UNIQUE (user_id, id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='expense_entries_maintenance_request_owner_fk'
+  ) THEN
+    ALTER TABLE expense_entries ADD CONSTRAINT expense_entries_maintenance_request_owner_fk
+      FOREIGN KEY (maintenance_request_user_id, maintenance_request_id)
+      REFERENCES tenant_maintenance_requests(user_id, id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='expense_entries_maintenance_request_pair_valid'
+  ) THEN
+    ALTER TABLE expense_entries ADD CONSTRAINT expense_entries_maintenance_request_pair_valid
+      CHECK (
+        (maintenance_request_user_id IS NULL AND maintenance_request_id IS NULL)
+        OR
+        (maintenance_request_user_id=user_id AND maintenance_request_id IS NOT NULL)
+      );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='expense_entries_maintenance_snapshot_valid'
+  ) THEN
+    ALTER TABLE expense_entries ADD CONSTRAINT expense_entries_maintenance_snapshot_valid
+      CHECK (
+        char_length(maintenance_request_code_snapshot) <= 50
+        AND char_length(maintenance_room_id_snapshot) <= 200
+        AND char_length(maintenance_room_name_snapshot) <= 200
+      );
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_expenses_user_period ON expense_entries(user_id, period);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_property_period
   ON expense_entries(user_id, property_id, period);
+CREATE INDEX IF NOT EXISTS idx_expenses_maintenance_request
+  ON expense_entries(user_id, maintenance_request_id, period);
 
 -- Ảnh chụp tháng đã lưu (snapshot) + các bill trong đó
 CREATE TABLE IF NOT EXISTS history_snapshots (

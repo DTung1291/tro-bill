@@ -121,6 +121,46 @@ function statusTransitionInput(body = {}) {
   return { status, note };
 }
 
+function maintenanceExpenseInput(body = {}) {
+  const amountVnd = Number(body.amountVnd);
+  if (!Number.isSafeInteger(amountVnd) || amountVnd < 1 || amountVnd > 999999999999) {
+    throw new TenantMaintenanceError(
+      400,
+      'INVALID_MAINTENANCE_EXPENSE_AMOUNT',
+      'Chi phí sửa chữa phải là số VND nguyên dương'
+    );
+  }
+  const paidDate = String(body.paidDate || '').trim();
+  const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(paidDate)
+    ? new Date(`${paidDate}T00:00:00.000Z`)
+    : null;
+  if (!parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== paidDate) {
+    throw new TenantMaintenanceError(
+      400,
+      'INVALID_MAINTENANCE_EXPENSE_DATE',
+      'Ngày thanh toán chi phí không hợp lệ'
+    );
+  }
+  const name = simpleText(body.name, 'Tên chi phí sửa chữa', { min: 2, max: 200 });
+  const note = simpleText(body.note, 'Ghi chú chi phí', { max: 500 });
+  const idempotencyKey = String(body.idempotencyKey || '').trim();
+  if (!IDEMPOTENCY_PATTERN.test(idempotencyKey)) {
+    throw new TenantMaintenanceError(
+      400,
+      'INVALID_MAINTENANCE_EXPENSE_IDEMPOTENCY',
+      'Mã chống ghi trùng chi phí không hợp lệ'
+    );
+  }
+  return {
+    amountVnd,
+    paidDate,
+    period: paidDate.slice(0, 7),
+    name,
+    note,
+    idempotencyKey
+  };
+}
+
 function generatePortalToken() {
   return `tmrq_${crypto.randomBytes(32).toString('base64url')}`;
 }
@@ -216,6 +256,7 @@ function requestJson(row) {
       }
     : null;
   if (Array.isArray(row.events)) result.events = row.events.map(eventJson);
+  if (Array.isArray(row.expenses)) result.expenses = row.expenses.map(maintenanceExpenseJson);
   return result;
 }
 
@@ -241,6 +282,27 @@ function eventJson(row) {
     newStatus: row.new_status || null,
     note: row.note || '',
     createdAt: row.created_at
+  };
+}
+
+function maintenanceExpenseJson(row) {
+  return {
+    id: row.id,
+    propertyId: row.property_id === null || row.property_id === undefined
+      ? null
+      : Number(row.property_id),
+    period: row.period,
+    category: row.category || 'maintenance',
+    name: row.name || '',
+    amount: Number(row.amount) || 0,
+    paidDate: row.paid_date || '',
+    note: row.note || '',
+    maintenanceRequestId: row.maintenance_request_id
+      ? Number(row.maintenance_request_id)
+      : null,
+    maintenanceRequestCode: row.maintenance_request_code_snapshot || '',
+    maintenanceRoomId: row.maintenance_room_id_snapshot || '',
+    maintenanceRoomName: row.maintenance_room_name_snapshot || ''
   };
 }
 
@@ -275,7 +337,7 @@ function requireOwnerWorkspace(req) {
     throw new TenantMaintenanceError(
       403,
       'TENANT_MAINTENANCE_OWNER_REQUIRED',
-      'Chỉ chủ tài khoản được quản lý cổng yêu cầu sửa chữa của khách thuê'
+      'Chỉ chủ tài khoản được quản lý yêu cầu sửa chữa và chi phí liên quan'
     );
   }
 }
@@ -308,11 +370,34 @@ async function requestEventsByRequest(query, userId, requestIds) {
   return byRequest;
 }
 
-async function requestRowsJson(query, userId, rows) {
-  const events = await requestEventsByRequest(query, userId, rows.map(row => row.id));
+async function requestExpensesByRequest(query, userId, requestIds) {
+  const ids = requestIds.map(Number).filter(Number.isSafeInteger);
+  if (ids.length === 0) return new Map();
+  const result = await query(
+    `SELECT * FROM expense_entries
+     WHERE user_id=$1 AND maintenance_request_id=ANY($2::bigint[])
+     ORDER BY paid_date, sort_order, id`,
+    [userId, ids]
+  );
+  const byRequest = new Map();
+  for (const row of result.rows) {
+    const id = Number(row.maintenance_request_id);
+    if (!byRequest.has(id)) byRequest.set(id, []);
+    byRequest.get(id).push(row);
+  }
+  return byRequest;
+}
+
+async function requestRowsJson(query, userId, rows, { includeExpenses = false } = {}) {
+  const ids = rows.map(row => row.id);
+  const [events, expenses] = await Promise.all([
+    requestEventsByRequest(query, userId, ids),
+    includeExpenses ? requestExpensesByRequest(query, userId, ids) : Promise.resolve(new Map())
+  ]);
   return rows.map(row => requestJson({
     ...row,
-    events: events.get(Number(row.id)) || []
+    events: events.get(Number(row.id)) || [],
+    ...(includeExpenses ? { expenses: expenses.get(Number(row.id)) || [] } : {})
   }));
 }
 
@@ -631,7 +716,7 @@ async function listMaintenanceRequests(req, res, dependencies = {}) {
     [req.userId, contractId]
   );
   const [requests, assignees] = await Promise.all([
-    requestRowsJson(query, req.userId, result.rows),
+    requestRowsJson(query, req.userId, result.rows, { includeExpenses: true }),
     eligibleMaintenanceAssignees(query, req.userId, contract.rows[0].property_id)
   ]);
   res.set('Cache-Control', 'no-store');
@@ -695,7 +780,7 @@ async function listMaintenanceWork(req, res, dependencies = {}) {
     params
   );
   const [requests, assignees] = await Promise.all([
-    requestRowsJson(query, req.userId, result.rows),
+    requestRowsJson(query, req.userId, result.rows, { includeExpenses: owner }),
     owner
       ? eligibleMaintenanceAssignees(query, req.userId, room.property_id)
       : Promise.resolve([])
@@ -923,6 +1008,115 @@ async function transitionMaintenanceRequestStatus(req, res, dependencies = {}) {
     res.set('Cache-Control', 'no-store');
     return res.json({
       request: requestJson({ ...refreshed, events: events.get(requestId) || [] }),
+      unchanged: false
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function createMaintenanceExpense(req, res, dependencies = {}) {
+  let requestId;
+  let input;
+  try {
+    requireOwnerWorkspace(req);
+    requestId = positiveId(req.params?.id, 'Yêu cầu');
+    input = maintenanceExpenseInput(req.body);
+  } catch (error) {
+    if (sendMaintenanceRequestError(res, error)) return res;
+    throw error;
+  }
+  const client = await (dependencies.getClient || db.getClient)();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended(
+         'state-write:' || $1::text,
+         0
+       ))`,
+      [req.userId]
+    );
+    await ensureWritable(client.query.bind(client), req.userId);
+    const row = await maintenanceRequestRow(
+      client.query.bind(client),
+      req.userId,
+      requestId,
+      { forUpdate: true }
+    );
+    if (!row) {
+      throw new TenantMaintenanceError(
+        404,
+        'MAINTENANCE_REQUEST_NOT_FOUND',
+        'Không tìm thấy yêu cầu sửa chữa'
+      );
+    }
+    const inserted = await client.query(
+      `INSERT INTO expense_entries
+         (id, user_id, property_id, period, category, name, amount, paid_date,
+          note, sort_order, maintenance_request_user_id, maintenance_request_id,
+          maintenance_request_code_snapshot, maintenance_room_id_snapshot,
+          maintenance_room_name_snapshot)
+       VALUES (
+         $1,$2,$3,$4,'maintenance',$5,$6,$7,$8,
+         COALESCE((
+           SELECT MAX(existing.sort_order)+1
+           FROM expense_entries existing
+           WHERE existing.user_id=$2 AND existing.period=$4
+         ),0),
+         $2,$9,$10,$11,$12
+       )
+       ON CONFLICT (id) DO NOTHING
+       RETURNING *`,
+      [
+        input.idempotencyKey,
+        req.userId,
+        Number(row.property_id),
+        input.period,
+        input.name,
+        input.amountVnd,
+        input.paidDate,
+        input.note,
+        requestId,
+        row.request_code,
+        row.room_id,
+        row.room_name_snapshot
+      ]
+    );
+    if (!inserted.rows[0]) {
+      const existing = await client.query(
+        `SELECT * FROM expense_entries
+         WHERE id=$1 AND user_id=$2 AND maintenance_request_id=$3`,
+        [input.idempotencyKey, req.userId, requestId]
+      );
+      if (!existing.rows[0]) {
+        throw new TenantMaintenanceError(
+          409,
+          'MAINTENANCE_EXPENSE_IDEMPOTENCY_CONFLICT',
+          'Mã chống ghi trùng đã được dùng cho khoản chi khác'
+        );
+      }
+      await client.query('COMMIT');
+      res.set('Cache-Control', 'no-store');
+      return res.json({ expense: maintenanceExpenseJson(existing.rows[0]), unchanged: true });
+    }
+    await recordDataAudits(client.query.bind(client), [requestDataAuditEntry(
+      req,
+      'tenant_maintenance_expense_recorded',
+      'tenant_maintenance_request',
+      String(requestId),
+      {
+        changedFields: ['amountVnd', 'paidDate', 'name', 'note', 'propertyId'],
+        purpose: 'Ghi nhận chi phí sửa chữa thực tế'
+      }
+    )]);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'no-store');
+    return res.status(201).json({
+      expense: maintenanceExpenseJson(inserted.rows[0]),
       unchanged: false
     });
   } catch (error) {
@@ -1169,6 +1363,7 @@ module.exports = {
   eventJson,
   generatePortalToken,
   assignMaintenanceRequest,
+  createMaintenanceExpense,
   eligibleMaintenanceAssignees,
   ensureStaffRequestAccess,
   issueMaintenancePortal,
@@ -1176,6 +1371,8 @@ module.exports = {
   listMaintenanceRequests,
   listMaintenanceWork,
   loadTenantMaintenanceExport,
+  maintenanceExpenseInput,
+  maintenanceExpenseJson,
   portalJson,
   portalTokenHash,
   publicPortalRow,

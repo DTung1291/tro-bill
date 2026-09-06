@@ -592,6 +592,14 @@ const API = (() => {
     );
   }
 
+  function createTenantMaintenanceExpense(requestId, input) {
+    return request(
+      'POST',
+      `/api/tenant-maintenance-requests/${encodeURIComponent(requestId)}/expenses`,
+      input
+    );
+  }
+
   function getRoomMaintenance() {
     return request('GET', '/api/room-maintenance');
   }
@@ -812,6 +820,7 @@ const API = (() => {
     getTenantMaintenanceWork,
     assignTenantMaintenanceRequest,
     updateTenantMaintenanceRequestStatus,
+    createTenantMaintenanceExpense,
     getRoomMaintenance,
     createRoomMaintenance,
     completeRoomMaintenance,

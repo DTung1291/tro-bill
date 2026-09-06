@@ -345,3 +345,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   trạng thái phải tạo event append-only cùng audit trong transaction. Nội dung
   gốc khách gửi không được sửa. Nếu phòng chuyển khu, quyền xem công việc theo
   khu mới có hiệu lực ngay; assignment cũ không tự cấp lại quyền đã mất.
+
+## D-025 — Chi phí sửa chữa dùng sổ chi phí hiện có và liên kết bất biến
+
+- **Trạng thái:** Đang triển khai từ 05/09/2026; migration staging đã xác minh.
+- **Quyết định:** Khoản sửa chữa đã thanh toán được ghi trực tiếp vào
+  `expense_entries` với category `maintenance`, đúng khu và kỳ của ngày trả tiền;
+  không tạo thêm sổ tài chính song song. Dòng chi giữ FK ownership tới yêu cầu
+  cùng snapshot mã yêu cầu/phòng. Chỉ owner được ghi qua endpoint hẹp có
+  idempotency và audit; nhân viên xử lý không nhận số tiền trong response.
+- **Lý do:** Một khoản chi nằm ở hai sổ sẽ làm dashboard/lợi nhuận lệch nhau và
+  khó xác định nguồn đúng. Frontend cũ thay toàn bộ state nên một tab chưa tải
+  khoản mới có thể vô tình xóa dữ liệu tài chính vừa ghi.
+- **Hệ quả:** `PUT /api/state` không xóa hoặc ghi đè dòng còn liên kết với yêu
+  cầu sửa chữa; endpoint ghi chi phí dùng cùng advisory lock với state. Giao
+  diện chi phí hiển thị nguồn liên kết ở chế độ chỉ đọc, và thao tác chuyển tháng
+  chỉ áp dụng cho khoản nhập thủ công vì kỳ của khoản sửa chữa phải theo ngày
+  thanh toán thực tế.

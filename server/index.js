@@ -389,6 +389,12 @@ app.post(
   wrap(accountAccess.requireWorkspace('rooms')),
   wrap(tenantMaintenanceRequests.transitionMaintenanceRequestStatus)
 );
+app.post(
+  '/api/tenant-maintenance-requests/:id/expenses',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.createMaintenanceExpense)
+);
 app.get('/api/room-maintenance', requireAuth, wrap(roomMaintenance.listMaintenance));
 app.post('/api/room-maintenance', requireAuth, wrap(roomMaintenance.createMaintenance));
 app.post(

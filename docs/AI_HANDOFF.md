@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 05/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng làm — ghi nhận chi phí sửa chữa vào báo cáo thực tế |
+| Trạng thái | Đang kiểm thử Preview — ghi nhận chi phí sửa chữa vào báo cáo thực tế |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `d952d9c` — phân công và theo dõi yêu cầu sửa chữa |
-| Việc code tiếp theo | Ghi nhận chi phí sửa chữa vào báo cáo thực tế |
+| Việc code tiếp theo | Commit/push hạng mục chi phí sửa chữa, chờ CI, chạy migration production rồi deploy/smoke |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -50,6 +50,21 @@ append-only, idempotency/rate limit/audit và export hoàn tất. Phân công v�
 dõi trạng thái yêu cầu cũng đã phát hành: owner giao đúng nhân viên theo khu và
 nghiệp vụ, staff chỉ thấy việc của mình, event append-only và audit tách
 actor/subject. Hạng mục kế tiếp là ghi nhận chi phí sửa chữa vào báo cáo thực tế.
+Phần code của hạng mục này đã hoàn tất và đạt 382/382 test sau chỉnh sửa cuối;
+migration `20260905_tenant_maintenance_expenses.sql` đã chạy trên Neon
+`staging-privacy` (`br-ancient-wave-azwc43to`) với 6/6 cờ true. Preview mới nhất
+là `tro-bill-kb9imi28w-dtung.vercel.app` (`dpl_FoZN2HZx69jqFXqaxuhX2Wo96ouS`).
+E2E đã xác nhận ghi 123.456 đ vào yêu cầu, dashboard tăng từ 300.000 đ lên
+423.456 đ và báo cáo hiện đúng nguồn. E2E cũng phát hiện bước
+chuẩn hóa frontend làm mất metadata liên kết sau reload; đã sửa để giữ đủ
+`maintenanceRequestId`, mã yêu cầu và snapshot phòng, thêm regression assertion,
+tăng asset pin `app.js?v=119` và chạy lại 382/382 test. Preview mới đang chờ
+tại `tro-bill-kb9imi28w-dtung.vercel.app` đã xác nhận sau reload vẫn giữ mã yêu
+cầu/phòng và trạng thái chỉ đọc. Trang chi phí cùng popup ghi chi phí đạt
+390×844, không tràn ngang và khóa scroll nền. Dữ liệu E2E đã dọn trên đúng
+branch staging với guard: 1 tenant, 2 contract, 1 portal, 2 request, 1 expense
+và 7 audit liên quan; kết quả sau cleanup đều 0, `rent_start_date` A101 trở về
+trống và dashboard trở lại 300.000 đ chi phí, console sạch.
 
 ## Bản đồ hệ thống ngắn
 

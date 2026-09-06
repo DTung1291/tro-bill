@@ -10,7 +10,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   assignMaintenanceRequest,
+  createMaintenanceExpense,
   listMaintenanceWork,
+  maintenanceExpenseInput,
   statusTransitionInput,
   transitionMaintenanceRequestStatus
 } = require('../tenant-maintenance-requests');
@@ -107,6 +109,181 @@ test('input trạng thái giữ chuyển tiếp hữu hạn và bắt buộc ghi
     () => statusTransitionInput({ status: 'new', note: '' }),
     error => error.code === 'INVALID_MAINTENANCE_STATUS'
   );
+});
+
+test('input chi phí sửa chữa bắt buộc VND nguyên dương, ngày thật và idempotency UUID', () => {
+  assert.deepEqual(maintenanceExpenseInput({
+    amountVnd: 350000,
+    paidDate: '2026-09-05',
+    name: 'Thay van nước',
+    note: 'Đã thanh toán thợ',
+    idempotencyKey: '9a3410a4-e825-45af-aef8-f5a3edbff129'
+  }), {
+    amountVnd: 350000,
+    paidDate: '2026-09-05',
+    period: '2026-09',
+    name: 'Thay van nước',
+    note: 'Đã thanh toán thợ',
+    idempotencyKey: '9a3410a4-e825-45af-aef8-f5a3edbff129'
+  });
+  assert.throws(
+    () => maintenanceExpenseInput({ amountVnd: 0, paidDate: '2026-09-05' }),
+    error => error.code === 'INVALID_MAINTENANCE_EXPENSE_AMOUNT'
+  );
+  assert.throws(
+    () => maintenanceExpenseInput({
+      amountVnd: 1,
+      paidDate: '2026-02-30',
+      name: 'Sửa vòi',
+      idempotencyKey: '9a3410a4-e825-45af-aef8-f5a3edbff129'
+    }),
+    error => error.code === 'INVALID_MAINTENANCE_EXPENSE_DATE'
+  );
+});
+
+test('chủ trọ ghi chi phí đúng khu/tháng, liên kết yêu cầu và ghi audit', async () => {
+  const calls = [];
+  const expenseRow = {
+    id: '9a3410a4-e825-45af-aef8-f5a3edbff129',
+    user_id: 7,
+    property_id: 4,
+    period: '2026-09',
+    category: 'maintenance',
+    name: 'Thay van nước',
+    amount: '350000',
+    paid_date: '2026-09-05',
+    note: 'Đã thanh toán thợ',
+    maintenance_request_id: 44,
+    maintenance_request_code_snapshot: 'YC-2026-000018',
+    maintenance_room_id_snapshot: 'room-a',
+    maintenance_room_name_snapshot: 'A101'
+  };
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      const entitlement = entitlementRows(sql);
+      if (entitlement) return entitlement;
+      if (sql.includes('FROM tenant_maintenance_requests request')) {
+        return { rows: [workflowRow()] };
+      }
+      if (sql.includes('INSERT INTO expense_entries')) return { rows: [expenseRow] };
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const response = responseRecorder();
+  await createMaintenanceExpense(request({
+    params: { id: '44' },
+    body: {
+      amountVnd: 350000,
+      paidDate: '2026-09-05',
+      name: 'Thay van nước',
+      note: 'Đã thanh toán thợ',
+      idempotencyKey: expenseRow.id
+    }
+  }), response.res, { getClient: async () => client });
+
+  assert.equal(response.record.statusCode, 201);
+  assert.equal(response.record.body.expense.category, 'maintenance');
+  assert.equal(response.record.body.expense.propertyId, 4);
+  assert.equal(response.record.body.expense.period, '2026-09');
+  assert.equal(response.record.body.expense.maintenanceRequestId, 44);
+  const insert = calls.find(call => call.sql.includes('INSERT INTO expense_entries'));
+  assert.deepEqual(insert.params.slice(0, 4), [expenseRow.id, 7, 4, '2026-09']);
+  assert.deepEqual(insert.params.slice(8), [44, 'YC-2026-000018', 'room-a', 'A101']);
+  assert.equal(calls.some(call => call.sql.includes('pg_advisory_xact_lock')), true);
+  const audit = calls.find(call => call.sql.includes('INSERT INTO data_audit_logs'));
+  assert.equal(audit.params[3], 'tenant_maintenance_expense_recorded');
+  assert.equal(audit.params[6].includes('amountVnd'), true);
+  assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
+});
+
+test('retry cùng idempotency trả khoản cũ và không ghi audit lần hai', async () => {
+  const calls = [];
+  const expenseRow = {
+    id: '9a3410a4-e825-45af-aef8-f5a3edbff129',
+    property_id: 4,
+    period: '2026-09',
+    category: 'maintenance',
+    name: 'Thay van nước',
+    amount: '350000',
+    paid_date: '2026-09-05',
+    maintenance_request_id: 44,
+    maintenance_request_code_snapshot: 'YC-2026-000018',
+    maintenance_room_id_snapshot: 'room-a',
+    maintenance_room_name_snapshot: 'A101'
+  };
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      const entitlement = entitlementRows(sql);
+      if (entitlement) return entitlement;
+      if (sql.includes('FROM tenant_maintenance_requests request')) {
+        return { rows: [workflowRow()] };
+      }
+      if (sql.includes('INSERT INTO expense_entries')) return { rows: [] };
+      if (sql.includes('SELECT * FROM expense_entries')) return { rows: [expenseRow] };
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const response = responseRecorder();
+  await createMaintenanceExpense(request({
+    params: { id: '44' },
+    body: {
+      amountVnd: 350000,
+      paidDate: '2026-09-05',
+      name: 'Thay van nước',
+      idempotencyKey: expenseRow.id
+    }
+  }), response.res, { getClient: async () => client });
+
+  assert.equal(response.record.statusCode, 200);
+  assert.equal(response.record.body.unchanged, true);
+  assert.equal(response.record.body.expense.id, expenseRow.id);
+  assert.equal(calls.some(call => call.sql.includes('INSERT INTO data_audit_logs')), false);
+  assert.equal(calls.some(call => call.sql === 'COMMIT'), true);
+});
+
+test('nhân viên không thể ghi hoặc xem số tiền sửa chữa', async () => {
+  let openedClient = false;
+  const response = responseRecorder();
+  await createMaintenanceExpense(request({
+    actorUserId: 9,
+    workspace: { isOwner: false, propertyIds: [4], operations: ['rooms'] },
+    params: { id: '44' },
+    body: {
+      amountVnd: 350000,
+      paidDate: '2026-09-05',
+      name: 'Thay van nước',
+      idempotencyKey: '9a3410a4-e825-45af-aef8-f5a3edbff129'
+    }
+  }), response.res, {
+    getClient: async () => { openedClient = true; throw new Error('must not open'); }
+  });
+  assert.equal(response.record.statusCode, 403);
+  assert.equal(response.record.body.code, 'TENANT_MAINTENANCE_OWNER_REQUIRED');
+  assert.equal(openedClient, false);
+
+  const calls = [];
+  const listResponse = responseRecorder();
+  await listMaintenanceWork(request({
+    actorUserId: 9,
+    workspace: { isOwner: false, propertyIds: [4], operations: ['rooms'] },
+    query: { roomId: 'room-a' }
+  }), listResponse.res, {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM rooms')) return { rows: [{ id: 'room-a', property_id: 4 }] };
+      if (sql.includes('FROM tenant_maintenance_requests request')) {
+        return { rows: [workflowRow({ assigned_member_user_id: 9 })] };
+      }
+      if (sql.includes('FROM tenant_maintenance_request_events')) return { rows: [] };
+      return { rows: [] };
+    }
+  });
+  assert.equal('expenses' in listResponse.record.body.requests[0], false);
+  assert.equal(calls.some(call => call.sql.includes('FROM expense_entries')), false);
 });
 
 test('chủ trọ chỉ phân công nhân viên đủ quyền khu/rooms và ghi event cùng audit', async () => {
@@ -358,6 +535,10 @@ test('schema/API/UI giữ workflow append-only và quyền UPDATE hẹp', () => 
     path.join(root, 'server', 'migrations', '20260905_tenant_maintenance_workflow.sql'),
     'utf8'
   );
+  const expenseMigration = fs.readFileSync(
+    path.join(root, 'server', 'migrations', '20260905_tenant_maintenance_expenses.sql'),
+    'utf8'
+  );
   const server = fs.readFileSync(path.join(root, 'server', 'index.js'), 'utf8');
   const api = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
@@ -368,11 +549,18 @@ test('schema/API/UI giữ workflow append-only và quyền UPDATE hẹp', () => 
     assert.match(source, /GRANT UPDATE \(status, updated_at\) ON tenant_maintenance_requests/);
     assert.match(source, /REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON tenant_maintenance_request_events/);
   }
+  for (const source of [schema, expenseMigration]) {
+    assert.match(source, /maintenance_request_code_snapshot/);
+    assert.match(source, /expense_entries_maintenance_request_owner_fk/);
+    assert.match(source, /idx_expenses_maintenance_request/);
+  }
   assert.match(server, /\/api\/tenant-maintenance-work/);
   assert.match(server, /\/api\/tenant-maintenance-requests\/:id\/assignment/);
   assert.match(server, /\/api\/tenant-maintenance-requests\/:id\/status/);
+  assert.match(server, /\/api\/tenant-maintenance-requests\/:id\/expenses/);
   assert.match(api, /function assignTenantMaintenanceRequest/);
   assert.match(api, /function updateTenantMaintenanceRequestStatus/);
+  assert.match(api, /function createTenantMaintenanceExpense/);
   assert.match(
     fs.readFileSync(path.join(root, 'server', 'tenant-maintenance-requests.js'), 'utf8'),
     /LEFT JOIN rooms room ON room\.user_id=request\.user_id AND room\.id=request\.room_id/
@@ -380,4 +568,9 @@ test('schema/API/UI giữ workflow append-only và quyền UPDATE hẹp', () => 
   assert.match(app, /function renderRoomTenantMaintenanceWorkSection/);
   assert.match(app, /data-maintenance-assignment/);
   assert.match(app, /data-maintenance-status/);
+  assert.match(app, /data-maintenance-expense/);
+  assert.match(app, /function submitTenantMaintenanceExpense/);
+  assert.match(app, /maintenanceRequestId: Number\.isSafeInteger\(Number\(item\.maintenanceRequestId\)\)/);
+  assert.match(app, /maintenanceRequestCode: String\(item\.maintenanceRequestCode \|\| ''\)/);
+  assert.match(app, /maintenanceRoomName: String\(item\.maintenanceRoomName \|\| ''\)/);
 });

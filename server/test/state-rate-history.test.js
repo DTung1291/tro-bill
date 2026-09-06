@@ -204,7 +204,11 @@ test('chi phí nhân viên được lọc theo khu và chi phí chung chỉ hi�
           && sql.includes('unassigned_property.id=ANY')
         ? { rows: [{
           id: 'assigned-expense', property_id: 3, period: '2026-08',
-          category: 'electric', name: '', amount: '120000', paid_date: '', note: ''
+          category: 'maintenance', name: 'Sửa máy bơm', amount: '120000',
+          paid_date: '2026-08-12', note: '', maintenance_request_id: 44,
+          maintenance_request_code_snapshot: 'YC-2026-000018',
+          maintenance_room_id_snapshot: 'room-1',
+          maintenance_room_name_snapshot: 'Phòng 1'
         }] }
         : { rows: [{ id: 'secret-expense', property_id: 4, period: '2026-08', name: 'Khu B' }] };
     }
@@ -218,6 +222,9 @@ test('chi phí nhân viên được lọc theo khu và chi phí chung chỉ hi�
 
   assert.equal(state.expenses['2026-08'][0].id, 'assigned-expense');
   assert.equal(state.expenses['2026-08'][0].propertyId, 3);
+  assert.equal(state.expenses['2026-08'][0].maintenanceRequestId, 44);
+  assert.equal(state.expenses['2026-08'][0].maintenanceRequestCode, 'YC-2026-000018');
+  assert.equal(state.expenses['2026-08'][0].maintenanceRoomName, 'Phòng 1');
   const expenseCall = calls.find(call => call.sql.includes('FROM expense_entries'));
   assert.deepEqual(expenseCall.params, [7, [3]]);
   assert.match(expenseCall.sql, /expense\.property_id=ANY/);
@@ -241,6 +248,82 @@ test('putState từ chối ID khu chi phí sai trước khi mở transaction', a
   }, res);
   assert.equal(response.statusCode, 400);
   assert.equal(response.body.code, 'INVALID_EXPENSE_PROPERTY');
+});
+
+test('putState xác thực ownership và giữ liên kết chi phí sửa chữa khi ghi lại state', async (t) => {
+  const originalGetClient = db.getClient;
+  const calls = [];
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM subscriptions s')) {
+        return { rows: [{
+          subscription_id: 10, status: 'active', starts_at: new Date(), ends_at: null,
+          plan_id: 1, plan_code: 'free', plan_name: 'Free', room_limit: 10, staff_limit: 0
+        }] };
+      }
+      if (sql === 'SELECT id FROM properties WHERE user_id=$1 AND id=ANY($2::bigint[])') {
+        return { rows: [{ id: 4 }] };
+      }
+      if (sql.includes('FROM tenant_maintenance_requests request')
+          && sql.includes('request.id=ANY')) {
+        return { rows: [{
+          id: 44,
+          request_code: 'YC-2026-000018',
+          room_id: 'room-a',
+          room_name_snapshot: 'A101',
+          property_id: 4
+        }] };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  db.getClient = async () => client;
+  t.after(() => { db.getClient = originalGetClient; });
+  const response = { statusCode: 200, body: null };
+  const res = {
+    status(code) { response.statusCode = code; return res; },
+    json(body) { response.body = body; return res; }
+  };
+
+  await putState({
+    userId: 7,
+    body: {
+      rooms: [{ id: 'room-a', propertyId: 4, name: 'A101', tenants: [] }],
+      expenses: {
+        '2026-09': [{
+          id: '9a3410a4-e825-45af-aef8-f5a3edbff129',
+          propertyId: 4,
+          category: 'maintenance',
+          name: 'Thay van nước',
+          amount: 350000,
+          paidDate: '2026-09-05',
+          note: 'Đã trả thợ',
+          maintenanceRequestId: 44,
+          maintenanceRequestCode: 'Mã giả từ client',
+          maintenanceRoomId: 'phòng giả',
+          maintenanceRoomName: 'Tên giả'
+        }]
+      }
+    }
+  }, res);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body, { ok: true });
+  const ownershipQuery = calls.find(call => (
+    call.sql.includes('FROM tenant_maintenance_requests request')
+    && call.sql.includes('request.id=ANY')
+  ));
+  assert.deepEqual(ownershipQuery.params, [7, [44]]);
+  const expenseInsert = calls.find(call => call.sql.includes('INSERT INTO expense_entries'));
+  assert.deepEqual(expenseInsert.params.slice(10), [
+    7,
+    44,
+    'YC-2026-000018',
+    'room-a',
+    'A101'
+  ]);
 });
 
 test('putState ghi từng mốc biểu phí trong cùng transaction', async (t) => {
