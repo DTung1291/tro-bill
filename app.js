@@ -7239,7 +7239,7 @@ function renderFinancialReport() {
   );
   const selectedRoom = STATE.rooms.find(room => room.id === report.filters?.roomId);
   const scopeLabel = selectedRoom
-    ? ` · phòng ${selectedRoom.name}`
+    ? ` · ${selectedRoom.name}`
     : selectedProperty ? ` · ${selectedProperty.name}` : ' · tất cả khu';
   status.textContent = `${report.invoiceCount} hóa đơn phát hành trong ${financialReportRangeLabel(report.range)}`
     + scopeLabel

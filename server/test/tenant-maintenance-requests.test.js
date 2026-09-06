@@ -325,7 +325,7 @@ test('schema, quyền runtime, routes và trang công khai giữ token ngoài qu
   assert.match(apiSource, /function getTenantMaintenanceRequests/);
   assert.match(appSource, /function openTenantMaintenanceModal/);
   assert.match(htmlSource, /id="tenant-maintenance-modal"/);
-  assert.match(htmlSource, /style\.css\?v=117[\s\S]*api\.js\?v=110[\s\S]*app\.js\?v=121/);
+  assert.match(htmlSource, /style\.css\?v=117[\s\S]*api\.js\?v=110[\s\S]*app\.js\?v=122/);
   assert.match(publicHtml, /name="referrer" content="no-referrer"/);
   assert.match(publicHtml, /Content-Security-Policy/);
   assert.match(publicHtml, /maintenance-public\.css\?v=1[\s\S]*maintenance-public\.js\?v=2/);
