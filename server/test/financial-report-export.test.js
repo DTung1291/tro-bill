@@ -1,0 +1,148 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+
+const {
+  buildPrintHtml,
+  buildXlsx
+} = require('../../financial-report-export');
+
+const root = path.resolve(__dirname, '..', '..');
+
+function sampleReport() {
+  return {
+    period: '2026-Q3',
+    range: { type: 'quarter', key: '2026-Q3' },
+    revenueVnd: 12345678,
+    collectedVnd: 11000000,
+    outstandingVnd: 1345678,
+    expensesVnd: 2000000,
+    profitVnd: 9000000,
+    invoiceCount: 7,
+    unpaidInvoiceCount: 1,
+    breakdown: {
+      invoice: {
+        rentVnd: 9000000,
+        electricityVnd: 1000000,
+        waterVnd: 500000,
+        servicesVnd: 1000000,
+        discountVnd: 100000,
+        surchargeVnd: 700000,
+        lateFeeVnd: 245678,
+        adjustmentNetVnd: 845678,
+        uncategorizedVnd: 0
+      },
+      deposit: {
+        collectedVnd: 4500000,
+        refundedVnd: 500000,
+        deductedVnd: 250000,
+        netCashflowVnd: 4000000
+      }
+    },
+    occupancy: {
+      occupancyRatePercent: 91.6,
+      roomCount: 7,
+      calendarDays: 68,
+      rentableRoomDays: 476,
+      occupiedRoomDays: 436,
+      vacantRoomDays: 40,
+      reservedRoomDays: 0,
+      maintenanceRoomDays: 0,
+      longestVacantDays: 40,
+      endingVacantRoomCount: 0,
+      rooms: [{
+        roomId: 'room-403',
+        roomName: '=HYPERLINK("https://example.com")',
+        propertyName: 'Khu <Vũ Hữu> & Nhà',
+        occupancyRatePercent: 41.18,
+        occupiedRoomDays: 28,
+        vacantRoomDays: 40,
+        reservedRoomDays: 0,
+        maintenanceRoomDays: 0,
+        longestVacantDays: 40,
+        endingVacantDays: 0,
+        endingStatus: 'occupied'
+      }]
+    }
+  };
+}
+
+function storedZipEntries(bytes) {
+  const entries = new Map();
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const decoder = new TextDecoder();
+  let offset = 0;
+  while (offset + 30 <= bytes.length && view.getUint32(offset, true) === 0x04034b50) {
+    const method = view.getUint16(offset + 8, true);
+    const size = view.getUint32(offset + 18, true);
+    const nameLength = view.getUint16(offset + 26, true);
+    const extraLength = view.getUint16(offset + 28, true);
+    assert.equal(method, 0, 'workbook phải dùng ZIP store để đọc ổn định không cần dependency');
+    const nameStart = offset + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const name = decoder.decode(bytes.slice(nameStart, nameStart + nameLength));
+    entries.set(name, decoder.decode(bytes.slice(dataStart, dataStart + size)));
+    offset = dataStart + size;
+  }
+  return entries;
+}
+
+test('xuất workbook XLSX chuẩn OOXML với sheet tổng hợp và chi tiết phòng', () => {
+  const bytes = buildXlsx(sampleReport(), {
+    periodLabel: 'Quý 3/2026',
+    scopeLabel: 'Tất cả khu',
+    exportedAtLabel: '23:30 06/09/2026'
+  });
+  assert.equal(bytes[0], 0x50);
+  assert.equal(bytes[1], 0x4b);
+  const entries = storedZipEntries(bytes);
+  assert.deepEqual([...entries.keys()], [
+    '[Content_Types].xml',
+    '_rels/.rels',
+    'xl/workbook.xml',
+    'xl/_rels/workbook.xml.rels',
+    'xl/styles.xml',
+    'xl/worksheets/sheet1.xml',
+    'xl/worksheets/sheet2.xml'
+  ]);
+  assert.match(entries.get('xl/workbook.xml'), /name="Tổng hợp"/);
+  assert.match(entries.get('xl/workbook.xml'), /name="Chi tiết phòng"/);
+  assert.match(entries.get('xl/worksheets/sheet1.xml'), /BÁO CÁO TÀI CHÍNH TRỌBILL/);
+  assert.match(entries.get('xl/worksheets/sheet1.xml'), /<v>12345678<\/v>/);
+  assert.match(entries.get('xl/worksheets/sheet1.xml'), /<v>0\.916<\/v>/);
+  assert.match(entries.get('xl/worksheets/sheet2.xml'), /t="inlineStr"[^>]*><is><t xml:space="preserve">=HYPERLINK/);
+  assert.match(entries.get('xl/worksheets/sheet2.xml'), /Khu &lt;Vũ Hữu&gt; &amp; Nhà/);
+  assert.doesNotMatch(entries.get('xl/worksheets/sheet2.xml'), /<f>/);
+});
+
+test('mẫu PDF escape dữ liệu và tách bảng phòng để in nhiều trang', () => {
+  const html = buildPrintHtml(sampleReport(), {
+    periodLabel: 'Quý 3/2026',
+    scopeLabel: '<script>alert(1)</script>',
+    exportedAtLabel: '23:30 06/09/2026'
+  });
+  assert.match(html, /financial-report-print/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>alert/);
+  assert.match(html, /<thead>/);
+  assert.match(html, /Khu &lt;Vũ Hữu&gt; &amp; Nhà/);
+  assert.match(html, /91,6%/);
+});
+
+test('UI nối nút Excel và PDF vào đúng báo cáo đã lọc cùng print CSS', () => {
+  const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(index, /id="financial-report-export-excel"/);
+  assert.match(index, /id="financial-report-export-pdf"/);
+  assert.match(index, /financial-report-export\.js\?v=1[\s\S]*app\.js\?v=126/);
+  assert.match(app, /FinancialReportExport\.buildXlsx\(report/);
+  assert.match(app, /FinancialReportExport\.buildPrintHtml/);
+  assert.match(app, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
+  assert.match(css, /body:has\(\.financial-report-print\)\s*\{\s*page: financialReport/);
+  assert.match(css, /@page financialReport\s*\{[\s\S]*size: A4 landscape/);
+  assert.match(css, /\.financial-report-print thead\s*\{\s*display: table-header-group/);
+});

@@ -7151,6 +7151,86 @@ function financialReportCacheKey(query = currentFinancialReportQuery()) {
   return [query.periodType, query.period, query.propertyId || '', query.roomId || ''].join('|');
 }
 
+function activeFinancialReport() {
+  return FINANCIAL_REPORT_CACHE.get(financialReportCacheKey()) || null;
+}
+
+function financialReportExportContext(report) {
+  const selectedRoom = STATE.rooms.find(room => room.id === report?.filters?.roomId);
+  const selectedProperty = STATE.properties.find(
+    property => Number(property.id) === Number(report?.filters?.propertyId)
+  );
+  let scopeLabel = 'Tất cả khu';
+  if (selectedRoom) {
+    const property = STATE.properties.find(
+      item => Number(item.id) === Number(selectedRoom.propertyId)
+    );
+    scopeLabel = `Phòng ${selectedRoom.name}${property ? ` · ${property.name}` : ''}`;
+  } else if (selectedProperty) {
+    scopeLabel = selectedProperty.name;
+  }
+  return {
+    periodLabel: financialReportRangeLabel(report?.range || {}),
+    scopeLabel,
+    exportedAtLabel: new Date().toLocaleString('vi-VN')
+  };
+}
+
+function financialReportFilename(report, extension) {
+  const context = financialReportExportContext(report);
+  const scope = context.scopeLabel.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return `bao-cao-tai-chinh-${String(report?.period || 'ky-bao-cao').toLowerCase()}-${scope || 'tat-ca'}.${extension}`;
+}
+
+function downloadFinancialReportExcel() {
+  const report = activeFinancialReport();
+  if (!report) {
+    showToast('Báo cáo đang tải, vui lòng thử lại', 'error');
+    return;
+  }
+  if (typeof FinancialReportExport === 'undefined') {
+    showToast('Không nạp được bộ xuất Excel', 'error');
+    return;
+  }
+  const workbook = FinancialReportExport.buildXlsx(report, financialReportExportContext(report));
+  const blob = new Blob([workbook], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = financialReportFilename(report, 'xlsx');
+  link.hidden = true;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Đã tạo file Excel từ số liệu đang lọc ✓', 'success');
+}
+
+function printFinancialReportPdf() {
+  const report = activeFinancialReport();
+  if (!report) {
+    showToast('Báo cáo đang tải, vui lòng thử lại', 'error');
+    return;
+  }
+  if (typeof FinancialReportExport === 'undefined') {
+    showToast('Không nạp được mẫu PDF', 'error');
+    return;
+  }
+  const printArea = document.getElementById('print-area');
+  if (!printArea) return;
+  printArea.innerHTML = FinancialReportExport.buildPrintHtml(
+    report,
+    financialReportExportContext(report)
+  );
+  triggerPrint(financialReportFilename(report, 'pdf'));
+}
+
 function renderFinancialReportFilters() {
   if (!FINANCIAL_REPORT_FILTER.month) FINANCIAL_REPORT_FILTER.month = STATE.currentPeriod;
   if (!FINANCIAL_REPORT_FILTER.year) {
@@ -7326,6 +7406,10 @@ function renderFinancialReport() {
   renderFinancialReportFilters();
   const query = currentFinancialReportQuery();
   const report = FINANCIAL_REPORT_CACHE.get(financialReportCacheKey(query));
+  const exportExcel = document.getElementById('financial-report-export-excel');
+  const exportPdf = document.getElementById('financial-report-export-pdf');
+  if (exportExcel) exportExcel.disabled = !report;
+  if (exportPdf) exportPdf.disabled = !report;
   const valueIds = [
     'financial-report-revenue',
     'financial-report-collected',
@@ -8361,6 +8445,14 @@ document.getElementById('financial-report-refresh')?.addEventListener('click', a
   }
   await loadFinancialReport({ force: true });
 });
+document.getElementById('financial-report-export-excel')?.addEventListener(
+  'click',
+  downloadFinancialReportExcel
+);
+document.getElementById('financial-report-export-pdf')?.addEventListener(
+  'click',
+  printFinancialReportPdf
+);
 document.getElementById('btn-transfer-period').addEventListener('click', openTransferPeriodModal);
 document.getElementById('btn-transfer-expenses').addEventListener('click', openTransferExpensesModal);
 document.getElementById('expenses-prev-month').addEventListener('click', () => shiftPeriod(-1));

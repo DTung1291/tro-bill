@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=119" />
+  <link rel="stylesheet" href="style.css?v=120" />
 </head>
 
 <body>
@@ -363,7 +363,11 @@
             <h2 class="section-title" id="financial-report-title">Báo cáo tài chính</h2>
             <p class="financial-report-subtitle">Số liệu từ hóa đơn, sổ thu tiền và chi phí đã lưu trên máy chủ.</p>
           </div>
-          <button class="btn btn--sm btn--ghost" id="financial-report-refresh" type="button">↻ Làm mới</button>
+          <div class="financial-report-actions">
+            <button class="btn btn--sm btn--ghost" id="financial-report-export-excel" type="button" disabled>📊 Xuất Excel</button>
+            <button class="btn btn--sm btn--ghost" id="financial-report-export-pdf" type="button" disabled>📄 In / Lưu PDF</button>
+            <button class="btn btn--sm btn--ghost" id="financial-report-refresh" type="button">↻ Làm mới</button>
+          </div>
         </div>
         <div class="financial-report-filters" aria-label="Bộ lọc báo cáo tài chính">
           <label>
@@ -2229,7 +2233,8 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=125"></script>
+  <script src="financial-report-export.js?v=1"></script>
+  <script src="app.js?v=126"></script>
 </body>
 
 </html>
