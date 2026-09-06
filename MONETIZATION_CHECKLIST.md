@@ -409,7 +409,19 @@ scan sạch.
   thành công; production revision `d952d9c36f3b` ready với database/schema `ok`,
   runtime role `restricted`, asset pins `style 114 / api 107 / app 117` và route
   mới trả 401 khi chưa đăng nhập.
-- [ ] Ghi nhận chi phí sửa chữa vào báo cáo thực tế.
+- [x] Ghi nhận chi phí sửa chữa vào báo cáo thực tế.
+  Đã phát hành: chủ tài khoản ghi khoản đã thanh toán ngay trong yêu cầu sửa
+  chữa; hệ thống tự gắn đúng khu, kỳ của ngày trả, mã yêu cầu và snapshot phòng
+  vào sổ `expense_entries`. Nhân viên không nhận số tiền; retry dùng UUID
+  idempotency, audit nằm cùng transaction. Khoản liên kết chỉ đọc trong báo cáo,
+  không bị chuyển tháng và được `PUT /api/state` bảo toàn trước tab cũ. Migration
+  staging/production đều đạt 6/6 cờ. Preview E2E ghi 123.456 đ, dashboard tăng
+  300.000 đ → 423.456 đ, reload vẫn giữ nguồn/trạng thái chỉ đọc; desktop/mobile
+  390px không tràn, dữ liệu test đã dọn về 0. Bộ đầy đủ đạt 382/382, CI
+  `34006992069` thành công; production revision `6f0ec26e2d31` ready với
+  database/schema `ok`, runtime role `restricted`, asset pins
+  `style 115 / api 108 / app 119`, endpoint mới trả 401 khi chưa đăng nhập và
+  log runtime sau deploy không có lỗi.
 
 ### Hoàn thành giai đoạn khi
 

@@ -348,7 +348,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-025 — Chi phí sửa chữa dùng sổ chi phí hiện có và liên kết bất biến
 
-- **Trạng thái:** Đang triển khai từ 05/09/2026; migration staging đã xác minh.
+- **Trạng thái:** Đã phát hành production ngày 06/09/2026.
 - **Quyết định:** Khoản sửa chữa đã thanh toán được ghi trực tiếp vào
   `expense_entries` với category `maintenance`, đúng khu và kỳ của ngày trả tiền;
   không tạo thêm sổ tài chính song song. Dòng chi giữ FK ownership tới yêu cầu
