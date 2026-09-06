@@ -2007,6 +2007,31 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-size: .84rem;
   line-height: 1.45;
 }
+.financial-report-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.financial-report-filters label {
+  min-width: 0;
+}
+.financial-report-filters label > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-muted);
+  font-size: .7rem;
+  font-weight: 700;
+}
+.financial-report-filters .form-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px;
+  font-size: .78rem;
+}
 .financial-report-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -4940,6 +4965,13 @@ body.workspace-staff-active .main { padding-top: 112px; }
   }
   .financial-report-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .financial-report-filters {
+    grid-template-columns: 1fr 1fr;
+    padding: 10px;
+  }
+  .financial-report-filters label:last-child {
+    grid-column: 1 / -1;
   }
   .financial-metric--profit {
     grid-column: 1 / -1;

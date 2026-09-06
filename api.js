@@ -278,6 +278,16 @@ const API = (() => {
     );
   }
 
+  function getFinancialReport(filters = {}) {
+    const query = new URLSearchParams({
+      periodType: filters.periodType || 'month',
+      period: filters.period || ''
+    });
+    if (filters.propertyId) query.set('propertyId', String(filters.propertyId));
+    if (filters.roomId) query.set('roomId', String(filters.roomId));
+    return request('GET', `/api/financial-reports/summary?${query.toString()}`);
+  }
+
   function settleRentInvoice(input) {
     return request('POST', '/api/rent-payments/settle', input);
   }
@@ -781,6 +791,7 @@ const API = (() => {
     cancelSubscriptionRefundRequest,
     getRentPaymentSummaries,
     getMonthlyFinancialReport,
+    getFinancialReport,
     settleRentInvoice,
     syncRentInvoices,
     migrateLegacyRentPayments,

@@ -162,6 +162,12 @@ app.get(
   wrap(accountAccess.requireWorkspace('overview')),
   wrap(financialReports.getMonthlyFinancialReport)
 );
+app.get(
+  '/api/financial-reports/summary',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('overview')),
+  wrap(financialReports.getFinancialReport)
+);
 app.post('/api/rent-payments/sync', requireAuth, wrap(rentPayments.syncInvoices));
 app.post('/api/rent-payments/settle', requireAuth, wrap(rentPayments.settleInvoice));
 app.post('/api/rent-payments/migrate-legacy', requireAuth, wrap(rentPayments.migrateLegacyPaid));

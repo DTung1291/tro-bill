@@ -87,6 +87,14 @@ let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
 let FINANCIAL_REPORT_CACHE = new Map();
 let FINANCIAL_REPORT_REQUEST_SEQUENCE = 0;
+let FINANCIAL_REPORT_FILTER = {
+  periodType: 'month',
+  month: '',
+  year: '',
+  quarter: '1',
+  propertyId: '',
+  roomId: ''
+};
 let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 let ACTIVE_RENT_PAYMENT_ENTRY = null;
 let ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -1424,6 +1432,14 @@ function clearSensitiveStateFromMemory() {
   RENT_INVOICE_SUMMARIES = new Map();
   FINANCIAL_REPORT_CACHE = new Map();
   FINANCIAL_REPORT_REQUEST_SEQUENCE += 1;
+  FINANCIAL_REPORT_FILTER = {
+    periodType: 'month',
+    month: '',
+    year: '',
+    quarter: '1',
+    propertyId: '',
+    roomId: ''
+  };
   ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
   ACTIVE_RENT_PAYMENT_ENTRY = null;
   ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -3121,7 +3137,7 @@ function navigate(page) {
       if (activePage === page) {
         renderPage(page);
         if (page === 'report' && hasWorkspaceOperation('overview')) {
-          loadFinancialReport(STATE.currentPeriod, { force: true });
+          loadFinancialReport({ force: true });
         }
       }
     }).catch((error) => {
@@ -3129,7 +3145,7 @@ function navigate(page) {
       showToast('Chưa tạo được mã chuyển khoản. Vui lòng thử lại.', 'error', 3000);
     });
   } else if (page === 'report' && hasWorkspaceOperation('overview')) {
-    loadFinancialReport(STATE.currentPeriod);
+    loadFinancialReport();
   }
 }
 
@@ -7102,13 +7118,88 @@ document.getElementById('rent-payment-modal')?.addEventListener('click', event =
   if (event.target === event.currentTarget) closeRentPaymentLedger();
 });
 
-function renderFinancialReport(period) {
+function financialReportRangeLabel(range = {}) {
+  if (range.type === 'quarter') {
+    const [year, quarter] = String(range.key || '').split('-Q');
+    return `Quý ${quarter}/${year}`;
+  }
+  if (range.type === 'year') return `Năm ${range.key}`;
+  return periodLabel(range.key || STATE.currentPeriod);
+}
+
+function currentFinancialReportQuery() {
+  const current = STATE.currentPeriod || '';
+  const year = FINANCIAL_REPORT_FILTER.year || current.slice(0, 4);
+  const periodType = FINANCIAL_REPORT_FILTER.periodType || 'month';
+  let period = FINANCIAL_REPORT_FILTER.month || current;
+  if (periodType === 'quarter') {
+    period = `${year}-Q${FINANCIAL_REPORT_FILTER.quarter || '1'}`;
+  } else if (periodType === 'year') {
+    period = year;
+  }
+  return {
+    periodType,
+    period,
+    propertyId: FINANCIAL_REPORT_FILTER.propertyId
+      ? Number(FINANCIAL_REPORT_FILTER.propertyId)
+      : null,
+    roomId: FINANCIAL_REPORT_FILTER.roomId || null
+  };
+}
+
+function financialReportCacheKey(query = currentFinancialReportQuery()) {
+  return [query.periodType, query.period, query.propertyId || '', query.roomId || ''].join('|');
+}
+
+function renderFinancialReportFilters() {
+  if (!FINANCIAL_REPORT_FILTER.month) FINANCIAL_REPORT_FILTER.month = STATE.currentPeriod;
+  if (!FINANCIAL_REPORT_FILTER.year) {
+    FINANCIAL_REPORT_FILTER.year = String(STATE.currentPeriod || '').slice(0, 4);
+  }
+  const type = FINANCIAL_REPORT_FILTER.periodType;
+  document.getElementById('financial-report-period-type').value = type;
+  document.getElementById('financial-report-month').value = FINANCIAL_REPORT_FILTER.month;
+  document.getElementById('financial-report-year').value = FINANCIAL_REPORT_FILTER.year;
+  document.getElementById('financial-report-quarter').value = FINANCIAL_REPORT_FILTER.quarter;
+  document.getElementById('financial-report-month-wrap').hidden = type !== 'month';
+  document.getElementById('financial-report-year-wrap').hidden = type === 'month';
+  document.getElementById('financial-report-quarter-wrap').hidden = type !== 'quarter';
+
+  const propertySelect = document.getElementById('financial-report-property');
+  propertySelect.innerHTML = '<option value="">Tất cả khu</option>' + STATE.properties.map(property => (
+    `<option value="${property.id}">${escapeHtml(property.name)}</option>`
+  )).join('');
+  if (STATE.properties.some(property => String(property.id) === FINANCIAL_REPORT_FILTER.propertyId)) {
+    propertySelect.value = FINANCIAL_REPORT_FILTER.propertyId;
+  } else {
+    FINANCIAL_REPORT_FILTER.propertyId = '';
+    propertySelect.value = '';
+  }
+
+  const visibleRooms = FINANCIAL_REPORT_FILTER.propertyId
+    ? STATE.rooms.filter(room => String(room.propertyId) === FINANCIAL_REPORT_FILTER.propertyId)
+    : STATE.rooms;
+  const roomSelect = document.getElementById('financial-report-room');
+  roomSelect.innerHTML = '<option value="">Tất cả phòng</option>' + visibleRooms.map(room => (
+    `<option value="${escapeHtml(room.id)}">${escapeHtml(room.name)}</option>`
+  )).join('');
+  if (visibleRooms.some(room => room.id === FINANCIAL_REPORT_FILTER.roomId)) {
+    roomSelect.value = FINANCIAL_REPORT_FILTER.roomId;
+  } else {
+    FINANCIAL_REPORT_FILTER.roomId = '';
+    roomSelect.value = '';
+  }
+}
+
+function renderFinancialReport() {
   const panel = document.querySelector('.financial-report');
   const status = document.getElementById('financial-report-status');
   if (!panel || !status) return;
   panel.hidden = !hasWorkspaceOperation('overview');
   if (panel.hidden) return;
-  const report = FINANCIAL_REPORT_CACHE.get(period);
+  renderFinancialReportFilters();
+  const query = currentFinancialReportQuery();
+  const report = FINANCIAL_REPORT_CACHE.get(financialReportCacheKey(query));
   const valueIds = [
     'financial-report-revenue',
     'financial-report-collected',
@@ -7124,9 +7215,9 @@ function renderFinancialReport(period) {
       const element = document.getElementById(id);
       if (element) element.textContent = '0 đ';
     });
-    status.textContent = `Đang tổng hợp ${periodLabel(period)}…`;
+    status.textContent = `Đang tổng hợp báo cáo ${query.period}…`;
     document.getElementById('financial-report-debt-note').textContent =
-      'Các hóa đơn còn thiếu đến cuối tháng';
+      'Các hóa đơn còn thiếu đến cuối kỳ';
     return;
   }
 
@@ -7137,41 +7228,51 @@ function renderFinancialReport(period) {
   document.getElementById('financial-report-expenses').textContent = fmt(report.expensesVnd);
   document.getElementById('financial-report-profit').textContent = fmt(report.profitVnd);
   document.getElementById('financial-report-debt-note').textContent =
-    `${report.unpaidInvoiceCount} hóa đơn còn thiếu đến cuối tháng`;
+    `${report.unpaidInvoiceCount} hóa đơn còn thiếu đến cuối kỳ`;
   panel.querySelector('.financial-metric--profit')?.classList.toggle(
     'is-negative',
     Number(report.profitVnd) < 0
   );
   const generatedAt = report.generatedAt ? subscriptionDateTime(report.generatedAt) : '';
-  status.textContent = `${report.invoiceCount} hóa đơn phát hành trong ${periodLabel(period)}`
+  const selectedProperty = STATE.properties.find(
+    property => Number(property.id) === Number(report.filters?.propertyId)
+  );
+  const selectedRoom = STATE.rooms.find(room => room.id === report.filters?.roomId);
+  const scopeLabel = selectedRoom
+    ? ` · phòng ${selectedRoom.name}`
+    : selectedProperty ? ` · ${selectedProperty.name}` : ' · tất cả khu';
+  status.textContent = `${report.invoiceCount} hóa đơn phát hành trong ${financialReportRangeLabel(report.range)}`
+    + scopeLabel
     + (generatedAt ? ` · cập nhật ${generatedAt}` : '');
 }
 
-async function loadFinancialReport(period, options = {}) {
-  if (!period || (!options.force && FINANCIAL_REPORT_CACHE.has(period))) {
-    renderFinancialReport(period);
-    return FINANCIAL_REPORT_CACHE.get(period) || null;
+async function loadFinancialReport(options = {}) {
+  const query = currentFinancialReportQuery();
+  const cacheKey = financialReportCacheKey(query);
+  if (!query.period || (!options.force && FINANCIAL_REPORT_CACHE.has(cacheKey))) {
+    renderFinancialReport();
+    return FINANCIAL_REPORT_CACHE.get(cacheKey) || null;
   }
   const requestSequence = ++FINANCIAL_REPORT_REQUEST_SEQUENCE;
   const refreshButton = document.getElementById('financial-report-refresh');
-  if (activePage === 'report' && STATE.currentPeriod === period) {
-    FINANCIAL_REPORT_CACHE.delete(period);
-    renderFinancialReport(period);
+  if (activePage === 'report') {
+    FINANCIAL_REPORT_CACHE.delete(cacheKey);
+    renderFinancialReport();
     if (refreshButton) refreshButton.disabled = true;
   }
   try {
-    const result = await API.getMonthlyFinancialReport(period);
+    const result = await API.getFinancialReport(query);
     if (requestSequence !== FINANCIAL_REPORT_REQUEST_SEQUENCE) return null;
-    if (result.report?.period !== period) throw new Error('Kỳ báo cáo trả về không khớp');
-    FINANCIAL_REPORT_CACHE.set(period, result.report);
-    if (activePage === 'report' && STATE.currentPeriod === period) {
-      renderFinancialReport(period);
+    if (result.report?.period !== query.period) throw new Error('Kỳ báo cáo trả về không khớp');
+    FINANCIAL_REPORT_CACHE.set(cacheKey, result.report);
+    if (activePage === 'report' && financialReportCacheKey() === cacheKey) {
+      renderFinancialReport();
     }
     return result.report;
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
     if (requestSequence === FINANCIAL_REPORT_REQUEST_SEQUENCE
-        && activePage === 'report' && STATE.currentPeriod === period) {
+        && activePage === 'report' && financialReportCacheKey() === cacheKey) {
       const panel = document.querySelector('.financial-report');
       const status = document.getElementById('financial-report-status');
       panel?.classList.remove('is-loading');
@@ -7194,7 +7295,7 @@ function renderReport() {
   const summaryEl = document.getElementById('report-summary-bar');
   document.getElementById('report-period-label').textContent = periodLabel(period);
   document.getElementById('report-month-input').value = periodInputValue(period);
-  renderFinancialReport(period);
+  renderFinancialReport();
   listEl.innerHTML = '';
   if (summaryEl) summaryEl.innerHTML = '';
 
@@ -8032,9 +8133,12 @@ function shiftPeriod(delta) {
   if (m > 12) { m = 1; y++; }
   if (m < 1)  { m = 12; y--; }
   STATE.currentPeriod = periodKey(y, m);
+  if (activePage === 'report' && FINANCIAL_REPORT_FILTER.periodType === 'month') {
+    FINANCIAL_REPORT_FILTER.month = STATE.currentPeriod;
+  }
   renderPage(activePage);
   if (activePage === 'report' && hasWorkspaceOperation('overview')) {
-    loadFinancialReport(STATE.currentPeriod);
+    loadFinancialReport();
   }
 }
 
@@ -8057,8 +8161,63 @@ document.getElementById('report-next-month').addEventListener('click', () => shi
 document.getElementById('report-month-input').addEventListener('change', (e) => {
   if (!e.target.value) return;
   STATE.currentPeriod = e.target.value;
+  if (FINANCIAL_REPORT_FILTER.periodType === 'month') {
+    FINANCIAL_REPORT_FILTER.month = STATE.currentPeriod;
+  }
   renderPage(activePage);
-  if (hasWorkspaceOperation('overview')) loadFinancialReport(STATE.currentPeriod);
+  if (hasWorkspaceOperation('overview')) loadFinancialReport();
+});
+function reloadFinancialReportFromFilters() {
+  if (!hasWorkspaceOperation('overview')) return;
+  renderFinancialReport();
+  loadFinancialReport({ force: true });
+}
+document.getElementById('financial-report-period-type')?.addEventListener('change', event => {
+  const nextType = event.target.value;
+  if (!['month', 'quarter', 'year'].includes(nextType)) return;
+  FINANCIAL_REPORT_FILTER.periodType = nextType;
+  if (nextType !== 'month') {
+    const sourceMonth = FINANCIAL_REPORT_FILTER.month || STATE.currentPeriod;
+    FINANCIAL_REPORT_FILTER.year = sourceMonth.slice(0, 4);
+    if (nextType === 'quarter') {
+      FINANCIAL_REPORT_FILTER.quarter = String(Math.ceil(Number(sourceMonth.slice(5, 7)) / 3));
+    }
+  }
+  reloadFinancialReportFromFilters();
+});
+document.getElementById('financial-report-month')?.addEventListener('change', event => {
+  if (!event.target.value) return;
+  FINANCIAL_REPORT_FILTER.month = event.target.value;
+  FINANCIAL_REPORT_FILTER.year = event.target.value.slice(0, 4);
+  FINANCIAL_REPORT_FILTER.quarter = String(Math.ceil(Number(event.target.value.slice(5, 7)) / 3));
+  reloadFinancialReportFromFilters();
+});
+document.getElementById('financial-report-year')?.addEventListener('change', event => {
+  const nextYear = String(event.target.value || '').trim();
+  if (!/^[2-9][0-9]{3}$/.test(nextYear)) {
+    showToast('Năm báo cáo phải từ 2000 đến 9999', 'error');
+    renderFinancialReportFilters();
+    return;
+  }
+  FINANCIAL_REPORT_FILTER.year = nextYear;
+  reloadFinancialReportFromFilters();
+});
+document.getElementById('financial-report-quarter')?.addEventListener('change', event => {
+  FINANCIAL_REPORT_FILTER.quarter = event.target.value;
+  reloadFinancialReportFromFilters();
+});
+document.getElementById('financial-report-property')?.addEventListener('change', event => {
+  FINANCIAL_REPORT_FILTER.propertyId = event.target.value;
+  const selectedRoom = STATE.rooms.find(room => room.id === FINANCIAL_REPORT_FILTER.roomId);
+  if (selectedRoom && FINANCIAL_REPORT_FILTER.propertyId
+      && String(selectedRoom.propertyId) !== FINANCIAL_REPORT_FILTER.propertyId) {
+    FINANCIAL_REPORT_FILTER.roomId = '';
+  }
+  reloadFinancialReportFromFilters();
+});
+document.getElementById('financial-report-room')?.addEventListener('change', event => {
+  FINANCIAL_REPORT_FILTER.roomId = event.target.value;
+  reloadFinancialReportFromFilters();
 });
 document.getElementById('financial-report-refresh')?.addEventListener('click', async () => {
   if (!hasWorkspaceOperation('overview')) return;
@@ -8070,7 +8229,7 @@ document.getElementById('financial-report-refresh')?.addEventListener('click', a
       return;
     }
   }
-  await loadFinancialReport(STATE.currentPeriod, { force: true });
+  await loadFinancialReport({ force: true });
 });
 document.getElementById('btn-transfer-period').addEventListener('click', openTransferPeriodModal);
 document.getElementById('btn-transfer-expenses').addEventListener('click', openTransferExpensesModal);
