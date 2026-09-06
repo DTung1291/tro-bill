@@ -33,6 +33,18 @@ function metricRow(overrides = {}) {
     collected_vnd: '4750000',
     outstanding_vnd: '2250000',
     expenses_vnd: '1250000',
+    rent_vnd: '4000000',
+    electricity_vnd: '500000',
+    water_vnd: '250000',
+    services_vnd: '500000',
+    discount_vnd: '100000',
+    surcharge_vnd: '500000',
+    late_fee_vnd: '350000',
+    adjustment_net_vnd: '750000',
+    uncategorized_vnd: '0',
+    deposit_collected_vnd: '1000000',
+    deposit_refunded_vnd: '200000',
+    deposit_deducted_vnd: '300000',
     invoice_count: 2,
     unpaid_invoice_count: 1,
     generated_at: new Date('2026-09-06T03:00:00.000Z'),
@@ -57,6 +69,25 @@ test('chuẩn hóa báo cáo theo khoảng lọc và tính lợi nhuận tiền 
     outstandingVnd: 2250000,
     expensesVnd: 1250000,
     profitVnd: 3500000,
+    breakdown: {
+      invoice: {
+        rentVnd: 4000000,
+        electricityVnd: 500000,
+        waterVnd: 250000,
+        servicesVnd: 500000,
+        discountVnd: 100000,
+        surchargeVnd: 500000,
+        lateFeeVnd: 350000,
+        adjustmentNetVnd: 750000,
+        uncategorizedVnd: 0
+      },
+      deposit: {
+        collectedVnd: 1000000,
+        refundedVnd: 200000,
+        deductedVnd: 300000,
+        netCashflowVnd: 800000
+      }
+    },
     invoiceCount: 2,
     unpaidInvoiceCount: 1,
     generatedAt: '2026-09-06T03:00:00.000Z'
@@ -107,6 +138,7 @@ test('chuẩn hóa bộ lọc khu và phòng, từ chối định danh sai', () 
 test('SQL chốt nợ cuối kỳ, lọc khoảng thời gian/khu/phòng và không phân bổ chi phí chung', () => {
   const sql = reportSql();
   assert.match(sql, /COALESCE\(invoice\.final_total_vnd, invoice\.issued_total_vnd\)/);
+  assert.match(sql, /COALESCE\(invoice\.final_detail_snapshot, invoice\.detail_snapshot/);
   assert.match(sql, /invoice\.period<=\$3/);
   assert.match(sql, /period BETWEEN \$2 AND \$3/);
   assert.match(sql, /GREATEST\(invoice_total_vnd - paid_by_period_end_vnd, 0\)/);
@@ -118,6 +150,13 @@ test('SQL chốt nợ cuối kỳ, lọc khoảng thời gian/khu/phòng và kh�
   assert.match(sql, /expense\.period BETWEEN \$2 AND \$3/);
   assert.match(sql, /expense\.maintenance_room_id_snapshot=\$5/);
   assert.match(sql, /expense\.property_id=\$4/);
+  assert.match(sql, /detail_snapshot #> '\{rent,amountVnd\}'/);
+  assert.match(sql, /trash_vnd \+ wifi_vnd \+ management_vnd/);
+  assert.match(sql, /surcharge_vnd \+ late_fee_vnd - discount_vnd/);
+  assert.match(sql, /tenant_deposit_transactions deposit/);
+  assert.match(sql, /COALESCE\(original_deposit\.entry_type, deposit\.entry_type\)='collection'/);
+  assert.match(sql, /deposit_account\.room_id=\$5/);
+  assert.match(sql, /deposit_room\.property_id=\$4/);
   assert.doesNotMatch(sql, /prior_debt_vnd/);
 });
 
@@ -141,6 +180,7 @@ test('API chủ sở hữu tổng hợp theo quý và lọc khu đã xác thực
   assert.equal(response.record.body.report.period, '2026-Q3');
   assert.equal(response.record.body.report.filters.propertyId, 12);
   assert.equal(response.record.body.report.profitVnd, 3500000);
+  assert.equal(response.record.body.report.breakdown.deposit.netCashflowVnd, 800000);
 });
 
 test('API xác thực phòng thuộc khu và trả lỗi khi bộ lọc không khớp', async () => {
@@ -235,12 +275,20 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(indexSource, /id="financial-report-quarter"/);
   assert.match(indexSource, /id="financial-report-property"/);
   assert.match(indexSource, /id="financial-report-room"/);
+  assert.match(indexSource, /id="financial-breakdown-rent"/);
+  assert.match(indexSource, /id="financial-breakdown-utilities"/);
+  assert.match(indexSource, /id="financial-breakdown-services"/);
+  assert.match(indexSource, /id="financial-breakdown-adjustments"/);
+  assert.match(indexSource, /id="financial-breakdown-deposit"/);
   assert.match(appSource, /reloadFinancialReportFromFilters/);
+  assert.match(appSource, /function renderFinancialBreakdown/);
+  assert.match(appSource, /deposit\.netCashflowVnd/);
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.propertyId/);
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.roomId/);
   assert.match(cssSource, /\.financial-report-filters\s*\{/);
+  assert.match(cssSource, /\.financial-breakdown-grid\s*\{/);
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(indexSource, /style\.css\?v=117/);
+  assert.match(indexSource, /style\.css\?v=118/);
   assert.match(indexSource, /api\.js\?v=110/);
-  assert.match(indexSource, /app\.js\?v=122/);
+  assert.match(indexSource, /app\.js\?v=123/);
 });

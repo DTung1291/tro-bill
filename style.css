@@ -2073,6 +2073,62 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .financial-metric--profit.is-negative .financial-metric-value,
 .financial-report-status.is-error { color: var(--red); }
+.financial-breakdown {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.financial-breakdown-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.financial-breakdown-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: .88rem;
+}
+.financial-breakdown-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .7rem;
+}
+.financial-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.financial-breakdown-card {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.financial-breakdown-card > span,
+.financial-breakdown-card > strong,
+.financial-breakdown-card > small {
+  display: block;
+}
+.financial-breakdown-card > span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.financial-breakdown-card > strong {
+  margin: 6px 0 4px;
+  color: var(--text);
+  font-size: .98rem;
+  overflow-wrap: anywhere;
+}
+.financial-breakdown-card > small {
+  color: var(--text-muted);
+  font-size: .63rem;
+  line-height: 1.35;
+}
+.financial-breakdown-card.is-negative > strong { color: var(--red); }
 .financial-report-status {
   margin-top: 12px;
   color: var(--text-muted);
@@ -4971,6 +5027,19 @@ body.workspace-staff-active .main { padding-top: 112px; }
     padding: 10px;
   }
   .financial-report-filters label:last-child {
+    grid-column: 1 / -1;
+  }
+  .financial-breakdown-header {
+    display: block;
+  }
+  .financial-breakdown-header p {
+    margin-top: 4px;
+  }
+  .financial-breakdown-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .financial-breakdown-card--deposit,
+  .financial-breakdown-card--uncategorized {
     grid-column: 1 / -1;
   }
   .financial-metric--profit {

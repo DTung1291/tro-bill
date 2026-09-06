@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=117" />
+  <link rel="stylesheet" href="style.css?v=118" />
 </head>
 
 <body>
@@ -431,10 +431,48 @@
             <small>Thực thu trừ chi phí thực tế</small>
           </article>
         </div>
+        <section class="financial-breakdown" aria-labelledby="financial-breakdown-title">
+          <div class="financial-breakdown-header">
+            <h3 id="financial-breakdown-title">Cơ cấu doanh thu và tiền cọc</h3>
+            <p>Tiền cọc là dòng tiền riêng, không cộng vào doanh thu hóa đơn.</p>
+          </div>
+          <div class="financial-breakdown-grid">
+            <article class="financial-breakdown-card">
+              <span>Tiền thuê</span>
+              <strong id="financial-breakdown-rent">0 đ</strong>
+              <small>Tiền phòng trong hóa đơn phát hành</small>
+            </article>
+            <article class="financial-breakdown-card">
+              <span>Điện nước</span>
+              <strong id="financial-breakdown-utilities">0 đ</strong>
+              <small id="financial-breakdown-utilities-note">Điện 0 đ · Nước 0 đ</small>
+            </article>
+            <article class="financial-breakdown-card">
+              <span>Dịch vụ</span>
+              <strong id="financial-breakdown-services">0 đ</strong>
+              <small>Rác, Wifi và phí quản lý</small>
+            </article>
+            <article class="financial-breakdown-card financial-breakdown-card--adjustment">
+              <span>Điều chỉnh ròng</span>
+              <strong id="financial-breakdown-adjustments">0 đ</strong>
+              <small id="financial-breakdown-adjustments-note">Giảm 0 đ · Tăng 0 đ</small>
+            </article>
+            <article class="financial-breakdown-card financial-breakdown-card--deposit">
+              <span>Dòng tiền cọc thuần</span>
+              <strong id="financial-breakdown-deposit">0 đ</strong>
+              <small id="financial-breakdown-deposit-note">Thu 0 đ · Hoàn 0 đ · Khấu trừ 0 đ</small>
+            </article>
+            <article class="financial-breakdown-card financial-breakdown-card--uncategorized" id="financial-breakdown-uncategorized-card" hidden>
+              <span>Chưa phân loại</span>
+              <strong id="financial-breakdown-uncategorized">0 đ</strong>
+              <small>Hóa đơn cũ chưa có snapshot chi tiết</small>
+            </article>
+          </div>
+        </section>
         <p class="financial-report-status" id="financial-report-status">Đang tổng hợp số liệu…</p>
         <details class="financial-report-definition">
           <summary>Cách tính các chỉ số</summary>
-          <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong kỳ, không tính tiền cọc chuyển sang bù công nợ. Công nợ được chốt tại cuối kỳ và mỗi hóa đơn chỉ được tính một lần. Khi lọc một khu, chi phí chỉ gồm khoản gắn trực tiếp với khu đó. Khi lọc một phòng, chi phí chỉ gồm khoản sửa chữa đã liên kết trực tiếp với phòng; hệ thống không tự phân bổ chi phí chung.</p>
+          <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong kỳ, không tính tiền cọc chuyển sang bù công nợ. Cọc thuần bằng tiền thu cọc trừ tiền hoàn cọc; khấu trừ cọc được trình bày riêng vì là chuyển số dư, không phải dòng tiền mới. Công nợ được chốt tại cuối kỳ và mỗi hóa đơn chỉ được tính một lần. Khi lọc một khu, chi phí chỉ gồm khoản gắn trực tiếp với khu đó. Khi lọc một phòng, chi phí chỉ gồm khoản sửa chữa đã liên kết trực tiếp với phòng; hệ thống không tự phân bổ chi phí chung.</p>
         </details>
       </section>
       <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
@@ -2155,7 +2193,7 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="app.js?v=122"></script>
+  <script src="app.js?v=123"></script>
 </body>
 
 </html>

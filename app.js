@@ -7191,6 +7191,43 @@ function renderFinancialReportFilters() {
   }
 }
 
+function renderFinancialBreakdown(report = null) {
+  const invoice = report?.breakdown?.invoice || {};
+  const deposit = report?.breakdown?.deposit || {};
+  const electricityVnd = Number(invoice.electricityVnd) || 0;
+  const waterVnd = Number(invoice.waterVnd) || 0;
+  const surchargeVnd = Number(invoice.surchargeVnd) || 0;
+  const lateFeeVnd = Number(invoice.lateFeeVnd) || 0;
+  const adjustmentNetVnd = Number(invoice.adjustmentNetVnd) || 0;
+  const depositCollectedVnd = Number(deposit.collectedVnd) || 0;
+  const depositRefundedVnd = Number(deposit.refundedVnd) || 0;
+  const depositDeductedVnd = Number(deposit.deductedVnd) || 0;
+  const depositNetCashflowVnd = Number(deposit.netCashflowVnd) || 0;
+  const uncategorizedVnd = Number(invoice.uncategorizedVnd) || 0;
+
+  document.getElementById('financial-breakdown-rent').textContent = fmt(Number(invoice.rentVnd) || 0);
+  document.getElementById('financial-breakdown-utilities').textContent = fmt(electricityVnd + waterVnd);
+  document.getElementById('financial-breakdown-utilities-note').textContent =
+    `Điện ${fmt(electricityVnd)} · Nước ${fmt(waterVnd)}`;
+  document.getElementById('financial-breakdown-services').textContent =
+    fmt(Number(invoice.servicesVnd) || 0);
+  document.getElementById('financial-breakdown-adjustments').textContent = fmt(adjustmentNetVnd);
+  document.getElementById('financial-breakdown-adjustments-note').textContent =
+    `Giảm ${fmt(Number(invoice.discountVnd) || 0)} · Phụ thu ${fmt(surchargeVnd)}`
+    + ` · Phí chậm ${fmt(lateFeeVnd)}`;
+  document.getElementById('financial-breakdown-deposit').textContent = fmt(depositNetCashflowVnd);
+  document.getElementById('financial-breakdown-deposit-note').textContent =
+    `Thu ${fmt(depositCollectedVnd)} · Hoàn ${fmt(depositRefundedVnd)}`
+    + ` · Khấu trừ ${fmt(depositDeductedVnd)}`;
+  const adjustmentCard = document.querySelector('.financial-breakdown-card--adjustment');
+  adjustmentCard?.classList.toggle('is-negative', adjustmentNetVnd < 0);
+  const depositCard = document.querySelector('.financial-breakdown-card--deposit');
+  depositCard?.classList.toggle('is-negative', depositNetCashflowVnd < 0);
+  const uncategorizedCard = document.getElementById('financial-breakdown-uncategorized-card');
+  if (uncategorizedCard) uncategorizedCard.hidden = uncategorizedVnd === 0;
+  document.getElementById('financial-breakdown-uncategorized').textContent = fmt(uncategorizedVnd);
+}
+
 function renderFinancialReport() {
   const panel = document.querySelector('.financial-report');
   const status = document.getElementById('financial-report-status');
@@ -7218,6 +7255,7 @@ function renderFinancialReport() {
     status.textContent = `Đang tổng hợp báo cáo ${query.period}…`;
     document.getElementById('financial-report-debt-note').textContent =
       'Các hóa đơn còn thiếu đến cuối kỳ';
+    renderFinancialBreakdown();
     return;
   }
 
@@ -7233,6 +7271,7 @@ function renderFinancialReport() {
     'is-negative',
     Number(report.profitVnd) < 0
   );
+  renderFinancialBreakdown(report);
   const generatedAt = report.generatedAt ? subscriptionDateTime(report.generatedAt) : '';
   const selectedProperty = STATE.properties.find(
     property => Number(property.id) === Number(report.filters?.propertyId)

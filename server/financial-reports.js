@@ -91,6 +91,8 @@ function financialReportJson(row, rangeOrPeriod, filters = {}) {
   const collectedVnd = amount(row.collected_vnd);
   const outstandingVnd = Math.max(0, amount(row.outstanding_vnd));
   const expensesVnd = amount(row.expenses_vnd);
+  const depositCollectedVnd = amount(row.deposit_collected_vnd);
+  const depositRefundedVnd = amount(row.deposit_refunded_vnd);
   return {
     period: range.key,
     range,
@@ -105,6 +107,25 @@ function financialReportJson(row, rangeOrPeriod, filters = {}) {
     outstandingVnd,
     expensesVnd,
     profitVnd: collectedVnd - expensesVnd,
+    breakdown: {
+      invoice: {
+        rentVnd: amount(row.rent_vnd),
+        electricityVnd: amount(row.electricity_vnd),
+        waterVnd: amount(row.water_vnd),
+        servicesVnd: amount(row.services_vnd),
+        discountVnd: amount(row.discount_vnd),
+        surchargeVnd: amount(row.surcharge_vnd),
+        lateFeeVnd: amount(row.late_fee_vnd),
+        adjustmentNetVnd: amount(row.adjustment_net_vnd),
+        uncategorizedVnd: amount(row.uncategorized_vnd)
+      },
+      deposit: {
+        collectedVnd: depositCollectedVnd,
+        refundedVnd: depositRefundedVnd,
+        deductedVnd: amount(row.deposit_deducted_vnd),
+        netCashflowVnd: depositCollectedVnd - depositRefundedVnd
+      }
+    },
     invoiceCount: Math.max(0, Number(row.invoice_count) || 0),
     unpaidInvoiceCount: Math.max(0, Number(row.unpaid_invoice_count) || 0),
     generatedAt: row.generated_at instanceof Date
@@ -123,6 +144,8 @@ function reportSql() {
       SELECT invoice.id,
              invoice.period,
              COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd) AS invoice_total_vnd,
+             COALESCE(invoice.final_detail_snapshot, invoice.detail_snapshot, '{}'::jsonb)
+               AS detail_snapshot,
              COALESCE(SUM(transaction.amount_vnd) FILTER (
                WHERE transaction.occurred_at AT TIME ZONE '${REPORT_TIME_ZONE}' < bounds.end_date
              ), 0) AS paid_by_period_end_vnd
@@ -147,6 +170,28 @@ function reportSql() {
         ))
       GROUP BY invoice.id, bounds.end_date
     ),
+    invoice_components AS (
+      SELECT invoice_balances.*,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{rent,amountVnd}')='number'
+               THEN (detail_snapshot #>> '{rent,amountVnd}')::numeric ELSE 0 END AS rent_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{electricity,amountVnd}')='number'
+               THEN (detail_snapshot #>> '{electricity,amountVnd}')::numeric ELSE 0 END AS electricity_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{water,amountVnd}')='number'
+               THEN (detail_snapshot #>> '{water,amountVnd}')::numeric ELSE 0 END AS water_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{services,trashVnd}')='number'
+               THEN (detail_snapshot #>> '{services,trashVnd}')::numeric ELSE 0 END AS trash_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{services,wifiVnd}')='number'
+               THEN (detail_snapshot #>> '{services,wifiVnd}')::numeric ELSE 0 END AS wifi_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{services,managementVnd}')='number'
+               THEN (detail_snapshot #>> '{services,managementVnd}')::numeric ELSE 0 END AS management_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{adjustments,discountVnd}')='number'
+               THEN (detail_snapshot #>> '{adjustments,discountVnd}')::numeric ELSE 0 END AS discount_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{adjustments,surchargeVnd}')='number'
+               THEN (detail_snapshot #>> '{adjustments,surchargeVnd}')::numeric ELSE 0 END AS surcharge_vnd,
+             CASE WHEN jsonb_typeof(detail_snapshot #> '{adjustments,lateFeeVnd}')='number'
+               THEN (detail_snapshot #>> '{adjustments,lateFeeVnd}')::numeric ELSE 0 END AS late_fee_vnd
+      FROM invoice_balances
+    ),
     invoice_metrics AS (
       SELECT COALESCE(SUM(invoice_total_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0)
                AS revenue_vnd,
@@ -155,8 +200,27 @@ function reportSql() {
                AS outstanding_vnd,
              COUNT(*) FILTER (
                WHERE invoice_total_vnd - paid_by_period_end_vnd > 0
-             )::int AS unpaid_invoice_count
-      FROM invoice_balances
+             )::int AS unpaid_invoice_count,
+             COALESCE(SUM(rent_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0) AS rent_vnd,
+             COALESCE(SUM(electricity_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0)
+               AS electricity_vnd,
+             COALESCE(SUM(water_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0) AS water_vnd,
+             COALESCE(SUM(trash_vnd + wifi_vnd + management_vnd)
+               FILTER (WHERE period BETWEEN $2 AND $3), 0) AS services_vnd,
+             COALESCE(SUM(discount_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0)
+               AS discount_vnd,
+             COALESCE(SUM(surcharge_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0)
+               AS surcharge_vnd,
+             COALESCE(SUM(late_fee_vnd) FILTER (WHERE period BETWEEN $2 AND $3), 0)
+               AS late_fee_vnd,
+             COALESCE(SUM(surcharge_vnd + late_fee_vnd - discount_vnd)
+               FILTER (WHERE period BETWEEN $2 AND $3), 0) AS adjustment_net_vnd,
+             COALESCE(SUM(
+               invoice_total_vnd - rent_vnd - electricity_vnd - water_vnd
+               - trash_vnd - wifi_vnd - management_vnd
+               + discount_vnd - surcharge_vnd - late_fee_vnd
+             ) FILTER (WHERE period BETWEEN $2 AND $3), 0) AS uncategorized_vnd
+      FROM invoice_components
     ),
     collection_metrics AS (
       SELECT COALESCE(SUM(transaction.amount_vnd), 0) AS collected_vnd
@@ -184,6 +248,40 @@ function reportSql() {
             AND scoped_room.property_id=ANY($6::bigint[])
         ))
     ),
+    deposit_metrics AS (
+      SELECT COALESCE(SUM(deposit.amount_vnd) FILTER (
+               WHERE COALESCE(original_deposit.entry_type, deposit.entry_type)='collection'
+             ), 0) AS deposit_collected_vnd,
+             COALESCE(-SUM(deposit.amount_vnd) FILTER (
+               WHERE COALESCE(original_deposit.entry_type, deposit.entry_type)='refund'
+             ), 0) AS deposit_refunded_vnd,
+             COALESCE(-SUM(deposit.amount_vnd) FILTER (
+               WHERE COALESCE(original_deposit.entry_type, deposit.entry_type)='deduction'
+             ), 0) AS deposit_deducted_vnd
+      FROM tenant_deposit_transactions deposit
+      JOIN tenant_deposit_accounts deposit_account
+        ON deposit_account.user_id=deposit.user_id AND deposit_account.id=deposit.account_id
+      LEFT JOIN tenant_deposit_transactions original_deposit
+        ON original_deposit.user_id=deposit.user_id
+       AND original_deposit.id=deposit.reverses_transaction_id
+      CROSS JOIN bounds
+      WHERE deposit.user_id=$1
+        AND deposit.occurred_at AT TIME ZONE '${REPORT_TIME_ZONE}' >= bounds.start_date
+        AND deposit.occurred_at AT TIME ZONE '${REPORT_TIME_ZONE}' < bounds.end_date
+        AND ($5::text IS NULL OR deposit_account.room_id=$5)
+        AND ($4::bigint IS NULL OR EXISTS (
+          SELECT 1 FROM rooms deposit_room
+          WHERE deposit_room.user_id=deposit_account.user_id
+            AND deposit_room.id=deposit_account.room_id
+            AND deposit_room.property_id=$4
+        ))
+        AND ($6::bigint[] IS NULL OR EXISTS (
+          SELECT 1 FROM rooms scoped_deposit_room
+          WHERE scoped_deposit_room.user_id=deposit_account.user_id
+            AND scoped_deposit_room.id=deposit_account.room_id
+            AND scoped_deposit_room.property_id=ANY($6::bigint[])
+        ))
+    ),
     expense_metrics AS (
       SELECT COALESCE(SUM(expense.amount), 0) AS expenses_vnd
       FROM expense_entries expense
@@ -207,8 +305,8 @@ function reportSql() {
         ))
     )
     SELECT invoice_metrics.*, collection_metrics.collected_vnd,
-           expense_metrics.expenses_vnd, now() AS generated_at
-    FROM invoice_metrics, collection_metrics, expense_metrics`;
+           deposit_metrics.*, expense_metrics.expenses_vnd, now() AS generated_at
+    FROM invoice_metrics, collection_metrics, deposit_metrics, expense_metrics`;
 }
 
 function sendFinancialReportError(res, error) {
