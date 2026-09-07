@@ -133,6 +133,55 @@
     ];
   }
 
+  function annualEvidenceRows(report = {}, context = {}) {
+    const evidence = report.annualRevenueEvidence || {};
+    const months = Array.isArray(evidence.months) ? evidence.months : [];
+    const locations = Array.isArray(evidence.locations) ? evidence.locations : [];
+    const revenueColumns = row => [
+      numberCell(row.invoiceCount),
+      numberCell(row.rentVnd, 2),
+      numberCell(row.electricityVnd, 2),
+      numberCell(row.waterVnd, 2),
+      numberCell(row.servicesVnd, 2),
+      numberCell(row.adjustmentNetVnd, 2),
+      numberCell(row.uncategorizedVnd, 2),
+      numberCell(row.revenueVnd, 2)
+    ];
+    return [
+      [stringCell('ĐỐI CHIẾU DOANH THU NĂM', 1)],
+      [stringCell('Năm', 1), stringCell(evidence.year || report.period)],
+      [stringCell('Phạm vi', 1), stringCell(context.scopeLabel || 'Tất cả khu')],
+      [stringCell('Cơ sở số liệu', 1), stringCell('Tổng hóa đơn đã phát hành trên Tro Bill')],
+      [stringCell('Lưu ý', 1), stringCell('Tài liệu đối chiếu, không thay thế tờ khai và không tự xác định doanh thu chịu thuế.')],
+      [],
+      ['THEO THÁNG'].map(value => stringCell(value, 1)),
+      [
+        'Tháng', 'Số hóa đơn', 'Tiền thuê', 'Tiền điện', 'Tiền nước', 'Dịch vụ',
+        'Điều chỉnh ròng', 'Chưa phân loại', 'Tổng doanh thu hóa đơn'
+      ].map(value => stringCell(value, 1)),
+      ...months.map(month => [stringCell(month.period), ...revenueColumns(month)]),
+      [
+        stringCell('Tổng năm', 1),
+        numberCell(months.reduce((total, month) => total + number(month.invoiceCount), 0), 1),
+        ...[
+          'rentVnd', 'electricityVnd', 'waterVnd', 'servicesVnd', 'adjustmentNetVnd',
+          'uncategorizedVnd', 'revenueVnd'
+        ].map(key => numberCell(months.reduce((total, month) => total + number(month[key]), 0), 2))
+      ],
+      [],
+      ['THEO KHU / ĐỊA ĐIỂM'].map(value => stringCell(value, 1)),
+      [
+        'Khu', 'Địa chỉ', 'Số hóa đơn', 'Tiền thuê', 'Tiền điện', 'Tiền nước',
+        'Dịch vụ', 'Điều chỉnh ròng', 'Chưa phân loại', 'Tổng doanh thu hóa đơn'
+      ].map(value => stringCell(value, 1)),
+      ...locations.map(location => [
+        stringCell(location.propertyName || 'Chưa xác định khu'),
+        stringCell(location.propertyAddress),
+        ...revenueColumns(location)
+      ])
+    ];
+  }
+
   function worksheetXml(rows, options = {}) {
     const maxColumns = rows.reduce((max, row) => Math.max(max, row.length), 1);
     const lastCell = `${columnName(maxColumns - 1)}${Math.max(rows.length, 1)}`;
@@ -241,6 +290,27 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
       freezeHeader: true,
       widths: [15, 24, 13, 13, 13, 13, 13, 22, 18, 22]
     });
+    const sheets = [
+      { name: 'Tổng hợp', data: summarySheet },
+      { name: 'Chi tiết phòng', data: detailSheet }
+    ];
+    if (report.annualRevenueEvidence) {
+      sheets.push({
+        name: 'Đối chiếu doanh thu năm',
+        data: worksheetXml(annualEvidenceRows(report, context), {
+          widths: [22, 34, 13, 18, 18, 18, 18, 19, 18, 24]
+        })
+      });
+    }
+    const worksheetOverrides = sheets.map((sheet, index) => (
+      `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+    )).join('');
+    const workbookSheets = sheets.map((sheet, index) => (
+      `<sheet name="${xmlEscape(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`
+    )).join('');
+    const worksheetRelationships = sheets.map((sheet, index) => (
+      `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`
+    )).join('');
     return zipStore([
       {
         name: '[Content_Types].xml',
@@ -249,8 +319,7 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+${worksheetOverrides}
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`
       },
@@ -265,16 +334,15 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
         name: 'xl/workbook.xml',
         data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets><sheet name="Tổng hợp" sheetId="1" r:id="rId1"/><sheet name="Chi tiết phòng" sheetId="2" r:id="rId2"/></sheets>
+<sheets>${workbookSheets}</sheets>
 </workbook>`
       },
       {
         name: 'xl/_rels/workbook.xml.rels',
         data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+${worksheetRelationships}
+<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`
       },
       {
@@ -290,8 +358,10 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`
       },
-      { name: 'xl/worksheets/sheet1.xml', data: summarySheet },
-      { name: 'xl/worksheets/sheet2.xml', data: detailSheet }
+      ...sheets.map((sheet, index) => ({
+        name: `xl/worksheets/sheet${index + 1}.xml`,
+        data: sheet.data
+      }))
     ]);
   }
 
@@ -308,6 +378,9 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
     const deposit = report.breakdown?.deposit || {};
     const occupancy = report.occupancy || {};
     const rooms = Array.isArray(occupancy.rooms) ? occupancy.rooms : [];
+    const annualEvidence = report.annualRevenueEvidence || null;
+    const annualMonths = Array.isArray(annualEvidence?.months) ? annualEvidence.months : [];
+    const annualLocations = Array.isArray(annualEvidence?.locations) ? annualEvidence.locations : [];
     const metricRows = [
       ['Doanh thu hóa đơn', report.revenueVnd], ['Thực thu', report.collectedVnd],
       ['Công nợ cuối kỳ', report.outstandingVnd], ['Chi phí thực tế', report.expensesVnd],
@@ -334,6 +407,14 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
         ['Thu cọc', deposit.collectedVnd], ['Hoàn cọc', deposit.refundedVnd],
         ['Khấu trừ cọc', deposit.deductedVnd], ['Dòng tiền cọc thuần', deposit.netCashflowVnd]
       ])}</tbody></table></section>
+      ${annualEvidence ? `<section class="annual-revenue-evidence"><h2>Đối chiếu doanh thu năm ${htmlEscape(annualEvidence.year)}</h2>
+        <p>Tổng hóa đơn đã phát hành trên Tro Bill. Đây là tài liệu đối chiếu, không thay thế tờ khai và không tự xác định doanh thu chịu thuế.</p>
+        <table><thead><tr><th>Tháng</th><th>Số HĐ</th><th>Tiền thuê</th><th>Điện</th><th>Nước</th><th>Dịch vụ</th><th>Điều chỉnh</th><th>Chưa phân loại</th><th>Tổng</th></tr></thead>
+        <tbody>${annualMonths.map(month => `<tr><td>${htmlEscape(month.period)}</td><td class="number">${number(month.invoiceCount)}</td><td class="number">${htmlEscape(vnd(month.rentVnd))}</td><td class="number">${htmlEscape(vnd(month.electricityVnd))}</td><td class="number">${htmlEscape(vnd(month.waterVnd))}</td><td class="number">${htmlEscape(vnd(month.servicesVnd))}</td><td class="number">${htmlEscape(vnd(month.adjustmentNetVnd))}</td><td class="number">${htmlEscape(vnd(month.uncategorizedVnd))}</td><td class="number">${htmlEscape(vnd(month.revenueVnd))}</td></tr>`).join('')}</tbody></table>
+        <h3>Theo khu / địa điểm</h3>
+        <table><thead><tr><th>Khu</th><th>Địa chỉ</th><th>Số HĐ</th><th>Doanh thu hóa đơn</th></tr></thead>
+        <tbody>${annualLocations.map(location => `<tr><td>${htmlEscape(location.propertyName || 'Chưa xác định khu')}</td><td>${htmlEscape(location.propertyAddress)}</td><td class="number">${number(location.invoiceCount)}</td><td class="number">${htmlEscape(vnd(location.revenueVnd))}</td></tr>`).join('')}</tbody></table>
+      </section>` : ''}
       <section><h2>Lấp đầy</h2>
         <p><strong>${htmlEscape(percent(occupancy.occupancyRatePercent))}</strong> · ${number(occupancy.occupiedRoomDays)}/${number(occupancy.rentableRoomDays)} ngày-phòng có thể cho thuê · ${number(occupancy.vacantRoomDays)} ngày-phòng trống</p>
         <table class="room-detail"><thead><tr><th>Phòng</th><th>Khu</th><th>Lấp đầy</th><th>Có khách</th><th>Trống</th><th>Giữ chỗ</th><th>Đang sửa</th><th>Trống dài nhất</th><th>Cuối kỳ</th></tr></thead>
@@ -343,5 +424,14 @@ ${columns ? `<cols>${columns}</cols>` : ''}<sheetData>${data}</sheetData>${filte
     </article>`;
   }
 
-  return { buildPrintHtml, buildXlsx, htmlEscape, reportRows, roomRows, xmlEscape, zipStore };
+  return {
+    annualEvidenceRows,
+    buildPrintHtml,
+    buildXlsx,
+    htmlEscape,
+    reportRows,
+    roomRows,
+    xmlEscape,
+    zipStore
+  };
 });

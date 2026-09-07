@@ -205,6 +205,47 @@ function financialReportJson(row, rangeOrPeriod, filters = {}) {
   };
 }
 
+function annualRevenueRowJson(row = {}) {
+  return {
+    revenueVnd: amount(row.revenue_vnd),
+    rentVnd: amount(row.rent_vnd),
+    electricityVnd: amount(row.electricity_vnd),
+    waterVnd: amount(row.water_vnd),
+    servicesVnd: amount(row.services_vnd),
+    adjustmentNetVnd: amount(row.adjustment_net_vnd),
+    uncategorizedVnd: amount(row.uncategorized_vnd),
+    invoiceCount: Math.max(0, Number(row.invoice_count) || 0)
+  };
+}
+
+function annualRevenueEvidenceJson(rows = [], range, reportRevenueVnd = 0) {
+  if (range?.type !== 'year') return null;
+  const months = rows.filter(row => row.row_kind === 'month').map(row => ({
+    period: String(row.period || ''),
+    ...annualRevenueRowJson(row)
+  }));
+  const locations = rows.filter(row => row.row_kind === 'location').map(row => ({
+    propertyId: row.property_id === null || row.property_id === undefined
+      ? null
+      : Number(row.property_id),
+    propertyName: String(row.property_name || 'Chưa xác định khu'),
+    propertyAddress: String(row.property_address || ''),
+    ...annualRevenueRowJson(row)
+  }));
+  const monthlyRevenueVnd = months.reduce((total, month) => total + month.revenueVnd, 0);
+  return {
+    year: Number(range.key),
+    basis: 'issued_invoice_total',
+    currency: 'VND',
+    months,
+    locations,
+    activeMonthCount: months.filter(month => month.invoiceCount > 0).length,
+    monthlyRevenueVnd,
+    reconciliationDifferenceVnd: monthlyRevenueVnd - amount(reportRevenueVnd),
+    legalClassificationRequired: true
+  };
+}
+
 function reportSql() {
   return `
     WITH bounds AS (
@@ -378,6 +419,109 @@ function reportSql() {
     SELECT invoice_metrics.*, collection_metrics.collected_vnd,
            deposit_metrics.*, expense_metrics.expenses_vnd, now() AS generated_at
     FROM invoice_metrics, collection_metrics, deposit_metrics, expense_metrics`;
+}
+
+function annualRevenueEvidenceSql() {
+  return `
+    WITH months AS (
+      SELECT to_char(month_start, 'YYYY-MM') AS period
+      FROM generate_series(
+        to_date($2 || '-01', 'YYYY-MM-DD'),
+        to_date($3 || '-01', 'YYYY-MM-DD'),
+        INTERVAL '1 month'
+      ) AS month_start
+    ),
+    invoice_components AS (
+      SELECT invoice.period,
+             room.property_id,
+             COALESCE(property.name, 'Chưa xác định khu') AS property_name,
+             COALESCE(property.address, '') AS property_address,
+             COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd) AS invoice_total_vnd,
+             CASE WHEN jsonb_typeof(detail #> '{rent,amountVnd}')='number'
+               THEN (detail #>> '{rent,amountVnd}')::numeric ELSE 0 END AS rent_vnd,
+             CASE WHEN jsonb_typeof(detail #> '{electricity,amountVnd}')='number'
+               THEN (detail #>> '{electricity,amountVnd}')::numeric ELSE 0 END AS electricity_vnd,
+             CASE WHEN jsonb_typeof(detail #> '{water,amountVnd}')='number'
+               THEN (detail #>> '{water,amountVnd}')::numeric ELSE 0 END AS water_vnd,
+             CASE WHEN jsonb_typeof(detail #> '{services,trashVnd}')='number'
+               THEN (detail #>> '{services,trashVnd}')::numeric ELSE 0 END
+             + CASE WHEN jsonb_typeof(detail #> '{services,wifiVnd}')='number'
+               THEN (detail #>> '{services,wifiVnd}')::numeric ELSE 0 END
+             + CASE WHEN jsonb_typeof(detail #> '{services,managementVnd}')='number'
+               THEN (detail #>> '{services,managementVnd}')::numeric ELSE 0 END AS services_vnd,
+             CASE WHEN jsonb_typeof(detail #> '{adjustments,discountVnd}')='number'
+               THEN -(detail #>> '{adjustments,discountVnd}')::numeric ELSE 0 END
+             + CASE WHEN jsonb_typeof(detail #> '{adjustments,surchargeVnd}')='number'
+               THEN (detail #>> '{adjustments,surchargeVnd}')::numeric ELSE 0 END
+             + CASE WHEN jsonb_typeof(detail #> '{adjustments,lateFeeVnd}')='number'
+               THEN (detail #>> '{adjustments,lateFeeVnd}')::numeric ELSE 0 END
+               AS adjustment_net_vnd
+      FROM rent_invoices invoice
+      LEFT JOIN rooms room
+        ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+      LEFT JOIN properties property
+        ON property.user_id=room.user_id AND property.id=room.property_id
+      CROSS JOIN LATERAL (
+        SELECT COALESCE(invoice.final_detail_snapshot, invoice.detail_snapshot, '{}'::jsonb)
+          AS detail
+      ) snapshot
+      WHERE invoice.user_id=$1
+        AND invoice.period BETWEEN $2 AND $3
+        AND ($5::text IS NULL OR invoice.room_id=$5)
+        AND ($4::bigint IS NULL OR room.property_id=$4)
+        AND ($6::bigint[] IS NULL OR room.property_id=ANY($6::bigint[]))
+    ),
+    normalized AS (
+      SELECT invoice_components.*,
+             invoice_total_vnd - rent_vnd - electricity_vnd - water_vnd
+               - services_vnd - adjustment_net_vnd AS uncategorized_vnd
+      FROM invoice_components
+    ),
+    monthly AS (
+      SELECT period,
+             COALESCE(SUM(invoice_total_vnd), 0) AS revenue_vnd,
+             COALESCE(SUM(rent_vnd), 0) AS rent_vnd,
+             COALESCE(SUM(electricity_vnd), 0) AS electricity_vnd,
+             COALESCE(SUM(water_vnd), 0) AS water_vnd,
+             COALESCE(SUM(services_vnd), 0) AS services_vnd,
+             COALESCE(SUM(adjustment_net_vnd), 0) AS adjustment_net_vnd,
+             COALESCE(SUM(uncategorized_vnd), 0) AS uncategorized_vnd,
+             COUNT(*)::int AS invoice_count
+      FROM normalized
+      GROUP BY period
+    ),
+    locations AS (
+      SELECT property_id, property_name, property_address,
+             COALESCE(SUM(invoice_total_vnd), 0) AS revenue_vnd,
+             COALESCE(SUM(rent_vnd), 0) AS rent_vnd,
+             COALESCE(SUM(electricity_vnd), 0) AS electricity_vnd,
+             COALESCE(SUM(water_vnd), 0) AS water_vnd,
+             COALESCE(SUM(services_vnd), 0) AS services_vnd,
+             COALESCE(SUM(adjustment_net_vnd), 0) AS adjustment_net_vnd,
+             COALESCE(SUM(uncategorized_vnd), 0) AS uncategorized_vnd,
+             COUNT(*)::int AS invoice_count
+      FROM normalized
+      GROUP BY property_id, property_name, property_address
+    )
+    SELECT 'month'::text AS row_kind, months.period,
+           NULL::bigint AS property_id, NULL::text AS property_name,
+           NULL::text AS property_address,
+           COALESCE(monthly.revenue_vnd, 0) AS revenue_vnd,
+           COALESCE(monthly.rent_vnd, 0) AS rent_vnd,
+           COALESCE(monthly.electricity_vnd, 0) AS electricity_vnd,
+           COALESCE(monthly.water_vnd, 0) AS water_vnd,
+           COALESCE(monthly.services_vnd, 0) AS services_vnd,
+           COALESCE(monthly.adjustment_net_vnd, 0) AS adjustment_net_vnd,
+           COALESCE(monthly.uncategorized_vnd, 0) AS uncategorized_vnd,
+           COALESCE(monthly.invoice_count, 0)::int AS invoice_count
+    FROM months
+    LEFT JOIN monthly ON monthly.period=months.period
+    UNION ALL
+    SELECT 'location'::text, NULL::text, property_id, property_name, property_address,
+           revenue_vnd, rent_vnd, electricity_vnd, water_vnd, services_vnd,
+           adjustment_net_vnd, uncategorized_vnd, invoice_count
+    FROM locations
+    ORDER BY row_kind DESC, period, property_name, property_id`;
 }
 
 function occupancyReportSql() {
@@ -673,15 +817,24 @@ async function getFinancialReport(req, res, dependencies = {}) {
     filters.roomId,
     allowedPropertyIds
   ];
-  const [result, occupancyResult] = await Promise.all([
+  const [result, occupancyResult, annualRevenueResult] = await Promise.all([
     query(reportSql(), params),
-    query(occupancyReportSql(), params)
+    query(occupancyReportSql(), params),
+    range.type === 'year'
+      ? query(annualRevenueEvidenceSql(), params)
+      : Promise.resolve({ rows: [] })
   ]);
+  const report = financialReportJson(result.rows[0] || {}, range, filters);
   res.set('Cache-Control', 'no-store');
   return res.json({
     report: {
-      ...financialReportJson(result.rows[0] || {}, range, filters),
-      occupancy: occupancyReportJson(occupancyResult.rows || [], range)
+      ...report,
+      occupancy: occupancyReportJson(occupancyResult.rows || [], range),
+      annualRevenueEvidence: annualRevenueEvidenceJson(
+        annualRevenueResult.rows || [],
+        range,
+        report.revenueVnd
+      )
     }
   });
 }
@@ -695,6 +848,8 @@ module.exports = {
   FinancialReportError,
   PERIOD_PATTERN,
   REPORT_TIME_ZONE,
+  annualRevenueEvidenceJson,
+  annualRevenueEvidenceSql,
   financialReportJson,
   getFinancialReport,
   getMonthlyFinancialReport,

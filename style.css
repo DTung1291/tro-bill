@@ -2136,6 +2136,105 @@ body.workspace-staff-active .main { padding-top: 112px; }
   line-height: 1.35;
 }
 .financial-breakdown-card.is-negative > strong { color: var(--red); }
+.annual-revenue-evidence {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.annual-revenue-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.annual-revenue-header h3,
+.annual-revenue-evidence h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: .88rem;
+}
+.annual-revenue-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+.annual-revenue-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: .64rem;
+  font-weight: 800;
+}
+.annual-revenue-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.annual-revenue-summary article {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.annual-revenue-summary span,
+.annual-revenue-summary strong { display: block; }
+.annual-revenue-summary span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.annual-revenue-summary strong {
+  margin-top: 6px;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.annual-revenue-summary article.is-error strong { color: var(--red); }
+.annual-revenue-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.annual-revenue-evidence h4 { margin: 14px 0 8px; }
+.annual-revenue-table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+  font-size: .68rem;
+}
+.annual-revenue-table th,
+.annual-revenue-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+.annual-revenue-table th {
+  background: var(--bg3);
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 800;
+}
+.annual-revenue-table th:first-child,
+.annual-revenue-table td:first-child,
+.annual-revenue-location-table th:nth-child(2),
+.annual-revenue-location-table td:nth-child(2) { text-align: left; }
+.annual-revenue-table tbody tr:last-child td { border-bottom: 0; }
+.annual-revenue-legal-note {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-left: 3px solid #d97706;
+  background: color-mix(in srgb, #d97706 8%, transparent);
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
 .occupancy-report {
   margin-top: 14px;
   padding-top: 14px;
@@ -5216,6 +5315,51 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .financial-breakdown-card--uncategorized {
     grid-column: 1 / -1;
   }
+  .annual-revenue-header { display: block; }
+  .annual-revenue-badge {
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .annual-revenue-summary { grid-template-columns: 1fr; }
+  .annual-revenue-table-wrap {
+    overflow: visible;
+    border: 0;
+  }
+  .annual-revenue-table {
+    display: block;
+    min-width: 0;
+  }
+  .annual-revenue-table thead { display: none; }
+  .annual-revenue-table tbody { display: grid; gap: 8px; }
+  .annual-revenue-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg3);
+  }
+  .annual-revenue-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .annual-revenue-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text-muted);
+    font-size: .58rem;
+    font-weight: 700;
+  }
+  .annual-revenue-table td:first-child,
+  .annual-revenue-location-table td:nth-child(2),
+  .annual-revenue-table td:last-child { grid-column: 1 / -1; }
   .occupancy-report-grid {
     grid-template-columns: 1fr 1fr;
   }

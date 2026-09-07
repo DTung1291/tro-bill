@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const {
+  annualEvidenceRows,
   buildPrintHtml,
   buildXlsx
 } = require('../../financial-report-export');
@@ -65,6 +66,48 @@ function sampleReport() {
         longestVacantDays: 40,
         endingVacantDays: 0,
         endingStatus: 'occupied'
+      }]
+    }
+  };
+}
+
+function annualSampleReport() {
+  return {
+    ...sampleReport(),
+    period: '2026',
+    range: { type: 'year', key: '2026' },
+    annualRevenueEvidence: {
+      year: 2026,
+      basis: 'issued_invoice_total',
+      currency: 'VND',
+      activeMonthCount: 2,
+      monthlyRevenueVnd: 12345678,
+      reconciliationDifferenceVnd: 0,
+      legalClassificationRequired: true,
+      months: [
+        {
+          period: '2026-01', invoiceCount: 3, rentVnd: 4000000, electricityVnd: 400000,
+          waterVnd: 200000, servicesVnd: 300000, adjustmentNetVnd: 100000,
+          uncategorizedVnd: 0, revenueVnd: 5000000
+        },
+        {
+          period: '2026-02', invoiceCount: 4, rentVnd: 5000000, electricityVnd: 600000,
+          waterVnd: 300000, servicesVnd: 700000, adjustmentNetVnd: 745678,
+          uncategorizedVnd: 0, revenueVnd: 7345678
+        }
+      ],
+      locations: [{
+        propertyId: 12,
+        propertyName: 'Khu <A>',
+        propertyAddress: '40 Vũ Hữu & Thanh Xuân',
+        invoiceCount: 7,
+        rentVnd: 9000000,
+        electricityVnd: 1000000,
+        waterVnd: 500000,
+        servicesVnd: 1000000,
+        adjustmentNetVnd: 845678,
+        uncategorizedVnd: 0,
+        revenueVnd: 12345678
       }]
     }
   };
@@ -132,17 +175,47 @@ test('mẫu PDF escape dữ liệu và tách bảng phòng để in nhiều tran
   assert.match(html, /91,6%/);
 });
 
+test('báo cáo năm thêm sheet và nội dung PDF đối chiếu doanh thu theo tháng, khu', () => {
+  const report = annualSampleReport();
+  const rows = annualEvidenceRows(report, { scopeLabel: 'Tất cả khu' });
+  assert.equal(rows[0][0].value, 'ĐỐI CHIẾU DOANH THU NĂM');
+  assert.equal(rows[8][8].value, 5000000);
+
+  const entries = storedZipEntries(buildXlsx(report, {
+    periodLabel: 'Năm 2026', scopeLabel: 'Tất cả khu', exportedAtLabel: '07/09/2026'
+  }));
+  assert.match(entries.get('xl/workbook.xml'), /name="Đối chiếu doanh thu năm"/);
+  assert.match(entries.get('xl/worksheets/sheet3.xml'), /Tổng hóa đơn đã phát hành trên Tro Bill/);
+  assert.match(entries.get('xl/worksheets/sheet3.xml'), /Khu &lt;A&gt;/);
+  assert.match(entries.get('xl/worksheets/sheet3.xml'), /40 Vũ Hữu &amp; Thanh Xuân/);
+  assert.match(entries.get('xl/worksheets/sheet3.xml'), /<v>12345678<\/v>/);
+
+  const html = buildPrintHtml(report, {
+    periodLabel: 'Năm 2026', scopeLabel: 'Tất cả khu', exportedAtLabel: '07/09/2026'
+  });
+  assert.match(html, /Đối chiếu doanh thu năm 2026/);
+  assert.match(html, /không thay thế tờ khai/);
+  assert.match(html, /Khu &lt;A&gt;/);
+  assert.match(html, /40 Vũ Hữu &amp; Thanh Xuân/);
+});
+
 test('UI nối nút Excel và PDF vào đúng báo cáo đã lọc cùng print CSS', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   assert.match(index, /id="financial-report-export-excel"/);
   assert.match(index, /id="financial-report-export-pdf"/);
-  assert.match(index, /financial-report-export\.js\?v=1[\s\S]*app\.js\?v=126/);
+  assert.match(index, /id="annual-revenue-evidence"/);
+  assert.match(index, /id="annual-revenue-month-rows"/);
+  assert.match(index, /id="annual-revenue-location-rows"/);
+  assert.match(index, /financial-report-export\.js\?v=2[\s\S]*app\.js\?v=127/);
   assert.match(app, /FinancialReportExport\.buildXlsx\(report/);
   assert.match(app, /FinancialReportExport\.buildPrintHtml/);
   assert.match(app, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
+  assert.match(app, /function renderAnnualRevenueEvidence/);
+  assert.match(app, /annualRevenueEvidence/);
   assert.match(css, /body:has\(\.financial-report-print\)\s*\{\s*page: financialReport/);
   assert.match(css, /@page financialReport\s*\{[\s\S]*size: A4 landscape/);
   assert.match(css, /\.financial-report-print thead\s*\{\s*display: table-header-group/);
+  assert.match(css, /\.annual-revenue-table-wrap\s*\{[\s\S]*overflow-x: auto/);
 });

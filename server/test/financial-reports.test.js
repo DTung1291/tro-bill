@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
+  annualRevenueEvidenceJson,
+  annualRevenueEvidenceSql,
   financialReportJson,
   getFinancialReport,
   getMonthlyFinancialReport,
@@ -71,6 +73,27 @@ function occupancyRow(overrides = {}) {
     inferred_occupancy_start: false,
     ...overrides
   };
+}
+
+function annualRevenueRows() {
+  return [
+    {
+      row_kind: 'month', period: '2026-01', revenue_vnd: '4000000', rent_vnd: '3000000',
+      electricity_vnd: '400000', water_vnd: '200000', services_vnd: '300000',
+      adjustment_net_vnd: '100000', uncategorized_vnd: '0', invoice_count: 1
+    },
+    {
+      row_kind: 'month', period: '2026-02', revenue_vnd: '2000000', rent_vnd: '1000000',
+      electricity_vnd: '100000', water_vnd: '50000', services_vnd: '100000',
+      adjustment_net_vnd: '-50000', uncategorized_vnd: '800000', invoice_count: 1
+    },
+    {
+      row_kind: 'location', property_id: '12', property_name: 'Khu A',
+      property_address: '40 Vũ Hữu', revenue_vnd: '6000000', rent_vnd: '4000000',
+      electricity_vnd: '500000', water_vnd: '250000', services_vnd: '400000',
+      adjustment_net_vnd: '50000', uncategorized_vnd: '800000', invoice_count: 2
+    }
+  ];
 }
 
 test('chuẩn hóa báo cáo theo khoảng lọc và tính lợi nhuận tiền mặt', () => {
@@ -137,6 +160,34 @@ test('chấp nhận tháng, quý, năm và quy đổi đúng khoảng tháng', (
   assert.throws(() => reportRange({ periodType: 'week', period: '2026-09' }), error => (
     error.code === 'INVALID_REPORT_PERIOD_TYPE'
   ));
+});
+
+test('chuẩn hóa chứng từ đối chiếu doanh thu năm theo tháng và địa điểm', () => {
+  const range = reportRange({ periodType: 'year', period: '2026' });
+  const result = annualRevenueEvidenceJson(annualRevenueRows(), range, 6000000);
+  assert.equal(result.year, 2026);
+  assert.equal(result.basis, 'issued_invoice_total');
+  assert.equal(result.currency, 'VND');
+  assert.equal(result.activeMonthCount, 2);
+  assert.equal(result.monthlyRevenueVnd, 6000000);
+  assert.equal(result.reconciliationDifferenceVnd, 0);
+  assert.equal(result.months[1].adjustmentNetVnd, -50000);
+  assert.deepEqual(result.locations[0], {
+    propertyId: 12,
+    propertyName: 'Khu A',
+    propertyAddress: '40 Vũ Hữu',
+    revenueVnd: 6000000,
+    rentVnd: 4000000,
+    electricityVnd: 500000,
+    waterVnd: 250000,
+    servicesVnd: 400000,
+    adjustmentNetVnd: 50000,
+    uncategorizedVnd: 800000,
+    invoiceCount: 2
+  });
+  assert.equal(annualRevenueEvidenceJson(annualRevenueRows(), reportRange({
+    periodType: 'month', period: '2026-01'
+  }), 4000000), null);
 });
 
 test('tổng hợp tỷ lệ lấp đầy theo ngày-phòng và chuỗi phòng trống', () => {
@@ -236,6 +287,19 @@ test('SQL chốt nợ cuối kỳ, lọc khoảng thời gian/khu/phòng và kh�
   assert.doesNotMatch(sql, /prior_debt_vnd/);
 });
 
+test('SQL đối chiếu doanh thu năm đủ 12 tháng, cơ cấu và khu hiện tại', () => {
+  const sql = annualRevenueEvidenceSql();
+  assert.match(sql, /generate_series/);
+  assert.match(sql, /invoice\.period BETWEEN \$2 AND \$3/);
+  assert.match(sql, /COALESCE\(invoice\.final_total_vnd, invoice\.issued_total_vnd\)/);
+  assert.match(sql, /LEFT JOIN rooms room/);
+  assert.match(sql, /LEFT JOIN properties property/);
+  assert.match(sql, /room\.property_id=ANY\(\$6::bigint\[\]\)/);
+  assert.match(sql, /invoice_total_vnd - rent_vnd - electricity_vnd - water_vnd/);
+  assert.match(sql, /'month'::text AS row_kind/);
+  assert.match(sql, /'location'::text/);
+});
+
 test('API chủ sở hữu tổng hợp theo quý và lọc khu đã xác thực', async () => {
   const calls = [];
   const query = async (sql, params) => {
@@ -288,6 +352,7 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
   const query = async (sql, params) => {
     calls.push({ sql, params });
     if (/classified_days/.test(sql)) return { rows: [occupancyRow()] };
+    if (/generate_series/.test(sql)) return { rows: annualRevenueRows() };
     return { rows: [metricRow()] };
   };
   const response = responseRecorder();
@@ -299,8 +364,11 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
 
   assert.deepEqual(calls[0].params, [7, '2026-01', '2026-12', null, null, [12, 13]]);
   assert.deepEqual(calls[1].params, [7, '2026-01', '2026-12', null, null, [12, 13]]);
+  assert.deepEqual(calls[2].params, [7, '2026-01', '2026-12', null, null, [12, 13]]);
   assert.match(calls[0].sql, /scoped_room\.property_id=ANY\(\$6::bigint\[\]\)/);
   assert.match(calls[0].sql, /unassigned_property\.id=ANY\(\$6::bigint\[\]\)/);
+  assert.equal(response.record.body.report.annualRevenueEvidence.months.length, 2);
+  assert.equal(response.record.body.report.annualRevenueEvidence.reconciliationDifferenceVnd, 0);
 
   const forbidden = responseRecorder();
   await getFinancialReport({
@@ -308,7 +376,7 @@ test('API dùng scope khu của nhân viên và chặn khu ngoài phân công', 
     query: { periodType: 'month', period: '2026-09', propertyId: '99' },
     workspace: { isOwner: false, propertyIds: [12, 13] }
   }, forbidden.res, { query });
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.equal(forbidden.record.statusCode, 403);
   assert.equal(forbidden.record.body.code, 'REPORT_PROPERTY_FORBIDDEN');
 });
@@ -362,10 +430,14 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(indexSource, /id="financial-breakdown-services"/);
   assert.match(indexSource, /id="financial-breakdown-adjustments"/);
   assert.match(indexSource, /id="financial-breakdown-deposit"/);
+  assert.match(indexSource, /id="annual-revenue-evidence"/);
+  assert.match(indexSource, /id="annual-revenue-month-rows"/);
+  assert.match(indexSource, /id="annual-revenue-location-rows"/);
   assert.match(indexSource, /id="occupancy-report-rate"/);
   assert.match(indexSource, /id="occupancy-room-list"/);
   assert.match(appSource, /reloadFinancialReportFromFilters/);
   assert.match(appSource, /function renderFinancialBreakdown/);
+  assert.match(appSource, /function renderAnnualRevenueEvidence/);
   assert.match(appSource, /function renderOccupancyReport/);
   assert.match(appSource, /Đang tổng hợp dữ liệu lấp đầy và thời gian phòng trống/);
   assert.match(appSource, /occupancy\.occupancyRatePercent/);
@@ -374,10 +446,11 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(appSource, /FINANCIAL_REPORT_FILTER\.roomId/);
   assert.match(cssSource, /\.financial-report-filters\s*\{/);
   assert.match(cssSource, /\.financial-breakdown-grid\s*\{/);
+  assert.match(cssSource, /\.annual-revenue-table\s*\{/);
   assert.match(cssSource, /\.occupancy-report-grid\s*\{/);
   assert.match(cssSource, /\.occupancy-room-row\s*\{/);
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(indexSource, /style\.css\?v=120/);
+  assert.match(indexSource, /style\.css\?v=121/);
   assert.match(indexSource, /api\.js\?v=110/);
-  assert.match(indexSource, /app\.js\?v=126/);
+  assert.match(indexSource, /app\.js\?v=127/);
 });

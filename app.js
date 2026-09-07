@@ -7308,6 +7308,69 @@ function renderFinancialBreakdown(report = null) {
   document.getElementById('financial-breakdown-uncategorized').textContent = fmt(uncategorizedVnd);
 }
 
+function renderAnnualRevenueEvidence(report = null) {
+  const section = document.getElementById('annual-revenue-evidence');
+  if (!section) return;
+  const isYear = FINANCIAL_REPORT_FILTER.periodType === 'year';
+  section.hidden = !isYear;
+  if (!isYear) return;
+
+  const evidence = report?.annualRevenueEvidence || null;
+  const year = evidence?.year || FINANCIAL_REPORT_FILTER.year || '';
+  document.getElementById('annual-revenue-year').textContent = year;
+  const monthRows = document.getElementById('annual-revenue-month-rows');
+  const locationRows = document.getElementById('annual-revenue-location-rows');
+  const reconciliationCard = document.getElementById('annual-revenue-reconciliation-card');
+  reconciliationCard?.classList.remove('is-error');
+
+  if (!evidence) {
+    document.getElementById('annual-revenue-total').textContent = '—';
+    document.getElementById('annual-revenue-active-months').textContent = '—';
+    document.getElementById('annual-revenue-reconciliation').textContent = 'Đang đối soát…';
+    if (monthRows) monthRows.innerHTML = '<tr><td colspan="9">Đang tổng hợp doanh thu 12 tháng…</td></tr>';
+    if (locationRows) locationRows.innerHTML = '<tr><td colspan="9">Đang tổng hợp theo khu…</td></tr>';
+    return;
+  }
+
+  const months = Array.isArray(evidence.months) ? evidence.months : [];
+  const locations = Array.isArray(evidence.locations) ? evidence.locations : [];
+  const differenceVnd = Number(evidence.reconciliationDifferenceVnd) || 0;
+  document.getElementById('annual-revenue-total').textContent = fmt(evidence.monthlyRevenueVnd);
+  document.getElementById('annual-revenue-active-months').textContent =
+    `${Math.max(0, Number(evidence.activeMonthCount) || 0)}/12`;
+  document.getElementById('annual-revenue-reconciliation').textContent = differenceVnd === 0
+    ? 'Khớp 100%'
+    : `Lệch ${fmt(differenceVnd)}`;
+  reconciliationCard?.classList.toggle('is-error', differenceVnd !== 0);
+
+  if (monthRows) {
+    monthRows.innerHTML = months.map(month => `<tr>
+      <td data-label="Tháng">${escapeHtml(periodLabel(month.period))}</td>
+      <td data-label="Số HĐ">${Math.max(0, Number(month.invoiceCount) || 0)}</td>
+      <td data-label="Tiền thuê">${fmt(month.rentVnd)}</td>
+      <td data-label="Điện">${fmt(month.electricityVnd)}</td>
+      <td data-label="Nước">${fmt(month.waterVnd)}</td>
+      <td data-label="Dịch vụ">${fmt(month.servicesVnd)}</td>
+      <td data-label="Điều chỉnh">${fmt(month.adjustmentNetVnd)}</td>
+      <td data-label="Chưa phân loại">${fmt(month.uncategorizedVnd)}</td>
+      <td data-label="Tổng doanh thu"><strong>${fmt(month.revenueVnd)}</strong></td>
+    </tr>`).join('') || '<tr><td colspan="9">Chưa có dữ liệu tháng trong năm này.</td></tr>';
+  }
+  if (locationRows) {
+    locationRows.innerHTML = locations.map(location => `<tr>
+      <td data-label="Khu"><strong>${escapeHtml(location.propertyName || 'Chưa xác định khu')}</strong></td>
+      <td data-label="Địa chỉ">${escapeHtml(location.propertyAddress || '—')}</td>
+      <td data-label="Số HĐ">${Math.max(0, Number(location.invoiceCount) || 0)}</td>
+      <td data-label="Tiền thuê">${fmt(location.rentVnd)}</td>
+      <td data-label="Điện nước">${fmt((Number(location.electricityVnd) || 0) + (Number(location.waterVnd) || 0))}</td>
+      <td data-label="Dịch vụ">${fmt(location.servicesVnd)}</td>
+      <td data-label="Điều chỉnh">${fmt(location.adjustmentNetVnd)}</td>
+      <td data-label="Chưa phân loại">${fmt(location.uncategorizedVnd)}</td>
+      <td data-label="Tổng doanh thu"><strong>${fmt(location.revenueVnd)}</strong></td>
+    </tr>`).join('') || '<tr><td colspan="9">Chưa có hóa đơn phát hành trong năm này.</td></tr>';
+  }
+}
+
 function occupancyPercent(value) {
   const percent = Number(value) || 0;
   return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(percent)}%`;
@@ -7429,6 +7492,7 @@ function renderFinancialReport() {
     document.getElementById('financial-report-debt-note').textContent =
       'Các hóa đơn còn thiếu đến cuối kỳ';
     renderFinancialBreakdown();
+    renderAnnualRevenueEvidence();
     renderOccupancyReport();
     return;
   }
@@ -7446,6 +7510,7 @@ function renderFinancialReport() {
     Number(report.profitVnd) < 0
   );
   renderFinancialBreakdown(report);
+  renderAnnualRevenueEvidence(report);
   renderOccupancyReport(report);
   const generatedAt = report.generatedAt ? subscriptionDateTime(report.generatedAt) : '';
   const selectedProperty = STATE.properties.find(

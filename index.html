@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=120" />
+  <link rel="stylesheet" href="style.css?v=121" />
 </head>
 
 <body>
@@ -472,6 +472,43 @@
               <small>Hóa đơn cũ chưa có snapshot chi tiết</small>
             </article>
           </div>
+        </section>
+        <section class="annual-revenue-evidence" id="annual-revenue-evidence" aria-labelledby="annual-revenue-title" hidden>
+          <div class="annual-revenue-header">
+            <div>
+              <h3 id="annual-revenue-title">Đối chiếu doanh thu năm <span id="annual-revenue-year"></span></h3>
+              <p>Tổng hóa đơn đã phát hành trên Tro Bill, hỗ trợ chuẩn bị số liệu kê khai theo năm.</p>
+            </div>
+            <span class="annual-revenue-badge">Tài liệu đối chiếu</span>
+          </div>
+          <div class="annual-revenue-summary" aria-live="polite">
+            <article>
+              <span>Doanh thu hóa đơn cả năm</span>
+              <strong id="annual-revenue-total">—</strong>
+            </article>
+            <article>
+              <span>Tháng có phát sinh</span>
+              <strong id="annual-revenue-active-months">—</strong>
+            </article>
+            <article id="annual-revenue-reconciliation-card">
+              <span>Đối soát với tổng báo cáo</span>
+              <strong id="annual-revenue-reconciliation">—</strong>
+            </article>
+          </div>
+          <div class="annual-revenue-table-wrap">
+            <table class="annual-revenue-table">
+              <thead><tr><th>Tháng</th><th>Số HĐ</th><th>Tiền thuê</th><th>Điện</th><th>Nước</th><th>Dịch vụ</th><th>Điều chỉnh</th><th>Chưa phân loại</th><th>Tổng doanh thu</th></tr></thead>
+              <tbody id="annual-revenue-month-rows"></tbody>
+            </table>
+          </div>
+          <h4>Theo khu / địa điểm kinh doanh</h4>
+          <div class="annual-revenue-table-wrap">
+            <table class="annual-revenue-table annual-revenue-location-table">
+              <thead><tr><th>Khu</th><th>Địa chỉ</th><th>Số HĐ</th><th>Tiền thuê</th><th>Điện nước</th><th>Dịch vụ</th><th>Điều chỉnh</th><th>Chưa phân loại</th><th>Tổng doanh thu</th></tr></thead>
+              <tbody id="annual-revenue-location-rows"></tbody>
+            </table>
+          </div>
+          <p class="annual-revenue-legal-note">Số liệu này không phải tờ khai thuế và không tự xác định doanh thu chịu thuế hoặc số thuế phải nộp. Hãy đối chiếu tư cách người nộp thuế, phương pháp kê khai và hồ sơ thực tế với cơ quan thuế hoặc kế toán.</p>
         </section>
         <section class="occupancy-report" aria-labelledby="occupancy-report-title">
           <div class="occupancy-report-header">
@@ -2233,8 +2270,8 @@
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
-  <script src="financial-report-export.js?v=1"></script>
-  <script src="app.js?v=126"></script>
+  <script src="financial-report-export.js?v=2"></script>
+  <script src="app.js?v=127"></script>
 </body>
 
 </html>
