@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang hoàn tất least privilege — migration khóa login role runtime cũ đã qua test, chờ áp dụng staging rồi production |
+| Trạng thái | Sẵn sàng bàn giao — runtime least privilege và hotfix layout tài khoản theo khu đã hoàn tất; provider HĐĐT vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có migration/runbook/test khóa role cũ đang chờ áp dụng; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `c650d6f` — card tài khoản nhận tiền theo khu xếp dọc đúng desktop/mobile; tiền kiểm HĐĐT ở `e004fba` |
-| Việc code tiếp theo | Áp dụng và xác minh migration role cũ; sau đó provider adapter vẫn chờ sandbox/API contract |
-| Việc vận hành còn mở | Chạy `20260907_disable_legacy_runtime_logins.sql` staging rồi production sau xác nhận thao tác quyền |
+| Worktree kỳ vọng | Chỉ có cập nhật bằng chứng hoàn tất role đang chờ commit; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `b2b7257` — migration/runbook khóa login runtime cũ; layout tài khoản theo khu ở `c650d6f` |
+| Việc code tiếp theo | Provider adapter vẫn chờ sandbox/API contract; tiếp tục mục kỹ thuật khả thi kế tiếp nếu không phụ thuộc nhà cung cấp |
+| Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,14 +92,17 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
-- Migration `20260907_disable_legacy_runtime_logins.sql` đã được chuẩn bị để
-  hoàn tất mục runtime least privilege. Audit production xác nhận ứng dụng đang
-  dùng `tro_bill_runtime_sql`, không kế thừa `neon_superuser`; role cũ thực tế là
-  `tro_bill_runtime` và không có session tại thời điểm kiểm tra. Migration giữ
-  role cũ làm mẫu quyền nhưng chuyển sang `NOLOGIN`, tự rollback nếu phát hiện
-  session, không ngắt kết nối và không `DROP ROLE`. Runbook/rollback và regression
-  test đã thêm; bộ đầy đủ đạt 415/415, secret scan và diff check sạch. Chưa áp
-  dụng remote; phải staging trước rồi mới production và kiểm tra readiness.
+- `b2b7257`: migration `20260907_disable_legacy_runtime_logins.sql`, runbook và
+  regression test đã phát hành để hoàn tất runtime least privilege. Migration
+  chạy trên staging `br-ancient-wave-azwc43to` rồi production
+  `br-fancy-star-azyclc1h`, cả hai đạt 3/3 cờ: `tro_bill_runtime_sql` hạn chế
+  quyền, không còn login runtime cũ và không còn membership `neon_superuser`.
+  `tro_bill_runtime` ở hai môi trường đã chuyển `NOLOGIN`, 0 session và được giữ
+  làm mẫu grant. `tro_bill_app` chỉ tồn tại ở staging, do Neon Console bảo vệ nên
+  đã xóa qua trang Roles sau audit xác nhận 0 ownership, 0 role con và 0 session;
+  production không có role này. Readiness staging/production đều `ok`, health
+  monitor production `34134850555` thành công. Bộ test đạt 415/415, CI
+  `34132579296`, secret scan và diff check sạch.
 - `e004fba`: tiền kiểm HĐĐT provider-neutral đã phát hành. Endpoint owner-only
   dựng snapshot tối thiểu từ hóa đơn, tổng thanh toán, hợp đồng giao kỳ và hồ sơ
   HĐĐT; không trả CCCD/điện thoại/email/credential, không tự đoán khi nhiều hợp
@@ -448,18 +451,13 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Việc chưa được xem là hoàn tất
 
-1. Checkbox thay runtime role trong phần **An toàn dữ liệu và vận hành** vẫn mở.
-   Vercel Production đã chạy bằng `tro_bill_runtime_sql`; migration khóa login
-   `tro_bill_runtime`/`tro_bill_app` đã có chốt session và rollback plan nhưng
-   chưa chạy remote. Phải audit đúng branch Preview, chạy staging, smoke test,
-   rồi xin xác nhận trước khi chạy Production.
-2. `OPS_ALERT_WEBHOOK_URL` là kênh cảnh báo bổ sung tùy chọn; GitHub Issue và
+1. `OPS_ALERT_WEBHOOK_URL` là kênh cảnh báo bổ sung tùy chọn; GitHub Issue và
    Vercel Runtime Logs vẫn là cơ chế mặc định. Không để cảnh báo tùy chọn này
    chặn tính năng sản phẩm.
-3. Các mục phỏng vấn/pilot/pháp lý trong checklist cần đầu vào của người dùng;
+2. Các mục phỏng vấn/pilot/pháp lý trong checklist cần đầu vào của người dùng;
    agent không được tự đánh dấu hoàn thành bằng code.
-4. Google Play Billing chỉ cần khi thực sự bán subscription trong Android app.
-5. Đồng bộ HĐĐT thật vẫn cần API contract/sandbox 2026, mô hình credential theo
+3. Google Play Billing chỉ cần khi thực sự bán subscription trong Android app.
+4. Đồng bộ HĐĐT thật vẫn cần API contract/sandbox 2026, mô hình credential theo
    workspace và người có thẩm quyền duyệt mapping kế toán/pháp lý. Tiền kiểm hiện
    chỉ dựng snapshot nội bộ và cố ý không gửi dữ liệu ra nhà cung cấp.
 

@@ -82,7 +82,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Tách rõ môi trường development, staging và production.
 - [x] Không để secret hoặc thông tin database trong repository.
 - [x] Viết kiểm thử cho đăng nhập, phân quyền và các công thức tính bill quan trọng.
-- [ ] Thay `DATABASE_URL` bằng role Neon tạo qua SQL, không kế thừa `neon_superuser`, rồi thu hồi role runtime tạo từ Console/API.
+- [x] Thay `DATABASE_URL` bằng role Neon tạo qua SQL, không kế thừa `neon_superuser`, rồi thu hồi role runtime tạo từ Console/API.
 
 Trạng thái ngày 24/08/2026:
 
@@ -105,9 +105,13 @@ Trạng thái ngày 24/08/2026:
   đều `ok`; người dùng đã tự kiểm tra gửi email thật thành công.
 - Đã tạo role SQL `tro_bill_runtime_sql` không kế thừa `neon_superuser`, đồng bộ
   đúng quyền CRUD cần thiết trên staging/production và cập nhật `DATABASE_URL`
-  của Vercel. Role cũ thực tế là `tro_bill_runtime` (`tro_bill_app` chỉ có thể
-  tồn tại ở môi trường cũ); chỉ chuyển các role cũ sang `NOLOGIN` sau khi xác
-  nhận deployment chạy bằng role hạn chế quyền để tránh gián đoạn production.
+  của Vercel. Migration `20260907_disable_legacy_runtime_logins.sql` đã chạy trên
+  Neon staging `br-ancient-wave-azwc43to` và production
+  `br-fancy-star-azyclc1h`, cả hai đạt 3/3 cờ role đích, login cũ và membership
+  quản trị. `tro_bill_runtime` được giữ `NOLOGIN` làm mẫu quyền; `tro_bill_app`
+  do Console tạo chỉ có ở staging đã được xóa sau khi xác minh 0 kết nối và
+  không sở hữu bảng, hàm, database hoặc role. Readiness hai môi trường đều `ok`;
+  health monitor production `34134850555` thành công.
 
 ### Hoàn thành giai đoạn khi
 

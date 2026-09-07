@@ -43,15 +43,21 @@ thật. Preview không dùng tài khoản admin seed của production.
 
 `DATABASE_URL` của Preview và Production phải dùng `tro_bill_runtime_sql`. Role
 này được tạo bằng SQL, không kế thừa `neon_superuser`, không có quyền DDL và chỉ
-nhận các quyền bảng/cột/sequence cần cho ứng dụng. `tro_bill_runtime` và
-`tro_bill_app` (nếu tồn tại) chỉ được giữ ở trạng thái `NOLOGIN` để làm mẫu quyền
-cho schema/migration; không dùng credential của hai role này cho deployment.
+nhận các quyền bảng/cột/sequence cần cho ứng dụng. `tro_bill_runtime` được giữ ở
+trạng thái `NOLOGIN` để làm mẫu quyền cho schema/migration; không dùng credential
+của role này cho deployment.
 
 Chỉ chạy `20260907_disable_legacy_runtime_logins.sql` sau khi readiness của môi
 trường trả `runtimeRole.status=restricted` và truy vấn `pg_stat_activity` xác nhận
 role cũ không còn session. Migration tự rollback nếu phát hiện kết nối cũ, không
 ngắt session và không xóa role. Thứ tự áp dụng là staging, smoke test, rồi mới
 production. Sau production, chạy lại readiness và health monitor.
+
+Role `tro_bill_app` do Neon Console/API tạo có thể kế thừa `neon_superuser` và
+không cho `neondb_owner` đổi sang `NOLOGIN` bằng SQL. Sau khi xác minh role này
+không còn session, không sở hữu relation/function/database và không có role con,
+xóa nó ở trang **Roles** của đúng branch. Không xóa `tro_bill_runtime` vì đây là
+nguồn quyền để đồng bộ sang `tro_bill_runtime_sql`.
 
 Nếu cần rollback do deployment còn phụ thuộc credential cũ, dùng tài khoản quản
 trị để chạy `ALTER ROLE tro_bill_runtime LOGIN`, khôi phục credential qua secret
