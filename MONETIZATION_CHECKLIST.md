@@ -486,7 +486,18 @@ scan sạch.
   `a17ac0329304` đã kiểm tra dữ liệu thật toàn khu và Q3/phòng 403; CI
   `34044949466`, 396/396 test, console/Runtime Logs sạch, database/schema `ok`,
   runtime role `restricted`; không cần migration hay dependency mới.
-- [ ] Có báo cáo doanh thu năm phục vụ kê khai thuế.
+- [x] Có báo cáo doanh thu năm phục vụ kê khai thuế.
+  Báo cáo năm có đủ 12 tháng và bảng theo khu/địa điểm kinh doanh, tách tiền
+  thuê, điện, nước, dịch vụ, điều chỉnh và phần chưa phân loại; tổng chi tiết
+  được đối soát với báo cáo tài chính cùng bộ lọc. Excel thêm sheet “Đối chiếu
+  doanh thu năm”, PDF thêm phần kê khai tương ứng. Đây là số liệu hỗ trợ chuẩn
+  bị hồ sơ, không tự suy diễn doanh thu tính thuế hay số thuế phải nộp khi chưa
+  biết phương pháp/trạng thái thuế của chủ trọ. Preview
+  `dpl_4kWC9uLwVSqLkAmmUwV8pQnGNy9g` đã kiểm tra desktop, breakpoint mobile,
+  lọc khu và xuất Excel; Production `dpl_3kGfoQsRYzVLwyMRaXtrbKgZphEm`
+  revision `b049670321ca` đã đối soát 99.166.710 đ, 21 hóa đơn, 3/12 tháng và
+  khớp 100%. CI `34073770384`, 399/399 test, console/Runtime Logs sạch,
+  database/schema `ok`, runtime role `restricted`; không cần migration.
 
 ### Hóa đơn điện tử và tích hợp
 

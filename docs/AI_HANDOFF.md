@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành xuất Excel/PDF cho kế toán; tiếp tục báo cáo doanh thu năm phục vụ kê khai thuế |
+| Trạng thái | Đã phát hành báo cáo doanh thu năm phục vụ kê khai thuế; tiếp tục khảo sát nhà cung cấp hóa đơn điện tử có API |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `a17ac03` — xuất báo cáo tài chính `.xlsx` và PDF nhiều trang |
-| Việc code tiếp theo | Triển khai “Báo cáo doanh thu năm phục vụ kê khai thuế” |
+| Phần ứng dụng phát hành gần nhất | `26661c4` + `b049670` — báo cáo doanh thu năm và hotfix layout bảng |
+| Việc code tiếp theo | Khảo sát ít nhất hai nhà cung cấp hóa đơn điện tử có API trước khi chọn tích hợp |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -68,8 +68,9 @@ rollback, lần dán nguyên văn sau đó commit thành công). Deployment prod
 `dpl_3DXvg5Kfitzin892JFNX1pTyd7NZ` ready; alias `tro-bill.vercel.app` trả
 revision `6f0ec26e2d31`, database/schema `ok`, runtime role `restricted`, asset
 pins `style 115 / api 108 / app 119`; endpoint mới trả 401 khi chưa đăng nhập và
-không có runtime error trong log sau deploy. Hạng mục kế tiếp là báo cáo tài
-chính tổng hợp ở giai đoạn 5.
+không có runtime error trong log sau deploy. Báo cáo tài chính tổng hợp, cơ cấu
+doanh thu/cọc, lấp đầy, xuất Excel/PDF và báo cáo doanh thu năm đều đã phát hành.
+Hạng mục kế tiếp là khảo sát nhà cung cấp hóa đơn điện tử có API.
 
 ## Bản đồ hệ thống ngắn
 
@@ -89,6 +90,15 @@ chính tổng hợp ở giai đoạn 5.
 
 ## Mốc đã giao gần đây
 
+- `26661c4` + `b049670`: báo cáo doanh thu năm có đủ 12 tháng, bảng theo
+  khu/địa điểm, cơ cấu hóa đơn và đối soát về tổng cùng bộ lọc. Excel có sheet
+  “Đối chiếu doanh thu năm”, PDF có phần kê khai và cảnh báo không tự tính nghĩa
+  vụ thuế. Preview `dpl_4kWC9uLwVSqLkAmmUwV8pQnGNy9g` qua desktop, breakpoint
+  mobile, lọc khu và xuất Excel. Production
+  `dpl_3kGfoQsRYzVLwyMRaXtrbKgZphEm` trả revision `b049670321ca`, đối soát dữ
+  liệu thật 99.166.710 đ, 21 hóa đơn, 3/12 tháng và khớp 100%; asset pins
+  `style 122 / api 110 / financial-report-export 2 / app 127`, CI
+  `34073770384`, 399/399 test, console/Runtime Logs sạch. Không có migration.
 - `a17ac03`: xuất đúng snapshot báo cáo đang lọc thành workbook `.xlsx` OOXML
   có sheet tổng hợp/chi tiết phòng và mẫu PDF A4 ngang nhiều trang. Preview
   `dpl_21hwneWZTwT42hupP5DbXkJeqPBn` qua E2E desktop/mobile; QA bằng Chrome với

@@ -459,3 +459,22 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   `break-inside: avoid-page`. File hiện chỉ gồm số liệu tài chính/vận hành đã
   được scope bởi quyền `overview`, không đưa tên hay định danh khách thuê vào
   bản xuất.
+
+## D-031 — Báo cáo năm là bằng chứng doanh thu hóa đơn, không tự tính nghĩa vụ thuế
+
+- **Trạng thái:** Đã phát hành production ngày 07/09/2026.
+- **Quyết định:** Báo cáo năm dùng tổng giá trị hiệu lực của hóa đơn đã phát hành
+  theo D-026 và D-028, trình bày đủ 12 tháng cùng tổng theo khu/địa điểm kinh
+  doanh. Các cấu phần tiền thuê, điện, nước, dịch vụ, điều chỉnh và chưa phân
+  loại phải đối soát về tổng doanh thu của cùng snapshot và bộ lọc. Tiền thanh
+  toán, công nợ và tiền cọc không được thay cho doanh thu hóa đơn trong bảng kê
+  này.
+- **Lý do:** Hồ sơ khai thuế năm cần số liệu doanh thu có thể đối chiếu theo kỳ
+  và địa điểm, nhưng doanh thu tính thuế và số thuế phải nộp còn phụ thuộc chủ
+  thể, phương pháp khai và quy định áp dụng. Ứng dụng không có đủ dữ liệu pháp
+  lý để tự kết luận các giá trị đó.
+- **Hệ quả:** UI, Excel và PDF phải ghi rõ đây là tài liệu hỗ trợ chuẩn bị hồ sơ,
+  không phải tờ khai hay tư vấn thuế. Không tự áp ngưỡng, thuế suất hoặc tính số
+  thuế phải nộp. Nếu sau này sinh tờ khai chính thức, phải thu thập cấu hình thuế
+  có hiệu lực, lưu căn cứ phiên bản hóa và được kế toán/đơn vị tư vấn pháp lý
+  kiểm tra trước khi phát hành.
