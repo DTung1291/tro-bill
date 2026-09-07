@@ -193,6 +193,7 @@ test('schema, migration, API và UI khóa ownership và hỗ trợ SePay riêng 
   const api = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const style = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   for (const source of [schema, migration]) {
     assert.match(source, /CREATE TABLE IF NOT EXISTS rent_bank_accounts/);
     assert.match(source, /UNIQUE \(user_id, bank_id, account_number\)/);
@@ -212,4 +213,8 @@ test('schema, migration, API và UI khóa ownership và hỗ trợ SePay riêng 
   assert.match(app, /bank_account_mismatch/);
   assert.match(html, /id="property-bank-account-list"/);
   assert.match(html, /id="sepay-bank-account-select"/);
+  assert.match(
+    style,
+    /\.rent-bank-accounts-card\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;/s
+  );
 });

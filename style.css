@@ -571,7 +571,11 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: .04em;
 }
-.rent-bank-accounts-card { margin-top: 12px; }
+.rent-bank-accounts-card {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
 .rent-bank-accounts-head,
 .rent-bank-account-item,
 .property-bank-account-row {
