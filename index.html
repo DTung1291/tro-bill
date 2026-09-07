@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=123" />
+  <link rel="stylesheet" href="style.css?v=124" />
 </head>
 
 <body>
@@ -974,6 +974,10 @@
             Mã số thuế
             <input id="electronic-invoice-tax-code" class="inline-input" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="10 số hoặc 10 số-3 số" />
           </label>
+          <label>
+            Tên người bán / tên pháp lý
+            <input id="electronic-invoice-seller-name" class="inline-input" maxlength="300" autocomplete="organization" placeholder="Đúng tên đăng ký thuế hoặc tên cá nhân" />
+          </label>
           <label class="electronic-invoice-profile__wide">
             Địa chỉ kinh doanh
             <input id="electronic-invoice-business-address" class="inline-input" maxlength="1000" autocomplete="street-address" placeholder="Địa chỉ đã đăng ký hoặc địa chỉ cho thuê" />
@@ -1856,8 +1860,36 @@
       <div class="bill-preview-footer">
         <button type="button" class="btn btn--ghost" id="bill-preview-share-link">🔗 Link khách thuê</button>
         <button type="button" class="btn btn--ghost" id="bill-preview-message-template">💬 Mẫu tin nhắn</button>
+        <button type="button" class="btn btn--ghost" id="bill-preview-electronic-invoice">🧾 Kiểm tra HĐĐT</button>
         <button type="button" class="btn btn--ghost" id="bill-preview-close-footer">Đóng</button>
         <button type="button" class="btn btn--primary" id="bill-preview-print">🖨️ In bill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Provider-neutral electronic invoice preflight -->
+  <div class="modal-overlay" id="electronic-invoice-preflight-modal" hidden>
+    <div class="modal electronic-invoice-preflight-modal" role="dialog" aria-modal="true" aria-labelledby="electronic-invoice-preflight-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="electronic-invoice-preflight-title">Kiểm tra dữ liệu hóa đơn điện tử</h2>
+          <p class="electronic-invoice-preflight-subtitle" id="electronic-invoice-preflight-subtitle"></p>
+        </div>
+        <button type="button" class="modal-close" id="electronic-invoice-preflight-close-header" aria-label="Đóng">✕</button>
+      </div>
+      <div class="electronic-invoice-preflight-body">
+        <div class="electronic-invoice-preflight-notice">
+          <strong>Chỉ tiền kiểm nội bộ</strong>
+          <span>TrọBill chưa gửi dữ liệu hoặc phát hành hóa đơn qua nhà cung cấp.</span>
+        </div>
+        <label class="form-label" id="electronic-invoice-preflight-contract-wrap" hidden>
+          Hợp đồng / khách thuê của kỳ
+          <select class="form-input" id="electronic-invoice-preflight-contract"></select>
+        </label>
+        <div id="electronic-invoice-preflight-result" aria-live="polite"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn--ghost" id="electronic-invoice-preflight-close-footer">Đóng</button>
       </div>
     </div>
   </div>
@@ -2359,7 +2391,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=111"></script>
+  <script src="api.js?v=112"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -2370,7 +2402,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=128"></script>
+  <script src="app.js?v=129"></script>
 </body>
 
 </html>

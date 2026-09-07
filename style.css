@@ -2818,6 +2818,130 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .bill-preview-footer #bill-preview-share-link { margin-right: auto; }
 
+/* Electronic invoice preflight never dispatches to a provider. */
+.modal.electronic-invoice-preflight-modal {
+  max-width: 820px;
+  max-height: calc(100dvh - 40px);
+}
+.electronic-invoice-preflight-modal .modal-header > div { min-width: 0; }
+.electronic-invoice-preflight-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+.electronic-invoice-preflight-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 22px;
+}
+.electronic-invoice-preflight-notice,
+.electronic-invoice-preflight-status {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid rgba(245, 158, 11, .28);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, .1);
+  color: #b45309;
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.electronic-invoice-preflight-status.is-ready {
+  border-color: rgba(16, 185, 129, .28);
+  background: rgba(16, 185, 129, .1);
+  color: var(--green);
+}
+.electronic-invoice-preflight-status span { color: var(--text-muted); }
+.electronic-invoice-preflight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.electronic-invoice-preflight-grid section,
+.electronic-invoice-preflight-lines,
+.electronic-invoice-preflight-blockers {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.electronic-invoice-preflight-grid h3,
+.electronic-invoice-preflight-lines h3,
+.electronic-invoice-preflight-blockers h3 {
+  margin: 0 0 9px;
+  color: var(--text);
+  font-size: .88rem;
+}
+.electronic-invoice-preflight-grid p {
+  margin: 3px 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.electronic-invoice-preflight-grid p strong { color: var(--text); }
+.electronic-invoice-preflight-lines,
+.electronic-invoice-preflight-blockers { margin-top: 12px; }
+.electronic-invoice-preflight-section-head,
+.electronic-invoice-preflight-line,
+.electronic-invoice-preflight-collection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.electronic-invoice-preflight-section-head h3 { margin: 0; }
+.electronic-invoice-preflight-line {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .82rem;
+}
+.electronic-invoice-preflight-line strong { white-space: nowrap; }
+.electronic-invoice-preflight-collection {
+  flex-wrap: wrap;
+  padding-top: 11px;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+.electronic-invoice-preflight-collection strong { color: var(--text); }
+.electronic-invoice-preflight-blockers {
+  border-color: rgba(239, 68, 68, .25);
+  background: rgba(239, 68, 68, .06);
+}
+.electronic-invoice-preflight-blockers ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.electronic-invoice-preflight-empty,
+.electronic-invoice-preflight-error,
+.electronic-invoice-preflight-fingerprint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.electronic-invoice-preflight-error { color: var(--red); }
+.electronic-invoice-preflight-fingerprint { margin-top: 11px; }
+.electronic-invoice-preflight-fingerprint code { color: var(--primary); }
+.electronic-invoice-preflight-modal > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
 /* Bill and debt reminder message templates */
 .modal.bill-message-modal {
   max-width: 640px;
@@ -3301,6 +3425,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .bill-preview-layout { grid-template-columns: 1fr; gap: 16px; }
   .bill-preview-qr-panel { order: 2; }
   .bill-preview-footer { padding: 14px 16px; }
+  #electronic-invoice-preflight-modal { padding: 8px; }
+  .modal.electronic-invoice-preflight-modal { max-height: calc(100dvh - 16px); }
+  .electronic-invoice-preflight-body { padding: 16px; }
+  .electronic-invoice-preflight-grid { grid-template-columns: minmax(0, 1fr); }
+  .electronic-invoice-preflight-section-head { align-items: flex-start; flex-direction: column; }
+  .electronic-invoice-preflight-modal > .modal-actions { padding: 14px 16px; }
   #rent-payment-modal { padding: 8px; }
   .modal.rent-payment-modal { max-height: calc(100dvh - 16px); }
   .rent-payment-modal-body { padding: 16px; }

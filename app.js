@@ -124,6 +124,7 @@ let WORKSPACES = [];
 let CURRENT_WORKSPACE = null;
 let CURRENT_WORKSPACE_ACCESS = null;
 let ELECTRONIC_INVOICE_PROFILE = null;
+let ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
 
 function isOwnerWorkspace() {
   return !CURRENT_WORKSPACE_ACCESS || CURRENT_WORKSPACE_ACCESS.isOwner === true;
@@ -173,6 +174,7 @@ function emptyElectronicInvoiceProfile() {
     legalEntityType: 'unknown',
     businessActivityType: 'unknown',
     annualRevenueBand: 'unknown',
+    sellerLegalName: '',
     taxCode: '',
     businessAddress: '',
     registrationStatus: 'not_registered',
@@ -1520,6 +1522,7 @@ function clearSensitiveStateFromMemory() {
   CURRENT_WORKSPACE = null;
   CURRENT_WORKSPACE_ACCESS = null;
   ELECTRONIC_INVOICE_PROFILE = null;
+  ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
   ACTIVE_PROPERTY_FILTER = 'all';
   ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
@@ -3139,6 +3142,7 @@ function applyWorkspaceUiAccess() {
   [
     'bill-preview-share-link',
     'bill-preview-message-template',
+    'bill-preview-electronic-invoice',
     'bill-message-schedule',
     'bill-message-create-link',
     'bill-message-share',
@@ -6930,6 +6934,132 @@ async function printBillPreview() {
   triggerPrint(`hoa-don-${filenameRoom}-${period}.pdf`);
 }
 
+function closeElectronicInvoicePreflight() {
+  const modal = document.getElementById('electronic-invoice-preflight-modal');
+  if (modal) modal.hidden = true;
+  ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
+  syncModalScrollLock();
+}
+
+function renderElectronicInvoicePreflight(preflight) {
+  const result = document.getElementById('electronic-invoice-preflight-result');
+  const contractWrap = document.getElementById('electronic-invoice-preflight-contract-wrap');
+  const contractSelect = document.getElementById('electronic-invoice-preflight-contract');
+  if (!result || !contractWrap || !contractSelect) return;
+
+  const candidates = Array.isArray(preflight?.contractCandidates)
+    ? preflight.contractCandidates
+    : [];
+  const selectedContractId = Number(preflight?.snapshot?.buyer?.contractId) || 0;
+  contractWrap.hidden = candidates.length <= 1;
+  contractSelect.replaceChildren();
+  if (candidates.length > 1) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Chọn đúng hợp đồng / khách thuê';
+    contractSelect.appendChild(placeholder);
+    for (const candidate of candidates) {
+      const option = document.createElement('option');
+      option.value = String(candidate.contractId);
+      option.textContent = `${candidate.contractCode} · ${candidate.tenantName} · ${candidate.startsOn}${candidate.endsOn ? ` → ${candidate.endsOn}` : ''}`;
+      contractSelect.appendChild(option);
+    }
+    contractSelect.value = selectedContractId ? String(selectedContractId) : '';
+  }
+
+  const snapshot = preflight?.snapshot || {};
+  const seller = snapshot.seller || {};
+  const buyer = snapshot.buyer || null;
+  const invoice = snapshot.invoice || {};
+  const collection = snapshot.collection || {};
+  const blockers = Array.isArray(preflight?.blockers) ? preflight.blockers : [];
+  const lines = Array.isArray(invoice.lines) ? invoice.lines : [];
+  const statusClass = blockers.length === 0 ? 'is-ready' : 'is-blocked';
+  const statusLabel = blockers.length === 0
+    ? 'Dữ liệu nguồn đã đủ để kiểm thử adapter'
+    : `Còn ${blockers.length} điểm cần xử lý`;
+
+  result.innerHTML = `
+    <div class="electronic-invoice-preflight-status ${statusClass}">
+      <strong>${escapeHtml(statusLabel)}</strong>
+      <span>${escapeHtml(preflight?.dispatchNotice || '')}</span>
+    </div>
+    <div class="electronic-invoice-preflight-grid">
+      <section>
+        <h3>Người bán</h3>
+        <p><strong>${escapeHtml(seller.legalName || 'Chưa khai báo')}</strong></p>
+        <p>MST: ${escapeHtml(seller.taxCode || '—')}</p>
+        <p>${escapeHtml(seller.address || 'Chưa khai báo địa chỉ')}</p>
+      </section>
+      <section>
+        <h3>Khách thuê</h3>
+        <p><strong>${escapeHtml(buyer?.name || 'Chưa xác định')}</strong></p>
+        <p>${escapeHtml(buyer?.contractCode || 'Chưa chọn hợp đồng')}</p>
+        <p>${escapeHtml(buyer?.address || 'Chưa có địa chỉ')}</p>
+      </section>
+    </div>
+    <section class="electronic-invoice-preflight-lines">
+      <div class="electronic-invoice-preflight-section-head">
+        <h3>Khoản thu kỳ ${escapeHtml(invoice.period || '')}</h3>
+        <strong>${fmt(Number(invoice.totalVnd) || 0)}</strong>
+      </div>
+      ${lines.length > 0 ? lines.map(line => `
+        <div class="electronic-invoice-preflight-line">
+          <span>${escapeHtml(line.description || line.code || '')}</span>
+          <strong>${fmt(Number(line.amountVnd) || 0)}</strong>
+        </div>`).join('') : '<p class="electronic-invoice-preflight-empty">Chưa có chi tiết khoản thu.</p>'}
+      <div class="electronic-invoice-preflight-collection">
+        <span>Đã thu: <strong>${fmt(Number(collection.collectedVnd) || 0)}</strong></span>
+        <span>Còn lại: <strong>${fmt(Number(collection.remainingVnd) || 0)}</strong></span>
+      </div>
+    </section>
+    ${blockers.length > 0 ? `
+      <section class="electronic-invoice-preflight-blockers">
+        <h3>Chưa thể kết nối nhà cung cấp</h3>
+        <ul>${blockers.map(item => `<li>${escapeHtml(item.message || '')}</li>`).join('')}</ul>
+      </section>` : ''}
+    <p class="electronic-invoice-preflight-fingerprint">Dấu vân tay nguồn: <code>${escapeHtml(String(preflight?.sourceFingerprint || '').slice(0, 16))}…</code></p>`;
+}
+
+async function loadElectronicInvoicePreflight(contractId = null) {
+  if (!ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID) return;
+  const result = document.getElementById('electronic-invoice-preflight-result');
+  const contractWrap = document.getElementById('electronic-invoice-preflight-contract-wrap');
+  if (contractWrap) contractWrap.hidden = true;
+  if (result) result.innerHTML = '<p class="electronic-invoice-preflight-empty">Đang kiểm tra dữ liệu…</p>';
+  try {
+    const response = await API.getElectronicInvoicePreflight(
+      ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID,
+      contractId
+    );
+    renderElectronicInvoicePreflight(response.preflight || {});
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    if (result) {
+      result.innerHTML = `<p class="electronic-invoice-preflight-error">${escapeHtml(error.message || 'Không kiểm tra được dữ liệu hóa đơn điện tử')}</p>`;
+    }
+  }
+}
+
+async function openElectronicInvoicePreflight() {
+  if (!activeBillPreview || !isOwnerWorkspace()) return;
+  try {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn nguồn để kiểm tra');
+    ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = invoiceId;
+    const { room, period } = activeBillPreview;
+    document.getElementById('electronic-invoice-preflight-subtitle').textContent =
+      `${room.name} · ${periodLabel(period)}`;
+    closeBillPreview();
+    document.getElementById('electronic-invoice-preflight-modal').hidden = false;
+    syncModalScrollLock();
+    await loadElectronicInvoicePreflight();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không kiểm tra được dữ liệu hóa đơn điện tử', 'error', 4500);
+  }
+}
+
 function closeInvoiceShareModal() {
   const modal = document.getElementById('invoice-share-modal');
   if (modal) modal.hidden = true;
@@ -7112,6 +7242,15 @@ document.getElementById('bill-preview-close-footer').addEventListener('click', c
 document.getElementById('bill-preview-print').addEventListener('click', printBillPreview);
 document.getElementById('bill-preview-share-link')?.addEventListener('click', openInvoiceShareModal);
 document.getElementById('bill-preview-message-template')?.addEventListener('click', openBillMessageModal);
+document.getElementById('bill-preview-electronic-invoice')?.addEventListener('click', openElectronicInvoicePreflight);
+document.getElementById('electronic-invoice-preflight-contract')?.addEventListener('change', event => {
+  void loadElectronicInvoicePreflight(Number(event.target.value) || null);
+});
+document.getElementById('electronic-invoice-preflight-close-header')?.addEventListener('click', closeElectronicInvoicePreflight);
+document.getElementById('electronic-invoice-preflight-close-footer')?.addEventListener('click', closeElectronicInvoicePreflight);
+document.getElementById('electronic-invoice-preflight-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeElectronicInvoicePreflight();
+});
 document.getElementById('bill-message-template-type')?.addEventListener('change', renderBillMessageTemplate);
 document.getElementById('bill-message-tenant')?.addEventListener('change', renderBillMessageTemplate);
 document.getElementById('bill-message-copy')?.addEventListener('click', copyBillMessageTemplate);
@@ -9183,6 +9322,7 @@ function renderElectronicInvoiceProfile() {
   setValue('electronic-invoice-legal-entity', profile.legalEntityType || 'unknown');
   setValue('electronic-invoice-activity', profile.businessActivityType || 'unknown');
   setValue('electronic-invoice-revenue-band', profile.annualRevenueBand || 'unknown');
+  setValue('electronic-invoice-seller-name', profile.sellerLegalName || '');
   setValue('electronic-invoice-registration', profile.registrationStatus || 'not_registered');
   setValue('electronic-invoice-tax-code', profile.taxCode || '');
   setValue('electronic-invoice-business-address', profile.businessAddress || '');
@@ -9227,6 +9367,7 @@ function initElectronicInvoiceProfileEvents() {
         legalEntityType: document.getElementById('electronic-invoice-legal-entity').value,
         businessActivityType: document.getElementById('electronic-invoice-activity').value,
         annualRevenueBand: document.getElementById('electronic-invoice-revenue-band').value,
+        sellerLegalName: document.getElementById('electronic-invoice-seller-name').value,
         registrationStatus: registration.value,
         taxCode: document.getElementById('electronic-invoice-tax-code').value,
         businessAddress: document.getElementById('electronic-invoice-business-address').value,

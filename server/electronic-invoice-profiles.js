@@ -179,6 +179,12 @@ function profileInput(body = {}) {
     'INVALID_ELECTRONIC_INVOICE_TAX_CODE',
     'Mã số thuế không được quá 20 ký tự'
   ).replace(/\s/g, '');
+  const sellerLegalName = textValue(
+    body.sellerLegalName,
+    300,
+    'INVALID_ELECTRONIC_INVOICE_SELLER_NAME',
+    'Tên người bán hoặc tên pháp lý không được quá 300 ký tự'
+  );
   const businessAddress = textValue(
     body.businessAddress,
     1000,
@@ -228,6 +234,13 @@ function profileInput(body = {}) {
       'Địa chỉ kinh doanh là bắt buộc khi đã phân loại hồ sơ'
     );
   }
+  if (hasClassification && sellerLegalName.length < 2) {
+    throw new ElectronicInvoiceProfileError(
+      400,
+      'ELECTRONIC_INVOICE_SELLER_NAME_REQUIRED',
+      'Tên người bán hoặc tên pháp lý là bắt buộc khi đã phân loại hồ sơ'
+    );
+  }
   if (hasClassification && legalBasisReference.length < 3) {
     throw new ElectronicInvoiceProfileError(
       400,
@@ -253,6 +266,7 @@ function profileInput(body = {}) {
     legalEntityType,
     businessActivityType,
     annualRevenueBand,
+    sellerLegalName,
     taxCode,
     businessAddress,
     registrationStatus,
@@ -271,6 +285,7 @@ function defaultProfile() {
     legalEntityType: 'unknown',
     businessActivityType: 'unknown',
     annualRevenueBand: 'unknown',
+    sellerLegalName: '',
     taxCode: '',
     businessAddress: '',
     registrationStatus: 'not_registered',
@@ -303,6 +318,7 @@ function profileJson(row) {
     legalEntityType: row.legal_entity_type,
     businessActivityType: row.business_activity_type,
     annualRevenueBand: row.annual_revenue_band,
+    sellerLegalName: row.seller_legal_name || '',
     taxCode: row.tax_code || '',
     businessAddress: row.business_address || '',
     registrationStatus: row.registration_status,
@@ -365,6 +381,7 @@ function changedProfileFields(current, next) {
     ['legal_entity_type', 'legalEntityType'],
     ['business_activity_type', 'businessActivityType'],
     ['annual_revenue_band', 'annualRevenueBand'],
+    ['seller_legal_name', 'sellerLegalName'],
     ['tax_code', 'taxCode'],
     ['business_address', 'businessAddress'],
     ['registration_status', 'registrationStatus'],
@@ -414,14 +431,15 @@ async function updateElectronicInvoiceProfile(req, res, dependencies = {}) {
     const result = await client.query(
       `INSERT INTO electronic_invoice_profiles (
          user_id, legal_entity_type, business_activity_type, annual_revenue_band,
-         tax_code, business_address, registration_status, provider,
+         seller_legal_name, tax_code, business_address, registration_status, provider,
          provider_account_ref, legal_basis_reference, effective_from, expires_on,
          eligibility_status, owner_attested_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now())
        ON CONFLICT (user_id) DO UPDATE SET
          legal_entity_type=EXCLUDED.legal_entity_type,
          business_activity_type=EXCLUDED.business_activity_type,
          annual_revenue_band=EXCLUDED.annual_revenue_band,
+         seller_legal_name=EXCLUDED.seller_legal_name,
          tax_code=EXCLUDED.tax_code,
          business_address=EXCLUDED.business_address,
          registration_status=EXCLUDED.registration_status,
@@ -443,6 +461,7 @@ async function updateElectronicInvoiceProfile(req, res, dependencies = {}) {
         input.legalEntityType,
         input.businessActivityType,
         input.annualRevenueBand,
+        input.sellerLegalName,
         input.taxCode,
         input.businessAddress,
         input.registrationStatus,

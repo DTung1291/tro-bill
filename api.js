@@ -229,6 +229,16 @@ const API = (() => {
     return request('PUT', '/api/electronic-invoice/profile', input);
   }
 
+  function getElectronicInvoicePreflight(invoiceId, contractId = null) {
+    const query = contractId
+      ? `?contractId=${encodeURIComponent(contractId)}`
+      : '';
+    return request(
+      'GET',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/electronic-invoice-preflight${query}`
+    );
+  }
+
   function me() {
     return request('GET', '/api/me');
   }
@@ -791,6 +801,7 @@ const API = (() => {
     getWorkspaces,
     getElectronicInvoiceProfile,
     updateElectronicInvoiceProfile,
+    getElectronicInvoicePreflight,
     me,
     getSubscription,
     getPlans,

@@ -32,6 +32,7 @@ function profileRow(overrides = {}) {
     legal_entity_type: 'individual_real_estate_lessor',
     business_activity_type: 'long_term_real_estate_rental',
     annual_revenue_band: 'lte_500m',
+    seller_legal_name: 'Nguyễn Thị Bông',
     tax_code: '',
     business_address: '40 Vũ Hữu, Hà Nội',
     registration_status: 'not_registered',
@@ -126,6 +127,7 @@ test('trạng thái chưa đăng ký tự xóa cấu hình provider không còn 
     legalEntityType: 'individual_real_estate_lessor',
     businessActivityType: 'long_term_real_estate_rental',
     annualRevenueBand: 'lte_500m',
+    sellerLegalName: 'Nguyễn Thị Bông',
     taxCode: '',
     businessAddress: ' 40   Vũ Hữu, Hà Nội ',
     registrationStatus: 'not_registered',
@@ -180,6 +182,7 @@ test('lưu hồ sơ theo owner, reset xác minh cũ và audit không chứa giá
       legalEntityType: 'individual_real_estate_lessor',
       businessActivityType: 'long_term_real_estate_rental',
       annualRevenueBand: 'lte_500m',
+      sellerLegalName: 'Nguyễn Thị Bông',
       taxCode: '',
       businessAddress: '40 Vũ Hữu, Hà Nội',
       registrationStatus: 'not_registered',
@@ -237,4 +240,6 @@ test('client chỉ hiển thị hồ sơ cho owner, xóa khỏi bộ nhớ khi �
   assert.match(app, /ELECTRONIC_INVOICE_PROFILE = null;[\s\S]*function clearSensitiveStateFromMemory/);
   assert.match(app, /function clearSensitiveStateFromMemory[\s\S]*ELECTRONIC_INVOICE_PROFILE = null;/);
   assert.match(app, /attestAccuracy:[\s\S]*electronic-invoice-attestation/);
+  assert.match(html, /id="electronic-invoice-seller-name"/);
+  assert.match(app, /sellerLegalName:[\s\S]*electronic-invoice-seller-name/);
 });

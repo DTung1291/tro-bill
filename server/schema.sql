@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS electronic_invoice_profiles (
   legal_entity_type               TEXT NOT NULL DEFAULT 'unknown',
   business_activity_type          TEXT NOT NULL DEFAULT 'unknown',
   annual_revenue_band             TEXT NOT NULL DEFAULT 'unknown',
+  seller_legal_name               TEXT NOT NULL DEFAULT '',
   tax_code                        TEXT NOT NULL DEFAULT '',
   business_address                TEXT NOT NULL DEFAULT '',
   registration_status             TEXT NOT NULL DEFAULT 'not_registered',
@@ -250,6 +251,7 @@ CREATE TABLE IF NOT EXISTS electronic_invoice_profiles (
   ),
   CONSTRAINT electronic_invoice_profiles_text_lengths_valid CHECK (
     char_length(tax_code) <= 20
+    AND char_length(seller_legal_name) <= 300
     AND char_length(business_address) <= 1000
     AND char_length(provider_account_ref) <= 200
     AND char_length(invoice_template_code) <= 100
@@ -258,6 +260,19 @@ CREATE TABLE IF NOT EXISTS electronic_invoice_profiles (
     AND char_length(provider_credential_ref) <= 500
   )
 );
+ALTER TABLE electronic_invoice_profiles
+  ADD COLUMN IF NOT EXISTS seller_legal_name TEXT NOT NULL DEFAULT '';
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname='electronic_invoice_profiles_seller_name_length_valid'
+  ) THEN
+    ALTER TABLE electronic_invoice_profiles
+      ADD CONSTRAINT electronic_invoice_profiles_seller_name_length_valid
+      CHECK (char_length(seller_legal_name) <= 300);
+  END IF;
+END $$;
 
 DO $$
 DECLARE

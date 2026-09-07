@@ -65,6 +65,7 @@ const rentBankAccounts = require('./rent-bank-accounts');
 const teamMembers = require('./team-members');
 const accountAccess = require('./account-access');
 const electronicInvoiceProfiles = require('./electronic-invoice-profiles');
+const electronicInvoicePreflight = require('./electronic-invoice-preflight');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -166,6 +167,12 @@ app.put(
   requireAuth,
   wrap(accountAccess.requireWorkspace('any')),
   wrap(electronicInvoiceProfiles.updateElectronicInvoiceProfile)
+);
+app.get(
+  '/api/rent-invoices/:invoiceId/electronic-invoice-preflight',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('invoices')),
+  wrap(electronicInvoicePreflight.getElectronicInvoicePreflight)
 );
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));

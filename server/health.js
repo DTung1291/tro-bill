@@ -210,6 +210,17 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='electronic_invoice_profiles_eligibility_valid'
+    )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public'
+        AND table_name='electronic_invoice_profiles'
+        AND column_name='seller_legal_name'
+        AND is_nullable='NO'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='electronic_invoice_profiles_seller_name_length_valid'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {
