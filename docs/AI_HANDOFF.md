@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành báo cáo doanh thu năm phục vụ kê khai thuế; tiếp tục khảo sát nhà cung cấp hóa đơn điện tử có API |
+| Trạng thái | Đã phát hành báo cáo doanh thu năm và hoàn tất khảo sát nhà cung cấp hóa đơn điện tử; tiếp tục xác định trường hợp thật sự cần HĐĐT |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `26661c4` + `b049670` — báo cáo doanh thu năm và hotfix layout bảng |
-| Việc code tiếp theo | Khảo sát ít nhất hai nhà cung cấp hóa đơn điện tử có API trước khi chọn tích hợp |
+| Việc code tiếp theo | Xác định trường hợp khách hàng nào thực sự cần hóa đơn điện tử trước khi thiết kế adapter |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -90,6 +90,13 @@ Hạng mục kế tiếp là khảo sát nhà cung cấp hóa đơn điện tử
 
 ## Mốc đã giao gần đây
 
+- Khảo sát HĐĐT ngày 07/09/2026: `docs/E_INVOICE_PROVIDER_SURVEY.md` đối chiếu
+  MISA meInvoice, VNPT Invoice và Viettel S-Invoice bằng nguồn chính thức. MISA
+  là shortlist kỹ thuật số 1 nhờ REST/JSON cùng test/production công khai; VNPT
+  là đối chứng báo giá/SLA nhưng phải xác nhận contract mới thay public SOAP cũ;
+  Viettel là dự phòng khi có sandbox/spec. Chưa chọn provider hoặc viết adapter
+  trước khi có tài liệu 2026, ủy quyền nhiều tenant, sandbox, báo giá và rà soát
+  dữ liệu/pháp lý. Hạng mục tiếp theo là xác định chủ trọ nào thật sự cần HĐĐT.
 - `26661c4` + `b049670`: báo cáo doanh thu năm có đủ 12 tháng, bảng theo
   khu/địa điểm, cơ cấu hóa đơn và đối soát về tổng cùng bộ lọc. Excel có sheet
   “Đối chiếu doanh thu năm”, PDF có phần kê khai và cảnh báo không tự tính nghĩa

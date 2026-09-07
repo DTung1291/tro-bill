@@ -501,7 +501,14 @@ scan sạch.
 
 ### Hóa đơn điện tử và tích hợp
 
-- [ ] Khảo sát ít nhất hai nhà cung cấp hóa đơn điện tử có API.
+- [x] Khảo sát ít nhất hai nhà cung cấp hóa đơn điện tử có API.
+  Đã so sánh MISA meInvoice, VNPT Invoice và Viettel S-Invoice tại
+  `docs/E_INVOICE_PROVIDER_SURVEY.md`. MISA được ưu tiên xin sandbox/báo giá vì
+  có tài liệu REST/JSON và môi trường test công khai; VNPT là phương án đối chứng
+  bắt buộc nhưng cần xác nhận API hiện hành thay cho public SOAP cũ; Viettel chỉ
+  là dự phòng đến khi cung cấp đủ đặc tả. Chưa chọn/tích hợp nhà cung cấp nếu chưa
+  có API contract 2026, mô hình ủy quyền nhiều tenant, sandbox, báo giá/SLA và
+  điều khoản dữ liệu bằng văn bản.
 - [ ] Xác định trường hợp khách hàng nào thực sự cần hóa đơn điện tử.
 - [ ] Đồng bộ thông tin người thuê và khoản thu sang nhà cung cấp hóa đơn.
 - [ ] Lưu mã tra cứu và trạng thái hóa đơn điện tử.

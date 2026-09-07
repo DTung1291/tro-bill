@@ -478,3 +478,22 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   thuế phải nộp. Nếu sau này sinh tờ khai chính thức, phải thu thập cấu hình thuế
   có hiệu lực, lưu căn cứ phiên bản hóa và được kế toán/đơn vị tư vấn pháp lý
   kiểm tra trước khi phát hành.
+
+## D-032 — Chọn nhà cung cấp HĐĐT qua sandbox và contract hiện hành
+
+- **Trạng thái:** Đang áp dụng từ 07/09/2026.
+- **Quyết định:** MISA meInvoice là shortlist kỹ thuật đầu tiên để xin sandbox vì
+  có tài liệu REST/JSON và môi trường test/production công khai. VNPT Invoice là
+  phương án đối chứng bắt buộc về giá, SLA và hỗ trợ; Viettel S-Invoice là dự
+  phòng. Đây chưa phải quyết định mua hoặc tích hợp. Không viết adapter production
+  chỉ dựa trên trang giới thiệu, public SOAP demo hoặc tài liệu không xác định
+  phiên bản.
+- **Lý do:** Phát hành hóa đơn là hành vi pháp lý không thể retry mù hoặc dùng
+  chung danh tính thuế. Tài liệu công khai giữa các nhà cung cấp có độ đầy đủ và
+  tuổi đời khác nhau; một demo chạy được không chứng minh luồng ủy quyền SaaS,
+  chống trùng, xử lý sai sót hay tuân thủ quy định 2026.
+- **Hệ quả:** Trước proof of concept phải có API contract 2026, sandbox, báo giá,
+  SLA, điều khoản dữ liệu và mô hình credential riêng cho từng chủ trọ. Adapter
+  phải đặt sau interface nội bộ, lưu external reference/trạng thái, hỗ trợ
+  idempotency cùng điều chỉnh/thay thế. Kế toán hoặc đơn vị tư vấn pháp lý phải
+  duyệt mapping nghiệp vụ trước lần phát hành thật đầu tiên.
