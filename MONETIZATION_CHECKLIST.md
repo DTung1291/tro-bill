@@ -476,7 +476,16 @@ scan sạch.
   `9c3461ec4a63` đã kiểm tra dữ liệu thật: tháng 9 là 42/42 (100%), Q3 là
   436/476 (91,6%); CI `34044169080`, 393/393 test, console/Runtime Logs sạch,
   database/schema `ok`, runtime role `restricted`; không cần migration.
-- [ ] Xuất Excel/PDF cho kế toán.
+- [x] Xuất Excel/PDF cho kế toán.
+  Hai nút xuất dùng đúng snapshot báo cáo đang lọc theo tháng/quý/năm, khu và
+  phòng. Excel là workbook `.xlsx` OOXML thật với sheet tổng hợp và chi tiết
+  phòng, giá trị VND/tỷ lệ giữ kiểu số; chuỗi được escape và không thể trở thành
+  công thức. PDF in A4 ngang, bảng tự tách trang và lặp tiêu đề cột. Preview
+  `dpl_21hwneWZTwT42hupP5DbXkJeqPBn` đã tạo file qua nút thật, mobile 390×844
+  không tràn; mẫu 48 phòng in đủ 3 trang và đủ 48/48 dòng. Production revision
+  `a17ac0329304` đã kiểm tra dữ liệu thật toàn khu và Q3/phòng 403; CI
+  `34044949466`, 396/396 test, console/Runtime Logs sạch, database/schema `ok`,
+  runtime role `restricted`; không cần migration hay dependency mới.
 - [ ] Có báo cáo doanh thu năm phục vụ kê khai thuế.
 
 ### Hóa đơn điện tử và tích hợp

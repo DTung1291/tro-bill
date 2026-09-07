@@ -440,3 +440,22 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   phải cảnh báo. Một ngày chuyển phòng có thể ghi nhận cả phòng nguồn và phòng
   đích đã được sử dụng vì chưa có timestamp để chia theo giờ; không được âm thầm
   đổi quy tắc này nếu chưa bổ sung dữ liệu chi tiết và migration tương ứng.
+
+## D-030 — File kế toán là biểu diễn của cùng snapshot báo cáo đã lọc
+
+- **Trạng thái:** Đã phát hành production ngày 07/09/2026.
+- **Quyết định:** Excel và PDF được dựng từ chính object báo cáo đã trả cho bộ
+  lọc hiện tại; frontend không query thêm hoặc tính lại doanh thu, thực thu,
+  công nợ, chi phí, lợi nhuận hay lấp đầy. Excel dùng OOXML `.xlsx` không nén,
+  giữ VND/tỷ lệ ở ô kiểu số và mọi text ở `inlineStr`; PDF dùng A4 ngang, cho
+  phép bảng phòng chảy qua nhiều trang và lặp `thead`.
+- **Lý do:** Một pipeline số liệu riêng cho file xuất dễ lệch định nghĩa tại
+  D-026 đến D-029. CSV không giữ chắc kiểu số, nhiều sheet và có rủi ro công
+  thức khi tên phòng/khu bắt đầu bằng ký tự đặc biệt. Bảng dài bị ép vào một
+  trang sẽ làm mất nội dung giống lỗi hợp đồng trước đây.
+- **Hệ quả:** Nút xuất chỉ bật khi snapshot của đúng cache key kỳ/khu/phòng đã
+  tải xong. Workbook không dùng công thức từ dữ liệu người dùng và không cần
+  thư viện bên thứ ba; PDF phải giữ quy tắc `table-header-group` và
+  `break-inside: avoid-page`. File hiện chỉ gồm số liệu tài chính/vận hành đã
+  được scope bởi quyền `overview`, không đưa tên hay định danh khách thuê vào
+  bản xuất.

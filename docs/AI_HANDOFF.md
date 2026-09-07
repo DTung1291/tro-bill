@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 06/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành báo cáo tỷ lệ lấp đầy; tiếp tục xuất Excel/PDF cho kế toán |
+| Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đã phát hành xuất Excel/PDF cho kế toán; tiếp tục báo cáo doanh thu năm phục vụ kê khai thuế |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `9c3461e` — báo cáo lấp đầy/phòng trống và trạng thái tải rõ ràng |
-| Việc code tiếp theo | Triển khai “Xuất Excel/PDF cho kế toán” |
+| Phần ứng dụng phát hành gần nhất | `a17ac03` — xuất báo cáo tài chính `.xlsx` và PDF nhiều trang |
+| Việc code tiếp theo | Triển khai “Báo cáo doanh thu năm phục vụ kê khai thuế” |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -89,6 +89,15 @@ chính tổng hợp ở giai đoạn 5.
 
 ## Mốc đã giao gần đây
 
+- `a17ac03`: xuất đúng snapshot báo cáo đang lọc thành workbook `.xlsx` OOXML
+  có sheet tổng hợp/chi tiết phòng và mẫu PDF A4 ngang nhiều trang. Preview
+  `dpl_21hwneWZTwT42hupP5DbXkJeqPBn` qua E2E desktop/mobile; QA bằng Chrome với
+  48 phòng tạo 3 trang, tiêu đề bảng lặp và trích xuất đủ 48/48 dòng. Production
+  `dpl_2MsTWXySpWTbUZWXeCZF9bUYTo76` trả revision `a17ac0329304`,
+  database/schema `ok`, runtime role `restricted`, asset pins
+  `style 120 / api 110 / financial-report-export 1 / app 126`; bộ lọc thật Q3
+  phòng 403 và nút Excel/PDF hoạt động, CI `34044949466`, 396/396 test, console
+  và Runtime Logs sạch. Không có migration hoặc dependency mới.
 - `feda910` + hotfix `9c3461e`: báo cáo lấp đầy theo ngày-phòng đã quan sát,
   chuỗi trống dài nhất/cuối kỳ và lọc kỳ/khu/phòng. Preview
   `dpl_3NkxKRKjMFqjSDNVFNm4nabtXEwc` qua E2E; Production
