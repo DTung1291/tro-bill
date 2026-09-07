@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã hoàn tất khảo sát provider và chính sách đối tượng HĐĐT; chờ sandbox/API contract để triển khai đồng bộ |
+| Trạng thái | Đã phát hành hồ sơ HĐĐT owner-only và trạng thái đủ điều kiện; đồng bộ provider vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `26661c4` + `b049670` — báo cáo doanh thu năm và hotfix layout bảng |
-| Việc code tiếp theo | Sau khi có provider sandbox/API contract: thiết kế hồ sơ HĐĐT workspace và adapter đồng bộ draft |
+| Phần ứng dụng phát hành gần nhất | `245f984` — hồ sơ HĐĐT theo workspace, phân loại server-side và audit |
+| Việc code tiếp theo | Sau khi có provider sandbox/API contract: adapter đồng bộ draft idempotent; chưa phát hành HĐĐT thật |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -70,7 +70,9 @@ revision `6f0ec26e2d31`, database/schema `ok`, runtime role `restricted`, asset
 pins `style 115 / api 108 / app 119`; endpoint mới trả 401 khi chưa đăng nhập và
 không có runtime error trong log sau deploy. Báo cáo tài chính tổng hợp, cơ cấu
 doanh thu/cọc, lấp đầy, xuất Excel/PDF và báo cáo doanh thu năm đều đã phát hành.
-Hạng mục kế tiếp là khảo sát nhà cung cấp hóa đơn điện tử có API.
+Nền tảng hồ sơ hóa đơn điện tử theo workspace đã phát hành; bước tiếp theo phụ
+thuộc sandbox/API contract hiện hành của nhà cung cấp để triển khai adapter
+đồng bộ draft idempotent, lưu external reference và trạng thái.
 
 ## Bản đồ hệ thống ngắn
 
@@ -90,6 +92,20 @@ Hạng mục kế tiếp là khảo sát nhà cung cấp hóa đơn điện tử
 
 ## Mốc đã giao gần đây
 
+- `245f984`: hồ sơ HĐĐT owner-only theo workspace đã phát hành, gồm loại chủ
+  thể, hoạt động, nhóm doanh thu, MST/địa chỉ, đăng ký, provider dự kiến, ngày
+  hiệu lực và căn cứ rà soát. Server tự suy trạng thái, bắt chủ xác nhận trước
+  khi lưu, xóa xác minh provider/reviewer cũ khi hồ sơ đổi; UI không nhận API
+  key/mật khẩu và ghi rõ bill nội bộ chưa phải HĐĐT thuế. Audit chỉ giữ tên
+  trường, export tài khoản có hồ sơ, runtime không có quyền DELETE. Migration
+  `20260907_electronic_invoice_profiles.sql` chạy trên Neon staging
+  `br-twilight-frog-az35125t` và production `br-fancy-star-azyclc1h`, cả hai
+  đạt 5/5 cờ. CI `34092666303`, 407/407 test; Production deployment
+  `dpl_Dg1XmfaB7WLz1qEaEZnA6nwJYYhW` trả revision `245f984e7c56`, readiness
+  database/schema `ok`, runtime role `restricted`, asset pins `style 123 / api
+  111 / app 128`. Smoke test owner xác nhận hồ sơ mặc định, provider disabled,
+  không tràn ngang desktop và console/Runtime Logs sạch; không ghi dữ liệu test
+  vào tài khoản production. Đồng bộ provider vẫn chưa hoàn tất.
 - Chính sách đối tượng HĐĐT ngày 07/09/2026:
   `docs/E_INVOICE_ELIGIBILITY_POLICY.md` tách cho thuê BĐS dài hạn khỏi dịch vụ
   lưu trú, cá nhân/hộ khỏi doanh nghiệp, tự nguyện khỏi bắt buộc, và tiền cọc khỏi

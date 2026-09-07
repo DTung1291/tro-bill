@@ -517,6 +517,15 @@ scan sạch.
   credential riêng, căn cứ còn hiệu lực cùng xác nhận kế toán/pháp lý. Chính sách
   dựa trên Nghị định 254/2026/NĐ-CP và hướng dẫn Cục Thuế công bố năm 2026.
 - [ ] Đồng bộ thông tin người thuê và khoản thu sang nhà cung cấp hóa đơn.
+  Nền tảng trung gian đã phát hành ngày 07/09/2026: mỗi workspace có hồ sơ pháp
+  lý owner-only, trạng thái đủ điều kiện do server suy ra, ngày hiệu lực, nhà
+  cung cấp dự kiến, xác nhận của chủ và audit không lưu giá trị nhạy cảm. API/UI
+  ghi rõ bill TrọBill chưa phải HĐĐT thuế; không nhận API key trong trình duyệt
+  và mọi sửa hồ sơ đều thu hồi xác minh kết nối cũ. Migration staging/production
+  đạt 5/5 cờ; Production revision `245f984e7c56`, deployment
+  `dpl_Dg1XmfaB7WLz1qEaEZnA6nwJYYhW`, CI `34092666303`, 407/407 test. Mục này
+  vẫn chưa hoàn tất cho đến khi có sandbox/API contract 2026 và adapter phát
+  hành draft idempotent được kiểm thử.
 - [ ] Lưu mã tra cứu và trạng thái hóa đơn điện tử.
 - [ ] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
 - [ ] Được kế toán hoặc đơn vị tư vấn pháp lý kiểm tra nghiệp vụ trước khi phát hành.

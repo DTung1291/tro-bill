@@ -516,3 +516,25 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   audit trước adapter. Thu cọc bảo đảm hợp đồng không tự phát hành HĐĐT. Trường
   hợp hỗn hợp phải rà soát theo hoạt động/dòng hóa đơn; hệ thống chỉ đề xuất,
   không thay kết luận của kế toán, tư vấn pháp lý hoặc cơ quan thuế.
+
+## D-034 — Hồ sơ HĐĐT tách khỏi bill và credential nhà cung cấp
+
+- **Trạng thái:** Đã phát hành production ngày 07/09/2026.
+- **Quyết định:** Mỗi workspace có đúng một hồ sơ HĐĐT owner-only, lưu loại chủ
+  thể, hoạt động, nhóm doanh thu, mã số thuế/địa chỉ, trạng thái đăng ký, provider
+  dự kiến và khoảng hiệu lực. Eligibility được suy lại ở server từ dữ liệu chủ
+  tự khai; chủ phải xác nhận độ chính xác mỗi lần lưu. Trình duyệt chỉ được nhập
+  mã tham chiếu tài khoản provider, không được nhận API key, mật khẩu hoặc
+  credential phát hành. Credential về sau chỉ lưu dưới dạng opaque reference ở
+  server; mọi thay đổi hồ sơ phải xóa xác minh kết nối và kết quả review cũ.
+- **Lý do:** Bill nội bộ, danh tính pháp lý và quyền phát hành là ba lớp khác
+  nhau. Lưu credential trong form hoặc giữ trạng thái ready sau khi MST/provider
+  thay đổi có thể phát hành dưới sai chủ thể. Cho nhân viên xem hồ sơ này cũng
+  mở rộng phạm vi dữ liệu thuế ngoài nhiệm vụ vận hành đã giao.
+- **Hệ quả:** Runtime chỉ có SELECT/INSERT/UPDATE trên bảng hồ sơ, không DELETE;
+  API chặn staff, response không trả credential reference và export tài khoản có
+  hồ sơ để đáp ứng tính di chuyển dữ liệu. Audit chỉ lưu tên trường thay đổi,
+  không lưu MST, địa chỉ, căn cứ hay mã tài khoản. Các trạng thái `*_ready`
+  không thể do biểu mẫu tự bật; adapter/provider verifier tương lai phải xác minh
+  credential riêng. Mục đồng bộ nhà cung cấp vẫn để mở cho tới khi có sandbox,
+  API contract 2026 và luồng draft idempotent được kiểm thử.
