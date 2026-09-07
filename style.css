@@ -463,6 +463,103 @@ body.workspace-staff-active .main { padding-top: 112px; }
   cursor: pointer;
 }
 .invoice-reminder-settings__foot { align-items: center; }
+.electronic-invoice-profile {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 16px;
+}
+.electronic-invoice-profile__head,
+.electronic-invoice-profile__actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.electronic-invoice-profile__head > div { min-width: 0; }
+.electronic-invoice-profile__head strong { color: var(--text); }
+.electronic-invoice-profile__head p,
+.electronic-invoice-profile__summary,
+.electronic-invoice-profile__actions > span {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.5;
+}
+.electronic-invoice-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.electronic-invoice-status--review,
+.electronic-invoice-status--not-ready {
+  color: #b45309;
+  background: rgba(245, 158, 11, .13);
+  border-color: rgba(245, 158, 11, .25);
+}
+.electronic-invoice-status--not-required {
+  color: var(--green);
+  background: rgba(16, 185, 129, .12);
+  border-color: rgba(16, 185, 129, .22);
+}
+.electronic-invoice-status--ready {
+  color: var(--primary);
+  background: rgba(108, 99, 255, .11);
+  border-color: rgba(108, 99, 255, .2);
+}
+.electronic-invoice-status--suspended {
+  color: var(--red);
+  background: rgba(239, 68, 68, .12);
+  border-color: rgba(239, 68, 68, .22);
+}
+.electronic-invoice-profile__summary {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.electronic-invoice-profile__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.electronic-invoice-profile__form > label:not(.electronic-invoice-profile__attestation) {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 650;
+}
+.electronic-invoice-profile__form .inline-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.electronic-invoice-profile__form textarea.inline-input {
+  resize: vertical;
+  min-height: 74px;
+  line-height: 1.45;
+}
+.electronic-invoice-profile__wide { grid-column: 1 / -1; }
+.electronic-invoice-profile__attestation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.electronic-invoice-profile__attestation input { margin-top: 3px; }
+.electronic-invoice-profile__actions { align-items: center; }
+.electronic-invoice-profile__actions > span { margin: 0; }
+.electronic-invoice-profile__actions .btn { flex: 0 0 auto; }
 .bank-transfer-reference-hint {
   margin-top: 8px;
   color: var(--text-muted);
@@ -3192,6 +3289,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .invoice-reminder-groups { grid-template-columns: minmax(0, 1fr); }
   .invoice-reminder-settings__foot { align-items: stretch; flex-direction: column; }
   .invoice-reminder-settings__foot .btn { justify-content: center; }
+  .electronic-invoice-profile__head,
+  .electronic-invoice-profile__actions { align-items: stretch; flex-direction: column; }
+  .electronic-invoice-profile__form { grid-template-columns: minmax(0, 1fr); }
+  .electronic-invoice-profile__wide { grid-column: auto; }
+  .electronic-invoice-status { align-self: flex-start; }
+  .electronic-invoice-profile__actions .btn { justify-content: center; width: 100%; }
   #bill-preview-modal { padding: 8px; }
   .modal.bill-preview-modal { max-height: calc(100dvh - 16px); }
   .bill-preview-content { padding: 16px; }

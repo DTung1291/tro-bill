@@ -123,9 +123,68 @@ let TEAM_ACCESS_OPERATIONS = [];
 let WORKSPACES = [];
 let CURRENT_WORKSPACE = null;
 let CURRENT_WORKSPACE_ACCESS = null;
+let ELECTRONIC_INVOICE_PROFILE = null;
 
 function isOwnerWorkspace() {
   return !CURRENT_WORKSPACE_ACCESS || CURRENT_WORKSPACE_ACCESS.isOwner === true;
+}
+
+const ELECTRONIC_INVOICE_STATUS = Object.freeze({
+  review_required: {
+    label: 'Cần rà soát',
+    className: 'electronic-invoice-status--review',
+    summary: 'Chưa đủ thông tin để kết luận. Không dùng trạng thái này để quyết định nghĩa vụ thuế.'
+  },
+  not_required: {
+    label: 'Chưa bắt buộc',
+    className: 'electronic-invoice-status--not-required',
+    summary: 'Theo thông tin tự khai, trường hợp này hiện chưa thuộc luồng bắt buộc. Có thể đăng ký tự nguyện nếu cần.'
+  },
+  voluntary_not_ready: {
+    label: 'Tự nguyện · chưa sẵn sàng',
+    className: 'electronic-invoice-status--not-ready',
+    summary: 'Đã khai đăng ký tự nguyện nhưng chưa có kết nối nhà cung cấp được xác minh.'
+  },
+  voluntary_ready: {
+    label: 'Tự nguyện · sẵn sàng',
+    className: 'electronic-invoice-status--ready',
+    summary: 'Hồ sơ tự nguyện và kết nối nhà cung cấp đã được xác minh.'
+  },
+  required_not_ready: {
+    label: 'Có thể bắt buộc · chưa sẵn sàng',
+    className: 'electronic-invoice-status--not-ready',
+    summary: 'Thông tin tự khai cho thấy cần chuẩn bị hóa đơn điện tử, nhưng kết nối nhà cung cấp chưa được xác minh.'
+  },
+  required_ready: {
+    label: 'Bắt buộc · sẵn sàng',
+    className: 'electronic-invoice-status--ready',
+    summary: 'Hồ sơ bắt buộc và kết nối nhà cung cấp đã được xác minh.'
+  },
+  suspended: {
+    label: 'Đang ngừng sử dụng',
+    className: 'electronic-invoice-status--suspended',
+    summary: 'Hồ sơ đang ở trạng thái ngừng sử dụng hóa đơn điện tử.'
+  }
+});
+
+function emptyElectronicInvoiceProfile() {
+  return {
+    exists: false,
+    legalEntityType: 'unknown',
+    businessActivityType: 'unknown',
+    annualRevenueBand: 'unknown',
+    taxCode: '',
+    businessAddress: '',
+    registrationStatus: 'not_registered',
+    provider: '',
+    providerAccountRef: '',
+    legalBasisReference: '',
+    effectiveFrom: null,
+    expiresOn: null,
+    eligibilityStatus: 'review_required',
+    providerConnectionVerified: false,
+    ownerAttestedAt: null
+  };
 }
 
 function hasWorkspaceOperation(operation) {
@@ -1460,6 +1519,7 @@ function clearSensitiveStateFromMemory() {
   WORKSPACES = [];
   CURRENT_WORKSPACE = null;
   CURRENT_WORKSPACE_ACCESS = null;
+  ELECTRONIC_INVOICE_PROFILE = null;
   ACTIVE_PROPERTY_FILTER = 'all';
   ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
@@ -3163,6 +3223,7 @@ function renderPage(page) {
       renderSubscriptionPaymentHistory();
       renderRentBankAccounts();
       renderRentPaymentChannel();
+      renderElectronicInvoiceProfile();
       break;
   }
 }
@@ -9084,9 +9145,109 @@ const AUDIT_ACTION_LABELS = {
   room_asset_created: 'Thêm tài sản phòng',
   room_asset_updated: 'Cập nhật tài sản phòng',
   room_asset_archived: 'Ngừng sử dụng tài sản',
-  room_asset_restored: 'Khôi phục tài sản phòng'
+  room_asset_restored: 'Khôi phục tài sản phòng',
+  electronic_invoice_profile_created: 'Tạo hồ sơ hóa đơn điện tử',
+  electronic_invoice_profile_updated: 'Cập nhật hồ sơ hóa đơn điện tử'
 };
 let privacyActionMode = '';
+
+function syncElectronicInvoiceProviderFields() {
+  const registration = document.getElementById('electronic-invoice-registration');
+  const provider = document.getElementById('electronic-invoice-provider');
+  const providerAccount = document.getElementById('electronic-invoice-provider-account');
+  if (!registration || !provider || !providerAccount) return;
+  const active = ['registered_code', 'registered_non_code'].includes(registration.value);
+  document.querySelectorAll('[data-electronic-invoice-provider-field]').forEach(field => {
+    field.classList.toggle('is-disabled', !active);
+  });
+  provider.disabled = !active;
+  providerAccount.disabled = !active || !provider.value;
+  if (!active) {
+    provider.value = '';
+    providerAccount.value = '';
+  } else if (!provider.value) {
+    providerAccount.value = '';
+  }
+}
+
+function renderElectronicInvoiceProfile() {
+  const card = document.getElementById('electronic-invoice-profile-card');
+  if (!card) return;
+  card.hidden = !isOwnerWorkspace();
+  if (card.hidden) return;
+  const profile = ELECTRONIC_INVOICE_PROFILE || emptyElectronicInvoiceProfile();
+  const setValue = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.value = value ?? '';
+  };
+  setValue('electronic-invoice-legal-entity', profile.legalEntityType || 'unknown');
+  setValue('electronic-invoice-activity', profile.businessActivityType || 'unknown');
+  setValue('electronic-invoice-revenue-band', profile.annualRevenueBand || 'unknown');
+  setValue('electronic-invoice-registration', profile.registrationStatus || 'not_registered');
+  setValue('electronic-invoice-tax-code', profile.taxCode || '');
+  setValue('electronic-invoice-business-address', profile.businessAddress || '');
+  setValue('electronic-invoice-provider', profile.provider || '');
+  setValue('electronic-invoice-provider-account', profile.providerAccountRef || '');
+  setValue('electronic-invoice-effective-from', profile.effectiveFrom || '');
+  setValue('electronic-invoice-expires-on', profile.expiresOn || '');
+  setValue('electronic-invoice-legal-basis', profile.legalBasisReference || '');
+  const attestation = document.getElementById('electronic-invoice-attestation');
+  if (attestation) attestation.checked = false;
+
+  const status = ELECTRONIC_INVOICE_STATUS[profile.eligibilityStatus]
+    || ELECTRONIC_INVOICE_STATUS.review_required;
+  const statusElement = document.getElementById('electronic-invoice-profile-status');
+  statusElement.textContent = status.label;
+  statusElement.className = `electronic-invoice-status ${status.className}`;
+  const summary = document.getElementById('electronic-invoice-profile-summary');
+  summary.textContent = profile.exists
+    ? status.summary
+    : 'Chưa có hồ sơ. Hãy khai báo đúng tình trạng pháp lý hiện tại.';
+  const providerNote = document.getElementById('electronic-invoice-provider-note');
+  providerNote.textContent = profile.providerConnectionVerified
+    ? 'Kết nối nhà cung cấp đã được xác minh.'
+    : 'Chưa có kết nối nhà cung cấp được xác minh. Không nhập API key hoặc mật khẩu vào biểu mẫu này.';
+  syncElectronicInvoiceProviderFields();
+}
+
+function initElectronicInvoiceProfileEvents() {
+  const form = document.getElementById('electronic-invoice-profile-form');
+  const registration = document.getElementById('electronic-invoice-registration');
+  const provider = document.getElementById('electronic-invoice-provider');
+  if (!form || !registration || !provider) return;
+  registration.addEventListener('change', syncElectronicInvoiceProviderFields);
+  provider.addEventListener('change', syncElectronicInvoiceProviderFields);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!isOwnerWorkspace()) return;
+    const button = document.getElementById('save-electronic-invoice-profile');
+    button.disabled = true;
+    try {
+      const result = await API.updateElectronicInvoiceProfile({
+        legalEntityType: document.getElementById('electronic-invoice-legal-entity').value,
+        businessActivityType: document.getElementById('electronic-invoice-activity').value,
+        annualRevenueBand: document.getElementById('electronic-invoice-revenue-band').value,
+        registrationStatus: registration.value,
+        taxCode: document.getElementById('electronic-invoice-tax-code').value,
+        businessAddress: document.getElementById('electronic-invoice-business-address').value,
+        provider: provider.value,
+        providerAccountRef: document.getElementById('electronic-invoice-provider-account').value,
+        effectiveFrom: document.getElementById('electronic-invoice-effective-from').value,
+        expiresOn: document.getElementById('electronic-invoice-expires-on').value,
+        legalBasisReference: document.getElementById('electronic-invoice-legal-basis').value,
+        attestAccuracy: document.getElementById('electronic-invoice-attestation').checked
+      });
+      ELECTRONIC_INVOICE_PROFILE = result.profile || emptyElectronicInvoiceProfile();
+      renderElectronicInvoiceProfile();
+      showToast('Đã lưu và đánh giá hồ sơ hóa đơn điện tử ✓', 'success');
+    } catch (error) {
+      if (error.code === 401) return handleAuthExpired();
+      showToast(error.message || 'Không lưu được hồ sơ hóa đơn điện tử', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
 
 async function loadPrivacyStatus() {
   const statusEl = document.getElementById('privacy-status');
@@ -10797,6 +10958,7 @@ function init() {
   if (typeof initOcrModalEvents === 'function') initOcrModalEvents();
   if (typeof initTenantsEvents === 'function') initTenantsEvents();
   if (typeof initPrivacyEvents === 'function') initPrivacyEvents();
+  if (typeof initElectronicInvoiceProfileEvents === 'function') initElectronicInvoiceProfileEvents();
 
   if (typeof AndroidApp !== 'undefined' && AndroidApp.scheduleReminder && STATE.settings.reminderTime) {
     const enabled = !!STATE.settings.reminderEnabled;
@@ -11045,7 +11207,7 @@ async function startApp() {
     }
   };
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, bankAccountsResult, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult] = await Promise.all([
+  const [serverState, bankAccountsResult, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult, electronicInvoiceProfileResult] = await Promise.all([
     API.getState(),
     (ownerWorkspace || (workspace.operations || []).includes('invoices'))
       ? API.getRentBankAccounts().catch((error) => {
@@ -11080,7 +11242,11 @@ async function startApp() {
       staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false },
       properties: [],
       operations: []
-    })
+    }),
+    ownerWorkspace ? API.getElectronicInvoiceProfile().catch((error) => {
+      console.warn('Không tải được hồ sơ hóa đơn điện tử:', error.message);
+      return { profile: emptyElectronicInvoiceProfile() };
+    }) : Promise.resolve({ profile: emptyElectronicInvoiceProfile() })
   ]);
   if (expectedGeneration !== _sessionGeneration ||
       expectedAccountContext !== API.getAccountContext() ||
@@ -11104,6 +11270,8 @@ async function startApp() {
     : [];
   applyRoomOperationalStatusPayload(maintenanceResult);
   applyTeamMembersPayload(teamResult);
+  ELECTRONIC_INVOICE_PROFILE = electronicInvoiceProfileResult.profile
+    || emptyElectronicInvoiceProfile();
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
   RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
@@ -11126,6 +11294,7 @@ async function startApp() {
   renderRentBankAccounts();
   renderRentPaymentChannel();
   renderTeamMembers();
+  renderElectronicInvoiceProfile();
   loadDonateConfig();
   if (ownerWorkspace) loadPrivacyStatus();
   showAuthScreen(false);

@@ -221,6 +221,14 @@ const API = (() => {
     return request('GET', '/api/workspaces');
   }
 
+  function getElectronicInvoiceProfile() {
+    return request('GET', '/api/electronic-invoice/profile');
+  }
+
+  function updateElectronicInvoiceProfile(input) {
+    return request('PUT', '/api/electronic-invoice/profile', input);
+  }
+
   function me() {
     return request('GET', '/api/me');
   }
@@ -781,6 +789,8 @@ const API = (() => {
     deleteTeamMember,
     updateTeamMemberAccess,
     getWorkspaces,
+    getElectronicInvoiceProfile,
+    updateElectronicInvoiceProfile,
     me,
     getSubscription,
     getPlans,

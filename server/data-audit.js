@@ -63,7 +63,19 @@ const ALLOWED_FIELDS = new Set([
   'note',
   'paidDate',
   'name',
-  'propertyId'
+  'propertyId',
+  // Hồ sơ hóa đơn điện tử (chỉ tên trường; không lưu giá trị mã số thuế/địa chỉ)
+  'legalEntityType',
+  'businessActivityType',
+  'annualRevenueBand',
+  'taxCode',
+  'businessAddress',
+  'registrationStatus',
+  'provider',
+  'providerAccountRef',
+  'legalBasisReference',
+  'expiresOn',
+  'eligibilityStatus'
 ]);
 
 function requestAuditContext(req = {}) {

@@ -205,6 +205,11 @@ const SCHEMA_READY_QUERY = `
       SELECT 1 FROM pg_indexes
       WHERE schemaname='public'
         AND indexname='idx_rent_payment_channels_account_provider'
+    )
+    AND to_regclass('public.electronic_invoice_profiles') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='electronic_invoice_profiles_eligibility_valid'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

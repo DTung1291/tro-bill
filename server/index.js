@@ -64,6 +64,7 @@ const properties = require('./properties');
 const rentBankAccounts = require('./rent-bank-accounts');
 const teamMembers = require('./team-members');
 const accountAccess = require('./account-access');
+const electronicInvoiceProfiles = require('./electronic-invoice-profiles');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -154,6 +155,18 @@ app.post(
 );
 app.get('/api/plans', requireAuth, wrap(plans.listPublicPlans));
 app.get('/api/workspaces', requireAuth, wrap(accountAccess.listWorkspaces));
+app.get(
+  '/api/electronic-invoice/profile',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('any')),
+  wrap(electronicInvoiceProfiles.getElectronicInvoiceProfile)
+);
+app.put(
+  '/api/electronic-invoice/profile',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('any')),
+  wrap(electronicInvoiceProfiles.updateElectronicInvoiceProfile)
+);
 app.post('/api/subscription/orders', requireAuth, wrap(createSubscriptionOrder));
 app.get('/api/rent-payments/summary', requireAuth, wrap(rentPayments.listInvoiceSummaries));
 app.get(

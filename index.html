@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=122" />
+  <link rel="stylesheet" href="style.css?v=123" />
 </head>
 
 <body>
@@ -914,6 +914,105 @@
           <p>Gửi khoảng 07:15 giờ Việt Nam qua Brevo. Hệ thống kiểm tra lại công nợ ngay trước khi gửi và không nhắc hóa đơn đã thu đủ.</p>
           <button type="button" class="btn btn--sm btn--primary" id="save-invoice-reminder-settings">Lưu cấu hình email</button>
         </div>
+      </section>
+
+      <section class="settings-card electronic-invoice-profile" id="electronic-invoice-profile-card" aria-labelledby="electronic-invoice-profile-title">
+        <div class="electronic-invoice-profile__head">
+          <div>
+            <strong id="electronic-invoice-profile-title">🧾 Hồ sơ hóa đơn điện tử</strong>
+            <p>
+              Khai báo theo từng tài khoản để xác định nhu cầu tích hợp. Hóa đơn tiền trọ hiện tại vẫn là bill nội bộ,
+              không phải hóa đơn điện tử thuế và hệ thống chưa tự phát hành qua nhà cung cấp.
+            </p>
+          </div>
+          <span class="electronic-invoice-status electronic-invoice-status--review" id="electronic-invoice-profile-status">Cần rà soát</span>
+        </div>
+        <p class="electronic-invoice-profile__summary" id="electronic-invoice-profile-summary">
+          Chưa có hồ sơ. Hãy khai báo đúng tình trạng pháp lý hiện tại.
+        </p>
+        <form id="electronic-invoice-profile-form" class="electronic-invoice-profile__form">
+          <label>
+            Loại chủ thể
+            <select id="electronic-invoice-legal-entity" class="inline-input">
+              <option value="unknown">Chưa xác định</option>
+              <option value="individual_real_estate_lessor">Cá nhân cho thuê bất động sản</option>
+              <option value="household_business">Hộ kinh doanh</option>
+              <option value="enterprise">Doanh nghiệp</option>
+              <option value="other">Khác</option>
+            </select>
+          </label>
+          <label>
+            Hoạt động kinh doanh
+            <select id="electronic-invoice-activity" class="inline-input">
+              <option value="unknown">Chưa xác định</option>
+              <option value="long_term_real_estate_rental">Cho thuê bất động sản dài hạn</option>
+              <option value="accommodation_service">Dịch vụ lưu trú</option>
+              <option value="mixed">Hoạt động hỗn hợp</option>
+              <option value="other">Khác</option>
+            </select>
+          </label>
+          <label>
+            Doanh thu một năm
+            <select id="electronic-invoice-revenue-band" class="inline-input">
+              <option value="unknown">Chưa xác định</option>
+              <option value="lte_500m">Không quá 500 triệu đồng</option>
+              <option value="gt_500m_lte_1b">Trên 500 triệu đến 1 tỷ đồng</option>
+              <option value="gt_1b">Trên 1 tỷ đồng</option>
+            </select>
+          </label>
+          <label>
+            Trạng thái đăng ký HĐĐT
+            <select id="electronic-invoice-registration" class="inline-input">
+              <option value="not_registered">Chưa đăng ký</option>
+              <option value="registered_code">Đã đăng ký có mã</option>
+              <option value="registered_non_code">Đã đăng ký không mã</option>
+              <option value="per_occurrence">Theo từng lần phát sinh</option>
+              <option value="suspended">Đang ngừng sử dụng</option>
+            </select>
+          </label>
+          <label>
+            Mã số thuế
+            <input id="electronic-invoice-tax-code" class="inline-input" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="10 số hoặc 10 số-3 số" />
+          </label>
+          <label class="electronic-invoice-profile__wide">
+            Địa chỉ kinh doanh
+            <input id="electronic-invoice-business-address" class="inline-input" maxlength="1000" autocomplete="street-address" placeholder="Địa chỉ đã đăng ký hoặc địa chỉ cho thuê" />
+          </label>
+          <label data-electronic-invoice-provider-field>
+            Nhà cung cấp dự kiến
+            <select id="electronic-invoice-provider" class="inline-input">
+              <option value="">Chưa chọn</option>
+              <option value="misa_meinvoice">MISA meInvoice</option>
+              <option value="vnpt_invoice">VNPT Invoice</option>
+              <option value="viettel_sinvoice">Viettel S-Invoice</option>
+              <option value="other">Nhà cung cấp khác</option>
+            </select>
+          </label>
+          <label data-electronic-invoice-provider-field>
+            Mã tài khoản tại nhà cung cấp
+            <input id="electronic-invoice-provider-account" class="inline-input" maxlength="200" autocomplete="off" placeholder="Không nhập API key/mật khẩu" />
+          </label>
+          <label>
+            Hiệu lực từ ngày
+            <input type="date" id="electronic-invoice-effective-from" class="inline-input" />
+          </label>
+          <label>
+            Hết hiệu lực (nếu có)
+            <input type="date" id="electronic-invoice-expires-on" class="inline-input" />
+          </label>
+          <label class="electronic-invoice-profile__wide">
+            Căn cứ hoặc ghi chú rà soát
+            <textarea id="electronic-invoice-legal-basis" class="inline-input" maxlength="500" rows="3" placeholder="Ví dụ: loại hình cho thuê, thông tin đăng ký thuế hoặc văn bản đã đối chiếu"></textarea>
+          </label>
+          <label class="electronic-invoice-profile__attestation electronic-invoice-profile__wide">
+            <input type="checkbox" id="electronic-invoice-attestation" />
+            <span>Tôi xác nhận thông tin trên đúng với tình trạng hiện tại và hiểu đây không phải kết luận tư vấn thuế.</span>
+          </label>
+          <div class="electronic-invoice-profile__actions electronic-invoice-profile__wide">
+            <span id="electronic-invoice-provider-note">Thông tin kết nối nhà cung cấp chưa được cấu hình.</span>
+            <button type="submit" class="btn btn--sm btn--primary" id="save-electronic-invoice-profile">Lưu và đánh giá</button>
+          </div>
+        </form>
       </section>
 
       <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
@@ -2260,7 +2359,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=110"></script>
+  <script src="api.js?v=111"></script>
   <script src="ocr.js?v=90"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -2271,7 +2370,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=127"></script>
+  <script src="app.js?v=128"></script>
 </body>
 
 </html>
