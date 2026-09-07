@@ -42,3 +42,30 @@ test('migration hợp đồng cấp quyền cho role SQL đang dùng trên Verce
   );
   assert.match(migration, /REVOKE UPDATE, DELETE, TRUNCATE[^\n]*rental_contract_amendments/);
 });
+
+test('migration khóa credential runtime cũ nhưng giữ role làm mẫu quyền', () => {
+  const migration = fs.readFileSync(
+    path.join(
+      root,
+      'server',
+      'migrations',
+      '20260907_disable_legacy_runtime_logins.sql'
+    ),
+    'utf8'
+  );
+
+  assert.match(migration, /^BEGIN;/);
+  assert.match(migration, /COMMIT;/);
+  assert.match(migration, /ARRAY\['tro_bill_runtime', 'tro_bill_app'\]/);
+  assert.match(migration, /FROM pg_stat_activity/);
+  assert.match(migration, /pid <> pg_backend_pid\(\)/);
+  assert.match(migration, /IF active_session_count > 0 THEN/);
+  assert.match(migration, /RAISE EXCEPTION/);
+  assert.match(migration, /ALTER ROLE %I NOLOGIN/);
+  assert.match(migration, /restricted_runtime_login_ready/);
+  assert.match(migration, /legacy_runtime_logins_disabled/);
+  assert.match(migration, /no_runtime_neon_superuser_membership/);
+  assert.doesNotMatch(migration, /DROP ROLE/i);
+  assert.doesNotMatch(migration, /pg_terminate_backend/i);
+  assert.doesNotMatch(migration, /PASSWORD\s+/i);
+});

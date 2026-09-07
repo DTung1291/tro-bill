@@ -56,14 +56,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-006 — Migration tiến tới và runtime least privilege
 
-- **Trạng thái:** Đang áp dụng; thu hồi role cũ còn chờ xác minh deployment.
+- **Trạng thái:** Đang áp dụng; deployment đã xác minh role đích, khóa đăng nhập
+  role cũ còn chờ chạy staging rồi production.
 - **Quyết định:** `server/schema.sql` là schema đầy đủ, mỗi thay đổi đã phát hành
   có migration tiến tới chạy lại an toàn; app dùng `tro_bill_runtime_sql` chỉ có
   quyền cần thiết, backup dùng role chỉ đọc riêng.
 - **Lý do:** Serverless instance không được có quyền DDL/superuser và deploy mới
   không được khởi động trước khi schema cần thiết sẵn sàng.
 - **Hệ quả:** Cập nhật grants trong cùng migration/schema, staging trước
-  production; không sửa migration cũ để che lịch sử.
+  production; không sửa migration cũ để che lịch sử. Role quyền cũ được giữ
+  `NOLOGIN` làm mẫu đồng bộ grant, không xóa; migration phải tự dừng nếu còn
+  session đang dùng role cũ.
 
 ## D-007 — Chu kỳ hợp đồng không đổi chu kỳ lập hóa đơn vận hành
 

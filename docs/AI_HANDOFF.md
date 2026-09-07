@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — tiền kiểm HĐĐT và hotfix layout tài khoản theo khu đã phát hành; đồng bộ provider vẫn chờ sandbox/API contract |
+| Trạng thái | Đang hoàn tất least privilege — migration khóa login role runtime cũ đã qua test, chờ áp dụng staging rồi production |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
+| Worktree kỳ vọng | Có migration/runbook/test khóa role cũ đang chờ áp dụng; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `c650d6f` — card tài khoản nhận tiền theo khu xếp dọc đúng desktop/mobile; tiền kiểm HĐĐT ở `e004fba` |
-| Việc code tiếp theo | Sau khi có provider sandbox/API contract: adapter đồng bộ draft idempotent; chưa phát hành HĐĐT thật |
-| Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
+| Việc code tiếp theo | Áp dụng và xác minh migration role cũ; sau đó provider adapter vẫn chờ sandbox/API contract |
+| Việc vận hành còn mở | Chạy `20260907_disable_legacy_runtime_logins.sql` staging rồi production sau xác nhận thao tác quyền |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,14 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- Migration `20260907_disable_legacy_runtime_logins.sql` đã được chuẩn bị để
+  hoàn tất mục runtime least privilege. Audit production xác nhận ứng dụng đang
+  dùng `tro_bill_runtime_sql`, không kế thừa `neon_superuser`; role cũ thực tế là
+  `tro_bill_runtime` và không có session tại thời điểm kiểm tra. Migration giữ
+  role cũ làm mẫu quyền nhưng chuyển sang `NOLOGIN`, tự rollback nếu phát hiện
+  session, không ngắt kết nối và không `DROP ROLE`. Runbook/rollback và regression
+  test đã thêm; bộ đầy đủ đạt 415/415, secret scan và diff check sạch. Chưa áp
+  dụng remote; phải staging trước rồi mới production và kiểm tra readiness.
 - `e004fba`: tiền kiểm HĐĐT provider-neutral đã phát hành. Endpoint owner-only
   dựng snapshot tối thiểu từ hóa đơn, tổng thanh toán, hợp đồng giao kỳ và hồ sơ
   HĐĐT; không trả CCCD/điện thoại/email/credential, không tự đoán khi nhiều hợp
@@ -441,10 +449,10 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 ## Việc chưa được xem là hoàn tất
 
 1. Checkbox thay runtime role trong phần **An toàn dữ liệu và vận hành** vẫn mở.
-   Code/migration đã tạo `tro_bill_runtime_sql`, nhưng không thu hồi
-   `tro_bill_app` cho đến khi kiểm tra credential của deployment mới trên cả
-   Preview và Production. Đây là thao tác từ xa có thể gây downtime; cần quyền
-   rõ ràng và rollback plan.
+   Vercel Production đã chạy bằng `tro_bill_runtime_sql`; migration khóa login
+   `tro_bill_runtime`/`tro_bill_app` đã có chốt session và rollback plan nhưng
+   chưa chạy remote. Phải audit đúng branch Preview, chạy staging, smoke test,
+   rồi xin xác nhận trước khi chạy Production.
 2. `OPS_ALERT_WEBHOOK_URL` là kênh cảnh báo bổ sung tùy chọn; GitHub Issue và
    Vercel Runtime Logs vẫn là cơ chế mặc định. Không để cảnh báo tùy chọn này
    chặn tính năng sản phẩm.

@@ -105,8 +105,9 @@ Trạng thái ngày 24/08/2026:
   đều `ok`; người dùng đã tự kiểm tra gửi email thật thành công.
 - Đã tạo role SQL `tro_bill_runtime_sql` không kế thừa `neon_superuser`, đồng bộ
   đúng quyền CRUD cần thiết trên staging/production và cập nhật `DATABASE_URL`
-  của Vercel. Chỉ thu hồi role cũ `tro_bill_app` sau khi deployment mới được xác
-  nhận chạy bằng role hạn chế quyền để tránh làm gián đoạn production.
+  của Vercel. Role cũ thực tế là `tro_bill_runtime` (`tro_bill_app` chỉ có thể
+  tồn tại ở môi trường cũ); chỉ chuyển các role cũ sang `NOLOGIN` sau khi xác
+  nhận deployment chạy bằng role hạn chế quyền để tránh gián đoạn production.
 
 ### Hoàn thành giai đoạn khi
 

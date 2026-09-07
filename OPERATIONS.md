@@ -39,6 +39,24 @@ vercel curl /api/health/ready --deployment https://tro-bill-staging-dtung.vercel
 Không tắt Deployment Protection và không dùng staging để chứa dữ liệu người thuê
 thật. Preview không dùng tài khoản admin seed của production.
 
+### Role database của ứng dụng
+
+`DATABASE_URL` của Preview và Production phải dùng `tro_bill_runtime_sql`. Role
+này được tạo bằng SQL, không kế thừa `neon_superuser`, không có quyền DDL và chỉ
+nhận các quyền bảng/cột/sequence cần cho ứng dụng. `tro_bill_runtime` và
+`tro_bill_app` (nếu tồn tại) chỉ được giữ ở trạng thái `NOLOGIN` để làm mẫu quyền
+cho schema/migration; không dùng credential của hai role này cho deployment.
+
+Chỉ chạy `20260907_disable_legacy_runtime_logins.sql` sau khi readiness của môi
+trường trả `runtimeRole.status=restricted` và truy vấn `pg_stat_activity` xác nhận
+role cũ không còn session. Migration tự rollback nếu phát hiện kết nối cũ, không
+ngắt session và không xóa role. Thứ tự áp dụng là staging, smoke test, rồi mới
+production. Sau production, chạy lại readiness và health monitor.
+
+Nếu cần rollback do deployment còn phụ thuộc credential cũ, dùng tài khoản quản
+trị để chạy `ALTER ROLE tro_bill_runtime LOGIN`, khôi phục credential qua secret
+manager rồi điều tra; không ghi mật khẩu vào SQL, terminal history hoặc Git.
+
 ## 2. HTTPS
 
 Vercel cấp và gia hạn chứng chỉ TLS sau khi domain/DNS được xác minh. Server còn:
