@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành báo cáo doanh thu năm và hoàn tất khảo sát nhà cung cấp hóa đơn điện tử; tiếp tục xác định trường hợp thật sự cần HĐĐT |
+| Trạng thái | Đã hoàn tất khảo sát provider và chính sách đối tượng HĐĐT; chờ sandbox/API contract để triển khai đồng bộ |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `26661c4` + `b049670` — báo cáo doanh thu năm và hotfix layout bảng |
-| Việc code tiếp theo | Xác định trường hợp khách hàng nào thực sự cần hóa đơn điện tử trước khi thiết kế adapter |
+| Việc code tiếp theo | Sau khi có provider sandbox/API contract: thiết kế hồ sơ HĐĐT workspace và adapter đồng bộ draft |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -90,6 +90,12 @@ Hạng mục kế tiếp là khảo sát nhà cung cấp hóa đơn điện tử
 
 ## Mốc đã giao gần đây
 
+- Chính sách đối tượng HĐĐT ngày 07/09/2026:
+  `docs/E_INVOICE_ELIGIBILITY_POLICY.md` tách cho thuê BĐS dài hạn khỏi dịch vụ
+  lưu trú, cá nhân/hộ khỏi doanh nghiệp, tự nguyện khỏi bắt buộc, và tiền cọc khỏi
+  doanh thu dịch vụ. Mặc định mọi workspace là `review_required`; bill/link/biên
+  nhận TrọBill không phải HĐĐT thuế. Chỉ bật phát hành sau khi có đăng ký, provider,
+  credential riêng, mẫu/ký hiệu/chữ ký và căn cứ được kế toán/pháp lý xác nhận.
 - Khảo sát HĐĐT ngày 07/09/2026: `docs/E_INVOICE_PROVIDER_SURVEY.md` đối chiếu
   MISA meInvoice, VNPT Invoice và Viettel S-Invoice bằng nguồn chính thức. MISA
   là shortlist kỹ thuật số 1 nhờ REST/JSON cùng test/production công khai; VNPT

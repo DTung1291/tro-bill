@@ -497,3 +497,22 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   phải đặt sau interface nội bộ, lưu external reference/trạng thái, hỗ trợ
   idempotency cùng điều chỉnh/thay thế. Kế toán hoặc đơn vị tư vấn pháp lý phải
   duyệt mapping nghiệp vụ trước lần phát hành thật đầu tiên.
+
+## D-033 — Hóa đơn nội bộ không đồng nghĩa hóa đơn điện tử thuế
+
+- **Trạng thái:** Đang áp dụng từ 07/09/2026.
+- **Quyết định:** Mọi workspace HĐĐT bắt đầu ở `review_required`. Bill, link thanh
+  toán và biên nhận TrọBill chỉ là chứng từ vận hành nội bộ. Chỉ bật phát hành
+  HĐĐT khi đã xác minh loại chủ thể/hoạt động, đăng ký HĐĐT, provider, credential
+  riêng, mẫu/ký hiệu/chữ ký và căn cứ còn hiệu lực. Cá nhân/hộ chỉ cho thuê bất
+  động sản thuộc nhóm không phải sử dụng HĐĐT theo Điều 7 Nghị định 254/2026;
+  họ vẫn có thể đăng ký dùng tự nguyện. Dịch vụ lưu trú không được tự nhận miễn
+  trừ này.
+- **Lý do:** TrọBill phục vụ cả chủ nhà cá nhân lẫn hộ/doanh nghiệp, trong khi
+  nghĩa vụ HĐĐT phụ thuộc tư cách và bản chất hoạt động. Bật chung một nút phát
+  hành dễ tạo hóa đơn dưới sai mã số thuế, sai loại hoạt động hoặc biến chứng từ
+  nội bộ thành tài liệu có vẻ hợp pháp nhưng chưa được cơ quan thuế chấp nhận.
+- **Hệ quả:** Cần hồ sơ HĐĐT có hiệu lực theo workspace, trạng thái quyết định và
+  audit trước adapter. Thu cọc bảo đảm hợp đồng không tự phát hành HĐĐT. Trường
+  hợp hỗn hợp phải rà soát theo hoạt động/dòng hóa đơn; hệ thống chỉ đề xuất,
+  không thay kết luận của kế toán, tư vấn pháp lý hoặc cơ quan thuế.

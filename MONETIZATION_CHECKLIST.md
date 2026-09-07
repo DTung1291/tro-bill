@@ -509,7 +509,13 @@ scan sạch.
   là dự phòng đến khi cung cấp đủ đặc tả. Chưa chọn/tích hợp nhà cung cấp nếu chưa
   có API contract 2026, mô hình ủy quyền nhiều tenant, sandbox, báo giá/SLA và
   điều khoản dữ liệu bằng văn bản.
-- [ ] Xác định trường hợp khách hàng nào thực sự cần hóa đơn điện tử.
+- [x] Xác định trường hợp khách hàng nào thực sự cần hóa đơn điện tử.
+  Ma trận tại `docs/E_INVOICE_ELIGIBILITY_POLICY.md` tách cá nhân/hộ cho thuê
+  BĐS dài hạn, dịch vụ lưu trú, doanh nghiệp/tổ chức, hoạt động hỗn hợp, nhu cầu
+  tự nguyện và tiền đặt cọc. TrọBill mặc định `review_required`, không coi bill
+  nội bộ là HĐĐT và chỉ bật phát hành khi workspace có đăng ký HĐĐT, provider,
+  credential riêng, căn cứ còn hiệu lực cùng xác nhận kế toán/pháp lý. Chính sách
+  dựa trên Nghị định 254/2026/NĐ-CP và hướng dẫn Cục Thuế công bố năm 2026.
 - [ ] Đồng bộ thông tin người thuê và khoản thu sang nhà cung cấp hóa đơn.
 - [ ] Lưu mã tra cứu và trạng thái hóa đơn điện tử.
 - [ ] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
