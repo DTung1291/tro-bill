@@ -9,10 +9,10 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành hồ sơ HĐĐT owner-only và trạng thái đủ điều kiện; đồng bộ provider vẫn chờ sandbox/API contract |
+| Trạng thái | Sẵn sàng bàn giao — tiền kiểm HĐĐT và hotfix layout tài khoản theo khu đã phát hành; đồng bộ provider vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit bằng chứng phát hành; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `245f984` — hồ sơ HĐĐT theo workspace, phân loại server-side và audit |
+| Phần ứng dụng phát hành gần nhất | `c650d6f` — card tài khoản nhận tiền theo khu xếp dọc đúng desktop/mobile; tiền kiểm HĐĐT ở `e004fba` |
 | Việc code tiếp theo | Sau khi có provider sandbox/API contract: adapter đồng bộ draft idempotent; chưa phát hành HĐĐT thật |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; credential local `tro_bill_app` đã cũ và chưa được thu hồi |
 
@@ -92,6 +92,27 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `e004fba`: tiền kiểm HĐĐT provider-neutral đã phát hành. Endpoint owner-only
+  dựng snapshot tối thiểu từ hóa đơn, tổng thanh toán, hợp đồng giao kỳ và hồ sơ
+  HĐĐT; không trả CCCD/điện thoại/email/credential, không tự đoán khi nhiều hợp
+  đồng và luôn khóa `dispatchAllowed=false`. Snapshot tách các dòng tiền chuẩn,
+  đối soát tổng VND và có fingerprint SHA-256 ổn định để adapter tương lai chống
+  gửi sai nguồn. Migration `20260907_electronic_invoice_preflight.sql` đã chạy
+  trên Neon staging `br-twilight-frog-az35125t` và production
+  `br-fancy-star-azyclc1h`, cả hai đạt 3/3 cờ tên pháp lý, constraint và quyền
+  runtime không DELETE. Bộ đầy đủ đạt 414/414; CI `34094777689` thành công.
+  Production revision `e004fbadb8bf` từng báo thiếu migration trong khoảng deploy
+  trước schema; sau khi migration production hoàn tất, readiness trả HTTP 200,
+  database/schema `ok`, runtime role `restricted` và health monitor thủ công
+  `34129697639` thành công. Mục đồng bộ provider vẫn để mở.
+- `c650d6f`: hotfix layout **Tài khoản nhận tiền theo khu** ghi đè card chung từ
+  flex sang block 100%, nên danh sách tài khoản và phần gán khu không còn co lại
+  cạnh nhau. CSS pin tăng `124 -> 125` và có regression test. Toàn bộ 414/414
+  test, secret scan, diff check và CI `34130498700` đều đạt. Production
+  deployment `dpl_7gB7wsALdqQjoQ5SqHLinfqYnHEV` READY, alias trả revision
+  `c650d6fae418` với database/schema `ok`, runtime role `restricted`. Smoke test
+  dữ liệu thật xác nhận desktop hai phần rộng toàn card, mobile 390×844 không
+  tràn ngang, combobox nằm trong viewport và console sạch.
 - `245f984`: hồ sơ HĐĐT owner-only theo workspace đã phát hành, gồm loại chủ
   thể, hoạt động, nhóm doanh thu, MST/địa chỉ, đăng ký, provider dự kiến, ngày
   hiệu lực và căn cứ rà soát. Server tự suy trạng thái, bắt chủ xác nhận trước
@@ -430,6 +451,9 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 3. Các mục phỏng vấn/pilot/pháp lý trong checklist cần đầu vào của người dùng;
    agent không được tự đánh dấu hoàn thành bằng code.
 4. Google Play Billing chỉ cần khi thực sự bán subscription trong Android app.
+5. Đồng bộ HĐĐT thật vẫn cần API contract/sandbox 2026, mô hình credential theo
+   workspace và người có thẩm quyền duyệt mapping kế toán/pháp lý. Tiền kiểm hiện
+   chỉ dựng snapshot nội bộ và cố ý không gửi dữ liệu ra nhà cung cấp.
 
 ## Quy trình tiếp quản không conflict
 

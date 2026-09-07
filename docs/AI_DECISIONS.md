@@ -538,3 +538,24 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   không thể do biểu mẫu tự bật; adapter/provider verifier tương lai phải xác minh
   credential riêng. Mục đồng bộ nhà cung cấp vẫn để mở cho tới khi có sandbox,
   API contract 2026 và luồng draft idempotent được kiểm thử.
+
+## D-035 — Tiền kiểm HĐĐT dùng snapshot tối thiểu và không có quyền phát hành
+
+- **Trạng thái:** Đã phát hành production ngày 07/09/2026.
+- **Quyết định:** Trước adapter, server dựng một snapshot tiền kiểm từ đúng hóa
+  đơn, snapshot chi tiết hiệu lực, tổng thanh toán, hợp đồng giao kỳ và hồ sơ
+  HĐĐT của owner. Dòng tiền được chuẩn hóa thành tiền phòng, điện, nước, rác,
+  Wifi, quản lý, giảm giá âm, phụ thu và phí chậm; tổng phải đối soát đúng VND
+  nguyên. Nếu nhiều hợp đồng giao cùng kỳ thì bắt buộc chọn rõ; hóa đơn quyết
+  toán khóa theo hợp đồng đã chốt. Dữ liệu người mua chỉ gồm mã hợp đồng nội bộ,
+  tên và địa chỉ cần thiết; không đưa CCCD, điện thoại hoặc email. Snapshot có
+  fingerprint SHA-256 ổn định nhưng luôn trả `dispatchAllowed=false`.
+- **Lý do:** Dữ liệu state và hợp đồng cũ có thể chồng lấn trong cùng kỳ; tự chọn
+  khách có thể phát hành sai người mua. Gửi toàn bộ hồ sơ khách thuê làm tăng dữ
+  liệu cá nhân ngoài nhu cầu hóa đơn. Một nút tiền kiểm nhìn giống nút phát hành
+  cũng dễ khiến chủ trọ hiểu nhầm bill nội bộ đã được gửi sang cơ quan thuế.
+- **Hệ quả:** UI phải ghi rõ đây là tiền kiểm nội bộ và chưa gửi/phát hành.
+  Fingerprint là đầu vào chống lặp cho adapter tương lai, không phải mã tra cứu
+  HĐĐT. Chỉ adapter đã kiểm thử bằng sandbox/API contract hiện hành, credential
+  riêng từng workspace và mapping được người có thẩm quyền duyệt mới được phép
+  thay đổi quyền dispatch hoặc lưu external reference/trạng thái provider.

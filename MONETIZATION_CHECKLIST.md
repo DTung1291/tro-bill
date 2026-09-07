@@ -526,6 +526,18 @@ scan sạch.
   `dpl_Dg1XmfaB7WLz1qEaEZnA6nwJYYhW`, CI `34092666303`, 407/407 test. Mục này
   vẫn chưa hoàn tất cho đến khi có sandbox/API contract 2026 và adapter phát
   hành draft idempotent được kiểm thử.
+
+  Tiền kiểm nguồn đã phát hành cùng ngày ở commit `e004fba`: server dựng snapshot
+  tối thiểu từ đúng hóa đơn, hợp đồng và hồ sơ owner; tách tiền phòng, điện,
+  nước, rác, Wifi, quản lý, giảm giá, phụ thu và phí chậm; đối soát tổng VND và
+  tạo fingerprint SHA-256 ổn định. Khi có nhiều hợp đồng cùng kỳ, người dùng phải
+  chọn rõ thay vì hệ thống tự đoán khách. Payload tiền kiểm không chứa CCCD, số
+  điện thoại, email hay credential provider và luôn trả `dispatchAllowed=false`;
+  giao diện ghi rõ chưa gửi/phát hành HĐĐT. Migration bổ sung tên pháp lý người
+  bán đã chạy trên Neon staging và production, cả hai đạt 3/3 kiểm tra. Production
+  revision `e004fbadb8bf`, CI `34094777689`, 414/414 test; health monitor phục
+  hồi ở run `34129697639`. Đây là bước chuẩn bị adapter, chưa phải đồng bộ thật.
+
 - [ ] Lưu mã tra cứu và trạng thái hóa đơn điện tử.
 - [ ] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
 - [ ] Được kế toán hoặc đơn vị tư vấn pháp lý kiểm tra nghiệp vụ trước khi phát hành.
