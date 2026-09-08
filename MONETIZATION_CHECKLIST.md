@@ -564,7 +564,12 @@ scan sạch.
   từ `GET /api/public/plans`. Endpoint chỉ trả gói `active + public`; production
   ngày 08/09/2026 trả HTTP 200 và đang công khai đúng gói Free 10 phòng, không
   ghi cứng hoặc tự suy đoán giá trả phí. Commit `feda8ca`, CI `34175028079`.
-- [ ] Có hướng dẫn bắt đầu nhanh và dữ liệu mẫu.
+- [x] Có hướng dẫn bắt đầu nhanh và dữ liệu mẫu.
+  Đã phát hành `/huong-dan` với quy trình 5 bước và generator JSON cho ba phòng
+  giả lập trong tháng hiện tại. Mỗi lượt tải tạo UUID mới; file không có khách,
+  CCCD, điện thoại, email hoặc tài khoản ngân hàng và cảnh báo chỉ nhập ở tài
+  khoản trống/sao lưu trước. Production revision `e2bb6b2fcad2` trả HTTP 200,
+  database/schema `ok`, runtime role `restricted`; CI `34176436306`, 422/422 test.
 - [ ] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
 - [ ] Có kênh hỗ trợ chính thức và thời gian phản hồi cam kết.
 - [ ] Có điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền.

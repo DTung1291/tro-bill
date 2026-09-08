@@ -579,3 +579,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   thì gói đó mới xuất hiện. Production hiện chỉ hiển thị Free 0 đ / 10 phòng;
   việc thiếu cấu hình gói trả phí không được coi là lỗi render và không được tự
   điền một mức giá giả định.
+
+## D-037 — Dữ liệu onboarding chỉ được tải xuống và không chứa dữ liệu cá nhân
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Trang `/huong-dan` tạo file JSON mẫu ngay trên trình duyệt theo
+  tháng hiện tại. Mỗi lượt tạo ba room UUID mới, biểu phí và chỉ số giả lập;
+  không tạo tenant, CCCD, điện thoại, email hoặc tài khoản ngân hàng. Trang chỉ
+  tải file xuống, không gọi API ghi và không tự import vào workspace.
+- **Lý do:** Tự nạp seed vào một tài khoản có thể ghi đè dữ liệu thật vì luồng
+  state hiện thay toàn bộ rooms. Dùng ID cố định còn có thể xung đột khóa chính
+  giữa nhiều tài khoản. Dữ liệu giả có định danh giống người thật cũng tạo ra
+  rủi ro riêng tư và gây hiểu nhầm trong vận hành.
+- **Hệ quả:** Người dùng phải chủ động chọn file trong Cài đặt và được cảnh báo
+  chỉ dùng tài khoản trống hoặc export trước. Hạng mục import kế tiếp phải thêm
+  bước preview/validation và lựa chọn merge/replace rõ ràng; không được biến
+  generator này thành thao tác ghi một chạm nếu chưa có guard chống mất dữ liệu.

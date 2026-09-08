@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — landing page và bảng giá server-authoritative đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
+| Trạng thái | Sẵn sàng bàn giao — landing page, quick start và dữ liệu mẫu an toàn đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu landing page; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `feda8ca` — landing page `/gioi-thieu`, API bảng giá công khai và rewrite Vercel |
-| Việc code tiếp theo | Hướng dẫn bắt đầu nhanh và dữ liệu mẫu; provider adapter vẫn chờ sandbox/API contract |
+| Phần ứng dụng phát hành gần nhất | `e2bb6b2` — `/huong-dan`, generator JSON giả lập và liên kết onboarding trong app |
+| Việc code tiếp theo | Công cụ nhập phòng/khách từ Excel hoặc JSON cần preview, validation và chống ghi đè ngoài ý muốn |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -92,6 +92,15 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `e2bb6b2`: hướng dẫn bắt đầu nhanh `/huong-dan` đã phát hành với năm bước từ
+  tạo phòng đến ghi nhận thanh toán. Generator phía trình duyệt tạo file JSON
+  ba phòng theo tháng hiện tại, UUID mới mỗi lượt, không có khách/CCCD/điện
+  thoại/email/tài khoản ngân hàng; chỉ tải xuống và không tự ghi dữ liệu. Trang
+  cảnh báo import hiện thay toàn bộ phòng, yêu cầu dùng tài khoản trống hoặc
+  export trước. Link nằm ở landing, trạng thái dashboard trống và Cài đặt.
+  Production revision `e2bb6b2fcad2` trả 200 cho HTML/CSS/JS, readiness
+  database/schema `ok`, runtime role `restricted`; CI `34176436306`, 422/422
+  test và secret scan sạch. Asset app pin `130`.
 - `872b26d` + `feda8ca`: landing page `/gioi-thieu` đã phát hành với nội dung
   bám đúng chức năng hiện có, responsive CSS, thông báo bill nội bộ chưa phải
   HĐĐT thuế và liên kết pháp lý. Bảng giá gọi `GET /api/public/plans`, chỉ trả
