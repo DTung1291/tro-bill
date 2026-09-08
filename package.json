@@ -7,6 +7,7 @@
   },
   "scripts": {
     "test": "npm test --prefix server",
+    "test:e2e:staging": "node scripts/staging-e2e.js",
     "check:environment": "node scripts/check-environment.js",
     "check:secrets": "node scripts/secret-scan.js --history"
   },

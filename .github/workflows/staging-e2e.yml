@@ -1,0 +1,39 @@
+name: Staging E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      staging_base_url:
+        description: HTTPS origin của Vercel Preview cần kiểm thử
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-e2e
+  cancel-in-progress: false
+
+jobs:
+  api-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Run guarded staging E2E
+        env:
+          STAGING_BASE_URL: ${{ inputs.staging_base_url }}
+          STAGING_E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL }}
+          STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+          STAGING_E2E_CONFIRMATION: I_ACKNOWLEDGE_THIS_IS_A_DEDICATED_STAGING_ACCOUNT
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/staging-e2e.js
