@@ -40,6 +40,36 @@ test('runner yêu cầu xác nhận tài khoản staging chuyên dụng', () => 
   );
 });
 
+test('runner dừng trước đăng nhập và nêu migration staging còn thiếu', async () => {
+  let calls = 0;
+  const fakeFetch = async () => {
+    calls += 1;
+    return {
+      status: 503,
+      headers: new Headers(),
+      async json() {
+        return {
+          environment: 'staging',
+          checks: {
+            database: 'ok',
+            schema: 'migration-required',
+            missingMigrations: ['20260907_electronic_invoice_preflight.sql']
+          }
+        };
+      }
+    };
+  };
+  await assert.rejects(run({
+    STAGING_BASE_URL: 'https://preview.example.com',
+    STAGING_E2E_EMAIL: 'e2e@example.com',
+    STAGING_E2E_PASSWORD: 'test-only-password',
+    STAGING_E2E_EMAIL_B: 'e2e-b@example.com',
+    STAGING_E2E_PASSWORD_B: 'test-only-password-b',
+    STAGING_E2E_CONFIRMATION: CONFIRMATION
+  }, fakeFetch), /20260907_electronic_invoice_preflight\.sql/);
+  assert.equal(calls, 1);
+});
+
 test('runner chỉ lấy cookie phiên TrọBill từ response đăng nhập', () => {
   const headers = new Headers({
     'set-cookie': 'vercel_bypass=abc; Path=/, trobill_session=jwt-value; HttpOnly; Path=/'

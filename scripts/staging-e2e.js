@@ -144,12 +144,19 @@ async function run(environment = process.env, fetchImpl = fetch) {
     return { cookie, context };
   }
 
-  const health = await request('/api/health/ready', { expectedStatuses: [200] });
+  const health = await request('/api/health/ready', { expectedStatuses: [200, 503] });
   if (health.body?.environment !== 'staging') {
     throw new Error(`Từ chối chạy: health environment là ${health.body?.environment || 'không xác định'}`);
   }
-  if (health.body?.checks?.database !== 'ok' || health.body?.checks?.schema !== 'ok') {
-    throw new Error('Staging chưa sẵn sàng: database hoặc schema không đạt');
+  if (health.response.status !== 200
+      || health.body?.checks?.database !== 'ok'
+      || health.body?.checks?.schema !== 'ok') {
+    const missing = Array.isArray(health.body?.checks?.missingMigrations)
+      ? health.body.checks.missingMigrations.join(', ')
+      : '';
+    throw new Error(`Staging chưa sẵn sàng: database hoặc schema không đạt${
+      missing ? `; cần ${missing}` : ''
+    }`);
   }
 
   const primaryAccount = await loginAccount(email, password);

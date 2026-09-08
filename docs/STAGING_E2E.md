@@ -3,6 +3,8 @@
 Runner `scripts/staging-e2e.js` kiểm tra một lát cắt thật qua HTTP và database:
 
 1. `/api/health/ready` phải báo `environment=staging`, database và schema `ok`.
+   Nếu schema thiếu, staging trả tên migration cần áp dụng và runner dừng trước
+   khi đăng nhập hoặc ghi dữ liệu.
 2. Đăng nhập hai tài khoản bằng cookie HttpOnly và xác minh `accountContext`.
 3. Tạo một khu UUID bằng tài khoản A và xác minh tài khoản B không nhìn thấy.
 4. Mô phỏng tab cũ gửi cookie B cùng context A và yêu cầu server trả

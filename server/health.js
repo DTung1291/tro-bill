@@ -3,6 +3,7 @@
 const db = require('./db');
 const { inspectRuntimeEnvironment } = require('./environment');
 const { reportOperationalError } = require('./observability');
+const { SCHEMA_DIAGNOSTICS_QUERY, missingSchemaMigrations } = require('./schema-diagnostics');
 
 const SCHEMA_READY_QUERY = `
   SELECT
@@ -295,6 +296,15 @@ async function ready(req, res) {
         message: 'Database schema thiếu migration bắt buộc'
       });
       res.locals.incidentId = incidentId;
+      let missingMigrations;
+      if (configuration.appEnvironment === 'staging') {
+        try {
+          const diagnostics = await db.query(SCHEMA_DIAGNOSTICS_QUERY);
+          missingMigrations = missingSchemaMigrations(diagnostics.rows[0]);
+        } catch {
+          missingMigrations = ['diagnostic-unavailable'];
+        }
+      }
       return res.status(503).json({
         status: 'not-ready',
         incidentId,
@@ -304,7 +314,8 @@ async function ready(req, res) {
           configurationWarnings: configuration.warnings.map(warning => warning.code),
           database: 'ok',
           runtimeRole: 'restricted',
-          schema: 'migration-required'
+          schema: 'migration-required',
+          ...(missingMigrations ? { missingMigrations } : {})
         }
       });
     }
