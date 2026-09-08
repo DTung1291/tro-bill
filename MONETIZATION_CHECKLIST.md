@@ -589,28 +589,32 @@ scan sạch.
   pháp lý rà soát trước khi bán. Production revision `3daf767b2024`, CI
   `34179242211`, 436/436 test và secret scan sạch.
 - [ ] Hoàn thiện thủ tục kinh doanh, thuế và website/app phù hợp với mô hình bán dịch vụ.
-- [ ] Chạy kiểm thử end-to-end trên staging với dữ liệu giả lập.
+- [x] Chạy kiểm thử end-to-end trên staging với dữ liệu giả lập.
   Runner thủ công `npm run test:e2e:staging` và GitHub Actions đã có guard chống
   production, xác minh health/cookie/account context của hai tài khoản độc lập,
   tạo khu UUID bằng A, bắt B không được thấy, mô phỏng tab cũ cookie B + context A
-  phải trả `SESSION_ACCOUNT_CHANGED`, rồi cleanup đúng marker. Chưa đóng tiêu
-  chí: hai migration `20260907_electronic_invoice_profiles.sql` và
+  phải trả `SESSION_ACCOUNT_CHANGED`, rồi cleanup đúng marker. Hai migration
+  `20260907_electronic_invoice_profiles.sql` và
   `20260907_electronic_invoice_preflight.sql` đã chạy trên Neon `staging-privacy`
   (`br-ancient-wave-azwc43to`) ngày 08/09/2026, lần lượt đạt 5/5 và 3/3 cờ xác
   minh. Preview `tro-bill-6n5t42b90-dtung.vercel.app` sau đó trả HTTP 200 với
-  database/schema `ok`, runtime role `restricted`. Environment `Preview` vẫn
-  chưa có bốn secret credential của hai tài khoản E2E nên workflow thật chưa chạy.
+  database/schema `ok`, runtime role `restricted`. Hai workspace staging chuyên
+  dụng và năm Environment secrets đã được cấu hình. Runner bỏ header đặt bypass
+  cookie để tránh redirect xung đột với `redirect=error`; commit `d89a212`, bộ
+  test 445/445. Workflow `34201397172` chạy xanh đủ sáu bước và truy vấn Neon
+  sau cùng xác nhận không còn khu có tiền tố `E2E-`.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.
 - [ ] Thu tiền thật thành công từ ít nhất 3 khách pilot.
 - [ ] Theo dõi pilot qua kỳ lập bill thứ hai trước khi quảng bá rộng.
 
 ## Tiêu chí sẵn sàng mở bán đại trà
 
-- [ ] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
+- [x] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
   Regression test client đã kiểm tra đổi cookie giữa tab, hủy autosave và tuần tự
   hóa PUT state; runner staging commit `1e5549b` bổ sung kiểm tra hai cookie/context
-  và dữ liệu khu thực qua API. Preview đã đủ migration và readiness xanh; tiêu chí
-  vẫn mở đến khi runner chạy xanh bằng hai workspace thử nghiệm độc lập.
+  và dữ liệu khu thực qua API. Workflow `34201397172` đã chạy xanh trên Preview
+  bằng hai workspace độc lập: B không thấy marker của A, cookie B + context A bị
+  chặn `SESSION_ACCOUNT_CHANGED`, cookie A vẫn đọc đúng dữ liệu và cleanup về 0.
 - [x] Backup và phục hồi đã được kiểm chứng.
 - [x] Subscription và giới hạn gói được kiểm tra ở server.
   Server lấy entitlement trực tiếp từ `subscriptions` + `plans`, chặn vượt giới

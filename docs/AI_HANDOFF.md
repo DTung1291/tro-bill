@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — schema Preview đã đủ; E2E thật còn chờ credential A/B |
+| Trạng thái | Sẵn sàng bàn giao — E2E hai workspace trên Preview đã chạy xanh và cleanup sạch |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
-| Việc code tiếp theo | Chọn hai workspace thử nghiệm độc lập, cấu hình credential A/B trong GitHub Environment `Preview` và chạy workflow E2E |
-| Việc vận hành còn mở | Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
+| Phần ứng dụng phát hành gần nhất | `d89a212` — runner E2E API dùng bypass header trực tiếp, không yêu cầu redirect đặt cookie |
+| Việc code tiếp theo | Tiếp tục hạng mục HĐĐT ở lớp provider-neutral hoặc chọn công việc checklist không phụ thuộc sandbox/API contract nhà cung cấp |
+| Việc vận hành còn mở | `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn; đồng bộ HĐĐT thật còn chờ sandbox/API contract 2026 |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,17 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `d89a212`: hai workspace staging chuyên dụng đã được tạo qua luồng đăng ký
+  thật, xác minh 6/6 điều kiện cấu trúc và lưu credential trong GitHub Environment
+  `Preview`; không ghi mật khẩu vào file hoặc log. Automation bypass cũ đã được
+  thu hồi và thay bằng secret mới sau khi giá trị cũ xuất hiện trong output kiểm
+  tra metadata. Lần chạy `34201151926` phát hiện runner vừa yêu cầu Vercel đặt
+  bypass cookie vừa từ chối redirect; bản sửa chỉ gửi
+  `x-vercel-protection-bypass` và có regression test. Bộ đầy đủ 445/445, secret
+  scan và diff check sạch. Workflow `34201397172` sau đó chạy xanh sáu bước trên
+  deployment `tro-bill-6n5t42b90-dtung.vercel.app`: health, login cookie, account
+  context, cô lập A/B, chặn stale tab và tạo/đọc/xóa khu. Truy vấn Neon sau E2E
+  xác nhận số khu `E2E-*` còn lại bằng 0.
 - Neon Preview branch `staging-privacy` (`br-ancient-wave-azwc43to`) đã được bổ
   sung `20260907_electronic_invoice_profiles.sql` và
   `20260907_electronic_invoice_preflight.sql` ngày 08/09/2026. Kết quả xác minh
