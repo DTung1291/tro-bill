@@ -3,9 +3,11 @@
 Runner `scripts/staging-e2e.js` kiểm tra một lát cắt thật qua HTTP và database:
 
 1. `/api/health/ready` phải báo `environment=staging`, database và schema `ok`.
-2. Đăng nhập bằng cookie HttpOnly và xác minh `accountContext` qua `/api/me`.
-3. Tạo một khu có tên UUID riêng, đọc lại rồi xóa ngay.
-4. Đọc lần cuối để chắc chắn cleanup không để lại dữ liệu giả.
+2. Đăng nhập hai tài khoản bằng cookie HttpOnly và xác minh `accountContext`.
+3. Tạo một khu UUID bằng tài khoản A và xác minh tài khoản B không nhìn thấy.
+4. Mô phỏng tab cũ gửi cookie B cùng context A và yêu cầu server trả
+   `409 SESSION_ACCOUNT_CHANGED`.
+5. Đọc lại bằng cookie A, xóa khu giả rồi xác minh cleanup không để lại dữ liệu.
 
 Runner từ chối hostname production `tro-bill.vercel.app`, từ chối health không
 phải staging và chỉ xóa khu có tên marker ngẫu nhiên do chính lượt chạy tạo ra.
@@ -15,8 +17,9 @@ Không tạo hóa đơn, không gọi webhook và không thực hiện giao dị
 
 Trong GitHub Environment `Preview`, thêm Environment secrets:
 
-- `STAGING_E2E_EMAIL`: tài khoản chỉ dành cho kiểm thử staging.
-- `STAGING_E2E_PASSWORD`: mật khẩu của tài khoản trên.
+- `STAGING_E2E_EMAIL`, `STAGING_E2E_PASSWORD`: tài khoản A chỉ dành cho staging.
+- `STAGING_E2E_EMAIL_B`, `STAGING_E2E_PASSWORD_B`: tài khoản B độc lập, không là
+  nhân viên/thành viên của workspace A.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`: tùy chọn, chỉ cần khi Preview Deployment
   Protection đang bật.
 
@@ -33,6 +36,8 @@ origin của đúng Vercel Preview cần kiểm thử.
 STAGING_BASE_URL=https://preview-example.vercel.app \
 STAGING_E2E_EMAIL=e2e@example.invalid \
 STAGING_E2E_PASSWORD='...' \
+STAGING_E2E_EMAIL_B=e2e-b@example.invalid \
+STAGING_E2E_PASSWORD_B='...' \
 STAGING_E2E_CONFIRMATION=I_ACKNOWLEDGE_THIS_IS_A_DEDICATED_STAGING_ACCOUNT \
 npm run test:e2e:staging
 ```

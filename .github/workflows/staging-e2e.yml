@@ -34,6 +34,8 @@ jobs:
           STAGING_BASE_URL: ${{ inputs.staging_base_url }}
           STAGING_E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL }}
           STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+          STAGING_E2E_EMAIL_B: ${{ secrets.STAGING_E2E_EMAIL_B }}
+          STAGING_E2E_PASSWORD_B: ${{ secrets.STAGING_E2E_PASSWORD_B }}
           STAGING_E2E_CONFIRMATION: I_ACKNOWLEDGE_THIS_IS_A_DEDICATED_STAGING_ACCOUNT
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/staging-e2e.js

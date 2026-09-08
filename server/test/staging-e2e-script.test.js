@@ -56,11 +56,20 @@ test('workflow staging chỉ chạy thủ công và truyền credential qua secr
   assert.match(workflow, /environment: Preview/);
   assert.match(workflow, /secrets\.STAGING_E2E_EMAIL/);
   assert.match(workflow, /secrets\.STAGING_E2E_PASSWORD/);
+  assert.match(workflow, /secrets\.STAGING_E2E_EMAIL_B/);
+  assert.match(workflow, /secrets\.STAGING_E2E_PASSWORD_B/);
   assert.match(guide, /không thực hiện giao dịch tiền thật/);
 });
 
-test('runner đi đủ health, login, context, ghi/đọc và chỉ cleanup marker vừa tạo', async () => {
-  const accountContext = 'a'.repeat(64);
+test('runner xác minh hai tài khoản, chặn tab cũ và chỉ cleanup marker vừa tạo', async () => {
+  const accountContexts = {
+    'e2e@example.com': 'a'.repeat(64),
+    'e2e-b@example.com': 'b'.repeat(64)
+  };
+  const cookies = {
+    'e2e@example.com': 'trobill_session=test-jwt-a',
+    'e2e-b@example.com': 'trobill_session=test-jwt-b'
+  };
   const calls = [];
   let marker = '';
   let markerExists = false;
@@ -81,13 +90,17 @@ test('runner đi đủ health, login, context, ghi/đọc và chỉ cleanup mark
       });
     }
     if (parsed.pathname === '/api/auth/login') {
+      const loginEmail = body.email;
       return response(200, {
-        email: 'e2e@example.com',
-        accountContext
-      }, 'trobill_session=test-jwt; HttpOnly; Path=/');
+        email: loginEmail,
+        accountContext: accountContexts[loginEmail]
+      }, `${cookies[loginEmail]}; HttpOnly; Path=/`);
     }
     if (parsed.pathname === '/api/me') {
-      return response(200, { email: 'e2e@example.com', accountContext });
+      const meEmail = options.headers.Cookie === cookies['e2e@example.com']
+        ? 'e2e@example.com'
+        : 'e2e-b@example.com';
+      return response(200, { email: meEmail, accountContext: accountContexts[meEmail] });
     }
     if (parsed.pathname === '/api/properties' && options.method === 'POST') {
       marker = body.name;
@@ -95,10 +108,15 @@ test('runner đi đủ health, login, context, ghi/đọc và chỉ cleanup mark
       return response(201, { property: { id: 99, name: marker, isDefault: false } });
     }
     if (parsed.pathname === '/api/properties' && options.method === 'GET') {
+      if (options.headers.Cookie === cookies['e2e-b@example.com']
+          && options.headers['X-Trobill-Account-Context'] === accountContexts['e2e@example.com']) {
+        return response(409, { code: 'SESSION_ACCOUNT_CHANGED' });
+      }
+      const isPrimary = options.headers.Cookie === cookies['e2e@example.com'];
       return response(200, {
         properties: [
-          { id: 1, name: 'Khu thật không được xóa', isDefault: false },
-          ...(markerExists ? [{ id: 99, name: marker, isDefault: false }] : [])
+          { id: isPrimary ? 1 : 2, name: 'Khu thật không được xóa', isDefault: false },
+          ...(isPrimary && markerExists ? [{ id: 99, name: marker, isDefault: false }] : [])
         ]
       });
     }
@@ -113,11 +131,15 @@ test('runner đi đủ health, login, context, ghi/đọc và chỉ cleanup mark
     STAGING_BASE_URL: 'https://preview.example.com',
     STAGING_E2E_EMAIL: 'e2e@example.com',
     STAGING_E2E_PASSWORD: 'test-only-password',
+    STAGING_E2E_EMAIL_B: 'e2e-b@example.com',
+    STAGING_E2E_PASSWORD_B: 'test-only-password-b',
     STAGING_E2E_CONFIRMATION: CONFIRMATION
   }, fakeFetch);
 
   assert.equal(result.ok, true);
   assert.equal(result.environment, 'staging');
+  assert.ok(result.checks.includes('two-account-isolation'));
+  assert.ok(result.checks.includes('stale-tab-block'));
   assert.equal(markerExists, false);
   assert.match(marker, /^E2E-\d{14}-[0-9a-f-]{36}$/);
   assert.deepEqual(
@@ -125,6 +147,6 @@ test('runner đi đủ health, login, context, ghi/đọc và chỉ cleanup mark
     ['/api/properties/99']
   );
   const authenticatedCall = calls.find((call) => call.path === '/api/me');
-  assert.equal(authenticatedCall.headers.Cookie, 'trobill_session=test-jwt');
-  assert.equal(authenticatedCall.headers['X-Trobill-Account-Context'], accountContext);
+  assert.equal(authenticatedCall.headers.Cookie, cookies['e2e@example.com']);
+  assert.equal(authenticatedCall.headers['X-Trobill-Account-Context'], undefined);
 });

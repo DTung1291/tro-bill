@@ -69,6 +69,12 @@ async function run(environment = process.env, fetchImpl = fetch) {
   const baseUrl = validateTarget(requiredEnvironment('STAGING_BASE_URL', environment), environment);
   const email = validateDedicatedAccount(requiredEnvironment('STAGING_E2E_EMAIL', environment), environment);
   const password = requiredEnvironment('STAGING_E2E_PASSWORD', environment);
+  const secondaryEmail = validateDedicatedAccount(
+    requiredEnvironment('STAGING_E2E_EMAIL_B', environment),
+    environment
+  );
+  const secondaryPassword = requiredEnvironment('STAGING_E2E_PASSWORD_B', environment);
+  if (secondaryEmail === email) throw new Error('Hai tài khoản staging E2E phải khác nhau');
   const bypassSecret = String(environment.VERCEL_AUTOMATION_BYPASS_SECRET || '').trim();
   const marker = `E2E-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}-${crypto.randomUUID()}`;
   let sessionCookie = '';
@@ -76,11 +82,17 @@ async function run(environment = process.env, fetchImpl = fetch) {
 
   async function request(path, options = {}) {
     const method = options.method || 'GET';
+    const requestCookie = options.sessionCookie === undefined
+      ? sessionCookie
+      : options.sessionCookie;
+    const requestContext = options.accountContext === undefined
+      ? accountContext
+      : options.accountContext;
     const headers = {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(sessionCookie ? { Cookie: sessionCookie } : {}),
-      ...(accountContext ? { 'X-Trobill-Account-Context': accountContext } : {}),
+      ...(requestCookie ? { Cookie: requestCookie } : {}),
+      ...(requestContext ? { 'X-Trobill-Account-Context': requestContext } : {}),
       ...(method !== 'GET' && method !== 'HEAD' ? { Origin: baseUrl } : {}),
       ...(bypassSecret ? {
         'x-vercel-protection-bypass': bypassSecret,
@@ -107,6 +119,31 @@ async function run(environment = process.env, fetchImpl = fetch) {
     return { response, body };
   }
 
+  async function loginAccount(accountEmail, accountPassword) {
+    const login = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email: accountEmail, password: accountPassword },
+      sessionCookie: '',
+      accountContext: '',
+      expectedStatuses: [200]
+    });
+    const cookie = extractSessionCookie(login.response.headers);
+    const context = String(login.body?.accountContext || '');
+    if (!/^[a-f0-9]{64}$/.test(context)) {
+      throw new Error(`Đăng nhập ${accountEmail} không trả account context hợp lệ`);
+    }
+    const me = await request('/api/me', {
+      sessionCookie: cookie,
+      accountContext: '',
+      expectedStatuses: [200]
+    });
+    if (String(me.body?.email || '').toLowerCase() !== accountEmail
+        || me.body?.accountContext !== context) {
+      throw new Error(`Phiên staging không khớp tài khoản ${accountEmail}`);
+    }
+    return { cookie, context };
+  }
+
   const health = await request('/api/health/ready', { expectedStatuses: [200] });
   if (health.body?.environment !== 'staging') {
     throw new Error(`Từ chối chạy: health environment là ${health.body?.environment || 'không xác định'}`);
@@ -115,22 +152,9 @@ async function run(environment = process.env, fetchImpl = fetch) {
     throw new Error('Staging chưa sẵn sàng: database hoặc schema không đạt');
   }
 
-  const login = await request('/api/auth/login', {
-    method: 'POST',
-    body: { email, password },
-    expectedStatuses: [200]
-  });
-  sessionCookie = extractSessionCookie(login.response.headers);
-  accountContext = String(login.body?.accountContext || '');
-  if (!/^[a-f0-9]{64}$/.test(accountContext)) {
-    throw new Error('Đăng nhập không trả account context hợp lệ');
-  }
-
-  const me = await request('/api/me', { expectedStatuses: [200] });
-  if (String(me.body?.email || '').toLowerCase() !== email
-      || me.body?.accountContext !== accountContext) {
-    throw new Error('Phiên staging không khớp tài khoản E2E đã cấu hình');
-  }
+  const primaryAccount = await loginAccount(email, password);
+  sessionCookie = primaryAccount.cookie;
+  accountContext = primaryAccount.context;
 
   let primaryError = null;
   try {
@@ -150,6 +174,34 @@ async function run(environment = process.env, fetchImpl = fetch) {
     const listed = await request('/api/properties', { expectedStatuses: [200] });
     if (!listed.body?.properties?.some((property) => property.name === marker)) {
       throw new Error('Không đọc lại được dữ liệu E2E vừa tạo');
+    }
+
+    const secondaryAccount = await loginAccount(secondaryEmail, secondaryPassword);
+    const secondaryProperties = await request('/api/properties', {
+      sessionCookie: secondaryAccount.cookie,
+      accountContext: secondaryAccount.context,
+      expectedStatuses: [200]
+    });
+    if ((secondaryProperties.body?.properties || []).some((property) => property.name === marker)) {
+      throw new Error('Tài khoản B nhìn thấy dữ liệu vừa tạo bởi tài khoản A');
+    }
+
+    const staleTab = await request('/api/properties', {
+      sessionCookie: secondaryAccount.cookie,
+      accountContext: primaryAccount.context,
+      expectedStatuses: [409]
+    });
+    if (staleTab.body?.code !== 'SESSION_ACCOUNT_CHANGED') {
+      throw new Error('Server không chặn cookie tài khoản B dùng account context của A');
+    }
+
+    const primaryAfterSwitch = await request('/api/properties', {
+      sessionCookie: primaryAccount.cookie,
+      accountContext: primaryAccount.context,
+      expectedStatuses: [200]
+    });
+    if (!(primaryAfterSwitch.body?.properties || []).some((property) => property.name === marker)) {
+      throw new Error('Cookie tài khoản A không còn đọc đúng dữ liệu sau khi đăng nhập B');
     }
   } catch (error) {
     primaryError = error;
@@ -185,7 +237,14 @@ async function run(environment = process.env, fetchImpl = fetch) {
     ok: true,
     environment: health.body.environment,
     revision: health.body.revision,
-    checks: ['health', 'login-cookie', 'account-context', 'property-write-read-cleanup']
+    checks: [
+      'health',
+      'login-cookie',
+      'account-context',
+      'two-account-isolation',
+      'stale-tab-block',
+      'property-write-read-cleanup'
+    ]
   };
 }
 
