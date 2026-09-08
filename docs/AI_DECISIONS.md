@@ -674,3 +674,18 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   nội bộ; checklist thanh toán tự động vẫn mở cho tới khi có provider thật và
   giao dịch pilot production được xác minh. Production revision `ac14d1ccb3ff`,
   CI `34193887394`, 437/437 test.
+
+## D-042 — Lỗ hổng bảo mật nhận qua kênh riêng tư, không qua Issue công khai
+
+- **Trạng thái:** Đang áp dụng từ 08/09/2026.
+- **Quyết định:** GitHub Private Vulnerability Reporting là kênh nhận báo cáo lỗ
+  hổng của repository. `SECURITY.md` yêu cầu dữ liệu giả, cấm đăng cookie, CCCD,
+  dữ liệu khách hoặc chi tiết khai thác lên Issue công khai. Chủ repository là
+  người triage hiện tại; không công bố thời hạn phản hồi khi chưa có lịch trực.
+- **Lý do:** Issue công khai có thể biến báo cáo thiện chí thành sự cố lộ dữ liệu
+  hoặc hướng dẫn khai thác. Dùng email/chat cá nhân chưa xác minh cũng làm mất
+  dấu vết, phân quyền và phối hợp disclosure.
+- **Hệ quả:** Báo cáo được xử lý trong advisory riêng tư, thêm regression test,
+  kiểm tra Preview rồi production và rotate credential nếu bị ảnh hưởng. Mục hỗ
+  trợ tổng thể chỉ được đóng sau khi có kênh khách hàng cùng SLA được chủ sản
+  phẩm phê duyệt. GitHub API xác nhận `enabled=true` ngày 08/09/2026.

@@ -9,7 +9,7 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — runner E2E staging đã phát hành; lần chạy thật chờ migration và credential tài khoản test chuyên dụng |
+| Trạng thái | Sẵn sàng bàn giao — kênh báo cáo bảo mật riêng tư đã bật; E2E thật vẫn chờ migration và credential Preview |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
@@ -92,6 +92,12 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `c3b4350`: thêm `SECURITY.md` và phần triage trong `OPERATIONS.md`; báo cáo lỗ
+  hổng đi qua GitHub Private Vulnerability Reporting, không dùng Issue công khai
+  cho cookie/CCCD/dữ liệu khách. Không tự hứa SLA khi chưa có lịch trực. API
+  GitHub xác nhận kênh đã bật (`enabled=true`) ngày 08/09/2026. CI
+  `34195225880`, 443/443 test, secret scan và diff check sạch. Checklist hỗ trợ
+  tổng thể vẫn mở vì cần email hỗ trợ chính thức và SLA do chủ sản phẩm duyệt.
 - `c2997b2` + `92423bc`: thêm runner E2E staging và workflow chạy thủ công dùng
   GitHub Environment `Preview`. Runner từ chối alias production/HTTP không an
   toàn/health khác staging, xác minh cookie HttpOnly + account context, chỉ tạo

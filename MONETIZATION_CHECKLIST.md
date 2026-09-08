@@ -622,3 +622,8 @@ scan sạch.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.
 - [ ] Có ít nhất 3 khách hàng trả phí và sẵn sàng tiếp tục sử dụng.
 - [ ] Có quy trình hỗ trợ, xử lý sự cố và phản hồi bảo mật.
+  Quy trình sự cố nội bộ nằm trong `OPERATIONS.md`; `SECURITY.md` hướng người báo
+  sang GitHub Private Vulnerability Reporting và cấm đưa cookie, CCCD hoặc dữ
+  liệu khách lên Issue công khai. Kênh riêng tư đã bật và API GitHub xác nhận
+  `enabled=true` ngày 08/09/2026. Mục vẫn mở vì chưa có kênh hỗ trợ khách hàng
+  chính thức và SLA do chủ sản phẩm phê duyệt.
