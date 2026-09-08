@@ -95,8 +95,7 @@ async function run(environment = process.env, fetchImpl = fetch) {
       ...(requestContext ? { 'X-Trobill-Account-Context': requestContext } : {}),
       ...(method !== 'GET' && method !== 'HEAD' ? { Origin: baseUrl } : {}),
       ...(bypassSecret ? {
-        'x-vercel-protection-bypass': bypassSecret,
-        'x-vercel-set-bypass-cookie': 'true'
+        'x-vercel-protection-bypass': bypassSecret
       } : {})
     };
     const response = await fetchImpl(`${baseUrl}${path}`, {

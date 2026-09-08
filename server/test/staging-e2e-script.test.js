@@ -163,7 +163,8 @@ test('runner xác minh hai tài khoản, chặn tab cũ và chỉ cleanup marker
     STAGING_E2E_PASSWORD: 'test-only-password',
     STAGING_E2E_EMAIL_B: 'e2e-b@example.com',
     STAGING_E2E_PASSWORD_B: 'test-only-password-b',
-    STAGING_E2E_CONFIRMATION: CONFIRMATION
+    STAGING_E2E_CONFIRMATION: CONFIRMATION,
+    VERCEL_AUTOMATION_BYPASS_SECRET: 'test-bypass-secret'
   }, fakeFetch);
 
   assert.equal(result.ok, true);
@@ -179,4 +180,7 @@ test('runner xác minh hai tài khoản, chặn tab cũ và chỉ cleanup marker
   const authenticatedCall = calls.find((call) => call.path === '/api/me');
   assert.equal(authenticatedCall.headers.Cookie, cookies['e2e@example.com']);
   assert.equal(authenticatedCall.headers['X-Trobill-Account-Context'], undefined);
+  const healthCall = calls.find((call) => call.path === '/api/health/ready');
+  assert.equal(healthCall.headers['x-vercel-protection-bypass'], 'test-bypass-secret');
+  assert.equal(healthCall.headers['x-vercel-set-bypass-cookie'], undefined);
 });

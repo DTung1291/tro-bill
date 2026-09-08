@@ -23,7 +23,8 @@ Trong GitHub Environment `Preview`, thêm Environment secrets:
 - `STAGING_E2E_EMAIL_B`, `STAGING_E2E_PASSWORD_B`: tài khoản B độc lập, không là
   nhân viên/thành viên của workspace A.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`: tùy chọn, chỉ cần khi Preview Deployment
-  Protection đang bật.
+  Protection đang bật. Runner API chỉ gửi header `x-vercel-protection-bypass`;
+  không yêu cầu Vercel đặt bypass cookie hoặc thực hiện redirect.
 
 Tài khoản phải là workspace thử nghiệm chuyên dụng, không chứa dữ liệu khách thật.
 Không dùng tài khoản admin hoặc tài khoản production. Workflow không tự chạy khi
