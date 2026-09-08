@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TrọBill – Quản lý phòng trọ, hóa đơn và thu tiền</title>
+  <meta name="description" content="TrọBill giúp chủ trọ quản lý phòng, chốt điện nước, gửi bill kèm VietQR và theo dõi công nợ trong một nơi." />
+  <meta name="theme-color" content="#10211b" />
+  <link rel="canonical" href="https://tro-bill.vercel.app/gioi-thieu" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="vi_VN" />
+  <meta property="og:title" content="TrọBill – Chốt bill gọn, thu tiền rõ" />
+  <meta property="og:description" content="Quản lý phòng, điện nước, VietQR và công nợ trong một nơi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Newsreader:opsz,wght@6..72,600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css?v=1" />
+</head>
+
+<body>
+  <header class="site-header">
+    <a class="brand" href="/gioi-thieu" aria-label="Trang giới thiệu TrọBill">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span>TrọBill</span>
+    </a>
+    <nav class="site-nav" aria-label="Điều hướng chính">
+      <a href="#quy-trinh">Cách hoạt động</a>
+      <a href="#tinh-nang">Tính năng</a>
+      <a href="#bang-gia">Bảng giá</a>
+    </nav>
+    <a class="button button--small button--outline" href="/index.html">Đăng nhập</a>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> Dành cho chủ trọ và đơn vị vận hành</p>
+        <h1 id="hero-title">Chốt bill. Gửi QR.<br /><em>Theo dõi tiền trọ</em> trong một nơi.</h1>
+        <p class="hero-lead">Bớt bảng tính rời rạc, bớt dò chuyển khoản. TrọBill nối từ phòng và khách thuê đến chỉ số điện nước, hóa đơn, thanh toán và công nợ.</p>
+        <div class="hero-actions">
+          <a class="button button--primary" href="/index.html">Bắt đầu miễn phí <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#quy-trinh">Xem quy trình 4 bước</a>
+        </div>
+        <ul class="trust-list" aria-label="Cam kết sản phẩm">
+          <li>Không cần cài đặt</li>
+          <li>Dùng tốt trên điện thoại</li>
+          <li>Dữ liệu tách theo tài khoản</li>
+        </ul>
+      </div>
+
+      <div class="hero-visual" aria-label="Minh họa tổng quan quản lý tiền trọ">
+        <div class="visual-glow"></div>
+        <article class="dashboard-card">
+          <div class="dashboard-topline">
+            <div>
+              <span class="mini-label">Tổng phải thu · Tháng này</span>
+              <strong>28.450.000 đ</strong>
+            </div>
+            <span class="status-pill">Đang theo dõi</span>
+          </div>
+          <div class="progress-head"><span>Đã thu</span><b>72%</b></div>
+          <div class="progress-track"><span></span></div>
+          <div class="metric-grid">
+            <div><span>Đã thu</span><b>20,5 triệu</b></div>
+            <div><span>Còn lại</span><b>7,95 triệu</b></div>
+            <div><span>Phòng</span><b>12 / 14</b></div>
+          </div>
+        </article>
+        <article class="floating-card floating-card--invoice">
+          <span class="floating-icon" aria-hidden="true">✓</span>
+          <div><small>Bill P.203</small><strong>Đã gửi kèm VietQR</strong></div>
+        </article>
+        <article class="floating-card floating-card--meter">
+          <small>Chỉ số điện mới</small>
+          <strong>1.248 kWh</strong>
+          <span>Đã lưu bằng chứng ảnh</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="Lợi ích chính">
+      <p><strong>Một luồng xuyên suốt</strong> từ ghi chỉ số đến đối soát thanh toán</p>
+      <div class="proof-items">
+        <span>Điện nước rõ ràng</span>
+        <span>VietQR đúng số tiền</span>
+        <span>Công nợ không bỏ sót</span>
+      </div>
+    </section>
+
+    <section class="section flow-section" id="quy-trinh" aria-labelledby="flow-title">
+      <div class="section-heading">
+        <p class="eyebrow"><span></span> Một quy trình liền mạch</p>
+        <h2 id="flow-title">Từ chốt số đến chốt tiền,<br />không phải nhập lại.</h2>
+        <p>Mỗi bước dùng dữ liệu của bước trước, giúp giảm nhầm phòng, sai số tiền và thất lạc lịch sử.</p>
+      </div>
+      <ol class="flow-grid">
+        <li><span class="step-number">01</span><div><h3>Quản lý phòng</h3><p>Tổ chức theo khu, phòng, khách thuê, hợp đồng và tình trạng vận hành.</p></div></li>
+        <li><span class="step-number">02</span><div><h3>Chốt điện nước</h3><p>Nhập chỉ số, lưu ảnh đối chứng và áp dụng đúng đơn giá theo từng thời kỳ.</p></div></li>
+        <li><span class="step-number">03</span><div><h3>Gửi bill + VietQR</h3><p>Tạo nội dung thanh toán đúng phòng, gửi email hoặc chia sẻ liên kết hóa đơn.</p></div></li>
+        <li><span class="step-number">04</span><div><h3>Theo dõi tiền về</h3><p>Ghi nhận thu đủ, thu một phần, đối soát giao dịch và theo dõi khoản còn lại.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="section features-section" id="tinh-nang" aria-labelledby="features-title">
+      <div class="section-heading section-heading--light">
+        <p class="eyebrow"><span></span> Vận hành thực tế</p>
+        <h2 id="features-title">Đủ gọn cho một dãy trọ.<br />Đủ rõ cho nhiều khu.</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-card--large">
+          <span class="feature-kicker">Phòng &amp; khách thuê</span>
+          <h3>Một nơi biết phòng nào trống, giữ chỗ, đang thuê hay đang sửa.</h3>
+          <p>Quản lý nhiều khu, khách thuê, cọc, hợp đồng, bàn giao và lịch sử thay đổi mà không trộn dữ liệu.</p>
+          <div class="room-demo" aria-hidden="true">
+            <span class="room room--active">P.201<small>Đang thuê</small></span>
+            <span class="room">P.202<small>Trống</small></span>
+            <span class="room room--hold">P.203<small>Giữ chỗ</small></span>
+          </div>
+        </article>
+        <article class="feature-card">
+          <span class="feature-kicker">Tiền phòng đúng kỳ</span>
+          <h3>Đổi giá từ tháng nào, áp dụng từ tháng đó.</h3>
+          <p>Lưu lịch sử đơn giá và tính theo số ngày ở thực tế khi khách vào hoặc trả phòng giữa tháng.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-kicker">Thu tiền minh bạch</span>
+          <h3>Mỗi bill có QR, trạng thái và lịch sử thu.</h3>
+          <p>Theo dõi thanh toán một phần, khoản còn thiếu, hoàn tiền cọc và giao dịch đảo ngược.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-kicker">Tài sản &amp; bảo trì</span>
+          <h3>Không quên thiết bị hay yêu cầu sửa chữa.</h3>
+          <p>Lưu tài sản theo phòng, tình trạng bàn giao, yêu cầu của khách và tiến độ xử lý.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-kicker">Báo cáo tài chính</span>
+          <h3>Biết số đã thu, chi phí và phần còn lại.</h3>
+          <p>Xem theo tháng, theo khu; xuất báo cáo để lưu trữ hoặc tiếp tục xử lý nghiệp vụ.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section security-section" aria-labelledby="security-title">
+      <div class="security-copy">
+        <p class="eyebrow"><span></span> Dữ liệu vận hành cần được giữ cẩn thận</p>
+        <h2 id="security-title">Bảo mật không phải dòng chữ nhỏ cuối trang.</h2>
+        <p>TrọBill áp dụng phân tách dữ liệu theo tài khoản, phiên đăng nhập có ngữ cảnh rõ ràng và cơ chế hạn chế quyền truy cập cơ sở dữ liệu khi chạy ứng dụng.</p>
+      </div>
+      <ul class="security-list">
+        <li><span aria-hidden="true">01</span><div><strong>Tách dữ liệu theo không gian làm việc</strong><p>Người dùng chỉ thao tác trong tài khoản được cấp quyền.</p></div></li>
+        <li><span aria-hidden="true">02</span><div><strong>CCCD được che mặc định</strong><p>Lần xem đầy đủ cần lý do và được ghi nhật ký.</p></div></li>
+        <li><span aria-hidden="true">03</span><div><strong>Backup mã hóa và diễn tập phục hồi</strong><p>Quy trình sao lưu được tự động hóa và đã kiểm chứng khả năng phục hồi.</p></div></li>
+      </ul>
+    </section>
+
+    <section class="section pricing-section" id="bang-gia" aria-labelledby="pricing-title">
+      <div class="section-heading section-heading--center">
+        <p class="eyebrow"><span></span> Bảng giá công khai</p>
+        <h2 id="pricing-title">Bắt đầu nhỏ. Nâng cấp khi cần.</h2>
+        <p>Giá dưới đây được lấy trực tiếp từ cấu hình đang mở bán của TrọBill.</p>
+      </div>
+      <div class="billing-switch" id="billing-switch" role="group" aria-label="Chu kỳ thanh toán" hidden>
+        <button type="button" class="active" data-cycle="monthly" aria-pressed="true">Theo tháng</button>
+        <button type="button" data-cycle="yearly" aria-pressed="false">Theo năm</button>
+      </div>
+      <div class="plan-grid" id="plan-grid" aria-live="polite">
+        <article class="plan-card plan-card--loading">
+          <span class="loading-line loading-line--short"></span>
+          <span class="loading-line loading-line--wide"></span>
+          <span class="loading-line"></span>
+          <span class="loading-line"></span>
+        </article>
+      </div>
+      <p class="pricing-note" id="pricing-note">Chỉ các gói đang được kích hoạt và công khai mới xuất hiện tại đây.</p>
+    </section>
+
+    <section class="section faq-section" aria-labelledby="faq-title">
+      <div class="section-heading">
+        <p class="eyebrow"><span></span> Cần biết trước khi dùng</p>
+        <h2 id="faq-title">Câu hỏi thường gặp</h2>
+      </div>
+      <div class="faq-list">
+        <details><summary>TrọBill có dùng được trên điện thoại không?</summary><p>Có. Giao diện được thiết kế đáp ứng cho cả điện thoại và máy tính, dùng trực tiếp trên trình duyệt.</p></details>
+        <details><summary>Giá phòng thay đổi thì bill cũ có bị đổi không?</summary><p>Không. TrọBill lưu lịch sử giá theo thời điểm hiệu lực; kỳ cũ giữ nguyên, kỳ mới dùng mức giá mới.</p></details>
+        <details><summary>Bill của TrọBill có phải hóa đơn điện tử thuế không?</summary><p>Chưa. Bill TrọBill là chứng từ vận hành và thu tiền phòng. Tính năng phát hành hóa đơn điện tử qua nhà cung cấp thuế chưa được mở chính thức.</p></details>
+        <details><summary>Tôi có thể bắt đầu bằng gói miễn phí không?</summary><p>Có, nếu gói Free đang được hiển thị trong bảng giá. Hạn mức cụ thể luôn lấy từ cấu hình hiện hành.</p></details>
+      </div>
+    </section>
+
+    <section class="closing-cta">
+      <div><p class="eyebrow"><span></span> Bắt đầu ngay</p><h2>Để mỗi kỳ thu tiền<br />bớt một vòng dò lại.</h2></div>
+      <a class="button button--light" href="/index.html">Mở TrọBill <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <a class="brand brand--footer" href="/gioi-thieu"><span class="brand-mark" aria-hidden="true">T</span><span>TrọBill</span></a>
+    <p>Quản lý tiền trọ rõ ràng, từ phòng đến thanh toán.</p>
+    <nav aria-label="Liên kết pháp lý">
+      <a href="/privacy.html">Chính sách bảo mật</a>
+      <a href="/terms.html">Điều khoản sử dụng</a>
+      <a href="/index.html">Đăng nhập</a>
+    </nav>
+    <small>© <span id="current-year"></span> TrọBill</small>
+  </footer>
+
+  <script src="landing.js?v=1"></script>
+</body>
+
+</html>

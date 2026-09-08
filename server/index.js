@@ -131,6 +131,7 @@ app.post('/api/auth/verify-email', wrap(verifyEmail));
 app.post('/api/auth/resend-verification', wrap(resendVerification));
 app.post('/api/auth/forgot-password', wrap(forgotPassword));
 app.post('/api/auth/reset-password', wrap(resetPassword));
+app.get('/api/public/plans', wrap(plans.listPublicPlans));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({
   email: req.userEmail,
@@ -578,6 +579,9 @@ app.get('/api/admin/revenue/summary', adminGuard, wrap(adminRevenue.getRevenueSu
 
 // ---------- Frontend tĩnh (thư mục cha) ----------
 const FRONTEND_DIR = path.join(__dirname, '..');
+app.get(['/gioi-thieu', '/gioi-thieu/'], (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'landing.html'));
+});
 app.use(express.static(FRONTEND_DIR));
 
 // SPA fallback: mọi route không phải /api -> index.html
