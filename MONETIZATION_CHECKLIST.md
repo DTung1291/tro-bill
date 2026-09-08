@@ -590,6 +590,11 @@ scan sạch.
   `34179242211`, 436/436 test và secret scan sạch.
 - [ ] Hoàn thiện thủ tục kinh doanh, thuế và website/app phù hợp với mô hình bán dịch vụ.
 - [ ] Chạy kiểm thử end-to-end trên staging với dữ liệu giả lập.
+  Runner thủ công `npm run test:e2e:staging` và GitHub Actions đã có guard chống
+  production, xác minh health/cookie/account context, tạo–đọc–xóa đúng một khu
+  UUID rồi kiểm tra cleanup. Chưa đóng tiêu chí: Preview ngày 08/09/2026 đúng
+  môi trường staging nhưng báo `schema=migration-required`; GitHub Environment
+  `Preview` chưa có `STAGING_E2E_EMAIL` và `STAGING_E2E_PASSWORD` để chạy thật.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.
 - [ ] Thu tiền thật thành công từ ít nhất 3 khách pilot.
 - [ ] Theo dõi pilot qua kỳ lập bill thứ hai trước khi quảng bá rộng.

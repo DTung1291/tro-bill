@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — webhook subscription đã chống va chạm event; pháp nhân/kênh hỗ trợ/SLA và provider thanh toán thật vẫn chờ đầu vào |
+| Trạng thái | Sẵn sàng bàn giao — runner E2E staging đã phát hành; lần chạy thật chờ migration và credential tài khoản test chuyên dụng |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu webhook; luôn xác minh bằng Git trước khi sửa |
+| Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
-| Việc code tiếp theo | Chuẩn bị runner E2E staging dùng tài khoản/dữ liệu giả lập và cleanup có guard; không chạy tiền thật |
-| Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
+| Việc code tiếp theo | Sau khi Preview ready và có hai secret E2E, chạy workflow thủ công trên deployment `tro-bill-bykzho8w1-dtung.vercel.app` rồi ghi bằng chứng |
+| Việc vận hành còn mở | Preview đang `schema=migration-required`; Environment `Preview` thiếu `STAGING_E2E_EMAIL`/`STAGING_E2E_PASSWORD`; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,17 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `c2997b2` + `92423bc`: thêm runner E2E staging và workflow chạy thủ công dùng
+  GitHub Environment `Preview`. Runner từ chối alias production/HTTP không an
+  toàn/health khác staging, xác minh cookie HttpOnly + account context, chỉ tạo
+  và cleanup khu có marker UUID của chính lượt chạy; không lập bill, webhook
+  hoặc giao dịch tiền thật. CI `34194518229` và `34194681465` thành công; bộ đầy
+  đủ đạt 442/442 test, secret scan sạch. Preview
+  `tro-bill-bykzho8w1-dtung.vercel.app` (`dpl_C5DKr2LHfG3JJbEPgVyRkCadwMVG`)
+  READY nhưng readiness qua Vercel CLI trả đúng `environment=staging`, database
+  `ok`, runtime `restricted` và schema `migration-required`; Deployment
+  Protection vẫn bật. Environment `Preview` chưa có hai credential E2E nên chưa
+  chạy workflow thật và checklist vẫn mở.
 - `ac14d1c`: webhook thanh toán subscription giờ chỉ coi event ID là retry hợp
   lệ khi `event_type` và SHA-256 của raw payload trùng bản đã lưu. Event ID cũ
   nhưng nội dung khác trả `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH`, không lookup hay
