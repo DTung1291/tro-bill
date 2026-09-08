@@ -98,7 +98,9 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 - ICP v1 tại `docs/PILOT_CUSTOMER_PROFILE.md` chốt mẫu chủ trọ/người quyết định
   trực tiếp vận hành 10–50 phòng có bill tháng và công nợ, kèm tiêu chí sàng lọc,
   loại trừ, ưu tiên và mẫu biên bản ẩn danh. Mục xác định khách hàng mục tiêu đã
-  đóng; chưa có cuộc phỏng vấn nào được tự khai hoặc tính từ giả thuyết nội bộ.
+  đóng. `docs/PILOT_INTERVIEW_LOG.md` tạo sẵn I01–I10 với trạng thái “Chưa thực
+  hiện”, quy tắc đạt chuẩn/ngoài mẫu và chốt chặn không lưu PII; chưa có cuộc
+  phỏng vấn nào được tự khai hoặc tính từ giả thuyết nội bộ.
   Bước an toàn tiếp theo duy nhất là chủ sản phẩm tuyển và ghi cuộc phỏng vấn I01
   đúng mẫu, không đưa thông tin liên hệ hoặc dữ liệu khách thuê vào repository.
 - Runbook `docs/E_INVOICE_CORRECTION_RUNBOOK.md` ngày 08/09/2026 đóng mục “có

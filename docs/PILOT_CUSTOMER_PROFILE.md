@@ -99,3 +99,6 @@ Chỉ đánh dấu mục “phỏng vấn ít nhất 10 chủ trọ” khi có �
 trong đó người trả lời thuộc đúng vai trò và mẫu 10–50 phòng. Sau đó tổng hợp vấn
 đề theo số người gặp, tần suất và hậu quả thực tế; không xếp hạng chỉ theo ý kiến
 của đội phát triển.
+
+Tiến độ và biên bản ẩn danh được ghi trong `docs/PILOT_INTERVIEW_LOG.md`. Mười
+hàng `Chưa thực hiện` ban đầu không phải bằng chứng phỏng vấn.
