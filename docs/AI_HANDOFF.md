@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — kênh báo cáo bảo mật riêng tư đã bật; E2E thật vẫn chờ migration và credential Preview |
+| Trạng thái | Sẵn sàng bàn giao — schema Preview đã đủ; E2E thật còn chờ credential A/B |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
-| Việc code tiếp theo | Áp dụng hai migration HĐĐT còn thiếu trên đúng Neon branch của Preview; sau đó cấu hình credential A/B và chạy workflow E2E |
-| Việc vận hành còn mở | Preview thiếu `20260907_electronic_invoice_profiles.sql` + `20260907_electronic_invoice_preflight.sql`; Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
+| Việc code tiếp theo | Chọn hai workspace thử nghiệm độc lập, cấu hình credential A/B trong GitHub Environment `Preview` và chạy workflow E2E |
+| Việc vận hành còn mở | Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,15 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- Neon Preview branch `staging-privacy` (`br-ancient-wave-azwc43to`) đã được bổ
+  sung `20260907_electronic_invoice_profiles.sql` và
+  `20260907_electronic_invoice_preflight.sql` ngày 08/09/2026. Kết quả xác minh
+  lần lượt đạt 5/5 cờ bảng/constraint/quyền/ownership và 3/3 cờ tên pháp lý,
+  constraint, least privilege. Deployment
+  `tro-bill-6n5t42b90-dtung.vercel.app` (`dpl_ETjou2z1n334KgES4wLSDdUxKDiJ`)
+  sau migration trả HTTP 200, revision `e461a33964cb`, database/schema `ok` và
+  runtime role `restricted`. Không chạy lại hai migration này; bước kế tiếp là
+  cấu hình credential cho hai tài khoản test độc lập rồi chạy workflow staging.
 - `e461a33`: readiness staging có chẩn đoán tên migration theo 19 nhóm schema;
   production chỉ giữ trạng thái tổng quát. Runner E2E chấp nhận health 503 để
   hiện đúng danh sách rồi dừng trước login/ghi. CI `34196632098`, test mục tiêu

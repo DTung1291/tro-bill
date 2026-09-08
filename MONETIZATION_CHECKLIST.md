@@ -594,10 +594,12 @@ scan sạch.
   production, xác minh health/cookie/account context của hai tài khoản độc lập,
   tạo khu UUID bằng A, bắt B không được thấy, mô phỏng tab cũ cookie B + context A
   phải trả `SESSION_ACCOUNT_CHANGED`, rồi cleanup đúng marker. Chưa đóng tiêu
-  chí: Preview `tro-bill-6n5t42b90-dtung.vercel.app` ngày 08/09/2026 xác định
-  thiếu đúng `20260907_electronic_invoice_profiles.sql` rồi
-  `20260907_electronic_invoice_preflight.sql`; Environment `Preview` cũng chưa
-  có bốn secret credential của hai tài khoản E2E.
+  chí: hai migration `20260907_electronic_invoice_profiles.sql` và
+  `20260907_electronic_invoice_preflight.sql` đã chạy trên Neon `staging-privacy`
+  (`br-ancient-wave-azwc43to`) ngày 08/09/2026, lần lượt đạt 5/5 và 3/3 cờ xác
+  minh. Preview `tro-bill-6n5t42b90-dtung.vercel.app` sau đó trả HTTP 200 với
+  database/schema `ok`, runtime role `restricted`. Environment `Preview` vẫn
+  chưa có bốn secret credential của hai tài khoản E2E nên workflow thật chưa chạy.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.
 - [ ] Thu tiền thật thành công từ ít nhất 3 khách pilot.
 - [ ] Theo dõi pilot qua kỳ lập bill thứ hai trước khi quảng bá rộng.
@@ -607,8 +609,8 @@ scan sạch.
 - [ ] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
   Regression test client đã kiểm tra đổi cookie giữa tab, hủy autosave và tuần tự
   hóa PUT state; runner staging commit `1e5549b` bổ sung kiểm tra hai cookie/context
-  và dữ liệu khu thực qua API. Tiêu chí vẫn mở đến khi runner chạy xanh trên
-  Preview đã đủ migration bằng hai workspace thử nghiệm độc lập.
+  và dữ liệu khu thực qua API. Preview đã đủ migration và readiness xanh; tiêu chí
+  vẫn mở đến khi runner chạy xanh bằng hai workspace thử nghiệm độc lập.
 - [x] Backup và phục hồi đã được kiểm chứng.
 - [x] Subscription và giới hạn gói được kiểm tra ở server.
   Server lấy entitlement trực tiếp từ `subscriptions` + `plans`, chặn vượt giới
