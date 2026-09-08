@@ -178,3 +178,20 @@ secret ở nhà cung cấp trước, sau đó mới cân nhắc làm sạch lị
    ghi đè production cho đến khi đã đối chiếu.
 5. Sau xử lý, ghi nguyên nhân, phạm vi ảnh hưởng, hành động phòng ngừa và thời
    gian khôi phục vào báo cáo sự cố nội bộ.
+
+### Báo cáo bảo mật từ bên ngoài
+
+Kênh nhận lỗ hổng là GitHub Private Vulnerability Reporting theo `SECURITY.md`.
+Không yêu cầu người báo gửi bằng public Issue, email chưa xác minh hoặc kênh chat
+cá nhân. Chủ repository là người triage hiện tại; chưa công bố SLA trước khi có
+lịch trực hỗ trợ chính thức.
+
+Khi nhận báo cáo:
+
+1. tạo advisory riêng tư và chỉ mời người cần xử lý;
+2. không chép secret/dữ liệu khách sang issue, log hoặc tài liệu trong Git;
+3. nếu có nguy cơ ghi chéo/mất dữ liệu, ưu tiên khóa luồng ghi liên quan và bảo
+   toàn bằng chứng trước khi sửa;
+4. thêm regression test, kiểm tra Preview rồi production theo quy trình phát hành;
+5. rotate credential bị ảnh hưởng, theo dõi runtime log và đóng advisory sau khi
+   đã xác minh bản sửa.
