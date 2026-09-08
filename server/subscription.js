@@ -157,6 +157,27 @@ async function enforceStateWrite(userId, roomCount, query = db.query, now = new 
   return entitlement;
 }
 
+async function requireWritableSubscription(req, res, next, dependencies = {}) {
+  const query = dependencies.query || db.query;
+  const now = dependencies.now || new Date();
+  try {
+    const accountUserId = Number(req.accountUserId || req.userId);
+    const entitlement = await getUserEntitlements(accountUserId, query, now);
+    if (entitlement.accessMode !== 'full') {
+      throw new EntitlementError(
+        'SUBSCRIPTION_READ_ONLY',
+        'Gói dịch vụ đã hết hiệu lực. Tài khoản hiện chỉ có thể xem và xuất dữ liệu.',
+        { accessMode: entitlement.accessMode }
+      );
+    }
+    req.subscriptionEntitlement = entitlement;
+    return next();
+  } catch (error) {
+    if (sendEntitlementError(res, error)) return res;
+    return next(error);
+  }
+}
+
 function sendEntitlementError(res, error) {
   if (!(error instanceof EntitlementError)) return false;
   res.status(error.statusCode).json({
@@ -600,6 +621,7 @@ module.exports = {
   getSubscription,
   getUserEntitlements,
   listAdminManualChangeLogs,
+  requireWritableSubscription,
   resolveEntitlements,
   resolveLifecycle,
   sendEntitlementError,

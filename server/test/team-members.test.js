@@ -287,6 +287,37 @@ test('gói không hỗ trợ nhân viên bị chặn trước khi tìm email', a
   assert.equal(calls.at(-1).sql, 'ROLLBACK');
 });
 
+test('server chặn thêm nhân viên khi đã dùng hết hạn mức gói', async () => {
+  const calls = [];
+  const client = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (sql.includes('FROM subscriptions s')) return { rows: [entitlementRow()] };
+      if (sql.includes('FROM users') && sql.includes('email_verified_at')) {
+        return { rows: [{ id: 9, email: 'second-staff@example.com' }] };
+      }
+      if (sql.includes('COUNT(*)::int AS staff_count')) return { rows: [{ staff_count: 2 }] };
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const response = responseRecorder();
+  await createTeamMember(
+    { userId: 7, body: { email: 'second-staff@example.com', role: 'accountant' } },
+    response.res,
+    { getClient: async () => client }
+  );
+
+  assert.equal(response.record.statusCode, 409);
+  assert.equal(response.record.body.code, 'STAFF_LIMIT_EXCEEDED');
+  assert.deepEqual(
+    { current: response.record.body.current, limit: response.record.body.limit },
+    { current: 2, limit: 2 }
+  );
+  assert.equal(calls.some(call => call.sql.includes('INSERT INTO account_memberships')), false);
+  assert.equal(calls.at(-1).sql, 'ROLLBACK');
+});
+
 test('không thể sửa hoặc xóa membership chủ sở hữu', async () => {
   const updateResponse = responseRecorder();
   await updateTeamMember(

@@ -112,6 +112,11 @@ app.use('/api', (req, res, next) => {
 
 // bọc async handler để lỗi rơi vào middleware xử lý lỗi
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const writableSubscription = wrap(subscription.requireWritableSubscription);
+const writableSubscriptionOrChannelDisable = (req, res, next) => {
+  if (req.body?.active === false) return next();
+  return writableSubscription(req, res, next);
+};
 
 // ---------- API ----------
 app.get('/api/health/live', live);
@@ -167,6 +172,7 @@ app.put(
   '/api/electronic-invoice/profile',
   requireAuth,
   wrap(accountAccess.requireWorkspace('any')),
+  writableSubscription,
   wrap(electronicInvoiceProfiles.updateElectronicInvoiceProfile)
 );
 app.get(
@@ -189,9 +195,9 @@ app.get(
   wrap(accountAccess.requireWorkspace('overview')),
   wrap(financialReports.getFinancialReport)
 );
-app.post('/api/rent-payments/sync', requireAuth, wrap(rentPayments.syncInvoices));
-app.post('/api/rent-payments/settle', requireAuth, wrap(rentPayments.settleInvoice));
-app.post('/api/rent-payments/migrate-legacy', requireAuth, wrap(rentPayments.migrateLegacyPaid));
+app.post('/api/rent-payments/sync', requireAuth, writableSubscription, wrap(rentPayments.syncInvoices));
+app.post('/api/rent-payments/settle', requireAuth, writableSubscription, wrap(rentPayments.settleInvoice));
+app.post('/api/rent-payments/migrate-legacy', requireAuth, writableSubscription, wrap(rentPayments.migrateLegacyPaid));
 app.get(
   '/api/rent-payments/invoices/:invoiceId/transactions',
   requireAuth,
@@ -200,21 +206,25 @@ app.get(
 app.post(
   '/api/rent-payments/transactions/:id/reverse',
   requireAuth,
+  writableSubscription,
   wrap(rentPayments.reverseTransaction)
 );
 app.post(
   '/api/rent-invoices/:invoiceId/share-links',
   requireAuth,
+  writableSubscription,
   wrap(rentInvoiceLinks.createInvoiceLink)
 );
 app.post(
   '/api/rent-invoices/:invoiceId/deliver-email',
   requireAuth,
+  writableSubscription,
   wrap(rentInvoiceDelivery.deliverInvoiceEmail)
 );
 app.post(
   '/api/rent-invoices/:invoiceId/delivery-schedules',
   requireAuth,
+  writableSubscription,
   wrap(rentInvoiceSchedules.createInvoiceSchedule)
 );
 app.get(
@@ -230,6 +240,7 @@ app.post(
 app.post(
   '/api/rent-invoice-delivery-schedules/:id/retry',
   requireAuth,
+  writableSubscription,
   wrap(rentInvoiceSchedules.retryInvoiceSchedule)
 );
 app.get(
@@ -266,6 +277,7 @@ app.get(
 app.post(
   '/api/rent-meter-photos',
   requireAuth,
+  writableSubscription,
   wrap(rentMeterPhotos.upsertMeterPhoto)
 );
 app.get(
@@ -276,21 +288,25 @@ app.get(
 app.post(
   '/api/rent-payment-channels/sepay',
   requireAuth,
+  writableSubscription,
   wrap(rentPaymentChannels.createSepayChannel)
 );
 app.post(
   '/api/rent-payment-channels/:id/rotate-secret',
   requireAuth,
+  writableSubscription,
   wrap(rentPaymentChannels.rotateChannelSecret)
 );
 app.patch(
   '/api/rent-payment-channels/:id/status',
   requireAuth,
+  writableSubscriptionOrChannelDisable,
   wrap(rentPaymentChannels.setChannelStatus)
 );
 app.patch(
   '/api/rent-payment-channels/:id/account',
   requireAuth,
+  writableSubscription,
   wrap(rentPaymentChannels.updateChannelAccount)
 );
 app.post(
@@ -305,11 +321,13 @@ app.get(
 app.post(
   '/api/rent-bank-transactions/:id/match',
   requireAuth,
+  writableSubscription,
   wrap(rentBankReconciliation.manuallyMatchTransaction)
 );
 app.post(
   '/api/rent-bank-transactions/:id/ignore',
   requireAuth,
+  writableSubscription,
   wrap(rentBankReconciliation.ignoreBankTransaction)
 );
 app.get(
@@ -320,11 +338,13 @@ app.get(
 app.post(
   '/api/deposits/transactions',
   requireAuth,
+  writableSubscription,
   wrap(deposits.createDepositTransaction)
 );
 app.post(
   '/api/deposits/transactions/:id/reverse',
   requireAuth,
+  writableSubscription,
   wrap(deposits.reverseDepositTransaction)
 );
 app.get('/api/rental-contracts', requireAuth, wrap(rentalContracts.listContracts));
@@ -484,21 +504,25 @@ app.get(
 app.post(
   '/api/rent-bank-accounts',
   requireAuth,
+  writableSubscription,
   wrap(rentBankAccounts.createRentBankAccount)
 );
 app.patch(
   '/api/rent-bank-accounts/:id',
   requireAuth,
+  writableSubscription,
   wrap(rentBankAccounts.updateRentBankAccount)
 );
 app.delete(
   '/api/rent-bank-accounts/:id',
   requireAuth,
+  writableSubscription,
   wrap(rentBankAccounts.deleteRentBankAccount)
 );
 app.patch(
   '/api/properties/:propertyId/rent-bank-account',
   requireAuth,
+  writableSubscription,
   wrap(rentBankAccounts.assignPropertyRentBankAccount)
 );
 app.get('/api/team/members', requireAuth, wrap(teamMembers.listTeamMembers));

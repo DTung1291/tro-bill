@@ -15,6 +15,7 @@ const {
   EntitlementError,
   enforceStateWrite,
   getUserEntitlements,
+  requireWritableSubscription,
   resolveEntitlements,
   resolveLifecycle
 } = require('../subscription');
@@ -147,6 +148,93 @@ test('PUT state chặn trước khi xóa dữ liệu nếu vượt room limit', 
   assert.equal(response.record.body.code, 'ROOM_LIMIT_EXCEEDED');
   assert.equal(calls.some(call => call.sql.includes('DELETE FROM rooms')), false);
   assert.equal(calls.at(-1).sql, 'ROLLBACK');
+});
+
+test('middleware ghi dùng workspace owner và chặn gói hết hạn tại server', async () => {
+  let nextCalls = 0;
+  let queriedUserId = null;
+  const query = async (sql, params) => {
+    queriedUserId = params[0];
+    return {
+      rows: [{
+        ...activeFreeRow,
+        status: 'active',
+        ends_at: '2026-09-01T00:00:00.000Z'
+      }]
+    };
+  };
+  const response = responseRecorder();
+  await requireWritableSubscription(
+    { userId: 99, accountUserId: 7 },
+    response.res,
+    () => { nextCalls += 1; },
+    { query, now: new Date('2026-09-08T00:00:00.000Z') }
+  );
+
+  assert.equal(queriedUserId, 7);
+  assert.equal(nextCalls, 0);
+  assert.equal(response.record.statusCode, 403);
+  assert.equal(response.record.body.code, 'SUBSCRIPTION_READ_ONLY');
+  assert.equal(response.record.body.accessMode, 'read_only');
+});
+
+test('middleware ghi cho gói hiệu lực đi tiếp và gắn entitlement phía server', async () => {
+  let nextCalls = 0;
+  const req = { userId: 7 };
+  const response = responseRecorder();
+  await requireWritableSubscription(
+    req,
+    response.res,
+    () => { nextCalls += 1; },
+    { query: async () => ({ rows: [activeFreeRow] }) }
+  );
+
+  assert.equal(nextCalls, 1);
+  assert.equal(req.subscriptionEntitlement.plan.code, 'free');
+  assert.equal(response.record.body, null);
+});
+
+test('các API ghi vận hành cũ dùng guard subscription, ngoại lệ an toàn vẫn hoạt động', () => {
+  const indexSource = fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8');
+  const guardedRoutes = [
+    '/api/electronic-invoice/profile',
+    '/api/rent-payments/settle',
+    '/api/rent-payments/transactions/:id/reverse',
+    '/api/rent-invoices/:invoiceId/deliver-email',
+    '/api/rent-meter-photos',
+    '/api/rent-payment-channels/sepay',
+    '/api/rent-bank-transactions/:id/match',
+    '/api/deposits/transactions',
+    '/api/rent-bank-accounts'
+  ];
+  for (const route of guardedRoutes) {
+    const escapedRoute = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(
+      indexSource,
+      new RegExp(`${escapedRoute}'[\\s\\S]{0,180}writableSubscription`),
+      `${route} phải có guard subscription phía server`
+    );
+  }
+  assert.match(
+    indexSource,
+    /writableSubscriptionOrChannelDisable[\s\S]*req\.body\?\.active === false[\s\S]*return next\(\)/
+  );
+  assert.match(
+    indexSource,
+    /\/api\/rent-invoice-share-links\/:id\/revoke'[\s\S]{0,100}requireAuth,[\s\S]{0,100}revokeInvoiceLink/
+  );
+  assert.match(
+    indexSource,
+    /\/api\/rent-invoice-delivery-schedules\/:id\/cancel'[\s\S]{0,100}requireAuth,[\s\S]{0,100}cancelInvoiceSchedule/
+  );
+  assert.doesNotMatch(
+    indexSource,
+    /\/api\/subscription\/orders'[\s\S]{0,100}writableSubscription/
+  );
+  assert.doesNotMatch(
+    indexSource,
+    /\/api\/privacy\/export'[\s\S]{0,100}writableSubscription/
+  );
 });
 
 test('client không còn cờ hoặc native callback tự mở khóa Premium', () => {
