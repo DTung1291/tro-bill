@@ -562,3 +562,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   HĐĐT. Chỉ adapter đã kiểm thử bằng sandbox/API contract hiện hành, credential
   riêng từng workspace và mapping được người có thẩm quyền duyệt mới được phép
   thay đổi quyền dispatch hoặc lưu external reference/trạng thái provider.
+
+## D-036 — Bảng giá công khai dùng cùng nguồn dữ liệu với quyền lợi gói
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Landing page không ghi cứng giá hoặc gói trả phí. Endpoint
+  `GET /api/public/plans` dùng cùng truy vấn plan phía server nhưng chỉ trả các
+  dòng đồng thời `is_active=true` và `is_public=true`; route `/api/plans` trong
+  ứng dụng vẫn yêu cầu đăng nhập. Frontend lọc phòng thủ thêm hai cờ public và
+  active, render dữ liệu bằng DOM/text và hiển thị trạng thái không tải được
+  thay vì dùng giá dự phòng.
+- **Lý do:** Giá thử nghiệm chưa được khách hàng chấp nhận và có thể thay đổi từ
+  trang admin. Ghi một mức giá riêng trong HTML sẽ làm landing page lệch với
+  giá dùng để tạo đơn hàng, hoặc công khai gói chưa sẵn sàng mở bán.
+- **Hệ quả:** Admin phải cấu hình đủ giá tháng/năm rồi kích hoạt và công khai gói
+  thì gói đó mới xuất hiện. Production hiện chỉ hiển thị Free 0 đ / 10 phòng;
+  việc thiếu cấu hình gói trả phí không được coi là lỗi render và không được tự
+  điền một mức giá giả định.

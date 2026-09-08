@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 07/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — runtime least privilege và hotfix layout tài khoản theo khu đã hoàn tất; provider HĐĐT vẫn chờ sandbox/API contract |
+| Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao — landing page và bảng giá server-authoritative đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Chỉ có cập nhật bằng chứng hoàn tất role đang chờ commit; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `b2b7257` — migration/runbook khóa login runtime cũ; layout tài khoản theo khu ở `c650d6f` |
-| Việc code tiếp theo | Provider adapter vẫn chờ sandbox/API contract; tiếp tục mục kỹ thuật khả thi kế tiếp nếu không phụ thuộc nhà cung cấp |
+| Worktree kỳ vọng | Sạch sau commit tài liệu landing page; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `feda8ca` — landing page `/gioi-thieu`, API bảng giá công khai và rewrite Vercel |
+| Việc code tiếp theo | Hướng dẫn bắt đầu nhanh và dữ liệu mẫu; provider adapter vẫn chờ sandbox/API contract |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -92,6 +92,14 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `872b26d` + `feda8ca`: landing page `/gioi-thieu` đã phát hành với nội dung
+  bám đúng chức năng hiện có, responsive CSS, thông báo bill nội bộ chưa phải
+  HĐĐT thuế và liên kết pháp lý. Bảng giá gọi `GET /api/public/plans`, chỉ trả
+  các gói `active + public` từ server và render bằng DOM/text an toàn; API
+  `/api/plans` trong ứng dụng vẫn yêu cầu đăng nhập. Kiểm tra production xác
+  nhận landing và API đều HTTP 200, bảng giá live chỉ có Free 0 đ / 10 phòng,
+  không suy đoán giá trả phí. CI `34175028079` thành công, bộ đầy đủ đạt 418/418
+  và secret scan sạch.
 - `b2b7257`: migration `20260907_disable_legacy_runtime_logins.sql`, runbook và
   regression test đã phát hành để hoàn tất runtime least privilege. Migration
   chạy trên staging `br-ancient-wave-azwc43to` rồi production
