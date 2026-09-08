@@ -595,3 +595,23 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   chỉ dùng tài khoản trống hoặc export trước. Hạng mục import kế tiếp phải thêm
   bước preview/validation và lựa chọn merge/replace rõ ràng; không được biến
   generator này thành thao tác ghi một chạm nếu chưa có guard chống mất dữ liệu.
+
+## D-038 — Import dữ liệu phải preview và xác nhận quyền xử lý dữ liệu
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Import nhận JSON hoặc CSV UTF-8 xuất từ Excel, luôn chuẩn hóa và
+  preview trước khi ghi. Mặc định là gộp với ID phòng/khách mới; thay thế toàn bộ
+  phòng, khách, chi phí và lịch sử phải có xác nhận riêng. File chứa khách yêu
+  cầu chủ tài khoản xác nhận có quyền xử lý dữ liệu cá nhân. Import không tự tạo
+  khu: tên khu trong file phải khớp một khu hiện có. Sau preview, server mới là
+  nguồn xác nhận cuối cùng; giao diện chỉ rollback về snapshot cũ khi PUT chưa
+  được server lưu, không rollback giả nếu PUT thành công nhưng GET sau đó lỗi.
+- **Lý do:** Luồng cũ nạp state rồi báo thành công trước khi server phản hồi, có
+  thể khiến người dùng tưởng dữ liệu đã lưu hoặc vô tình ghi đè workspace. Giữ ID
+  ngoài có thể đụng khóa và tự tạo khu từ lỗi chính tả làm phân tán ownership.
+  Dữ liệu khách thuê còn cần sự xác nhận rõ ràng về nguồn và quyền sử dụng.
+- **Hệ quả:** File bị giới hạn 5 MB, 500 phòng, 2.000 khách và bị từ chối khi sai
+  trường bắt buộc, ngày/email/CCCD, trùng ID hoặc trùng phòng trong cùng khu.
+  CCCD đã che không được coi là dữ liệu có thể import. CSV chỉ mang phòng/khách;
+  nếu chọn thay thế thì chi phí/lịch sử bị xóa còn settings được giữ, đúng với
+  cảnh báo ở preview. Production revision `eab951bd939e`, CI `34177957306`.

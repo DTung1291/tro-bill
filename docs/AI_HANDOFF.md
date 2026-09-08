@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — landing page, quick start và dữ liệu mẫu an toàn đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
+| Trạng thái | Sẵn sàng bàn giao — landing, quick start và nhập CSV/JSON an toàn đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu landing page; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `e2bb6b2` — `/huong-dan`, generator JSON giả lập và liên kết onboarding trong app |
-| Việc code tiếp theo | Công cụ nhập phòng/khách từ Excel hoặc JSON cần preview, validation và chống ghi đè ngoài ý muốn |
+| Worktree kỳ vọng | Sạch sau commit tài liệu nhập dữ liệu; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `eab951b` — nhập CSV từ Excel/JSON có preview, validation, gộp/thay thế và xác nhận server |
+| Việc code tiếp theo | Rà soát điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền; kênh hỗ trợ/SLA cần thông tin liên hệ do chủ sản phẩm xác nhận |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -92,12 +92,21 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `eab951b`: luồng nhập dữ liệu trong Cài đặt nhận CSV UTF-8 xuất từ Excel hoặc
+  JSON, có tải file CSV mẫu và preview trước khi ghi. Chế độ mặc định là gộp,
+  tạo lại ID phòng/khách và ánh xạ billing; thay thế yêu cầu xác nhận riêng. File
+  có khách phải xác nhận quyền xử lý dữ liệu cá nhân. Bộ kiểm tra chặn file quá
+  5 MB, hơn 500 phòng/2.000 khách, dữ liệu bắt buộc sai, ID trùng, CCCD đã che
+  và phòng trùng tên trong cùng khu. Khu được nêu trong file phải tồn tại; import
+  không tự tạo khu. UI chỉ báo thành công sau PUT/GET server và chỉ rollback
+  client khi PUT chưa lưu. Production revision `eab951bd939e`, database/schema
+  `ok`, runtime role `restricted`; CI `34177957306`, 429/429 test, secret scan
+  và diff check sạch. Asset pins `style 126 / data-import 1 / app 131`.
 - `e2bb6b2`: hướng dẫn bắt đầu nhanh `/huong-dan` đã phát hành với năm bước từ
   tạo phòng đến ghi nhận thanh toán. Generator phía trình duyệt tạo file JSON
   ba phòng theo tháng hiện tại, UUID mới mỗi lượt, không có khách/CCCD/điện
   thoại/email/tài khoản ngân hàng; chỉ tải xuống và không tự ghi dữ liệu. Trang
   cảnh báo import hiện thay toàn bộ phòng, yêu cầu dùng tài khoản trống hoặc
-  export trước. Link nằm ở landing, trạng thái dashboard trống và Cài đặt.
   Production revision `e2bb6b2fcad2` trả 200 cho HTML/CSS/JS, readiness
   database/schema `ok`, runtime role `restricted`; CI `34176436306`, 422/422
   test và secret scan sạch. Asset app pin `130`.

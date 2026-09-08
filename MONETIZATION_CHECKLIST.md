@@ -570,7 +570,15 @@ scan sạch.
   CCCD, điện thoại, email hoặc tài khoản ngân hàng và cảnh báo chỉ nhập ở tài
   khoản trống/sao lưu trước. Production revision `e2bb6b2fcad2` trả HTTP 200,
   database/schema `ok`, runtime role `restricted`; CI `34176436306`, 422/422 test.
-- [ ] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
+- [x] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
+  Đã phát hành luồng nhập CSV UTF-8 xuất từ Excel hoặc JSON với preview số khu,
+  phòng và khách trước khi ghi; mặc định gộp bằng ID mới, còn thay thế bắt buộc
+  xác nhận riêng. Dữ liệu được kiểm tra định dạng, trùng ID/phòng, ngày, email,
+  CCCD; file có khách phải xác nhận quyền xử lý dữ liệu cá nhân. Giới hạn 5 MB,
+  500 phòng và 2.000 khách; frontend chỉ báo thành công sau khi server xác nhận
+  và khôi phục giao diện nếu PUT bị từ chối. Production revision
+  `eab951bd939e` trả HTTP 200, database/schema `ok`, runtime role `restricted`;
+  CI `34177957306`, 429/429 test và secret scan sạch.
 - [ ] Có kênh hỗ trợ chính thức và thời gian phản hồi cam kết.
 - [ ] Có điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền.
 - [ ] Hoàn thiện thủ tục kinh doanh, thuế và website/app phù hợp với mô hình bán dịch vụ.
