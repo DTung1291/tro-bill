@@ -91,7 +91,12 @@ function mockClient(options = {}) {
         return { rows: options.duplicateEvent ? [] : [{ id: 80 }] };
       }
       if (sql.includes('UPDATE payment_events') && sql.includes('attempt_count=attempt_count+1')) {
-        return { rows: [{ status: options.duplicateStatus || 'processed', error_code: null }] };
+        return { rows: [{
+          status: options.duplicateStatus || 'processed',
+          error_code: null,
+          payload_sha256: options.duplicatePayloadHash || '',
+          event_type: options.duplicateEventType || 'payment.completed'
+        }] };
       }
       if (sql.includes('FROM subscription_payments sp')) {
         return { rows: options.withoutPayment ? [] : [paymentRow(options.payment)] };
@@ -173,7 +178,34 @@ test('webhook hợp lệ thanh toán, nâng gói và audit trong cùng transacti
 test('event ID nhận lại chỉ tăng attempt, không kích hoạt lần hai', async (t) => {
   const originalGetClient = db.getClient;
   const originalSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-  const { calls, client } = mockClient({ duplicateEvent: true });
+  const req = signedRequest(validBody());
+  const { calls, client } = mockClient({
+    duplicateEvent: true,
+    duplicatePayloadHash: crypto.createHash('sha256').update(req.rawBody).digest('hex')
+  });
+  db.getClient = async () => client;
+  process.env.PAYMENT_WEBHOOK_SECRET = SECRET;
+  t.after(() => {
+    db.getClient = originalGetClient;
+    if (originalSecret === undefined) delete process.env.PAYMENT_WEBHOOK_SECRET;
+    else process.env.PAYMENT_WEBHOOK_SECRET = originalSecret;
+  });
+  const response = responseRecorder();
+
+  await paymentWebhook(req, response.res);
+
+  assert.equal(response.record.body.duplicate, true);
+  assert.equal(response.record.body.processed, true);
+  assert.equal(calls.some((call) => call.sql.includes('UPDATE subscriptions')), false);
+});
+
+test('event ID cũ với payload khác bị từ chối và không chạm payment', async (t) => {
+  const originalGetClient = db.getClient;
+  const originalSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+  const { calls, client } = mockClient({
+    duplicateEvent: true,
+    duplicatePayloadHash: '0'.repeat(64)
+  });
   db.getClient = async () => client;
   process.env.PAYMENT_WEBHOOK_SECRET = SECRET;
   t.after(() => {
@@ -185,9 +217,15 @@ test('event ID nhận lại chỉ tăng attempt, không kích hoạt lần hai',
 
   await paymentWebhook(signedRequest(validBody()), response.res);
 
-  assert.equal(response.record.body.duplicate, true);
-  assert.equal(response.record.body.processed, true);
-  assert.equal(calls.some((call) => call.sql.includes('UPDATE subscriptions')), false);
+  assert.equal(response.record.statusCode, 409);
+  assert.deepEqual(response.record.body, {
+    accepted: false,
+    duplicate: true,
+    processed: false,
+    code: 'WEBHOOK_EVENT_PAYLOAD_MISMATCH'
+  });
+  assert.equal(calls.some((call) => call.sql.includes('FROM subscription_payments sp')), false);
+  assert.equal(calls.some((call) => call.sql === 'COMMIT'), true);
 });
 
 test('cùng transaction với event ID mới không kích hoạt lần hai', async (t) => {

@@ -69,6 +69,8 @@ giữ các trường cần đối soát, hash SHA-256 của raw payload và kế
 ## Idempotency và kết quả
 
 - Cặp `bank_transfer + X-Payment-Event-Id` chỉ được tạo một lần.
+- Cùng một event ID chỉ được gửi lại với đúng loại event và đúng raw payload;
+  thay đổi nội dung trả `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH` và không chạm payment.
 - Cặp `bank_transfer + transactionId` chỉ được gắn cho một payment.
 - Event hoặc transaction gửi lại không gia hạn/nâng gói lần thứ hai.
 - Chỉ khi mã đơn, tài khoản nhận, số tiền, thời hạn và trạng thái subscription

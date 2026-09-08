@@ -193,11 +193,20 @@ async function paymentWebhook(req, res) {
         `UPDATE payment_events
          SET attempt_count=attempt_count+1, updated_at=now()
          WHERE provider=$1 AND event_id=$2
-         RETURNING status, error_code`,
+         RETURNING status, error_code, payload_sha256, event_type`,
         [WEBHOOK_PROVIDER, input.eventId]
       );
       await client.query('COMMIT');
       const duplicate = duplicateResult.rows[0] || {};
+      if (duplicate.payload_sha256 !== input.payloadHash
+          || duplicate.event_type !== input.eventType) {
+        return res.status(409).json({
+          accepted: false,
+          duplicate: true,
+          processed: false,
+          code: 'WEBHOOK_EVENT_PAYLOAD_MISMATCH'
+        });
+      }
       return res.status(duplicate.status === 'processed' ? 200 : 202).json({
         accepted: true,
         duplicate: true,
