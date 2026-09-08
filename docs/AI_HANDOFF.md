@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — E2E hai workspace trên Preview đã chạy xanh và cleanup sạch |
+| Trạng thái | Sẵn sàng bàn giao — sổ mã tra cứu/trạng thái HĐĐT đã phát hành, Production khỏe |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `d89a212` — runner E2E API dùng bypass header trực tiếp, không yêu cầu redirect đặt cookie |
-| Việc code tiếp theo | Tiếp tục hạng mục HĐĐT ở lớp provider-neutral hoặc chọn công việc checklist không phụ thuộc sandbox/API contract nhà cung cấp |
+| Worktree kỳ vọng | Sạch sau commit tài liệu HĐĐT; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `968076b` — sổ mã tra cứu/trạng thái HĐĐT provider-neutral, owner-only read |
+| Việc code tiếp theo | Thiết kế quy trình điều chỉnh/thay thế hóa đơn sai mà không giả lập phát hành khi chưa có provider contract |
 | Việc vận hành còn mở | `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn; đồng bộ HĐĐT thật còn chờ sandbox/API contract 2026 |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -70,9 +70,12 @@ revision `6f0ec26e2d31`, database/schema `ok`, runtime role `restricted`, asset
 pins `style 115 / api 108 / app 119`; endpoint mới trả 401 khi chưa đăng nhập và
 không có runtime error trong log sau deploy. Báo cáo tài chính tổng hợp, cơ cấu
 doanh thu/cọc, lấp đầy, xuất Excel/PDF và báo cáo doanh thu năm đều đã phát hành.
-Nền tảng hồ sơ hóa đơn điện tử theo workspace đã phát hành; bước tiếp theo phụ
-thuộc sandbox/API contract hiện hành của nhà cung cấp để triển khai adapter
-đồng bộ draft idempotent, lưu external reference và trạng thái.
+Nền tảng hồ sơ hóa đơn điện tử theo workspace đã phát hành. Sổ external reference,
+mã tra cứu và trạng thái provider-neutral cũng đã phát hành: record khóa ownership,
+event append-only/idempotent, reference bất biến và UI owner-only. Bước đồng bộ
+thật vẫn phụ thuộc sandbox/API contract hiện hành để triển khai adapter draft;
+quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không được tạo cảm giác
+đã gửi provider khi chưa có contract.
 
 ## Bản đồ hệ thống ngắn
 
@@ -92,6 +95,21 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `968076b`: thêm `electronic_invoice_records` và
+  `electronic_invoice_status_events`, service ghi chỉ dành cho adapter nội bộ,
+  API/UI owner-only để đọc mã tra cứu, số hóa đơn, mã cơ quan thuế và lịch sử.
+  Event ID + SHA-256 chống retry sai payload, event đến trễ bị chặn, reference
+  bất biến và vòng đời được cưỡng chế tại service lẫn trigger. Bộ đầy đủ 452/452,
+  secret scan sạch, CI `34233340040`. Migration
+  `20260908_electronic_invoice_records.sql` đạt 5/5 trên Preview
+  `staging-privacy` và Production `br-fancy-star-azyclc1h`; Preview deployment
+  `tro-bill-cur6d15am-dtung.vercel.app` readiness xanh và E2E hai workspace run
+  `34234080279` thành công. Git push `main` tự tạo Production deployment
+  `dpl_5Yf9EG7jqkDUnQGCEakrPiowXPq9` trước migration nên readiness tạm trả 503;
+  sau khi người dùng xác nhận và migration Production chạy, alias chính trở lại
+  HTTP 200, revision `968076b4ece6`, database/schema `ok`, runtime `restricted`;
+  endpoint mới chưa đăng nhập trả 401 và ba phút sau migration không có Runtime
+  Log level error.
 - `d89a212`: hai workspace staging chuyên dụng đã được tạo qua luồng đăng ký
   thật, xác minh 6/6 điều kiện cấu trúc và lưu credential trong GitHub Environment
   `Preview`; không ghi mật khẩu vào file hoặc log. Automation bypass cũ đã được

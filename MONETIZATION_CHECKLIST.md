@@ -543,7 +543,18 @@ scan sạch.
   revision `e004fbadb8bf`, CI `34094777689`, 414/414 test; health monitor phục
   hồi ở run `34129697639`. Đây là bước chuẩn bị adapter, chưa phải đồng bộ thật.
 
-- [ ] Lưu mã tra cứu và trạng thái hóa đơn điện tử.
+- [x] Lưu mã tra cứu và trạng thái hóa đơn điện tử.
+  Đã phát hành sổ trạng thái provider-neutral ở commit `968076b`: mỗi hồ sơ khóa
+  theo workspace, hóa đơn nguồn, provider và mã tài liệu ngoài; lưu số hóa đơn,
+  mã tra cứu, mã cơ quan thuế, trạng thái chuẩn hóa và thời điểm phát hành. Mỗi
+  callback chỉ lưu SHA-256 payload, chống dùng lại event ID với nội dung khác,
+  chặn event đến trễ và ghi lịch sử append-only; mã đã nhận không thể bị đổi.
+  Trình duyệt chỉ có API owner-only để đọc, không có route ghi hoặc nút phát hành.
+  Migration `20260908_electronic_invoice_records.sql` đạt 5/5 trên Neon Preview
+  và Production; Preview E2E run `34234080279` thành công, Production deployment
+  `dpl_5Yf9EG7jqkDUnQGCEakrPiowXPq9` trả readiness HTTP 200 với database/schema
+  `ok`, runtime role `restricted`. Sổ sẽ chưa có bản ghi thật cho tới khi adapter
+  được xác minh bằng sandbox/API contract hiện hành.
 - [ ] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
 - [ ] Được kế toán hoặc đơn vị tư vấn pháp lý kiểm tra nghiệp vụ trước khi phát hành.
 

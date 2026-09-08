@@ -689,3 +689,27 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   kiểm tra Preview rồi production và rotate credential nếu bị ảnh hưởng. Mục hỗ
   trợ tổng thể chỉ được đóng sau khi có kênh khách hàng cùng SLA được chủ sản
   phẩm phê duyệt. GitHub API xác nhận `enabled=true` ngày 08/09/2026.
+
+## D-043 — Mã tra cứu HĐĐT chỉ được ghi từ sự kiện provider đã xác minh
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Mỗi tài liệu HĐĐT ngoài được khóa theo workspace, hóa đơn nguồn,
+  provider, `provider_document_id` và fingerprint của snapshot tiền kiểm. Adapter
+  nội bộ là nơi duy nhất gọi service ghi; không mở route ghi cho trình duyệt.
+  Callback provider bắt buộc có event ID, trạng thái, thời điểm, SHA-256 payload
+  và chỉ lưu hash thay vì raw payload. Mã tra cứu, mã cơ quan thuế, số hóa đơn và
+  thời điểm phát hành trở thành bất biến sau khi có giá trị. Lịch sử trạng thái
+  append-only; event trùng chỉ là retry khi toàn bộ định danh/hash khớp, event cũ
+  hơn mốc mới nhất bị từ chối và chuyển trạng thái được cưỡng chế cả service lẫn
+  trigger database.
+- **Lý do:** Mã tra cứu và trạng thái là bằng chứng nhận từ hệ thống bên ngoài;
+  cho client tự ghi hoặc cho callback đến trễ ghi đè sẽ làm TrọBill hiển thị một
+  hóa đơn chưa phát hành hoặc quay ngược vòng đời. Lưu raw callback tạo thêm dữ
+  liệu ngoài nhu cầu đối soát và có thể chứa thông tin nhạy cảm của provider.
+- **Hệ quả:** Chủ workspace đọc hồ sơ và lịch sử tại popup tiền kiểm; staff bị
+  chặn. Runtime không có DELETE record, không có UPDATE/DELETE event. Các trạng
+  thái `adjusted`, `replaced`, `cancelled` mới chỉ là nền tảng dữ liệu; quy trình
+  yêu cầu điều chỉnh/thay thế vẫn để mở cho tới khi có contract provider và phê
+  duyệt nghiệp vụ. Migration đạt 5/5 trên Preview và Production; commit
+  `968076b`, CI `34233340040`, Preview E2E `34234080279`, Production deployment
+  `dpl_5Yf9EG7jqkDUnQGCEakrPiowXPq9` readiness HTTP 200.
