@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — nhập CSV/JSON và cưỡng chế subscription phía server đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
+| Trạng thái | Sẵn sàng bàn giao — cưỡng chế subscription và bộ chính sách pilot đã phát hành; pháp nhân/kênh hỗ trợ/SLA vẫn chờ chủ sản phẩm |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu subscription; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `d5adcd7` — middleware chặn ghi khi gói hết hiệu lực và kiểm thử giới hạn phòng/nhân viên phía server |
-| Việc code tiếp theo | Rà soát điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền; kênh hỗ trợ/SLA cần thông tin liên hệ do chủ sản phẩm xác nhận |
+| Worktree kỳ vọng | Sạch sau commit tài liệu chính sách pilot; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `3daf767` — chính sách hoàn tiền công khai, terms/privacy 08/09/2026 và liên kết trong luồng subscription |
+| Việc code tiếp theo | Sau khi có email + SLA, phát hành kênh hỗ trợ; trong lúc chờ có thể tiếp tục hardening webhook subscription và chuẩn bị E2E staging không dùng tiền thật |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -92,6 +92,16 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `3daf767`: phát hành `/refund-policy.html` cho giai đoạn pilot, tách rõ khoản
+  thanh toán subscription khỏi tiền thuê/cọc đi thẳng chủ trọ và mô tả đúng
+  workflow yêu cầu hoàn/chuyển nhầm hiện có. Link xuất hiện ở landing, quick
+  start, Cài đặt, popup đơn và popup yêu cầu hoàn. Terms/privacy tăng phiên bản
+  lên `2026-09-08`, nên tài khoản cũ phải xác nhận lại; privacy sửa danh sách
+  provider hiện tại thành Neon, Vercel và Brevo, với Resend chỉ là lựa chọn về
+  sau. Tài liệu vẫn ghi rõ chưa đủ để mở bán cho tới khi có pháp nhân, kênh hỗ
+  trợ/SLA và rà soát pháp lý. Production revision `3daf767b2024`, ba trang trả
+  HTTP 200, database/schema `ok`, runtime role `restricted`; CI `34179242211`,
+  436/436 test, secret scan và diff check sạch.
 - `d5adcd7`: bổ sung middleware entitlement dùng dữ liệu `subscriptions` +
   `plans` phía server cho các API ghi vận hành cũ: thanh toán/cọc, gửi và lên
   lịch email hóa đơn, ảnh chỉ số, đối soát, kênh thanh toán, tài khoản nhận tiền

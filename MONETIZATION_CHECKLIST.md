@@ -581,6 +581,13 @@ scan sạch.
   CI `34177957306`, 429/429 test và secret scan sạch.
 - [ ] Có kênh hỗ trợ chính thức và thời gian phản hồi cam kết.
 - [ ] Có điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền.
+  Bản pilot của cả ba tài liệu đã phát hành công khai: điều khoản và bảo mật
+  phiên bản 08/09/2026, cùng `/refund-policy.html` tách rõ tiền gói TrọBill khỏi
+  tiền thuê/cọc và mô tả đúng workflow yêu cầu → rà soát → duyệt/từ chối → mã
+  giao dịch hoàn. Tài khoản cũ được yêu cầu xác nhận lại phiên bản mới. Mục này
+  chưa đóng vì còn phải bổ sung thông tin pháp nhân/kênh hỗ trợ và được tư vấn
+  pháp lý rà soát trước khi bán. Production revision `3daf767b2024`, CI
+  `34179242211`, 436/436 test và secret scan sạch.
 - [ ] Hoàn thiện thủ tục kinh doanh, thuế và website/app phù hợp với mô hình bán dịch vụ.
 - [ ] Chạy kiểm thử end-to-end trên staging với dữ liệu giả lập.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.

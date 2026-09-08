@@ -635,3 +635,26 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   bị khóa. Webhook và submission công khai vẫn append để không làm mất dấu giao
   dịch/yêu cầu đã phát sinh. Production revision `d5adcd7282d4`, CI
   `34178776243`, 433/433 test.
+
+## D-040 — Chính sách hoàn tiền chỉ điều chỉnh phí TrọBill và bám workflow thực tế
+
+- **Trạng thái:** Bản pilot phát hành production ngày 08/09/2026; chưa đủ điều
+  kiện pháp lý để mở bán đại trà.
+- **Quyết định:** Chính sách hoàn tiền tách khoản mua/nâng/gia hạn subscription
+  khỏi tiền thuê và tiền cọc đi thẳng vào tài khoản chủ trọ. Chính sách chỉ mô
+  tả khả năng hệ thống đang có: người dùng tạo yêu cầu từ payment của mình,
+  admin rà soát theo trạng thái hữu hạn và chỉ đánh dấu đã hoàn khi có mã giao
+  dịch. Không hứa hoàn tự động hoặc thời hạn chưa được chủ sản phẩm cam kết;
+  quyền bắt buộc theo pháp luật không bị loại trừ.
+- **Lý do:** Gộp tiền thuê/cọc vào chính sách phí SaaS sẽ khiến người dùng hiểu
+  nhầm TrọBill giữ hộ tiền. Cam kết số ngày xử lý khi chưa có kênh/người trực hỗ
+  trợ là không trung thực. Nội dung được đối chiếu ở mức sản phẩm với Luật Bảo
+  vệ quyền lợi người tiêu dùng 19/2023/QH15, Luật Bảo vệ dữ liệu cá nhân
+  91/2025/QH15 và hướng dẫn website thương mại điện tử của Bộ Công Thương,
+  nhưng không thay thế ý kiến tư vấn pháp lý.
+- **Hệ quả:** Terms/privacy tăng phiên bản `2026-09-08` và tài khoản cũ phải xác
+  nhận lại. Privacy công khai đúng provider hiện tại là Neon, Vercel, Brevo;
+  Resend chỉ là phương án cấu hình tương lai. Checklist pháp lý vẫn mở cho tới
+  khi có tên pháp nhân, địa chỉ/kênh liên hệ, SLA, thủ tục website và kết quả rà
+  soát của người có chuyên môn. Production revision `3daf767b2024`, CI
+  `34179242211`, 436/436 test.
