@@ -6244,3 +6244,37 @@ body.workspace-staff-active .main { padding-top: 112px; }
 /* Nút mở trang quản trị trên app chính */
 .admin-entry-btn { display: none; }
 .admin-entry-btn.show { display: inline-flex; }
+
+/* Import Excel/CSV và JSON: xem trước trước khi ghi toàn-state. */
+.data-import-modal { max-width: 660px; }
+.data-import-file { margin: 4px 0 0; color: var(--text-muted); font-size: .76rem; overflow-wrap: anywhere; }
+.data-import-form { display: grid; gap: 16px; }
+.data-import-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.data-import-summary > div { padding: 14px; border: 1px solid var(--border); border-radius: 11px; background: var(--bg); }
+.data-import-summary span, .data-import-summary strong { display: block; }
+.data-import-summary span { color: var(--text-muted); font-size: .7rem; }
+.data-import-summary strong { margin-top: 4px; color: var(--text); font-size: 1.05rem; overflow-wrap: anywhere; }
+.data-import-warnings { padding: 12px 14px; border: 1px solid rgba(245,158,11,.35); border-radius: 10px; color: #92400e; background: rgba(245,158,11,.1); font-size: .76rem; }
+.data-import-mode { display: grid; gap: 9px; min-width: 0; padding: 0; border: 0; }
+.data-import-mode legend { margin-bottom: 7px; color: var(--text); font-size: .8rem; font-weight: 700; }
+.data-import-mode label { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 11px; cursor: pointer; }
+.data-import-mode label:has(input:checked) { border-color: var(--primary); background: rgba(108,99,255,.07); }
+.data-import-mode input { margin-top: 3px; }
+.data-import-mode strong, .data-import-mode small { display: block; }
+.data-import-mode strong { color: var(--text); font-size: .82rem; }
+.data-import-mode small { margin-top: 3px; color: var(--text-muted); font-size: .7rem; line-height: 1.45; }
+.data-import-consent { display: grid; grid-template-columns: auto 1fr; gap: 9px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); font-size: .76rem; }
+.data-import-consent--danger { border-color: rgba(239,68,68,.35); color: var(--red); background: rgba(239,68,68,.06); }
+.data-import-consent input { margin-top: 3px; }
+.data-import-error { margin: 0; color: var(--red); font-size: .78rem; font-weight: 700; }
+.data-import-help { margin: 0; color: var(--text-muted); font-size: .72rem; }
+.data-import-help .link-btn { padding: 0; }
+.data-import-actions { padding-top: 0; }
+
+@media (max-width: 560px) {
+  .data-import-summary { grid-template-columns: 1fr; }
+  .data-import-summary > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .data-import-summary strong { margin-top: 0; text-align: right; }
+  .data-import-actions { display: grid; grid-template-columns: 1fr; }
+  .data-import-actions .btn { width: 100%; }
+}

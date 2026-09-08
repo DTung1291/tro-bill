@@ -125,6 +125,7 @@ let CURRENT_WORKSPACE = null;
 let CURRENT_WORKSPACE_ACCESS = null;
 let ELECTRONIC_INVOICE_PROFILE = null;
 let ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
+let PENDING_DATA_IMPORT = null;
 
 function isOwnerWorkspace() {
   return !CURRENT_WORKSPACE_ACCESS || CURRENT_WORKSPACE_ACCESS.isOwner === true;
@@ -1523,6 +1524,7 @@ function clearSensitiveStateFromMemory() {
   CURRENT_WORKSPACE_ACCESS = null;
   ELECTRONIC_INVOICE_PROFILE = null;
   ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
+  PENDING_DATA_IMPORT = null;
   ACTIVE_PROPERTY_FILTER = 'all';
   ACTIVE_DASHBOARD_PROPERTY_FILTER = 'all';
   SERVER_PLANS = [];
@@ -1544,6 +1546,8 @@ function clearSensitiveStateFromMemory() {
   if (maintenanceUrlInput) maintenanceUrlInput.value = '';
   const maintenanceExpenseModal = document.getElementById('tenant-maintenance-expense-modal');
   if (maintenanceExpenseModal) maintenanceExpenseModal.hidden = true;
+  const dataImportModal = document.getElementById('data-import-modal');
+  if (dataImportModal) dataImportModal.hidden = true;
 }
 
 function saveState() {
@@ -9707,10 +9711,6 @@ function exportStateBlobFallback(stateStr, filename) {
   showToast('Đã xuất file sao lưu ✓', 'success');
 }
 
-document.getElementById('btn-import-trigger').addEventListener('click', () => {
-  document.getElementById('import-file-input').click();
-});
-
 async function reconcileImportedProperties(importedState) {
   const currentResult = await API.getProperties();
   const currentProperties = Array.isArray(currentResult.properties)
@@ -9724,7 +9724,10 @@ async function reconcileImportedProperties(importedState) {
     ? importedState.properties.filter(property => property && String(property.name || '').trim())
     : [];
   const propertyIdMap = new Map();
-  const resolvedProperties = [...currentProperties];
+  const propertiesByName = new Map(currentProperties.map(property => [
+    property.name.trim().toLocaleLowerCase('vi'),
+    property
+  ]));
   for (const importedProperty of importedProperties) {
     const oldId = Number(importedProperty.id);
     if (!Number.isSafeInteger(oldId) || oldId <= 0) continue;
@@ -9733,62 +9736,227 @@ async function reconcileImportedProperties(importedState) {
       continue;
     }
     const normalizedName = String(importedProperty.name).trim().toLocaleLowerCase('vi');
-    let target = resolvedProperties.find(
-      property => property.name.trim().toLocaleLowerCase('vi') === normalizedName
-    );
+    const target = propertiesByName.get(normalizedName);
     if (!target) {
-      const created = await API.createProperty({
-        name: String(importedProperty.name).trim(),
-        address: String(importedProperty.address || '').trim(),
-        note: String(importedProperty.note || '').trim()
-      });
-      target = created.property;
-      resolvedProperties.push(target);
+      throw new Error(`Chưa có khu “${String(importedProperty.name).trim()}”. Hãy tạo khu này trước khi nhập.`);
     }
     propertyIdMap.set(oldId, target.id);
   }
 
   for (const room of importedState.rooms) {
-    room.propertyId = propertyIdMap.get(Number(room.propertyId)) || currentDefault.id;
+    const namedProperty = String(room.propertyName || '').trim();
+    if (namedProperty) {
+      const target = propertiesByName.get(namedProperty.toLocaleLowerCase('vi'));
+      if (!target) throw new Error(`Chưa có khu “${namedProperty}”. Hãy tạo khu này trước khi nhập.`);
+      room.propertyId = target.id;
+    } else {
+      room.propertyId = propertyIdMap.get(Number(room.propertyId)) || currentDefault.id;
+    }
+    delete room.propertyName;
   }
-  importedState.properties = resolvedProperties;
+  importedState.properties = currentProperties;
 }
 
-document.getElementById('import-file-input').addEventListener('change', (e) => {
-  const file = e.target.files[0];
+function dataImportMode() {
+  return document.querySelector('input[name="data-import-mode"]:checked')?.value || 'merge';
+}
+
+function updateDataImportConsent() {
+  const replaceConsent = document.getElementById('data-import-replace-consent');
+  const replaceCheck = document.getElementById('data-import-replace-consent-check');
+  const needsReplaceConsent = dataImportMode() === 'replace';
+  replaceConsent.hidden = !needsReplaceConsent;
+  if (!needsReplaceConsent) replaceCheck.checked = false;
+}
+
+function closeDataImportModal() {
+  const modal = document.getElementById('data-import-modal');
+  const input = document.getElementById('import-file-input');
+  const form = document.getElementById('data-import-form');
+  if (modal) modal.hidden = true;
+  if (input) input.value = '';
+  if (form) form.reset();
+  PENDING_DATA_IMPORT = null;
+}
+
+function summaryCell(label, value) {
+  const cell = document.createElement('div');
+  const caption = document.createElement('span');
+  const result = document.createElement('strong');
+  caption.textContent = label;
+  result.textContent = value;
+  cell.append(caption, result);
+  return cell;
+}
+
+function openDataImportPreview(file, imported) {
+  PENDING_DATA_IMPORT = { fileName: file.name, imported };
+  const modal = document.getElementById('data-import-modal');
+  const summary = document.getElementById('data-import-summary');
+  const warnings = document.getElementById('data-import-warnings');
+  const tenantConsent = document.getElementById('data-import-tenant-consent');
+  const error = document.getElementById('data-import-error');
+  const formatLabel = imported.format === 'csv' ? 'CSV từ Excel' : 'JSON';
+  document.getElementById('data-import-file').textContent = `${file.name} · ${formatLabel}`;
+  summary.replaceChildren(
+    summaryCell('Phòng', String(imported.summary.roomCount)),
+    summaryCell('Khách thuê', String(imported.summary.tenantCount)),
+    summaryCell('Khu trong file', imported.summary.propertyNames.length
+      ? String(imported.summary.propertyNames.length)
+      : 'Khu mặc định')
+  );
+  const warningMessages = [];
+  if (imported.summary.propertyNames.length) {
+    warningMessages.push('Các khu ghi trong file phải được tạo sẵn và trùng tên với TrọBill.');
+  }
+  if (imported.format === 'csv') {
+    warningMessages.push('CSV chỉ chứa phòng và khách. Nếu chọn thay toàn bộ, chi phí và lịch sử hiện tại sẽ bị xóa; cài đặt được giữ nguyên.');
+  }
+  warnings.textContent = warningMessages.join(' ');
+  warnings.hidden = warningMessages.length === 0;
+  tenantConsent.hidden = imported.summary.tenantCount === 0;
+  document.getElementById('data-import-tenant-consent-check').checked = false;
+  document.getElementById('data-import-replace-consent-check').checked = false;
+  document.querySelector('input[name="data-import-mode"][value="merge"]').checked = true;
+  error.hidden = true;
+  error.textContent = '';
+  updateDataImportConsent();
+  modal.hidden = false;
+}
+
+function readImportFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve(String(reader.result || '')));
+    reader.addEventListener('error', () => reject(new Error('Không đọc được file')));
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+function downloadImportCsvTemplate() {
+  const blob = new Blob([TroBillDataImport.csvTemplate()], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'trobill_mau_nhap_phong_khach.csv';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Đã tải file CSV mẫu', 'success');
+}
+
+async function selectDataImportFile(event) {
+  const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (event) => {
+  if (file.size > 5 * 1024 * 1024) {
+    event.target.value = '';
+    showToast('File nhập không được lớn hơn 5 MB', 'error');
+    return;
+  }
+  try {
+    const text = await readImportFile(file);
+    const parsed = file.name.toLowerCase().endsWith('.csv')
+      ? TroBillDataImport.parseCsv(text)
+      : TroBillDataImport.parseJson(text);
+    const imported = TroBillDataImport.normalizeImport(parsed, {
+      currentPeriod: STATE.currentPeriod,
+      makeId: uuid
+    });
+    openDataImportPreview(file, imported);
+  } catch (error) {
+    event.target.value = '';
+    showToast(error.message || 'Không thể đọc file nhập', 'error', 4500);
+  }
+}
+
+async function submitDataImport(event) {
+  event.preventDefault();
+  if (!PENDING_DATA_IMPORT || !isOwnerWorkspace()) return;
+  const imported = PENDING_DATA_IMPORT.imported;
+  const mode = dataImportMode();
+  const tenantConsent = document.getElementById('data-import-tenant-consent-check');
+  const replaceConsent = document.getElementById('data-import-replace-consent-check');
+  const error = document.getElementById('data-import-error');
+  const submit = document.getElementById('data-import-submit');
+  error.hidden = true;
+  if (imported.summary.tenantCount > 0 && !tenantConsent.checked) {
+    error.textContent = 'Cần xác nhận đã thông báo mục đích thu thập dữ liệu cho khách thuê.';
+    error.hidden = false;
+    return;
+  }
+  if (mode === 'replace' && !replaceConsent.checked) {
+    error.textContent = 'Cần xác nhận hiểu thao tác thay toàn bộ dữ liệu hiện tại.';
+    error.hidden = false;
+    return;
+  }
+
+  const previousState = JSON.parse(JSON.stringify(_serializeState()));
+  let stateWasApplied = false;
+  let stateWasPersisted = false;
+  submit.disabled = true;
+  submit.textContent = 'Đang kiểm tra và lưu…';
+  try {
+    const candidate = JSON.parse(JSON.stringify(imported));
+    candidate.rooms.forEach(room => {
+      room.tenants.forEach(tenant => { tenant.dataNoticeAcknowledged = true; });
+    });
+    await reconcileImportedProperties(candidate);
+    const nextState = mode === 'replace'
+      ? TroBillDataImport.replaceImport(previousState, candidate)
+      : TroBillDataImport.mergeImport(previousState, candidate, uuid);
+    cancelPendingStateSave();
+    if (!loadState(nextState)) throw new Error('Không chuẩn hóa được dữ liệu nhập');
+    stateWasApplied = true;
+    _savePending = true;
+    _saveRevision += 1;
+    await flushState({ throwOnError: true });
+    stateWasPersisted = true;
     try {
-      const importedState = JSON.parse(event.target.result);
-      if (importedState && importedState.rooms && Array.isArray(importedState.rooms)) {
-        const tenantCount = importedState.rooms.reduce(
-          (count, room) => count + (Array.isArray(room.tenants) ? room.tenants.length : 0),
-          0
-        );
-        if (tenantCount > 0 && !confirm(
-          `File có ${tenantCount} khách thuê. Xác nhận bạn đã thông báo mục đích thu thập dữ liệu cho những khách này trước khi nhập?`
-        )) {
-          e.target.value = '';
-          return;
-        }
-        importedState.rooms.forEach(room => {
-          (room.tenants || []).forEach(tenant => { tenant.dataNoticeAcknowledged = true; });
-        });
-        await reconcileImportedProperties(importedState);
-        loadState(importedState);   // nạp trực tiếp từ object đã import
-        saveState();                // đẩy lên Neon
-        initTheme();
-        renderPage(activePage);
-        showToast('Nhập dữ liệu thành công ✓ (đã đồng bộ server)', 'success');
-      } else {
-        showToast('File sao lưu không hợp lệ', 'error');
-      }
-    } catch (err) {
-      showToast('Không thể đọc file sao lưu', 'error');
+      const serverState = await API.getState();
+      loadState(serverState);
+    } catch (_) {
+      // PUT đã thành công; không rollback giao diện về state cũ vì server đã đổi.
+      // Reload sau sẽ lấy lại snapshot vừa nhập.
     }
-  };
-  reader.readAsText(file);
+    initTheme();
+    navigate('dashboard');
+    closeDataImportModal();
+    showToast(`Đã ${mode === 'replace' ? 'khôi phục' : 'thêm'} ${imported.summary.roomCount} phòng và đồng bộ server ✓`, 'success', 4500);
+  } catch (importError) {
+    if (stateWasApplied && !stateWasPersisted) {
+      cancelPendingStateSave();
+      loadState(previousState);
+      initTheme();
+      renderPage(activePage);
+    }
+    error.textContent = stateWasPersisted
+      ? 'Dữ liệu đã lưu nhưng chưa tải lại được. Hãy reload trang để kiểm tra.'
+      : (importError.message || 'Không nhập được dữ liệu');
+    error.hidden = false;
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Xác nhận nhập';
+  }
+}
+
+document.getElementById('btn-import-trigger').addEventListener('click', () => {
+  if (!isOwnerWorkspace()) {
+    showToast('Chỉ chủ tài khoản được nhập dữ liệu', 'error');
+    return;
+  }
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', selectDataImportFile);
+document.getElementById('data-import-form').addEventListener('submit', submitDataImport);
+document.getElementById('data-import-close').addEventListener('click', closeDataImportModal);
+document.getElementById('data-import-cancel').addEventListener('click', closeDataImportModal);
+document.getElementById('data-import-template').addEventListener('click', downloadImportCsvTemplate);
+document.querySelectorAll('input[name="data-import-mode"]').forEach(input => {
+  input.addEventListener('change', updateDataImportConsent);
+});
+document.getElementById('data-import-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeDataImportModal();
 });
 
 

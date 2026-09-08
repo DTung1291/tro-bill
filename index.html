@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=125" />
+  <link rel="stylesheet" href="style.css?v=126" />
 </head>
 
 <body>
@@ -1024,8 +1024,8 @@
         <span>💾 Dữ liệu tài khoản:</span>
         <div style="display:flex; gap:8px">
           <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất dữ liệu có audit</button>
-          <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập file JSON</button>
-          <input type="file" id="import-file-input" accept=".json" style="display:none" />
+          <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập Excel (.CSV) / JSON</button>
+          <input type="file" id="import-file-input" accept=".json,.csv,application/json,text/csv" style="display:none" />
         </div>
       </div>
 
@@ -1227,6 +1227,50 @@
         <button type="button" class="btn btn--ghost" id="subscription-receipt-close-footer">Đóng</button>
         <button type="button" class="btn btn--primary" id="subscription-receipt-print">In biên nhận</button>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Import data -->
+  <div class="modal-overlay" id="data-import-modal" hidden>
+    <div class="modal data-import-modal" role="dialog" aria-modal="true" aria-labelledby="data-import-title">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="data-import-title">Nhập phòng và khách thuê</h2>
+          <p class="data-import-file" id="data-import-file"></p>
+        </div>
+        <button type="button" class="modal-close" id="data-import-close" aria-label="Đóng">✕</button>
+      </div>
+      <form class="modal-form data-import-form" id="data-import-form">
+        <div class="data-import-summary" id="data-import-summary"></div>
+        <div class="data-import-warnings" id="data-import-warnings" hidden></div>
+
+        <fieldset class="data-import-mode">
+          <legend>Cách nhập</legend>
+          <label>
+            <input type="radio" name="data-import-mode" value="merge" checked />
+            <span><strong>Thêm vào dữ liệu hiện có</strong><small>Tạo ID mới cho phòng/khách, không thay cài đặt hoặc lịch sử hiện tại.</small></span>
+          </label>
+          <label>
+            <input type="radio" name="data-import-mode" value="replace" />
+            <span><strong>Thay toàn bộ dữ liệu</strong><small>Dùng để khôi phục backup JSON. Phòng, kỳ bill, chi phí, lịch sử và cài đặt trong file sẽ thay dữ liệu hiện tại.</small></span>
+          </label>
+        </fieldset>
+
+        <label class="data-import-consent" id="data-import-tenant-consent" hidden>
+          <input type="checkbox" id="data-import-tenant-consent-check" />
+          <span>Tôi xác nhận đã thông báo mục đích thu thập dữ liệu cho toàn bộ khách thuê trong file.</span>
+        </label>
+        <label class="data-import-consent data-import-consent--danger" id="data-import-replace-consent" hidden>
+          <input type="checkbox" id="data-import-replace-consent-check" />
+          <span>Tôi hiểu thao tác này thay toàn bộ dữ liệu hiện tại và đã tạo bản sao lưu khi cần.</span>
+        </label>
+        <p class="data-import-error" id="data-import-error" role="alert" hidden></p>
+        <p class="data-import-help">Excel cần lưu thành CSV UTF-8 trước khi chọn file. <button type="button" class="link-btn" id="data-import-template">Tải CSV mẫu</button> · <a href="/huong-dan" target="_blank" rel="noopener">Xem hướng dẫn</a></p>
+        <div class="modal-actions data-import-actions">
+          <button type="button" class="btn btn--ghost" id="data-import-cancel">Hủy</button>
+          <button type="submit" class="btn btn--primary" id="data-import-submit">Xác nhận nhập</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -2407,11 +2451,12 @@
   <script src="invoice-reference.js?v=84"></script>
   <script src="debt-age.js?v=83"></script>
   <script src="bill-message-templates.js?v=1"></script>
+  <script src="data-import.js?v=1"></script>
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=130"></script>
+  <script src="app.js?v=131"></script>
 </body>
 
 </html>
