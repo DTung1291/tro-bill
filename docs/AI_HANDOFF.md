@@ -13,8 +13,8 @@ trong `../AGENTS.md`.
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
-| Việc code tiếp theo | Sau khi Preview ready và có hai secret E2E, chạy workflow thủ công trên deployment `tro-bill-bykzho8w1-dtung.vercel.app` rồi ghi bằng chứng |
-| Việc vận hành còn mở | Preview đang `schema=migration-required`; Environment `Preview` thiếu `STAGING_E2E_EMAIL`/`STAGING_E2E_PASSWORD`; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
+| Việc code tiếp theo | Sau khi Preview ready và có bốn secret cho hai tài khoản E2E, chạy workflow thủ công trên deployment mới rồi ghi bằng chứng |
+| Việc vận hành còn mở | Preview đang `schema=migration-required`; Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,13 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `1e5549b`: runner staging mở rộng sang hai workspace độc lập. Nó tạo marker ở
+  A, bắt B không được đọc marker, mô phỏng cookie B với context A phải nhận
+  `409 SESSION_ACCOUNT_CHANGED`, rồi dùng lại cookie A để chứng minh phiên không
+  bị tráo trước cleanup. Workflow nhận bốn secret credential A/B từ Environment
+  `Preview`, không ghi secret vào argument/log. CI `34195747607`, test mục tiêu
+  9/9, bộ đầy đủ 443/443 và secret scan sạch. Chưa chạy từ xa vì schema Preview
+  và credential vẫn chưa sẵn sàng.
 - `c3b4350`: thêm `SECURITY.md` và phần triage trong `OPERATIONS.md`; báo cáo lỗ
   hổng đi qua GitHub Private Vulnerability Reporting, không dùng Issue công khai
   cho cookie/CCCD/dữ liệu khách. Không tự hứa SLA khi chưa có lịch trực. API

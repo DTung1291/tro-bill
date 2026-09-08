@@ -591,10 +591,11 @@ scan sạch.
 - [ ] Hoàn thiện thủ tục kinh doanh, thuế và website/app phù hợp với mô hình bán dịch vụ.
 - [ ] Chạy kiểm thử end-to-end trên staging với dữ liệu giả lập.
   Runner thủ công `npm run test:e2e:staging` và GitHub Actions đã có guard chống
-  production, xác minh health/cookie/account context, tạo–đọc–xóa đúng một khu
-  UUID rồi kiểm tra cleanup. Chưa đóng tiêu chí: Preview ngày 08/09/2026 đúng
-  môi trường staging nhưng báo `schema=migration-required`; GitHub Environment
-  `Preview` chưa có `STAGING_E2E_EMAIL` và `STAGING_E2E_PASSWORD` để chạy thật.
+  production, xác minh health/cookie/account context của hai tài khoản độc lập,
+  tạo khu UUID bằng A, bắt B không được thấy, mô phỏng tab cũ cookie B + context A
+  phải trả `SESSION_ACCOUNT_CHANGED`, rồi cleanup đúng marker. Chưa đóng tiêu
+  chí: Preview ngày 08/09/2026 đúng staging nhưng báo `schema=migration-required`;
+  Environment `Preview` chưa có bốn secret credential của hai tài khoản E2E.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.
 - [ ] Thu tiền thật thành công từ ít nhất 3 khách pilot.
 - [ ] Theo dõi pilot qua kỳ lập bill thứ hai trước khi quảng bá rộng.
@@ -602,6 +603,10 @@ scan sạch.
 ## Tiêu chí sẵn sàng mở bán đại trà
 
 - [ ] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
+  Regression test client đã kiểm tra đổi cookie giữa tab, hủy autosave và tuần tự
+  hóa PUT state; runner staging commit `1e5549b` bổ sung kiểm tra hai cookie/context
+  và dữ liệu khu thực qua API. Tiêu chí vẫn mở đến khi runner chạy xanh trên
+  Preview đã đủ migration bằng hai workspace thử nghiệm độc lập.
 - [x] Backup và phục hồi đã được kiểm chứng.
 - [x] Subscription và giới hạn gói được kiểm tra ở server.
   Server lấy entitlement trực tiếp từ `subscriptions` + `plans`, chặn vượt giới
