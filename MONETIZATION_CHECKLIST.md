@@ -11,7 +11,12 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
 
 ## Giai đoạn 0 — Kiểm chứng nhu cầu và mô hình giá
 
-- [ ] Xác định khách hàng mục tiêu ban đầu: chủ trọ có 10–50 phòng.
+- [x] Xác định khách hàng mục tiêu ban đầu: chủ trọ có 10–50 phòng.
+  Hồ sơ `docs/PILOT_CUSTOMER_PROFILE.md` chốt ICP v1 là chủ trọ trực tiếp vận
+  hành 10–50 phòng, thường có 1–3 khu và có quyền quyết định quy trình bill/thu
+  tiền. Tài liệu có điều kiện bắt buộc, nhóm ưu tiên, phạm vi loại trừ, câu hỏi
+  sàng lọc và quy tắc ghi bằng chứng ẩn danh. Đây là giả thuyết tuyển mẫu, chưa
+  được coi là bằng chứng nhu cầu, thông điệp hay mức giá.
 - [ ] Phỏng vấn ít nhất 10 chủ trọ về quy trình lập bill, thu tiền và nhắc nợ.
 - [ ] Ghi nhận ba vấn đề khiến khách hàng mất nhiều thời gian hoặc thất thoát tiền nhất.
 - [ ] Chọn thông điệp chính của sản phẩm, ví dụ: “Chốt bill, gửi QR và đối soát tiền trọ trong một nơi”.

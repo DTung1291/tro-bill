@@ -733,3 +733,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   duplicate/out-of-order. Checklist “có quy trình” được đóng, nhưng đồng bộ thật
   và rà soát chuyên môn vẫn mở; không diễn giải runbook thành khả năng phát hành
   production của TrọBill.
+
+## D-045 — Pilot đầu tiên chỉ tính đúng mẫu chủ trọ trực tiếp vận hành 10–50 phòng
+
+- **Trạng thái:** Áp dụng cho giai đoạn kiểm chứng từ 08/09/2026.
+- **Quyết định:** ICP v1 là chủ trọ hoặc người có quyền quyết định trực tiếp vận
+  hành 10–50 phòng đang hoạt động, có bill hằng tháng và theo dõi thu/công nợ.
+  Họ sẵn sàng mô tả quy trình, dùng dữ liệu mẫu đã ẩn danh và thử hai chu kỳ.
+  Người dưới 10 hoặc trên 50 phòng có thể cung cấp góc nhìn nhưng không thay thế
+  mẫu kiểm chứng chính; nhu cầu giữ hộ tiền hoặc phát hành HĐĐT chưa xác minh nằm
+  ngoài pilot.
+- **Lý do:** Một mẫu quá rộng sẽ trộn nhu cầu chủ trọ nhỏ với chuỗi vận hành cần
+  ERP/tích hợp riêng, khiến vấn đề và mức sẵn sàng trả tiền không thể so sánh.
+  Checklist đã định hướng 10–50 phòng nên tiêu chí tuyển phải đủ cụ thể để biết
+  cuộc phỏng vấn nào được tính.
+- **Hệ quả:** Dùng `docs/PILOT_CUSTOMER_PROFILE.md` để sàng lọc. Không đánh dấu
+  phỏng vấn, ba vấn đề, thông điệp, bảng giá hoặc pilot là hoàn thành chỉ từ giả
+  thuyết nội bộ. Bằng chứng trong Git phải ẩn danh; dữ liệu liên hệ nằm ngoài
+  repository trong công cụ riêng tư của chủ sản phẩm.

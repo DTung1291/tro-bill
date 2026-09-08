@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — sổ mã tra cứu/trạng thái HĐĐT đã phát hành, Production khỏe |
+| Trạng thái | Đang làm — chuyển sang Giai đoạn 0, đã chốt ICP pilot 10–50 phòng |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu HĐĐT; luôn xác minh bằng Git trước khi sửa |
+| Worktree kỳ vọng | Sạch sau commit ICP; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `968076b` — sổ mã tra cứu/trạng thái HĐĐT provider-neutral, owner-only read |
-| Việc code tiếp theo | Hạng mục HĐĐT còn lại phụ thuộc provider contract và rà soát chuyên môn; chuyển sang việc không phụ thuộc bên ngoài khi được chủ sản phẩm chọn |
-| Việc vận hành còn mở | `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn; đồng bộ HĐĐT thật còn chờ sandbox/API contract 2026 |
+| Việc code tiếp theo | Không tự triển khai mục sau: cần đủ 10 cuộc phỏng vấn đúng mẫu trước khi kết luận ba vấn đề và thông điệp |
+| Việc vận hành còn mở | Tuyển/phỏng vấn 10 chủ trọ 10–50 phòng; `OPS_ALERT_WEBHOOK_URL` tùy chọn; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -95,6 +95,12 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- ICP v1 tại `docs/PILOT_CUSTOMER_PROFILE.md` chốt mẫu chủ trọ/người quyết định
+  trực tiếp vận hành 10–50 phòng có bill tháng và công nợ, kèm tiêu chí sàng lọc,
+  loại trừ, ưu tiên và mẫu biên bản ẩn danh. Mục xác định khách hàng mục tiêu đã
+  đóng; chưa có cuộc phỏng vấn nào được tự khai hoặc tính từ giả thuyết nội bộ.
+  Bước an toàn tiếp theo duy nhất là chủ sản phẩm tuyển và ghi cuộc phỏng vấn I01
+  đúng mẫu, không đưa thông tin liên hệ hoặc dữ liệu khách thuê vào repository.
 - Runbook `docs/E_INVOICE_CORRECTION_RUNBOOK.md` ngày 08/09/2026 đóng mục “có
   quy trình điều chỉnh/thay thế”: phân loại notification/adjustment/replacement/
   chênh lệch quyết toán, quy định vai trò, bằng chứng và xử lý sự cố idempotency.
