@@ -83,6 +83,7 @@ test('landing render bảng giá an toàn và có layout mobile', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'landing.js'), 'utf8');
   const styles = fs.readFileSync(path.join(root, 'landing.css'), 'utf8');
+  const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 
   assert.match(index, /href="\/gioi-thieu">Xem tính năng và bảng giá/);
   assert.match(script, /fetch\('\/api\/public\/plans'/);
@@ -91,4 +92,8 @@ test('landing render bảng giá an toàn và có layout mobile', () => {
   assert.match(script, /plan\.isActive === true && plan\.isPublic === true/);
   assert.match(styles, /@media \(max-width: 640px\)/);
   assert.match(styles, /prefers-reduced-motion/);
+  assert.deepEqual(vercel.rewrites[0], {
+    source: '/gioi-thieu',
+    destination: '/landing.html'
+  });
 });
