@@ -13,7 +13,7 @@ trong `../AGENTS.md`.
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu HĐĐT; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `968076b` — sổ mã tra cứu/trạng thái HĐĐT provider-neutral, owner-only read |
-| Việc code tiếp theo | Thiết kế quy trình điều chỉnh/thay thế hóa đơn sai mà không giả lập phát hành khi chưa có provider contract |
+| Việc code tiếp theo | Hạng mục HĐĐT còn lại phụ thuộc provider contract và rà soát chuyên môn; chuyển sang việc không phụ thuộc bên ngoài khi được chủ sản phẩm chọn |
 | Việc vận hành còn mở | `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn; đồng bộ HĐĐT thật còn chờ sandbox/API contract 2026 |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,6 +95,11 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- Runbook `docs/E_INVOICE_CORRECTION_RUNBOOK.md` ngày 08/09/2026 đóng mục “có
+  quy trình điều chỉnh/thay thế”: phân loại notification/adjustment/replacement/
+  chênh lệch quyết toán, quy định vai trò, bằng chứng và xử lý sự cố idempotency.
+  Không thêm nút gửi provider hoặc route support sửa trạng thái; tự động hóa vẫn
+  chờ contract, credential, XML/PDF storage và mapping được kế toán duyệt.
 - `968076b`: thêm `electronic_invoice_records` và
   `electronic_invoice_status_events`, service ghi chỉ dành cho adapter nội bộ,
   API/UI owner-only để đọc mã tra cứu, số hóa đơn, mã cơ quan thuế và lịch sử.

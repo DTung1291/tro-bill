@@ -555,7 +555,15 @@ scan sạch.
   `dpl_5Yf9EG7jqkDUnQGCEakrPiowXPq9` trả readiness HTTP 200 với database/schema
   `ok`, runtime role `restricted`. Sổ sẽ chưa có bản ghi thật cho tới khi adapter
   được xác minh bằng sandbox/API contract hiện hành.
-- [ ] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
+- [x] Có quy trình điều chỉnh hoặc thay thế hóa đơn sai.
+  Runbook `docs/E_INVOICE_CORRECTION_RUNBOOK.md` phân loại rõ trường hợp chỉ
+  thông báo, điều chỉnh, thay thế hoặc phát sinh chênh lệch do quyết toán; quy
+  định vai trò owner/kế toán/provider/support, đóng băng bằng chứng, idempotency,
+  callback, đối chiếu kết quả và sáu nhóm sự cố kỹ thuật. Quy trình dùng sổ trạng
+  thái append-only đã phát hành nhưng cố ý không thêm nút điều chỉnh/thay thế khi
+  chưa có provider contract, credential riêng, nơi lưu XML/PDF và mapping được
+  người có chuyên môn duyệt. Thao tác thật tạm thực hiện trên cổng provider và
+  chỉ được đồng bộ về TrọBill sau khi adapter xác minh.
 - [ ] Được kế toán hoặc đơn vị tư vấn pháp lý kiểm tra nghiệp vụ trước khi phát hành.
 
 ### Kênh doanh thu bổ sung — chỉ làm sau khi SaaS ổn định

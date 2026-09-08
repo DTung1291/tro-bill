@@ -713,3 +713,23 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   duyệt nghiệp vụ. Migration đạt 5/5 trên Preview và Production; commit
   `968076b`, CI `34233340040`, Preview E2E `34234080279`, Production deployment
   `dpl_5Yf9EG7jqkDUnQGCEakrPiowXPq9` readiness HTTP 200.
+
+## D-044 — Xử lý sai HĐĐT bắt đầu bằng phân loại, không bắt đầu bằng một nút sửa
+
+- **Trạng thái:** Runbook áp dụng từ 08/09/2026; tự động hóa vẫn chờ provider.
+- **Quyết định:** Quy trình tách bốn nhánh: chỉ thông báo sai sót; điều chỉnh;
+  thay thế; và hóa đơn/chứng từ cho phần chênh lệch do thanh toán/quyết toán. Chủ
+  workspace mở hồ sơ, kế toán/đơn vị tư vấn chọn nghiệp vụ, provider thực hiện,
+  adapter chỉ ghi kết quả sau khi xác minh. Hóa đơn gốc, reference và event luôn
+  được giữ; `cancelled` không phải đường tắt mặc định. UI TrọBill không có nút
+  điều chỉnh/thay thế cho tới khi contract, credential, mapping, webhook và nơi
+  lưu bằng chứng provider đã sẵn sàng.
+- **Lý do:** Quy định hiện hành không yêu cầu lập lại cho mọi loại sai sót, trong
+  khi sai MST/số tiền/thuế/hàng hóa có thể dẫn đến điều chỉnh hoặc thay thế. Một
+  nút chung trước bước phân loại có thể tạo sai nghiệp vụ thuế; cho support tự
+  gắn trạng thái lại phá vỡ nguyên tắc provider-verified ở D-043.
+- **Hệ quả:** `docs/E_INVOICE_CORRECTION_RUNBOOK.md` là quy trình vận hành bắt
+  buộc, gồm cổng phân loại, vai trò, bằng chứng đóng hồ sơ và xử lý timeout/retry/
+  duplicate/out-of-order. Checklist “có quy trình” được đóng, nhưng đồng bộ thật
+  và rà soát chuyên môn vẫn mở; không diễn giải runbook thành khả năng phát hành
+  production của TrọBill.
