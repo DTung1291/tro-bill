@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/gioi-thieu", "destination": "/landing.html" },
+    { "source": "/huong-dan", "destination": "/quick-start.html" },
     { "source": "/api/(.*)", "destination": "/api/index" }
   ],
   "headers": [

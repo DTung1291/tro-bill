@@ -582,6 +582,9 @@ const FRONTEND_DIR = path.join(__dirname, '..');
 app.get(['/gioi-thieu', '/gioi-thieu/'], (req, res) => {
   res.sendFile(path.join(FRONTEND_DIR, 'landing.html'));
 });
+app.get(['/huong-dan', '/huong-dan/'], (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'quick-start.html'));
+});
 app.use(express.static(FRONTEND_DIR));
 
 // SPA fallback: mọi route không phải /api -> index.html

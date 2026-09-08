@@ -3332,7 +3332,9 @@ function renderDashboard() {
   if (visibleRooms.length === 0) {
     listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div>
       <p>${STATE.rooms.length === 0 ? 'Chưa có phòng nào.' : 'Khu này chưa có phòng.'}
-      <button class="link-btn" data-goto="rooms">${STATE.rooms.length === 0 ? 'Thêm phòng ngay' : 'Mở quản lý phòng'}</button></p></div>`;
+      <button class="link-btn" data-goto="rooms">${STATE.rooms.length === 0 ? 'Thêm phòng ngay' : 'Mở quản lý phòng'}</button>${STATE.rooms.length === 0
+        ? ' · <a class="link-btn" href="/huong-dan" target="_blank" rel="noopener">Xem hướng dẫn</a>'
+        : ''}</p></div>`;
     listEl.querySelector('[data-goto]')?.addEventListener('click', () => navigate('rooms'));
   }
 
