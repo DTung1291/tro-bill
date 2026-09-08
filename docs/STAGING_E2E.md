@@ -13,7 +13,7 @@ Không tạo hóa đơn, không gọi webhook và không thực hiện giao dị
 
 ## Cấu hình GitHub một lần
 
-Tạo GitHub Environment tên `staging`, sau đó thêm Environment secrets:
+Trong GitHub Environment `Preview`, thêm Environment secrets:
 
 - `STAGING_E2E_EMAIL`: tài khoản chỉ dành cho kiểm thử staging.
 - `STAGING_E2E_PASSWORD`: mật khẩu của tài khoản trên.

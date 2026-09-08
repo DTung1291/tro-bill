@@ -53,6 +53,7 @@ test('workflow staging chỉ chạy thủ công và truyền credential qua secr
   const guide = fs.readFileSync(path.join(root, 'docs/STAGING_E2E.md'), 'utf8');
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /\n\s+push:/);
+  assert.match(workflow, /environment: Preview/);
   assert.match(workflow, /secrets\.STAGING_E2E_EMAIL/);
   assert.match(workflow, /secrets\.STAGING_E2E_PASSWORD/);
   assert.match(guide, /không thực hiện giao dịch tiền thật/);
