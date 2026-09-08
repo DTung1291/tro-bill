@@ -607,6 +607,12 @@ scan sạch.
   Production revision `d5adcd7282d4` trả HTTP 200, database/schema `ok`, runtime
   role `restricted`; CI `34178776243`, 433/433 test và secret scan sạch.
 - [ ] Thanh toán gói TrọBill được ghi nhận tự động và không bị trùng.
+  Webhook chuẩn hóa đã kiểm tra chữ ký, idempotency theo event/transaction và từ
+  chối `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH` nếu cùng event ID bị gửi lại với loại
+  event hoặc raw payload khác. Tiêu chí vẫn mở vì VietQR tĩnh không phát webhook;
+  cần nối adapter của nhà cung cấp thật và xác minh ít nhất một giao dịch pilot
+  trên production. Production revision `ac14d1ccb3ff`, CI `34193887394`, 437/437
+  test và secret scan sạch.
 - [x] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.
 - [ ] Có ít nhất 3 khách hàng trả phí và sẵn sàng tiếp tục sử dụng.

@@ -658,3 +658,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khi có tên pháp nhân, địa chỉ/kênh liên hệ, SLA, thủ tục website và kết quả rà
   soát của người có chuyên môn. Production revision `3daf767b2024`, CI
   `34179242211`, 436/436 test.
+
+## D-041 — Event webhook trùng ID phải trùng cả loại và payload
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Một `X-Payment-Event-Id` đã tồn tại chỉ được coi là retry hợp
+  lệ khi `event_type` và SHA-256 của raw request body giống bản đã lưu. Nếu khác,
+  server trả `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH`, không tra cứu payment và không
+  kích hoạt/gia hạn subscription; số lần nhận event vẫn tăng để phục vụ đối soát.
+- **Lý do:** Chỉ khóa unique event ID có thể che giấu việc provider hoặc adapter
+  tái sử dụng nhầm ID cho một giao dịch khác. Xử lý bản sau như retry bình thường
+  sẽ khiến phản hồi thành công dù nội dung mới chưa từng được ghi nhận.
+- **Hệ quả:** Adapter tương lai phải giữ nguyên raw payload khi retry cùng event
+  ID và sinh ID mới cho event mới. Cơ chế này mới bảo đảm idempotency của contract
+  nội bộ; checklist thanh toán tự động vẫn mở cho tới khi có provider thật và
+  giao dịch pilot production được xác minh. Production revision `ac14d1ccb3ff`,
+  CI `34193887394`, 437/437 test.

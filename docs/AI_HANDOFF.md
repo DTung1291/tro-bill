@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — cưỡng chế subscription và bộ chính sách pilot đã phát hành; pháp nhân/kênh hỗ trợ/SLA vẫn chờ chủ sản phẩm |
+| Trạng thái | Sẵn sàng bàn giao — webhook subscription đã chống va chạm event; pháp nhân/kênh hỗ trợ/SLA và provider thanh toán thật vẫn chờ đầu vào |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu chính sách pilot; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `3daf767` — chính sách hoàn tiền công khai, terms/privacy 08/09/2026 và liên kết trong luồng subscription |
-| Việc code tiếp theo | Sau khi có email + SLA, phát hành kênh hỗ trợ; trong lúc chờ có thể tiếp tục hardening webhook subscription và chuẩn bị E2E staging không dùng tiền thật |
+| Worktree kỳ vọng | Sạch sau commit tài liệu webhook; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
+| Việc code tiếp theo | Chuẩn bị runner E2E staging dùng tài khoản/dữ liệu giả lập và cleanup có guard; không chạy tiền thật |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -92,6 +92,14 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `ac14d1c`: webhook thanh toán subscription giờ chỉ coi event ID là retry hợp
+  lệ khi `event_type` và SHA-256 của raw payload trùng bản đã lưu. Event ID cũ
+  nhưng nội dung khác trả `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH`, không lookup hay
+  kích hoạt payment lần nữa; attempt vẫn được ghi nhận để đối soát. Tài liệu
+  contract và regression test đã cập nhật. Production revision
+  `ac14d1ccb3ff` trả database/schema `ok`, runtime role `restricted`; CI
+  `34193887394`, 437/437 test, secret scan và diff check sạch. Checklist thanh
+  toán tự động vẫn mở vì chưa có adapter provider thật và giao dịch pilot.
 - `3daf767`: phát hành `/refund-policy.html` cho giai đoạn pilot, tách rõ khoản
   thanh toán subscription khỏi tiền thuê/cọc đi thẳng chủ trọ và mô tả đúng
   workflow yêu cầu hoàn/chuyển nhầm hiện có. Link xuất hiện ở landing, quick
