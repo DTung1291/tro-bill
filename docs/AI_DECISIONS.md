@@ -615,3 +615,23 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   CCCD đã che không được coi là dữ liệu có thể import. CSV chỉ mang phòng/khách;
   nếu chọn thay thế thì chi phí/lịch sử bị xóa còn settings được giữ, đúng với
   cảnh báo ở preview. Production revision `eab951bd939e`, CI `34177957306`.
+
+## D-039 — Trạng thái chỉ xem được cưỡng chế tại route server, có ngoại lệ giảm rủi ro
+
+- **Trạng thái:** Đã phát hành production ngày 08/09/2026.
+- **Quyết định:** Mọi API ghi vận hành cần entitlement `full` lấy trực tiếp từ
+  subscription và plan của workspace owner. Middleware dùng `accountUserId` sau
+  khi phân giải workspace, không tin cờ Premium hoặc giới hạn do client gửi.
+  Luồng state vẫn kiểm tra riêng số phòng sắp ghi; luồng nhân viên kiểm tra riêng
+  `staff_limit` ngay trước INSERT trong transaction.
+- **Lý do:** Các module mới đã tự chặn hết hạn nhưng một số route thanh toán,
+  cọc, gửi hóa đơn, VietQR và tài khoản nhận tiền cũ chưa dùng chung guard. Chỉ
+  khóa nút ở frontend không ngăn request API trực tiếp và làm trạng thái
+  `read_only` không đúng nghĩa.
+- **Hệ quả:** Hết trial và hết ba ngày ân hạn trả 403
+  `SUBSCRIPTION_READ_ONLY` trước handler ghi. Luôn cho phép đọc, xuất/xóa tài
+  khoản, mua/gia hạn gói và workflow hoàn tiền. Các thao tác chỉ giảm rủi ro như
+  thu hồi link, hủy lịch gửi, tắt kênh thanh toán hoặc xóa nhân viên cũng không
+  bị khóa. Webhook và submission công khai vẫn append để không làm mất dấu giao
+  dịch/yêu cầu đã phát sinh. Production revision `d5adcd7282d4`, CI
+  `34178776243`, 433/433 test.

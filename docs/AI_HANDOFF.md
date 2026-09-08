@@ -9,10 +9,10 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — landing, quick start và nhập CSV/JSON an toàn đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
+| Trạng thái | Sẵn sàng bàn giao — nhập CSV/JSON và cưỡng chế subscription phía server đã phát hành; provider HĐĐT vẫn chờ sandbox/API contract |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu nhập dữ liệu; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `eab951b` — nhập CSV từ Excel/JSON có preview, validation, gộp/thay thế và xác nhận server |
+| Worktree kỳ vọng | Sạch sau commit tài liệu subscription; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `d5adcd7` — middleware chặn ghi khi gói hết hiệu lực và kiểm thử giới hạn phòng/nhân viên phía server |
 | Việc code tiếp theo | Rà soát điều khoản sử dụng, chính sách bảo mật và chính sách hoàn tiền; kênh hỗ trợ/SLA cần thông tin liên hệ do chủ sản phẩm xác nhận |
 | Việc vận hành còn mở | Dọn user test dashboard trên staging sau khi có xác nhận; `OPS_ALERT_WEBHOOK_URL` vẫn là kênh cảnh báo tùy chọn |
 
@@ -92,6 +92,17 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `d5adcd7`: bổ sung middleware entitlement dùng dữ liệu `subscriptions` +
+  `plans` phía server cho các API ghi vận hành cũ: thanh toán/cọc, gửi và lên
+  lịch email hóa đơn, ảnh chỉ số, đối soát, kênh thanh toán, tài khoản nhận tiền
+  và hồ sơ HĐĐT. Gói hết trial/ân hạn trả `SUBSCRIPTION_READ_ONLY`; giới hạn
+  phòng được chặn trước khi state xóa/ghi và giới hạn nhân viên được chặn trước
+  INSERT. Các ngoại lệ cần thiết vẫn dùng được khi hết hạn: xem/xuất/xóa tài
+  khoản, mua/gia hạn hoặc yêu cầu hoàn tiền, thu hồi link, hủy lịch gửi, tắt
+  kênh thanh toán và xóa nhân viên. Webhook/public submission vẫn append để
+  không làm mất bằng chứng giao dịch hay yêu cầu khách. Production revision
+  `d5adcd7282d4` trả HTTP 200, database/schema `ok`, runtime role `restricted`;
+  CI `34178776243`, 433/433 test, secret scan và diff check sạch.
 - `eab951b`: luồng nhập dữ liệu trong Cài đặt nhận CSV UTF-8 xuất từ Excel hoặc
   JSON, có tải file CSV mẫu và preview trước khi ghi. Chế độ mặc định là gộp,
   tạo lại ID phòng/khách và ánh xạ billing; thay thế yêu cầu xác nhận riêng. File

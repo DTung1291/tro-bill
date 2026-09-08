@@ -591,7 +591,14 @@ scan sạch.
 
 - [ ] Không có lỗi làm mất hoặc lẫn dữ liệu giữa các tài khoản.
 - [x] Backup và phục hồi đã được kiểm chứng.
-- [ ] Subscription và giới hạn gói được kiểm tra ở server.
+- [x] Subscription và giới hạn gói được kiểm tra ở server.
+  Server lấy entitlement trực tiếp từ `subscriptions` + `plans`, chặn vượt giới
+  hạn phòng trước khi thay state và chặn vượt giới hạn nhân viên trước INSERT.
+  Tài khoản hết trial/ân hạn bị chặn ở middleware chung trên các API ghi vận
+  hành cũ; vẫn cho phép xem/xuất/xóa tài khoản, mua hoặc gia hạn gói và các thao
+  tác giảm rủi ro như thu hồi link, hủy lịch gửi, tắt kênh hoặc xóa nhân viên.
+  Production revision `d5adcd7282d4` trả HTTP 200, database/schema `ok`, runtime
+  role `restricted`; CI `34178776243`, 433/433 test và secret scan sạch.
 - [ ] Thanh toán gói TrọBill được ghi nhận tự động và không bị trùng.
 - [x] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.
