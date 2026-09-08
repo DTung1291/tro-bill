@@ -13,8 +13,8 @@ trong `../AGENTS.md`.
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu runner E2E; luôn xác minh bằng Git trước khi sửa |
 | Phần ứng dụng phát hành gần nhất | `ac14d1c` — từ chối event webhook trùng ID nhưng khác loại hoặc payload trước khi chạm payment |
-| Việc code tiếp theo | Sau khi Preview ready và có bốn secret cho hai tài khoản E2E, chạy workflow thủ công trên deployment mới rồi ghi bằng chứng |
-| Việc vận hành còn mở | Preview đang `schema=migration-required`; Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
+| Việc code tiếp theo | Áp dụng hai migration HĐĐT còn thiếu trên đúng Neon branch của Preview; sau đó cấu hình credential A/B và chạy workflow E2E |
+| Việc vận hành còn mở | Preview thiếu `20260907_electronic_invoice_profiles.sql` + `20260907_electronic_invoice_preflight.sql`; Environment `Preview` thiếu credential A/B; `OPS_ALERT_WEBHOOK_URL` vẫn tùy chọn |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -92,6 +92,15 @@ thuộc sandbox/API contract hiện hành của nhà cung cấp để triển kh
 
 ## Mốc đã giao gần đây
 
+- `e461a33`: readiness staging có chẩn đoán tên migration theo 19 nhóm schema;
+  production chỉ giữ trạng thái tổng quát. Runner E2E chấp nhận health 503 để
+  hiện đúng danh sách rồi dừng trước login/ghi. CI `34196632098`, test mục tiêu
+  17/17, bộ đầy đủ 445/445 và secret scan sạch. Preview
+  `tro-bill-6n5t42b90-dtung.vercel.app` (`dpl_ETjou2z1n334KgES4wLSDdUxKDiJ`)
+  READY; readiness được bảo vệ trả revision `e461a33964cb`, database `ok`, runtime
+  `restricted` và thiếu đúng `20260907_electronic_invoice_profiles.sql` cùng
+  `20260907_electronic_invoice_preflight.sql`. Production cùng revision vẫn
+  database/schema `ok`, runtime `restricted`.
 - `1e5549b`: runner staging mở rộng sang hai workspace độc lập. Nó tạo marker ở
   A, bắt B không được đọc marker, mô phỏng cookie B với context A phải nhận
   `409 SESSION_ACCOUNT_CHANGED`, rồi dùng lại cookie A để chứng minh phiên không

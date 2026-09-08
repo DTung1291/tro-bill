@@ -594,8 +594,10 @@ scan sạch.
   production, xác minh health/cookie/account context của hai tài khoản độc lập,
   tạo khu UUID bằng A, bắt B không được thấy, mô phỏng tab cũ cookie B + context A
   phải trả `SESSION_ACCOUNT_CHANGED`, rồi cleanup đúng marker. Chưa đóng tiêu
-  chí: Preview ngày 08/09/2026 đúng staging nhưng báo `schema=migration-required`;
-  Environment `Preview` chưa có bốn secret credential của hai tài khoản E2E.
+  chí: Preview `tro-bill-6n5t42b90-dtung.vercel.app` ngày 08/09/2026 xác định
+  thiếu đúng `20260907_electronic_invoice_profiles.sql` rồi
+  `20260907_electronic_invoice_preflight.sql`; Environment `Preview` cũng chưa
+  có bốn secret credential của hai tài khoản E2E.
 - [ ] Chạy thử một chu kỳ bill hoàn chỉnh với 5 khách pilot.
 - [ ] Thu tiền thật thành công từ ít nhất 3 khách pilot.
 - [ ] Theo dõi pilot qua kỳ lập bill thứ hai trước khi quảng bá rộng.
