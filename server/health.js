@@ -222,6 +222,24 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_constraint
       WHERE conname='electronic_invoice_profiles_seller_name_length_valid'
+    )
+    AND to_regclass('public.electronic_invoice_records') IS NOT NULL
+    AND to_regclass('public.electronic_invoice_status_events') IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='electronic_invoice_records_source_owner_fk'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='electronic_invoice_events_provider_event_unique'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname='electronic_invoice_record_identity_before_update'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname='electronic_invoice_event_append_only_before_update'
     ) AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {

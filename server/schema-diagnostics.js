@@ -19,7 +19,8 @@ const SCHEMA_MIGRATION_CHECKS = Object.freeze([
   ['tenant_maintenance_workflow', '20260905_tenant_maintenance_workflow.sql'],
   ['tenant_maintenance_expenses', '20260905_tenant_maintenance_expenses.sql'],
   ['electronic_invoice_profiles', '20260907_electronic_invoice_profiles.sql'],
-  ['electronic_invoice_preflight', '20260907_electronic_invoice_preflight.sql']
+  ['electronic_invoice_preflight', '20260907_electronic_invoice_preflight.sql'],
+  ['electronic_invoice_records', '20260908_electronic_invoice_records.sql']
 ]);
 
 const SCHEMA_DIAGNOSTICS_QUERY = `
@@ -140,7 +141,14 @@ const SCHEMA_DIAGNOSTICS_QUERY = `
         AND column_name='seller_legal_name' AND is_nullable='NO'
     )
       AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='electronic_invoice_profiles_seller_name_length_valid')
-      AS electronic_invoice_preflight`;
+      AS electronic_invoice_preflight,
+    to_regclass('public.electronic_invoice_records') IS NOT NULL
+      AND to_regclass('public.electronic_invoice_status_events') IS NOT NULL
+      AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='electronic_invoice_records_source_owner_fk')
+      AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='electronic_invoice_events_provider_event_unique')
+      AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='electronic_invoice_record_identity_before_update')
+      AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='electronic_invoice_event_append_only_before_update')
+      AS electronic_invoice_records`;
 
 function missingSchemaMigrations(row = {}) {
   return SCHEMA_MIGRATION_CHECKS

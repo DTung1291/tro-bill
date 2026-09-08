@@ -169,6 +169,23 @@ const ELECTRONIC_INVOICE_STATUS = Object.freeze({
   }
 });
 
+const ELECTRONIC_INVOICE_RECORD_STATUSES = Object.freeze({
+  draft: { label: 'Bản nháp', className: 'is-pending' },
+  submitted: { label: 'Đã gửi nhà cung cấp', className: 'is-pending' },
+  issued: { label: 'Đã phát hành', className: 'is-issued' },
+  rejected: { label: 'Bị từ chối', className: 'is-error' },
+  adjusted: { label: 'Đã điều chỉnh', className: 'is-issued' },
+  replaced: { label: 'Đã thay thế', className: 'is-muted' },
+  cancelled: { label: 'Đã hủy', className: 'is-muted' }
+});
+
+const ELECTRONIC_INVOICE_PROVIDER_LABELS = Object.freeze({
+  misa_meinvoice: 'MISA meInvoice',
+  vnpt_invoice: 'VNPT Invoice',
+  viettel_sinvoice: 'Viettel SInvoice',
+  other: 'Nhà cung cấp khác'
+});
+
 function emptyElectronicInvoiceProfile() {
   return {
     exists: false,
@@ -6947,7 +6964,64 @@ function closeElectronicInvoicePreflight() {
   syncModalScrollLock();
 }
 
-function renderElectronicInvoicePreflight(preflight) {
+function electronicInvoiceRecordDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
+}
+
+function renderElectronicInvoiceRecords(records = []) {
+  const container = document.getElementById('electronic-invoice-records');
+  if (!container) return;
+  if (!Array.isArray(records) || records.length === 0) {
+    container.innerHTML = `
+      <div class="electronic-invoice-records__head">
+        <h3>Hồ sơ từ nhà cung cấp</h3>
+      </div>
+      <p class="electronic-invoice-preflight-empty">Chưa có hóa đơn điện tử nào được nhà cung cấp xác nhận cho hóa đơn này.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="electronic-invoice-records__head">
+      <div>
+        <h3>Hồ sơ từ nhà cung cấp</h3>
+        <p>Chỉ hiển thị mã và trạng thái đã được adapter nhà cung cấp xác nhận.</p>
+      </div>
+      <strong>${records.length} hồ sơ</strong>
+    </div>
+    <div class="electronic-invoice-records__list">
+      ${records.map(record => {
+        const status = ELECTRONIC_INVOICE_RECORD_STATUSES[record.status]
+          || { label: record.status || 'Chưa rõ', className: 'is-muted' };
+        const events = Array.isArray(record.events) ? [...record.events].reverse() : [];
+        return `
+          <article class="electronic-invoice-record">
+            <div class="electronic-invoice-record__title">
+              <strong>${escapeHtml(ELECTRONIC_INVOICE_PROVIDER_LABELS[record.provider] || record.provider || 'Nhà cung cấp')}</strong>
+              <span class="electronic-invoice-record__status ${status.className}">${escapeHtml(status.label)}</span>
+            </div>
+            <dl class="electronic-invoice-record__details">
+              <div><dt>Số hóa đơn</dt><dd>${escapeHtml(record.invoiceNumber || '—')}</dd></div>
+              <div><dt>Mã tra cứu</dt><dd>${escapeHtml(record.lookupCode || '—')}</dd></div>
+              <div><dt>Mã cơ quan thuế</dt><dd>${escapeHtml(record.taxAuthorityCode || '—')}</dd></div>
+              <div><dt>Phát hành lúc</dt><dd>${escapeHtml(electronicInvoiceRecordDateTime(record.issuedAt))}</dd></div>
+            </dl>
+            ${record.providerStatus ? `<p class="electronic-invoice-record__provider-status">Nhà cung cấp: ${escapeHtml(record.providerStatus)}</p>` : ''}
+            <details class="electronic-invoice-record__history">
+              <summary>Lịch sử trạng thái (${events.length})</summary>
+              ${events.length > 0 ? `<ol>${events.map(event => {
+                const eventStatus = ELECTRONIC_INVOICE_RECORD_STATUSES[event.status]
+                  || { label: event.status || 'Chưa rõ' };
+                return `<li><strong>${escapeHtml(eventStatus.label)}</strong><span>${escapeHtml(electronicInvoiceRecordDateTime(event.occurredAt))}</span></li>`;
+              }).join('')}</ol>` : '<p>Chưa có sự kiện trạng thái.</p>'}
+            </details>
+          </article>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderElectronicInvoicePreflight(preflight, electronicInvoiceRecords = []) {
   const result = document.getElementById('electronic-invoice-preflight-result');
   const contractWrap = document.getElementById('electronic-invoice-preflight-contract-wrap');
   const contractSelect = document.getElementById('electronic-invoice-preflight-contract');
@@ -7025,25 +7099,32 @@ function renderElectronicInvoicePreflight(preflight) {
         <ul>${blockers.map(item => `<li>${escapeHtml(item.message || '')}</li>`).join('')}</ul>
       </section>` : ''}
     <p class="electronic-invoice-preflight-fingerprint">Dấu vân tay nguồn: <code>${escapeHtml(String(preflight?.sourceFingerprint || '').slice(0, 16))}…</code></p>`;
+  renderElectronicInvoiceRecords(electronicInvoiceRecords);
 }
 
 async function loadElectronicInvoicePreflight(contractId = null) {
   if (!ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID) return;
   const result = document.getElementById('electronic-invoice-preflight-result');
+  const records = document.getElementById('electronic-invoice-records');
   const contractWrap = document.getElementById('electronic-invoice-preflight-contract-wrap');
   if (contractWrap) contractWrap.hidden = true;
   if (result) result.innerHTML = '<p class="electronic-invoice-preflight-empty">Đang kiểm tra dữ liệu…</p>';
+  if (records) records.innerHTML = '<p class="electronic-invoice-preflight-empty">Đang nạp hồ sơ từ nhà cung cấp…</p>';
   try {
-    const response = await API.getElectronicInvoicePreflight(
-      ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID,
-      contractId
-    );
-    renderElectronicInvoicePreflight(response.preflight || {});
+    const [response, recordResponse] = await Promise.all([
+      API.getElectronicInvoicePreflight(
+        ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID,
+        contractId
+      ),
+      API.getElectronicInvoiceRecords(ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID)
+    ]);
+    renderElectronicInvoicePreflight(response.preflight || {}, recordResponse.records || []);
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
     if (result) {
       result.innerHTML = `<p class="electronic-invoice-preflight-error">${escapeHtml(error.message || 'Không kiểm tra được dữ liệu hóa đơn điện tử')}</p>`;
     }
+    if (records) records.replaceChildren();
   }
 }
 

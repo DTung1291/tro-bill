@@ -239,6 +239,13 @@ const API = (() => {
     );
   }
 
+  function getElectronicInvoiceRecords(invoiceId) {
+    return request(
+      'GET',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/electronic-invoice-records`
+    );
+  }
+
   function me() {
     return request('GET', '/api/me');
   }
@@ -802,6 +809,7 @@ const API = (() => {
     getElectronicInvoiceProfile,
     updateElectronicInvoiceProfile,
     getElectronicInvoicePreflight,
+    getElectronicInvoiceRecords,
     me,
     getSubscription,
     getPlans,
