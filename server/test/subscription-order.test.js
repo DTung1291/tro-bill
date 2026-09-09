@@ -204,5 +204,5 @@ test('popup thanh toán đủ rộng cho QR, chi tiết và nút sao chép', () 
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.subscription-order-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=128"/);
+  assert.match(html, /href="style\.css\?v=129"/);
 });

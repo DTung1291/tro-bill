@@ -5999,6 +5999,9 @@ body.workspace-staff-active .main { padding-top: 112px; }
   opacity: 0.6;
   cursor: default;
 }
+.auth-pricing-link {
+  margin-top: 10px;
+}
 
 
 /* ============================================================

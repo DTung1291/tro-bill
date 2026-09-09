@@ -83,9 +83,11 @@ test('landing render bảng giá an toàn và có layout mobile', () => {
   const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'landing.js'), 'utf8');
   const styles = fs.readFileSync(path.join(root, 'landing.css'), 'utf8');
+  const appStyles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
 
-  assert.match(index, /href="\/gioi-thieu">Xem tính năng và bảng giá/);
+  assert.match(index, /class="auth-dev-link auth-pricing-link" href="\/gioi-thieu">Xem tính năng và bảng giá/);
+  assert.match(appStyles, /\.auth-pricing-link\s*\{\s*margin-top:\s*10px;/);
   assert.match(script, /fetch\('\/api\/public\/plans'/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
