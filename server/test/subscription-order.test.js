@@ -190,3 +190,19 @@ test('VietQR URL mã hóa an toàn mọi tham số', () => {
   const url = vietQrUrl(payment({ bank_owner_snapshot: 'NGUYEN VAN A & CO' }));
   assert.match(url, /accountName=NGUYEN%20VAN%20A%20%26%20CO$/);
 });
+
+test('popup thanh toán đủ rộng cho QR, chi tiết và nút sao chép', () => {
+  const root = path.resolve(__dirname, '../..');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+  assert.match(
+    css,
+    /\.modal\.subscription-order-modal\s*\{[^}]*width:\s*min\(94vw,\s*720px\);[^}]*max-width:\s*720px;/s
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*680px\)[\s\S]*?\.subscription-order-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
+  );
+  assert.match(html, /href="style\.css\?v=128"/);
+});

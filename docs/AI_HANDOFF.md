@@ -95,6 +95,10 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- Popup thanh toán subscription từng đặt `width: 720px` nhưng vẫn bị modal chung
+  ép `max-width: 520px`, nhỏ hơn tổng hai cột QR/chi tiết và làm nút sao chép bị
+  cắt. CSS nay override đúng `max-width: 720px`, vẫn chuyển một cột dưới 680px;
+  asset pin tăng lên `style 128`. Không thay đổi đơn hàng hoặc dữ liệu thanh toán.
 - ICP v1 tại `docs/PILOT_CUSTOMER_PROFILE.md` chốt mẫu chủ trọ/người quyết định
   trực tiếp vận hành 10–50 phòng có bill tháng và công nợ, kèm tiêu chí sàng lọc,
   loại trừ, ưu tiên và mẫu biên bản ẩn danh. Mục xác định khách hàng mục tiêu đã

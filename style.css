@@ -2544,6 +2544,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
 /* Đơn thanh toán gói TrọBill */
 .modal.subscription-order-modal {
   width: min(94vw, 720px);
+  max-width: 720px;
   max-height: calc(100dvh - 32px);
 }
 .subscription-order-reference {
