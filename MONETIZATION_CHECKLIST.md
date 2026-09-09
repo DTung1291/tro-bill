@@ -659,8 +659,9 @@ scan sạch.
   cần nối adapter của nhà cung cấp thật và xác minh ít nhất một giao dịch pilot
   trên production. Đường dự phòng đối soát thủ công dùng cùng khóa transaction
   với webhook nên không thể gia hạn lặp; mục vẫn mở vì đường tự động chưa có
-  provider thật. Production revision `ac14d1ccb3ff`, CI `34193887394`, 437/437
-  test và secret scan sạch.
+  provider thật. Đường thủ công phát hành ở revision `5332f0638046`, CI
+  `34299403260`, 462/462 test và secret scan sạch; deployment Production
+  `dpl_CxQGts8wZu3VMaSc3e4W3y851ayt` đã ready.
 - [x] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.
 - [ ] Có ít nhất 3 khách hàng trả phí và sẵn sàng tiếp tục sử dụng.

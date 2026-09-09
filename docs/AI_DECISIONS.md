@@ -754,7 +754,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-046 — Xác nhận thanh toán thủ công dùng chung định danh với webhook
 
-- **Trạng thái:** Đã triển khai, chờ phát hành Production ngày 09/09/2026.
+- **Trạng thái:** Đã phát hành Production ngày 09/09/2026.
 - **Quyết định:** Webhook là đường xác nhận tự động chính; admin có đường dự
   phòng để xác nhận payment `pending` sau khi đối chiếu tiền thực nhận. Cả hai
   đường dùng cùng cặp `bank_transfer + transactionId`, khóa payment/subscription
@@ -768,4 +768,6 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   nhận thủ công chỉ là retry và không gia hạn lặp. Mọi thao tác thủ công có actor,
   reason và payment ID trong audit. Yêu cầu “đã chuyển khoản” từ người dùng chỉ
   mở đối soát, không tự chuyển payment sang `paid`. Checklist tự động vẫn mở tới
-  khi có adapter provider thật và giao dịch pilot Production.
+  khi có adapter provider thật và giao dịch pilot Production. Revision
+  `5332f0638046`, CI `34299403260`, deployment
+  `dpl_CxQGts8wZu3VMaSc3e4W3y851ayt` ready; không cần migration mới.

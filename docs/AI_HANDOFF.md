@@ -8,13 +8,13 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 08/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — chuyển sang Giai đoạn 0, đã chốt ICP pilot 10–50 phòng |
+| Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đã phát hành đối soát payment subscription thủ công; chờ chủ sản phẩm smoke test bằng một đơn pending hợp lệ |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit ICP; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `968076b` — sổ mã tra cứu/trạng thái HĐĐT provider-neutral, owner-only read |
-| Việc code tiếp theo | Không tự triển khai mục sau: cần đủ 10 cuộc phỏng vấn đúng mẫu trước khi kết luận ba vấn đề và thông điệp |
-| Việc vận hành còn mở | Tuyển/phỏng vấn 10 chủ trọ 10–50 phòng; `OPS_ALERT_WEBHOOK_URL` tùy chọn; adapter HĐĐT chờ provider |
+| Phần ứng dụng phát hành gần nhất | `5332f06` — webhook tự động + admin đối soát thủ công dùng chung khóa giao dịch |
+| Việc code tiếp theo | Sau smoke test payment, quay lại Giai đoạn 0; không tự kết luận vấn đề/thông điệp khi chưa đủ 10 phỏng vấn đúng mẫu |
+| Việc vận hành còn mở | Smoke test một đơn pending; nối provider thanh toán thật; tuyển/phỏng vấn 10 chủ trọ; `OPS_ALERT_WEBHOOK_URL` tùy chọn; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -95,6 +95,20 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- `5332f06`: thêm bảng admin **Đối soát thanh toán gói** và API xác nhận thủ
+  công cho payment pending. Admin bắt buộc nhập mã giao dịch, thời điểm nhận và
+  lý do; server khóa payment/subscription, kiểm tra thời hạn đơn và trạng thái
+  gói, rồi cập nhật payment + subscription + audit trong cùng transaction. Luồng
+  thủ công dùng cùng `bank_transfer + transactionId` với webhook nên webhook đến
+  sau không gia hạn lặp. Người dùng có nút **Tôi đã chuyển khoản / cần kiểm tra**
+  nhưng nút chỉ mở yêu cầu đối soát, không tự đổi trạng thái. Không có migration
+  mới. Bộ test đạt 462/462, secret scan sạch; CI `34299403260` thành công.
+  Production `dpl_CxQGts8wZu3VMaSc3e4W3y851ayt` ready, alias chính trả revision
+  `5332f0638046`, database/schema `ok`, runtime role `restricted`, pins main
+  `style 128 / api 114 / app 133`, admin `style 78 / api 79 / admin 79`; endpoint
+  admin chưa đăng nhập trả 401 và error log đầu phát hành sạch. Còn cần owner
+  smoke test có đăng nhập bằng một payment pending thật trước khi coi UI vận hành
+  đã được xác minh.
 - Popup thanh toán subscription từng đặt `width: 720px` nhưng vẫn bị modal chung
   ép `max-width: 520px`, nhỏ hơn tổng hai cột QR/chi tiết và làm nút sao chép bị
   cắt. CSS nay override đúng `max-width: 720px`, vẫn chuyển một cột dưới 680px;
