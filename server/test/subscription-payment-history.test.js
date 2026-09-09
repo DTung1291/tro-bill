@@ -5,12 +5,16 @@ process.env.NODE_ENV = 'test';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const db = require('../db');
 const {
   getSubscriptionReceipt,
   listSubscriptionPayments,
   receiptCode
 } = require('../subscription-payment-history');
+
+const root = path.join(__dirname, '..', '..');
 
 function responseRecorder() {
   const record = { statusCode: 200, body: null };
@@ -48,6 +52,16 @@ function paidRow(overrides = {}) {
 
 test('mã biên nhận ổn định theo payment ID', () => {
   assert.equal(receiptCode(51), 'TB-RCPT-00000051');
+});
+
+test('popup biên nhận căn đều footer và hai nút thao tác', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+
+  assert.match(html, /class="modal-actions subscription-receipt-actions"/);
+  assert.match(styles, /\.subscription-receipt-actions\s*\{[\s\S]*?padding:\s*0 18px 18px;/);
+  assert.match(styles, /\.subscription-receipt-actions > \.btn\s*\{[\s\S]*?min-width:\s*128px;/);
+  assert.match(styles, /@media \(max-width: 560px\)[\s\S]*?\.subscription-receipt-actions > \.btn\s*\{\s*flex:\s*1 1 0;\s*min-width:\s*0;/);
 });
 
 test('lịch sử payment chỉ kèm yêu cầu hoàn tiền mới nhất, không lộ dữ liệu admin', async (t) => {

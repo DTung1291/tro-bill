@@ -1317,7 +1317,14 @@ body.workspace-staff-active .main { padding-top: 112px; }
   text-align: right;
   overflow-wrap: anywhere;
 }
-.subscription-receipt-actions { padding-top: 0; }
+.subscription-receipt-actions {
+  flex-wrap: wrap;
+  padding: 0 18px 18px;
+}
+.subscription-receipt-actions > .btn {
+  min-width: 128px;
+  justify-content: center;
+}
 @media (max-width: 560px) {
   .subscription-history-head { align-items: center; }
   .subscription-payment-item { grid-template-columns: minmax(0, 1fr); }
@@ -1329,6 +1336,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .subscription-refund-summary > .btn { grid-column: 1; grid-row: auto; justify-self: start; }
   .subscription-receipt-row { grid-template-columns: minmax(0, 1fr); gap: 3px; }
   .subscription-receipt-row > :last-child { text-align: left; }
+  .subscription-receipt-actions > .btn { flex: 1 1 0; min-width: 0; }
 }
 .settings-security-card {
   margin-top: 12px;

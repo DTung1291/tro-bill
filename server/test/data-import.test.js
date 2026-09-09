@@ -120,7 +120,7 @@ test('UI có preview, consent, rollback và tải module trước app', () => {
   assert.match(html, /accept="\.json,\.csv,application\/json,text\/csv"/);
   assert.match(html, /id="data-import-modal"[\s\S]*name="data-import-mode"[\s\S]*id="data-import-tenant-consent-check"[\s\S]*id="data-import-replace-consent-check"/);
   assert.match(html, /data-import\.js\?v=1[\s\S]*app\.js\?v=137/);
-  assert.match(html, /style\.css\?v=130/);
+  assert.match(html, /style\.css\?v=131/);
   assert.match(app, /file\.size > 5 \* 1024 \* 1024/);
   assert.match(app, /await flushState\(\{ throwOnError: true \}\)/);
   assert.match(app, /const needsReplaceConsent = dataImportMode\(\) === 'replace'/);
