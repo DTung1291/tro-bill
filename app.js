@@ -11642,7 +11642,11 @@ function showAuthScreen(show) {
   const nav = document.getElementById('main-nav');
   const bottomNav = document.getElementById('bottom-nav');
   const logoutBtn = document.getElementById('logout-btn');
-  if (el) el.hidden = !show;
+  if (el) {
+    el.classList.remove('auth-screen--pending');
+    el.setAttribute('aria-busy', 'false');
+    el.hidden = !show;
+  }
   // Ẩn/hiện phần app
   document.querySelectorAll('.page').forEach(p => { p.style.visibility = show ? 'hidden' : ''; });
   if (nav) nav.style.visibility = show ? 'hidden' : '';

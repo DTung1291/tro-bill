@@ -18,12 +18,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=129" />
+  <link rel="stylesheet" href="style.css?v=130" />
 </head>
 
 <body>
   <!-- AUTH OVERLAY -->
-  <div id="auth-screen" class="auth-screen" hidden>
+  <div id="auth-screen" class="auth-screen auth-screen--pending" aria-busy="true">
+    <div class="auth-loading" role="status" aria-live="polite">
+      <strong>🏠 TrọBill</strong>
+      <span>Đang kiểm tra phiên đăng nhập...</span>
+    </div>
     <div class="auth-card">
       <div class="auth-brand"><span class="brand-icon">🏠</span> TrọBill</div>
       <p class="auth-sub" id="auth-sub">Tính tiền nhà trọ hàng tháng</p>
@@ -2460,7 +2464,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=135"></script>
+  <script src="app.js?v=136"></script>
 </body>
 
 </html>

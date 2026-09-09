@@ -5843,6 +5843,24 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .auth-screen[hidden] {
   display: none;
 }
+.auth-loading {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.auth-loading strong {
+  color: var(--text);
+  font-size: 24px;
+}
+.auth-screen--pending .auth-loading {
+  display: flex;
+}
+.auth-screen--pending .auth-card {
+  display: none;
+}
 .auth-card {
   width: 100%;
   max-width: 380px;

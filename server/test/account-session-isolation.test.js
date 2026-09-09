@@ -116,6 +116,19 @@ test('giao diện hủy autosave và đồng bộ thay đổi phiên giữa các
   assert.match(appSource, /expectedGeneration !== _sessionGeneration/);
 });
 
+test('reload khóa dashboard cho đến khi server xác nhận phiên đăng nhập', () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+
+  assert.match(html, /id="auth-screen" class="auth-screen auth-screen--pending" aria-busy="true"/);
+  assert.doesNotMatch(html, /id="auth-screen"[^>]*\shidden(?:\s|>)/);
+  assert.match(html, /class="auth-loading" role="status" aria-live="polite"/);
+  assert.match(styles, /\.auth-screen--pending \.auth-card\s*\{\s*display: none;/);
+  assert.match(styles, /\.auth-screen--pending \.auth-loading\s*\{\s*display: flex;/);
+  assert.match(appSource, /el\.classList\.remove\('auth-screen--pending'\);[\s\S]*el\.hidden = !show;/);
+});
+
 test('giao diện xếp hàng PUT state để snapshot cũ không ghi đè snapshot mới', () => {
   const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   assert.match(appSource, /let _saveInFlight = null/);
