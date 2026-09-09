@@ -12,7 +12,16 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
   const accountContext = 'a'.repeat(64);
   const calls = [];
   const responses = [
-    { ok: true, status: 200, body: { email: 'a@example.com', isAdmin: false, accountContext } },
+    {
+      ok: true,
+      status: 200,
+      body: {
+        accountUserId: 7,
+        email: 'a@example.com',
+        isAdmin: true,
+        accountContext
+      }
+    },
     { ok: true, status: 200, body: { ok: true } },
     { ok: true, status: 200, body: { email: 'b@example.com', isAdmin: false, accountContext: 'b'.repeat(64) } }
   ];
@@ -38,6 +47,9 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
 
   await api.login('a@example.com', 'password');
   assert.equal(api.getAccountContext(), accountContext);
+  assert.equal(api.getSessionAccountId(), 7);
+  assert.equal(api.getSessionEmail(), 'a@example.com');
+  assert.equal(api.isSessionAdmin(), true);
   await api.putState({ rooms: [] });
   assert.equal(
     calls[1].options.headers['X-Trobill-Account-Context'],
@@ -51,6 +63,10 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
     false,
     '/api/me phải đọc được phiên cookie mới để phát hiện đổi tài khoản'
   );
+  api.clearSession();
+  assert.equal(api.getSessionAccountId(), null);
+  assert.equal(api.getSessionEmail(), '');
+  assert.equal(api.isSessionAdmin(), false);
 });
 
 test('API client dừng phiên ngay khi server phát hiện tab cũ', async () => {
@@ -107,4 +123,35 @@ test('giao diện xếp hàng PUT state để snapshot cũ không ghi đè snaps
   assert.match(appSource, /if \(previousSave\)[\s\S]*await previousSave/);
   assert.match(appSource, /_saveInFlight = currentSave/);
   assert.match(appSource, /revision === _saveRevision/);
+});
+
+test('khởi động owner bỏ vòng workspace và chuyển dữ liệu phụ sang nền có context guard', () => {
+  const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const configureSource = appSource.slice(
+    appSource.indexOf('async function configureWorkspace()'),
+    appSource.indexOf('function workspacePageAllowed')
+  );
+  const startSource = appSource.slice(
+    appSource.indexOf('async function startApp()'),
+    appSource.indexOf('// Hiện nút vào trang quản trị')
+  );
+  const criticalPromise = startSource.slice(
+    startSource.indexOf('const [serverState, entitlement, rentPaymentsResult, maintenanceResult]'),
+    startSource.indexOf('if (expectedGeneration !== _sessionGeneration')
+  );
+
+  assert.match(configureSource, /API\.getSessionAccountId\(\)/);
+  assert.match(configureSource, /WORKSPACES_NEED_REFRESH = true/);
+  assert.match(configureSource, /if \(sessionOwnWorkspace &&/);
+  assert.match(configureSource, /const result = await API\.getWorkspaces\(\)/);
+  assert.match(criticalPromise, /API\.getState\(\)/);
+  assert.match(criticalPromise, /API\.getSubscription\(\)/);
+  assert.match(criticalPromise, /API\.getRentPaymentSummaries\(\)/);
+  assert.match(criticalPromise, /API\.getRoomMaintenance\(\)/);
+  assert.doesNotMatch(criticalPromise, /API\.getPlans|API\.getTeamMembers|API\.getRentBankAccounts/);
+  assert.match(startSource, /document\.documentElement\.dataset\.appReady = 'true'/);
+  assert.match(startSource, /window\.setTimeout\(\(\) => \{[\s\S]*loadDeferredWorkspaceData\(workspace, \{ isCurrent \}\)/);
+  assert.match(startSource, /refreshWorkspaceDirectory\(\{ isCurrent \}\)/);
+  assert.match(startSource, /expectedAccountContext === API\.getAccountContext\(\)/);
+  assert.match(startSource, /expectedWorkspaceId === API\.getWorkspaceAccountId\(\)/);
 });

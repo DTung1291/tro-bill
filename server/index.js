@@ -141,6 +141,7 @@ app.post('/api/auth/reset-password', wrap(resetPassword));
 app.get('/api/public/plans', wrap(plans.listPublicPlans));
 
 app.get('/api/me', requireAuth, (req, res) => res.json({
+  accountUserId: Number(req.userId),
   email: req.userEmail,
   isAdmin: !!req.isAdmin,
   accountContext: req.accountContext

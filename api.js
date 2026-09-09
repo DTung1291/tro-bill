@@ -9,6 +9,9 @@ const API = (() => {
   const LEGACY_TOKEN_KEY = 'trobill_token';
   let sessionActive = false;
   let accountContext = '';
+  let sessionAccountId = null;
+  let sessionEmail = '';
+  let sessionAdmin = false;
   let workspaceAccountId = null;
   let sessionMismatchHandler = null;
   let sessionMismatchNotified = false;
@@ -22,6 +25,9 @@ const API = (() => {
   function clearSession() {
     sessionActive = false;
     accountContext = '';
+    sessionAccountId = null;
+    sessionEmail = '';
+    sessionAdmin = false;
     workspaceAccountId = null;
     sessionMismatchNotified = false;
   }
@@ -32,6 +38,18 @@ const API = (() => {
 
   function getAccountContext() {
     return accountContext;
+  }
+
+  function getSessionAccountId() {
+    return sessionAccountId;
+  }
+
+  function getSessionEmail() {
+    return sessionEmail;
+  }
+
+  function isSessionAdmin() {
+    return sessionAdmin;
   }
 
   function getWorkspaceAccountId() {
@@ -50,7 +68,13 @@ const API = (() => {
       clearSession();
       throw new Error('Máy chủ không trả về định danh phiên hợp lệ');
     }
+    const nextAccountId = Number(session && session.accountUserId);
     accountContext = nextContext;
+    sessionAccountId = Number.isSafeInteger(nextAccountId) && nextAccountId > 0
+      ? nextAccountId
+      : null;
+    sessionEmail = String(session && session.email || '');
+    sessionAdmin = session && session.isAdmin === true;
     workspaceAccountId = null;
     sessionActive = true;
     sessionMismatchNotified = false;
@@ -786,6 +810,9 @@ const API = (() => {
     clearSession,
     isLoggedIn,
     getAccountContext,
+    getSessionAccountId,
+    getSessionEmail,
+    isSessionAdmin,
     getWorkspaceAccountId,
     setWorkspaceAccountId,
     adoptSession,

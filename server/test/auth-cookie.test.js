@@ -73,6 +73,7 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
 
   assert.equal(loginResponse.status, 200);
   const loginBody = await loginResponse.json();
+  assert.equal(loginBody.accountUserId, 7);
   assert.equal(loginBody.email, 'owner@example.com');
   assert.equal(loginBody.isAdmin, true);
   assert.match(loginBody.accountContext, /^[a-f0-9]{64}$/);
@@ -91,6 +92,7 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   });
   assert.equal(meResponse.status, 200);
   assert.deepEqual(await meResponse.json(), {
+    accountUserId: 7,
     email: 'owner@example.com',
     isAdmin: true,
     accountContext: loginBody.accountContext

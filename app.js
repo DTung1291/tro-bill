@@ -123,6 +123,7 @@ let TEAM_ACCESS_OPERATIONS = [];
 let WORKSPACES = [];
 let CURRENT_WORKSPACE = null;
 let CURRENT_WORKSPACE_ACCESS = null;
+let WORKSPACES_NEED_REFRESH = false;
 let ELECTRONIC_INVOICE_PROFILE = null;
 let ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
 let PENDING_DATA_IMPORT = null;
@@ -1544,6 +1545,7 @@ function clearSensitiveStateFromMemory() {
   WORKSPACES = [];
   CURRENT_WORKSPACE = null;
   CURRENT_WORKSPACE_ACCESS = null;
+  WORKSPACES_NEED_REFRESH = false;
   ELECTRONIC_INVOICE_PROFILE = null;
   ACTIVE_ELECTRONIC_INVOICE_PREFLIGHT_ID = null;
   PENDING_DATA_IMPORT = null;
@@ -3145,13 +3147,39 @@ function renderWorkspaceSwitcher() {
 }
 
 async function configureWorkspace() {
+  const ownAccountId = API.getSessionAccountId();
+  const sessionOwnWorkspace = Number.isSafeInteger(ownAccountId) && ownAccountId > 0
+    ? {
+        accountUserId: ownAccountId,
+        accountEmail: API.getSessionEmail(),
+        role: 'owner',
+        isOwner: true,
+        propertyIds: [],
+        operations: ['overview', 'rooms', 'meters', 'expenses', 'invoices'],
+        canAccess: true
+      }
+    : null;
+  let storedId = null;
+  try { storedId = Number(sessionStorage.getItem(workspaceStorageKey())); } catch (_) {}
+
+  // Workspace của chính phiên không cần thêm một round-trip trước khi tải dữ
+  // liệu. Danh sách workspace được làm mới ở nền để vẫn hiện quyền được giao.
+  if (sessionOwnWorkspace && (!Number.isSafeInteger(storedId) || storedId <= 0 || storedId === ownAccountId)) {
+    WORKSPACES = [sessionOwnWorkspace];
+    CURRENT_WORKSPACE = sessionOwnWorkspace;
+    WORKSPACES_NEED_REFRESH = true;
+    API.setWorkspaceAccountId(ownAccountId);
+    try { sessionStorage.setItem(workspaceStorageKey(), String(ownAccountId)); } catch (_) {}
+    renderWorkspaceSwitcher();
+    return sessionOwnWorkspace;
+  }
+
   const result = await API.getWorkspaces();
   WORKSPACES = Array.isArray(result.workspaces) ? result.workspaces : [];
+  WORKSPACES_NEED_REFRESH = false;
   const ownWorkspace = WORKSPACES.find(workspace => workspace.isOwner && workspace.canAccess)
     || WORKSPACES.find(workspace => workspace.canAccess);
   if (!ownWorkspace) throw new Error('Tài khoản chưa có không gian dữ liệu hợp lệ');
-  let storedId = null;
-  try { storedId = Number(sessionStorage.getItem(workspaceStorageKey())); } catch (_) {}
   const selected = WORKSPACES.find(workspace => (
     workspace.canAccess && workspace.accountUserId === storedId
   )) || ownWorkspace;
@@ -3160,6 +3188,23 @@ async function configureWorkspace() {
   try { sessionStorage.setItem(workspaceStorageKey(), String(selected.accountUserId)); } catch (_) {}
   renderWorkspaceSwitcher();
   return selected;
+}
+
+async function refreshWorkspaceDirectory(options = {}) {
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
+  const result = await API.getWorkspaces();
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
+  const workspaces = Array.isArray(result.workspaces) ? result.workspaces : [];
+  const selected = workspaces.find(workspace => (
+    workspace.canAccess
+    && workspace.accountUserId === CURRENT_WORKSPACE?.accountUserId
+  ));
+  if (!selected) return false;
+  WORKSPACES = workspaces;
+  CURRENT_WORKSPACE = selected;
+  WORKSPACES_NEED_REFRESH = false;
+  renderWorkspaceSwitcher();
+  return true;
 }
 
 function workspacePageAllowed(page) {
@@ -11618,7 +11663,67 @@ function handleAuthExpired() {
   showAuthScreen(true);
 }
 
+async function loadDeferredWorkspaceData(workspace, options = {}) {
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
+  const ownerWorkspace = workspace.isOwner === true;
+  const canReadInvoices = ownerWorkspace || (workspace.operations || []).includes('invoices');
+  const [bankAccountsResult, plansResult, paymentsResult, channelsResult, bankTransactionsResult, teamResult, electronicInvoiceProfileResult] = await Promise.all([
+    canReadInvoices
+      ? API.getRentBankAccounts().catch((error) => {
+          console.warn('Không tải được tài khoản nhận tiền:', error.message);
+          return { bankAccounts: [] };
+        })
+      : Promise.resolve({ bankAccounts: [] }),
+    ownerWorkspace ? API.getPlans().catch(() => ({ plans: [] })) : Promise.resolve({ plans: [] }),
+    ownerWorkspace ? API.getSubscriptionPayments(30).catch(() => ({ payments: [] })) : Promise.resolve({ payments: [] }),
+    ownerWorkspace ? API.getRentPaymentChannels().catch((error) => {
+      console.warn('Không tải được kênh thanh toán:', error.message);
+      return { channels: [] };
+    }) : Promise.resolve({ channels: [] }),
+    ownerWorkspace ? API.getRentBankTransactions('pending', 50).catch((error) => {
+      console.warn('Không tải được giao dịch cần đối soát:', error.message);
+      return { transactions: [] };
+    }) : Promise.resolve({ transactions: [] }),
+    ownerWorkspace ? API.getTeamMembers().catch((error) => {
+      console.warn('Không tải được danh sách vai trò:', error.message);
+      return { members: [], staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false } };
+    }) : Promise.resolve({
+      members: [],
+      staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false },
+      properties: [],
+      operations: []
+    }),
+    ownerWorkspace ? API.getElectronicInvoiceProfile().catch((error) => {
+      console.warn('Không tải được hồ sơ hóa đơn điện tử:', error.message);
+      return { profile: emptyElectronicInvoiceProfile() };
+    }) : Promise.resolve({ profile: emptyElectronicInvoiceProfile() })
+  ]);
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
+  RENT_BANK_ACCOUNTS = Array.isArray(bankAccountsResult.bankAccounts)
+    ? bankAccountsResult.bankAccounts
+    : [];
+  SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
+  SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(paymentsResult.payments)
+    ? paymentsResult.payments
+    : [];
+  RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
+  RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
+    ? bankTransactionsResult.transactions
+    : [];
+  applyTeamMembersPayload(teamResult);
+  ELECTRONIC_INVOICE_PROFILE = electronicInvoiceProfileResult.profile
+    || emptyElectronicInvoiceProfile();
+  renderSubscriptionPlans();
+  renderSubscriptionPaymentHistory();
+  renderRentBankAccounts();
+  renderRentPaymentChannel();
+  renderTeamMembers();
+  renderElectronicInvoiceProfile();
+  return true;
+}
+
 async function startApp() {
+  document.documentElement.dataset.appReady = 'false';
   const accountContextBeforeWorkspace = API.getAccountContext();
   if (!accountContextBeforeWorkspace) {
     const error = new Error('Chưa xác định được tài khoản của phiên');
@@ -11645,46 +11750,17 @@ async function startApp() {
     }
   };
   // State và entitlement đều do server trả; client chỉ dùng entitlement cho UX.
-  const [serverState, bankAccountsResult, entitlement, plansResult, paymentsResult, rentPaymentsResult, channelsResult, bankTransactionsResult, maintenanceResult, teamResult, electronicInvoiceProfileResult] = await Promise.all([
+  const [serverState, entitlement, rentPaymentsResult, maintenanceResult] = await Promise.all([
     API.getState(),
-    (ownerWorkspace || (workspace.operations || []).includes('invoices'))
-      ? API.getRentBankAccounts().catch((error) => {
-          console.warn('Không tải được tài khoản nhận tiền:', error.message);
-          return { bankAccounts: [] };
-        })
-      : Promise.resolve({ bankAccounts: [] }),
     ownerWorkspace ? API.getSubscription() : Promise.resolve(readOnlyEntitlement),
-    ownerWorkspace ? API.getPlans().catch(() => ({ plans: [] })) : Promise.resolve({ plans: [] }),
-    ownerWorkspace ? API.getSubscriptionPayments(30).catch(() => ({ payments: [] })) : Promise.resolve({ payments: [] }),
     ownerWorkspace ? API.getRentPaymentSummaries().catch((error) => {
       console.warn('Không tải được sổ giao dịch tiền trọ:', error.message);
       return { invoices: [] };
     }) : Promise.resolve({ invoices: [] }),
-    ownerWorkspace ? API.getRentPaymentChannels().catch((error) => {
-      console.warn('Không tải được kênh thanh toán:', error.message);
-      return { channels: [] };
-    }) : Promise.resolve({ channels: [] }),
-    ownerWorkspace ? API.getRentBankTransactions('pending', 50).catch((error) => {
-      console.warn('Không tải được giao dịch cần đối soát:', error.message);
-      return { transactions: [] };
-    }) : Promise.resolve({ transactions: [] }),
     ownerWorkspace ? API.getRoomMaintenance().catch((error) => {
       console.warn('Không tải được lịch sử bảo trì:', error.message);
       return { maintenancePeriods: [] };
-    }) : Promise.resolve({ maintenancePeriods: [] }),
-    ownerWorkspace ? API.getTeamMembers().catch((error) => {
-      console.warn('Không tải được danh sách vai trò:', error.message);
-      return { members: [], staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false } };
-    }) : Promise.resolve({
-      members: [],
-      staffUsage: { used: 0, limit: 0, remaining: 0, canManage: false },
-      properties: [],
-      operations: []
-    }),
-    ownerWorkspace ? API.getElectronicInvoiceProfile().catch((error) => {
-      console.warn('Không tải được hồ sơ hóa đơn điện tử:', error.message);
-      return { profile: emptyElectronicInvoiceProfile() };
-    }) : Promise.resolve({ profile: emptyElectronicInvoiceProfile() })
+    }) : Promise.resolve({ maintenancePeriods: [] })
   ]);
   if (expectedGeneration !== _sessionGeneration ||
       expectedAccountContext !== API.getAccountContext() ||
@@ -11698,23 +11774,9 @@ async function startApp() {
     readOnly: !workspace.isOwner
   };
   applyServerEntitlements(entitlement);
-  SERVER_PLANS = Array.isArray(plansResult.plans) ? plansResult.plans : [];
-  SERVER_SUBSCRIPTION_PAYMENTS = Array.isArray(paymentsResult.payments)
-    ? paymentsResult.payments
-    : [];
   loadState(serverState);
-  RENT_BANK_ACCOUNTS = Array.isArray(bankAccountsResult.bankAccounts)
-    ? bankAccountsResult.bankAccounts
-    : [];
   applyRoomOperationalStatusPayload(maintenanceResult);
-  applyTeamMembersPayload(teamResult);
-  ELECTRONIC_INVOICE_PROFILE = electronicInvoiceProfileResult.profile
-    || emptyElectronicInvoiceProfile();
   setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
-  RENT_PAYMENT_CHANNELS = Array.isArray(channelsResult.channels) ? channelsResult.channels : [];
-  RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
-    ? bankTransactionsResult.transactions
-    : [];
   if (expectedGeneration !== _sessionGeneration ||
       expectedAccountContext !== API.getAccountContext() ||
       expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
@@ -11738,13 +11800,23 @@ async function startApp() {
     initTheme();
     navigate('dashboard');
   }
-  if (ownerWorkspace) {
-    const isCurrent = () => (
-      expectedGeneration === _sessionGeneration
-      && expectedAccountContext === API.getAccountContext()
-      && expectedWorkspaceId === API.getWorkspaceAccountId()
-    );
-    window.setTimeout(() => {
+  document.documentElement.dataset.appReady = 'true';
+  const isCurrent = () => (
+    expectedGeneration === _sessionGeneration
+    && expectedAccountContext === API.getAccountContext()
+    && expectedWorkspaceId === API.getWorkspaceAccountId()
+  );
+  window.setTimeout(() => {
+    if (!isCurrent()) return;
+    if (WORKSPACES_NEED_REFRESH) {
+      void refreshWorkspaceDirectory({ isCurrent }).catch((error) => {
+        if (isCurrent()) console.warn('Không làm mới được danh sách workspace:', error.message);
+      });
+    }
+    void loadDeferredWorkspaceData(workspace, { isCurrent }).catch((error) => {
+      if (isCurrent()) console.warn('Không tải được dữ liệu bổ sung:', error.message);
+    });
+    if (ownerWorkspace) {
       void ensureRentInvoicesSynced({ isCurrent }).then((synced) => {
         if (synced && isCurrent()) renderRentPaymentViews();
       }).catch((error) => {
@@ -11752,8 +11824,8 @@ async function startApp() {
         console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
         syncLegacyPaidFlagsFromLedger();
       });
-    }, 0);
-  }
+    }
+  }, 0);
 }
 
 // Hiện nút vào trang quản trị nếu tài khoản là admin
@@ -11765,17 +11837,12 @@ async function updateAdminEntry() {
     btn.classList.remove('show');
     return;
   }
-  try {
-    const me = await API.me();
-    if (me && me.isAdmin) {
-      btn.hidden = false;
-      btn.classList.add('show');
-    } else {
-      btn.hidden = true;
-      btn.classList.remove('show');
-    }
-  } catch (_) {
+  if (API.isSessionAdmin()) {
+    btn.hidden = false;
+    btn.classList.add('show');
+  } else {
     btn.hidden = true;
+    btn.classList.remove('show');
   }
 }
 

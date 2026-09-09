@@ -279,6 +279,7 @@ async function login(req, res) {
   await clearAccountRateLimit('login', email);
   setSessionCookie(res, user);
   return res.json({
+    accountUserId: Number(user.id),
     email: user.email,
     isAdmin: !!user.is_admin,
     accountContext: accountContextForUser(user.id, user.token_version)
@@ -323,6 +324,7 @@ async function verifyEmail(req, res) {
 
   setSessionCookie(res, user);
   return res.json({
+    accountUserId: Number(user.id),
     email: user.email,
     isAdmin: !!user.is_admin,
     verified: true,
