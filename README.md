@@ -226,39 +226,45 @@ khoản nên mọi JWT đã cấp trước đó mất hiệu lực ngay, bao g�
   mục đích thu thập bằng [thông báo mẫu](tenant-data-notice.html). Phiên bản
   thông báo và thời điểm xác nhận được lưu ở tenant.
 - CCCD được che mặc định với mọi tài khoản. Mỗi lần chủ tài khoản xem đầy đủ
-  đều gọi API theo đúng tenant ownership và ghi audit; admin vẫn phải nhập lý do.
+  đều gọi API theo đúng tenant ownership và ghi audit; Super Admin vẫn phải nhập lý do.
 - Thay đổi hoặc xóa hồ sơ khách thuê được phát hiện trong transaction lưu state;
   audit chỉ lưu tên trường thay đổi, không lưu giá trị cũ/mới hoặc CCCD.
 - Xuất dữ liệu và tự xóa tài khoản yêu cầu nhập lại mật khẩu, có rate limit và
   audit. File xuất gồm dữ liệu nghiệp vụ, CCCD đầy đủ và nhật ký truy cập của
-  chủ tài khoản/admin. Xóa tài khoản cascade dữ liệu khỏi database chính ngay lập tức.
+  chủ tài khoản/Super Admin. Xóa tài khoản cascade dữ liệu khỏi database chính ngay lập tức.
 - Backup mã hóa có thời hạn tối đa 30 ngày; audit tối giản giữ 365 ngày và được
   dọn tự động khi có hoạt động audit mới.
 
-## Tài khoản admin
+## Super Admin, chủ trọ và nhân viên
 
-Hệ thống có vai trò **admin** (cột `users.is_admin`). Admin xem được toàn bộ
-người dùng và dữ liệu trọ của họ.
+Hệ thống tách ba cấp quyền độc lập:
 
-**Tạo admin đầu tiên** (không thể tự phong qua web — phải chạy trên máy):
+- **Super Admin** quản trị toàn nền tảng và có thể xem các workspace khi thực
+  hiện hỗ trợ. Cột `users.is_admin` là tên legacy chỉ lưu cờ Super Admin.
+- **Owner (chủ trọ)** sở hữu một workspace, vào Cài đặt và quản lý dữ liệu, khu
+  và nhân viên của chính workspace đó. Owner không có quyền vào trang hệ thống.
+- **Nhân viên** giữ các vai trò `manager`, `accountant`, `meter_reader` và chỉ
+  truy cập khu/nghiệp vụ được Owner phân công.
+
+**Tạo Super Admin đầu tiên** (không có API hoặc nút cấp quyền trên web):
 
 ```bash
 cd server
-npm run make-admin -- you@example.com        # cấp quyền (đăng ký tài khoản này trước)
-npm run make-admin -- you@example.com off     # gỡ quyền
+npm run make-super-admin -- you@example.com       # cấp quyền (đăng ký trước)
+npm run make-super-admin -- you@example.com off   # gỡ quyền
 ```
 
-Sau khi được phong, **đăng nhập lại** để phiên mang cờ admin. Khi đó app hiện
+Sau khi được cấp, **đăng nhập lại**. Khi đó app hiện
 nút 🛡️ trên thanh nav → mở trang `admin.html`:
 
 - Liệt kê user (kèm số phòng, số lịch sử)
 - Xem dữ liệu trọ của từng user
-- Đổi mật khẩu, cấp/gỡ quyền admin, xoá user (cascade toàn bộ dữ liệu)
+- Đổi mật khẩu, xoá user (cascade toàn bộ dữ liệu)
 - CCCD bị che mặc định; chỉ xem từng CCCD đầy đủ sau khi nhập lý do hỗ trợ
-- Rà nhật ký xem CCCD gồm admin, tài khoản đích, khách thuê, lý do, thời gian và
+- Rà nhật ký xem CCCD gồm Super Admin, tài khoản đích, khách thuê, lý do, thời gian và
   dấu vân tay IP; log không chứa số CCCD
 
-Admin API (đều qua `requireAuth` + `requireAdmin`):
+API quản trị nền tảng (đều qua `requireAuth` + `requireSuperAdmin`):
 
 | Method | Đường dẫn                        | Mô tả                    |
 |--------|----------------------------------|--------------------------|
@@ -268,10 +274,11 @@ Admin API (đều qua `requireAuth` + `requireAdmin`):
 | GET    | `/api/admin/sensitive-access-logs` | Rà nhật ký xem CCCD    |
 | DELETE | `/api/admin/users/:id`           | Xoá user                 |
 | POST   | `/api/admin/users/:id/password`  | Đặt lại mật khẩu         |
-| POST   | `/api/admin/users/:id/admin`     | Bật/tắt quyền admin      |
 
-Ràng buộc an toàn: admin không thể tự xoá hay tự gỡ quyền của chính mình;
-`requireAdmin` kiểm tra lại DB mỗi request nên việc gỡ quyền có hiệu lực ngay.
+Ràng buộc an toàn: không thể đổi mật khẩu hoặc xóa bất kỳ Super Admin nào qua
+web; phải thu hồi quyền bằng CLI trước. Quyền Super Admin chỉ được cấp/thu hồi
+bằng CLI hoặc biến môi trường ở phía server.
+`requireSuperAdmin` kiểm tra lại DB mỗi request nên việc thu hồi có hiệu lực ngay.
 Các API dữ liệu thường chỉ dùng `req.userId` từ phiên đã xác thực. Postgres còn
 có khóa ngoại ghép `(user_id, room_id)` để tenant, biểu phí và hóa đơn không thể
 tham chiếu phòng của tài khoản khác.

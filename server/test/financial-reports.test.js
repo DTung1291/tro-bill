@@ -451,6 +451,6 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(cssSource, /\.occupancy-room-row\s*\{/);
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(indexSource, /style\.css\?v=131/);
-  assert.match(indexSource, /api\.js\?v=115/);
-  assert.match(indexSource, /app\.js\?v=137/);
+  assert.match(indexSource, /api\.js\?v=116/);
+  assert.match(indexSource, /app\.js\?v=138/);
 });

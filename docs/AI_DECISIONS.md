@@ -797,3 +797,26 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   đầy đủ và console sạch. Commits `c42019a` + `3f4695a`, CI `34317034949` và
   `34318766043`; deployment cuối `dpl_6egiSBnuuFJmJkBEPsaLK9EDEwVi`, không có
   migration.
+
+## D-048 — Super Admin nền tảng tách khỏi Owner workspace
+
+- **Trạng thái:** Đã triển khai local ngày 09/09/2026, chờ người dùng kiểm tra
+  và cho phép phát hành.
+- **Quyết định:** Quyền quản trị toàn nền tảng được gọi là **Super Admin** và
+  chỉ vai trò này vào `admin.html` hoặc `/api/admin/*`. Owner là chủ trọ sở hữu
+  workspace và tiếp tục quản lý Cài đặt, khu, dữ liệu và nhân viên của mình;
+  `manager`, `accountant`, `meter_reader` giữ phạm vi được Owner phân công.
+  Không tồn tại nút hoặc API web để cấp/thu hồi Super Admin; thao tác này chỉ
+  được thực hiện bằng biến môi trường bảo mật hoặc CLI `make-super-admin`.
+- **Lý do:** “Admin” trước đây vừa bị hiểu là chủ trọ vừa biểu thị quyền xem và
+  sửa toàn hệ thống. Cho phép một Super Admin cấp thêm Super Admin ngay trong
+  web làm tăng rủi ro leo thang đặc quyền và biến sai sót vận hành thành quyền
+  truy cập mọi workspace.
+- **Hệ quả:** API phiên dùng `isSuperAdmin`, middleware dùng
+  `requireSuperAdmin` và luôn kiểm tra lại database mỗi request. Cột
+  `users.is_admin` được giữ như tên legacy để rollout không cần migration; nó
+  chỉ còn mang nghĩa Super Admin. Các tài khoản đang có cờ này không bị tự động
+  thu hồi; phải kiểm kê và thu hồi thủ công sau khi xác nhận tài khoản
+  break-glass. Web cũng từ chối đổi mật khẩu hoặc xóa một Super Admin khác;
+  phải thu hồi cờ bằng CLI trước. Biến `ADMIN_*` cũ chỉ được seed đọc fallback để deployment hiện
+  tại không mất quyền truy cập trong lúc chuyển sang `SUPER_ADMIN_*`.

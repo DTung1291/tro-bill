@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            BIGSERIAL PRIMARY KEY,
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  -- Tên cột legacy; chỉ biểu thị Super Admin nền tảng, không phải Owner workspace.
   is_admin      BOOLEAN NOT NULL DEFAULT false,
   email_verified_at TIMESTAMPTZ,
   token_version INTEGER NOT NULL DEFAULT 0,

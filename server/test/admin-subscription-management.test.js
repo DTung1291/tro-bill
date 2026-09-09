@@ -56,6 +56,8 @@ test('danh sách user kèm gói hiện tại và trạng thái vòng đời từ
   assert.match(capturedSql, /LEFT JOIN subscriptions s ON s\.user_id=u\.id/);
   assert.match(capturedSql, /LEFT JOIN plans p ON p\.id=s\.plan_id/);
   assert.equal(response.record.headers['cache-control'], 'no-store');
+  assert.equal(response.record.body.users[0].isSuperAdmin, false);
+  assert.equal(Object.hasOwn(response.record.body.users[0], 'isAdmin'), false);
   assert.deepEqual(response.record.body.users[0].subscription, {
     id: 11,
     planCode: 'pro',
@@ -116,7 +118,7 @@ test('UI quản trị có form lý do, API thao tác và bảng audit gói', () 
   const adminSource = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
   const apiSource = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
   assert.match(html, /id="subscription-change-log-table"/);
-  assert.match(html, /api\.js\?v=79[\s\S]*admin\.js\?v=79/);
+  assert.match(html, /api\.js\?v=80[\s\S]*admin\.js\?v=80/);
   assert.match(adminSource, /id="admin-subscription-reason"/);
   assert.match(adminSource, /API\.admin\.startSubscriptionTrial/);
   assert.match(adminSource, /API\.admin\.changeSubscription/);

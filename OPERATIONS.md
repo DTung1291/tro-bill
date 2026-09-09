@@ -37,7 +37,21 @@ vercel curl /api/health/ready --deployment https://tro-bill-staging-dtung.vercel
 ```
 
 Không tắt Deployment Protection và không dùng staging để chứa dữ liệu người thuê
-thật. Preview không dùng tài khoản admin seed của production.
+thật. Preview không dùng tài khoản Super Admin seed của production.
+
+### Quyền quản trị nền tảng
+
+Super Admin là quyền vận hành toàn nền tảng, khác với Owner là chủ trọ sở hữu
+workspace. Không cấp Super Admin qua giao diện hoặc API. Dùng biến
+`SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` trong secret manager để seed tài
+khoản đầu tiên, hoặc chạy `npm run make-super-admin -- email@example.com` trong
+môi trường được phép truy cập database. Owner quản lý nhân viên bằng vai trò và
+phạm vi khu hiện có; không cần và không được cấp Super Admin cho nghiệp vụ này.
+
+Cột database `users.is_admin` được giữ như tên legacy để tránh migration rủi ro,
+nhưng chỉ mang nghĩa Super Admin. Trước khi thu hồi quyền cũ, phải kiểm kê tài
+khoản đang có `is_admin=true`, xác nhận tài khoản break-glass còn hoạt động và
+không đưa kết quả chứa email vào issue công khai.
 
 ### Role database của ứng dụng
 

@@ -14,7 +14,7 @@
     "check:environment": "node ../scripts/check-environment.js",
     "check:secrets": "node ../scripts/secret-scan.js --history",
     "init-db": "node init-db.js",
-    "make-admin": "node make-admin.js"
+    "make-super-admin": "node make-super-admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

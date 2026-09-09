@@ -18,12 +18,12 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
       body: {
         accountUserId: 7,
         email: 'a@example.com',
-        isAdmin: true,
+        isSuperAdmin: true,
         accountContext
       }
     },
     { ok: true, status: 200, body: { ok: true } },
-    { ok: true, status: 200, body: { email: 'b@example.com', isAdmin: false, accountContext: 'b'.repeat(64) } }
+    { ok: true, status: 200, body: { email: 'b@example.com', isSuperAdmin: false, accountContext: 'b'.repeat(64) } }
   ];
   const context = {
     console,
@@ -49,7 +49,7 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
   assert.equal(api.getAccountContext(), accountContext);
   assert.equal(api.getSessionAccountId(), 7);
   assert.equal(api.getSessionEmail(), 'a@example.com');
-  assert.equal(api.isSessionAdmin(), true);
+  assert.equal(api.isSessionSuperAdmin(), true);
   await api.putState({ rooms: [] });
   assert.equal(
     calls[1].options.headers['X-Trobill-Account-Context'],
@@ -66,7 +66,7 @@ test('API client gắn account context vào request dữ liệu nhưng vẫn cho
   api.clearSession();
   assert.equal(api.getSessionAccountId(), null);
   assert.equal(api.getSessionEmail(), '');
-  assert.equal(api.isSessionAdmin(), false);
+  assert.equal(api.isSessionSuperAdmin(), false);
 });
 
 test('API client dừng phiên ngay khi server phát hiện tab cũ', async () => {
@@ -114,6 +114,15 @@ test('giao diện hủy autosave và đồng bộ thay đổi phiên giữa các
   assert.match(appSource, /new BroadcastChannel\(AUTH_CHANNEL_NAME\)/);
   assert.match(appSource, /cancelPendingStateSave\(\);[\s\S]*API\.clearSession\(\);[\s\S]*clearSensitiveStateFromMemory\(\)/);
   assert.match(appSource, /expectedGeneration !== _sessionGeneration/);
+});
+
+test('client không cung cấp API cấp Super Admin từ trình duyệt', () => {
+  const apiSource = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
+  assert.doesNotMatch(apiSource, /setAdmin\s*:/);
+  assert.doesNotMatch(apiSource, /users\/\$\{id\}\/admin/);
+  assert.doesNotMatch(adminSource, /Cấp admin|Gỡ admin|toggleAdmin/);
+  assert.match(adminSource, /Quyền đặc biệt chỉ quản lý qua CLI/);
 });
 
 test('reload khóa dashboard cho đến khi server xác nhận phiên đăng nhập', () => {

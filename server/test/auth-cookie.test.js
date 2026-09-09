@@ -75,7 +75,8 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   const loginBody = await loginResponse.json();
   assert.equal(loginBody.accountUserId, 7);
   assert.equal(loginBody.email, 'owner@example.com');
-  assert.equal(loginBody.isAdmin, true);
+  assert.equal(loginBody.isSuperAdmin, true);
+  assert.equal(Object.hasOwn(loginBody, 'isAdmin'), false);
   assert.match(loginBody.accountContext, /^[a-f0-9]{64}$/);
   assert.equal(Object.hasOwn(loginBody, 'token'), false);
 
@@ -94,9 +95,28 @@ test('đăng nhập lưu JWT trong cookie HttpOnly và không trả token cho Ja
   assert.deepEqual(await meResponse.json(), {
     accountUserId: 7,
     email: 'owner@example.com',
-    isAdmin: true,
+    isSuperAdmin: true,
     accountContext: loginBody.accountContext
   });
+
+  const privilegeEscalationResponse = await fetch(
+    `${baseUrl}/api/admin/users/8/admin`,
+    {
+      method: 'POST',
+      headers: {
+        Cookie: cookie,
+        Origin: baseUrl,
+        'Content-Type': 'application/json',
+        'X-Trobill-Account-Context': loginBody.accountContext
+      },
+      body: JSON.stringify({ isSuperAdmin: true })
+    }
+  );
+  assert.equal(
+    privilegeEscalationResponse.status,
+    404,
+    'không tồn tại API web để cấp quyền Super Admin'
+  );
 
   const missingContextResponse = await fetch(`${baseUrl}/api/auth/logout-all`, {
     method: 'POST',

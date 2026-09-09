@@ -1,7 +1,7 @@
 'use strict';
 
 // ============================================================
-//  API dành cho admin — tất cả route dùng requireAuth + requireAdmin
+//  API dành cho Super Admin — tất cả route dùng requireAuth + requireSuperAdmin
 // ============================================================
 const bcrypt = require('bcryptjs');
 const db = require('./db');
@@ -38,7 +38,7 @@ async function listUsers(req, res) {
       return {
         id: Number(u.id),
         email: u.email,
-        isAdmin: !!u.is_admin,
+        isSuperAdmin: !!u.is_admin,
         createdAt: u.created_at,
         roomCount: Number(u.room_count) || 0,
         historyCount: Number(u.history_count) || 0,
@@ -172,10 +172,16 @@ async function deleteUser(req, res) {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-    const target = await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [id]);
+    const target = await client.query('SELECT id, is_admin FROM users WHERE id=$1 FOR UPDATE', [id]);
     if (target.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Không tìm thấy user' });
+    }
+    if (target.rows[0].is_admin) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Phải thu hồi quyền Super Admin bằng CLI trước khi xóa tài khoản này'
+      });
     }
     await recordDataAudit(client.query.bind(client), {
       actorUserId: req.userId,
@@ -207,24 +213,21 @@ async function resetPassword(req, res) {
 
   const hash = await bcrypt.hash(password, 10);
   const r = await db.query(
-    'UPDATE users SET password_hash=$1, token_version=token_version + 1 WHERE id=$2',
+    `UPDATE users
+     SET password_hash=$1, token_version=token_version + 1
+     WHERE id=$2 AND is_admin=false`,
     [hash, id]
   );
-  if (r.rowCount === 0) return res.status(404).json({ error: 'Không tìm thấy user' });
-  res.json({ ok: true });
-}
-
-// POST /api/admin/users/:id/admin — bật/tắt quyền admin
-async function setAdmin(req, res) {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const makeAdmin = !!req.body.isAdmin;
-  if (id === Number(req.userId) && !makeAdmin) {
-    return res.status(400).json({ error: 'Không thể tự gỡ quyền admin của chính mình' });
+  if (r.rowCount === 0) {
+    const target = await db.query('SELECT is_admin FROM users WHERE id=$1', [id]);
+    if (target.rows[0]?.is_admin) {
+      return res.status(400).json({
+        error: 'Không thể đổi mật khẩu Super Admin qua web'
+      });
+    }
+    return res.status(404).json({ error: 'Không tìm thấy user' });
   }
-  const r = await db.query('UPDATE users SET is_admin=$1 WHERE id=$2', [makeAdmin, id]);
-  if (r.rowCount === 0) return res.status(404).json({ error: 'Không tìm thấy user' });
-  res.json({ ok: true, isAdmin: makeAdmin });
+  res.json({ ok: true });
 }
 
 module.exports = {
@@ -233,6 +236,5 @@ module.exports = {
   revealTenantCccd,
   listSensitiveAccessLogs,
   deleteUser,
-  resetPassword,
-  setAdmin
+  resetPassword
 };

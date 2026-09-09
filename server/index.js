@@ -22,7 +22,7 @@ const {
   forgotPassword,
   resetPassword,
   requireAuth,
-  requireAdmin
+  requireSuperAdmin
 } = require('./auth');
 const { getState, putState } = require('./state');
 const admin = require('./admin');
@@ -33,7 +33,7 @@ const {
   setConfig,
   setSubscriptionPaymentConfig
 } = require('./config');
-const { seedAdmin } = require('./seed-admin');
+const { seedSuperAdmin } = require('./seed-admin');
 const subscription = require('./subscription');
 const { expiryReminderCron } = require('./subscription-notifications');
 const plans = require('./plans');
@@ -143,7 +143,7 @@ app.get('/api/public/plans', wrap(plans.listPublicPlans));
 app.get('/api/me', requireAuth, (req, res) => res.json({
   accountUserId: Number(req.userId),
   email: req.userEmail,
-  isAdmin: !!req.isAdmin,
+  isSuperAdmin: !!req.isSuperAdmin,
   accountContext: req.accountContext
 }));
 app.get('/api/subscription', requireAuth, wrap(subscription.getSubscription));
@@ -562,11 +562,11 @@ app.get('/api/privacy/audit-logs', requireAuth, wrap(privacy.listAuditLogs));
 app.post('/api/privacy/export', requireAuth, wrap(privacy.exportAccountData));
 app.delete('/api/account', requireAuth, wrap(privacy.deleteAccount));
 
-// Cấu hình toàn cục (thông tin ủng hộ): đọc công khai, ghi chỉ admin
+// Cấu hình toàn cục (thông tin ủng hộ): đọc khi đăng nhập, ghi chỉ Super Admin
 app.get('/api/config', requireAuth, wrap(getConfig));
 
-// ---------- API admin (requireAuth + requireAdmin) ----------
-const adminGuard = [requireAuth, wrap(requireAdmin)];
+// ---------- API quản trị nền tảng (requireAuth + requireSuperAdmin) ----------
+const adminGuard = [requireAuth, wrap(requireSuperAdmin)];
 app.get('/api/admin/users', adminGuard, wrap(admin.listUsers));
 app.get('/api/admin/users/:id/state', adminGuard, wrap(admin.getUserState));
 app.post(
@@ -602,7 +602,6 @@ app.post(
 );
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));
-app.post('/api/admin/users/:id/admin', adminGuard, wrap(admin.setAdmin));
 app.get('/api/admin/config', adminGuard, wrap(getAdminConfig));
 app.put('/api/admin/config', adminGuard, wrap(setConfig));
 app.put('/api/admin/config/subscription-payment', adminGuard, wrap(setSubscriptionPaymentConfig));
@@ -676,14 +675,14 @@ if (require.main === module) {
   app.listen(PORT, async () => {
     console.log(`✅ TrọBill chạy tại http://localhost:${PORT}`);
     try {
-      await seedAdmin();
+      await seedSuperAdmin();
     } catch (e) {
-      console.error('⚠️  Seed admin lỗi:', e.message);
+      console.error('⚠️  Seed Super Admin lỗi:', e.message);
     }
   });
 } else if (process.env.VERCEL) {
-  // Seed idempotent trên cold start để ADMIN_EMAIL vẫn hoạt động trên Vercel.
-  seedAdmin().catch((e) => console.error('⚠️  Seed admin lỗi:', e.message));
+  // Seed idempotent trên cold start; biến ADMIN_* cũ vẫn được hỗ trợ tương thích.
+  seedSuperAdmin().catch((e) => console.error('⚠️  Seed Super Admin lỗi:', e.message));
 }
 
 module.exports = app;

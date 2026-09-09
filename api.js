@@ -11,7 +11,7 @@ const API = (() => {
   let accountContext = '';
   let sessionAccountId = null;
   let sessionEmail = '';
-  let sessionAdmin = false;
+  let sessionSuperAdmin = false;
   let workspaceAccountId = null;
   let sessionMismatchHandler = null;
   let sessionMismatchNotified = false;
@@ -27,7 +27,7 @@ const API = (() => {
     accountContext = '';
     sessionAccountId = null;
     sessionEmail = '';
-    sessionAdmin = false;
+    sessionSuperAdmin = false;
     workspaceAccountId = null;
     sessionMismatchNotified = false;
   }
@@ -48,8 +48,8 @@ const API = (() => {
     return sessionEmail;
   }
 
-  function isSessionAdmin() {
-    return sessionAdmin;
+  function isSessionSuperAdmin() {
+    return sessionSuperAdmin;
   }
 
   function getWorkspaceAccountId() {
@@ -74,7 +74,7 @@ const API = (() => {
       ? nextAccountId
       : null;
     sessionEmail = String(session && session.email || '');
-    sessionAdmin = session && session.isAdmin === true;
+    sessionSuperAdmin = session && session.isSuperAdmin === true;
     workspaceAccountId = null;
     sessionActive = true;
     sessionMismatchNotified = false;
@@ -748,7 +748,6 @@ const API = (() => {
     getUserState: (id) => request('GET', `/api/admin/users/${id}/state`),
     deleteUser: (id, reason) => request('DELETE', `/api/admin/users/${id}`, { reason }),
     resetPassword: (id, password) => request('POST', `/api/admin/users/${id}/password`, { password }),
-    setAdmin: (id, isAdmin) => request('POST', `/api/admin/users/${id}/admin`, { isAdmin }),
     startSubscriptionTrial: (id, input) => request(
       'POST',
       `/api/admin/users/${id}/subscription/trial`,
@@ -812,7 +811,7 @@ const API = (() => {
     getAccountContext,
     getSessionAccountId,
     getSessionEmail,
-    isSessionAdmin,
+    isSessionSuperAdmin,
     getWorkspaceAccountId,
     setWorkspaceAccountId,
     adoptSession,

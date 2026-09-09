@@ -1,7 +1,7 @@
 /**
  * TrọBill — admin.js
- * Trang quản trị: liệt kê user, xem dữ liệu, xoá, reset mật khẩu, bật/tắt admin.
- * Yêu cầu cookie phiên của một tài khoản có is_admin = true.
+ * Trang Super Admin: liệt kê user, hỗ trợ dữ liệu, gói và vận hành nền tảng.
+ * Quyền Super Admin chỉ được cấp ngoài web bằng CLI/biến môi trường bảo mật.
  */
 'use strict';
 
@@ -91,7 +91,7 @@
     } catch (e) {
       if (e.code === 401) return gotoLogin();
       if (e.code === 403) {
-        showMsg('Tài khoản này không có quyền admin.', true);
+        showMsg('Tài khoản này không có quyền Super Admin.', true);
         return;
       }
       return showMsg(e.message || 'Không tải được danh sách', true);
@@ -169,17 +169,21 @@
         <td data-label="Gói hiện tại" class="admin-subscription-cell">${subscriptionCell(u.subscription)}</td>
         <td data-label="Phòng">${u.roomCount}</td>
         <td data-label="Lịch sử">${u.historyCount}</td>
-        <td data-label="Admin">${u.isAdmin ? '✔' : ''}</td>
+        <td data-label="Super Admin">${u.isSuperAdmin ? '✔' : ''}</td>
         <td data-label="Tạo lúc" class="admin-user-created-at">${esc(fmtDate(u.createdAt))}</td>
         <td data-label="Thao tác" class="admin-actions"><div class="admin-action-list"></div></td>`;
       const cell = tr.querySelector('.admin-action-list');
       cell.appendChild(btn('Quản lý gói', 'admin-btn', () => openSubscriptionManager(u)));
       cell.appendChild(btn('Xem', 'admin-btn', () => viewUser(u)));
-      cell.appendChild(btn('Đổi MK', 'admin-btn-ghost', () => resetPw(u)));
-      cell.appendChild(
-        btn(u.isAdmin ? 'Gỡ admin' : 'Cấp admin', 'admin-btn-ghost', () => toggleAdmin(u))
-      );
-      cell.appendChild(btn('Xoá', 'admin-btn-danger', () => removeUser(u)));
+      if (u.isSuperAdmin) {
+        const protectedNote = document.createElement('span');
+        protectedNote.className = 'admin-cell-note';
+        protectedNote.textContent = 'Quyền đặc biệt chỉ quản lý qua CLI';
+        cell.appendChild(protectedNote);
+      } else {
+        cell.appendChild(btn('Đổi MK', 'admin-btn-ghost', () => resetPw(u)));
+        cell.appendChild(btn('Xoá', 'admin-btn-danger', () => removeUser(u)));
+      }
       tbody.appendChild(tr);
     }
     table.hidden = users.length === 0;
@@ -215,17 +219,6 @@
     try {
       await API.admin.resetPassword(u.id, pw);
       showMsg(`Đã đổi mật khẩu cho ${u.email}.`, false);
-    } catch (e) {
-      handleErr(e);
-    }
-  }
-
-  async function toggleAdmin(u) {
-    const next = !u.isAdmin;
-    if (!confirm(`${next ? 'Cấp' : 'Gỡ'} quyền admin cho "${u.email}"?`)) return;
-    try {
-      await API.admin.setAdmin(u.id, next);
-      loadUsers();
     } catch (e) {
       handleErr(e);
     }
@@ -345,7 +338,7 @@
     });
   }
 
-  // ---------- Admin cấp dùng thử / nâng gói / gia hạn ----------
+  // ---------- Super Admin cấp dùng thử / nâng gói / gia hạn ----------
   const manualChangeActionLabels = {
     trial_started: 'Cấp dùng thử',
     subscription_upgraded: 'Cấp / nâng gói',
@@ -758,7 +751,7 @@
     if (!payment.settlement) return '<span class="admin-cell-note">Chưa có giao dịch</span>';
     const confirmation = payment.confirmation;
     const source = confirmation?.method === 'manual_admin'
-      ? `Thủ công bởi ${confirmation.actorEmail || 'admin'}`
+      ? `Thủ công bởi ${confirmation.actorEmail || 'Super Admin'}`
       : 'Webhook tự động';
     return `<code>${esc(payment.settlement.reference)}</code>` +
       `<br><span class="admin-cell-note">${esc(source)}</span>`;
@@ -1105,7 +1098,7 @@
         <td>${request.requestType === 'mistaken_transfer' ? 'Chuyển nhầm' : 'Hoàn tiền'}</td>
         <td>${fmtVND(request.requestedAmountVnd)}</td>
         <td><span class="admin-refund-status admin-refund-status--${esc(request.status)}">${esc(refundStatusLabels[request.status] || request.status)}</span></td>
-        <td><div class="admin-refund-detail">${esc(request.reason)}</div>${request.adminNote ? `<div class="admin-cell-note">Admin: ${esc(request.adminNote)}</div>` : ''}${request.refundReference ? `<div class="admin-cell-note">Mã hoàn: <code>${esc(request.refundReference)}</code></div>` : ''}</td>
+        <td><div class="admin-refund-detail">${esc(request.reason)}</div>${request.adminNote ? `<div class="admin-cell-note">Super Admin: ${esc(request.adminNote)}</div>` : ''}${request.refundReference ? `<div class="admin-cell-note">Mã hoàn: <code>${esc(request.refundReference)}</code></div>` : ''}</td>
         <td class="admin-actions"><div class="admin-action-list"></div></td>`;
       const actions = row.querySelector('.admin-action-list');
       if (request.status === 'pending') {
@@ -1161,7 +1154,7 @@
   });
   $('#admin-logout').addEventListener('click', gotoLogin);
 
-  // Xác định account context trước khi gọi các API admin. Mọi thao tác ghi sau
+  // Xác định account context trước khi gọi các API Super Admin. Mọi thao tác ghi sau
   // đó sẽ bị server từ chối nếu cookie đã được một tab khác đổi tài khoản.
   (async () => {
     try {

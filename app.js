@@ -9430,7 +9430,7 @@ const AUDIT_ACTION_LABELS = {
   policy_accept: 'Đồng ý chính sách',
   tenant_sensitive_create: 'Tạo hồ sơ khách thuê',
   tenant_sensitive_view: 'Xem CCCD đầy đủ',
-  admin_tenant_sensitive_view: 'Admin xem CCCD để hỗ trợ',
+  admin_tenant_sensitive_view: 'Super Admin xem CCCD để hỗ trợ',
   tenant_sensitive_update: 'Sửa dữ liệu khách thuê',
   tenant_sensitive_delete: 'Xóa dữ liệu khách thuê',
   account_data_export: 'Xuất dữ liệu tài khoản',
@@ -11850,7 +11850,7 @@ async function startApp() {
   }, 0);
 }
 
-// Hiện nút vào trang quản trị nếu tài khoản là admin
+// Chỉ hiện trang quản trị nền tảng cho phiên Super Admin.
 async function updateAdminEntry() {
   const btn = document.getElementById('admin-entry');
   if (!btn) return;
@@ -11859,7 +11859,7 @@ async function updateAdminEntry() {
     btn.classList.remove('show');
     return;
   }
-  if (API.isSessionAdmin()) {
+  if (API.isSessionSuperAdmin()) {
     btn.hidden = false;
     btn.classList.add('show');
   } else {

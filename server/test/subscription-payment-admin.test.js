@@ -251,7 +251,7 @@ test('route và UI chỉ cho admin xác nhận, có đủ trường đối soát
   assert.match(html, /id="subscription-payment-admin-section"/);
   assert.match(html, /class="admin-table-wrap">[\s\S]*class="admin-subtable admin-refund-table" id="subscription-payment-admin-table"/);
   assert.match(html, /style\.css\?v=78/);
-  assert.match(html, /api\.js\?v=79[\s\S]*admin\.js\?v=79/);
+  assert.match(html, /api\.js\?v=80[\s\S]*admin\.js\?v=80/);
   assert.match(adminSource, /id="admin-payment-transaction-reference"/);
   assert.match(adminSource, /id="admin-payment-paid-at"/);
   assert.match(adminSource, /id="admin-payment-confirm-reason"/);

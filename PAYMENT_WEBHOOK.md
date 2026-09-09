@@ -85,7 +85,7 @@ database staging để kiểm thử adapter trước khi kết nối nguồn gia
 
 ## Đối soát thủ công khi webhook thiếu hoặc chậm
 
-Admin có thể mở **Đối soát thanh toán gói** để xác nhận một đơn đang `pending`
+Super Admin có thể mở **Đối soát thanh toán gói** để xác nhận một đơn đang `pending`
 sau khi kiểm tra tiền thực nhận trên ứng dụng/ngân hàng. Thao tác bắt buộc nhập
 mã giao dịch, thời điểm nhận tiền và lý do hỗ trợ. Server chỉ chấp nhận giao dịch
 nằm trong thời hạn của đơn, khi subscription vẫn đúng trạng thái lúc tạo đơn.

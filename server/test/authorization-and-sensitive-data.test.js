@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const app = require('../index');
 const { buildState, putState } = require('../state');
-const { revealTenantCccd } = require('../admin');
+const { deleteUser, resetPassword: resetUserPassword, revealTenantCccd } = require('../admin');
 
 function listen(serverApp) {
   return new Promise((resolve, reject) => {
@@ -99,7 +99,6 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
     ['GET', '/api/admin/users/2/state'],
     ['DELETE', '/api/admin/users/2'],
     ['POST', '/api/admin/users/2/password'],
-    ['POST', '/api/admin/users/2/admin'],
     ['POST', '/api/admin/users/2/subscription/trial'],
     ['POST', '/api/admin/users/2/subscription/change'],
     ['GET', '/api/admin/subscription/manual-change-logs'],
@@ -125,7 +124,7 @@ test('mọi API dữ liệu đều từ chối request chưa đăng nhập', asy
   }
 });
 
-test('tài khoản thường không thể gọi API admin', async (t) => {
+test('tài khoản thường không thể gọi API Super Admin', async (t) => {
   const originalQuery = db.query;
   db.query = async (sql) => {
     if (sql.includes('SELECT email, is_admin, token_version FROM users')) {
@@ -150,6 +149,57 @@ test('tài khoản thường không thể gọi API admin', async (t) => {
   });
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: 'Không đủ quyền' });
+});
+
+test('không thể đổi mật khẩu hoặc xóa Super Admin khác qua web', async (t) => {
+  const originalQuery = db.query;
+  const originalGetClient = db.getClient;
+  let deleteAttempted = false;
+  t.after(() => {
+    db.query = originalQuery;
+    db.getClient = originalGetClient;
+  });
+
+  db.query = async (sql) => {
+    if (sql.includes('UPDATE users') && sql.includes('is_admin=false')) {
+      return { rowCount: 0, rows: [] };
+    }
+    if (sql.includes('SELECT is_admin FROM users')) {
+      return { rowCount: 1, rows: [{ is_admin: true }] };
+    }
+    throw new Error(`Truy vấn đổi mật khẩu không mong đợi: ${sql}`);
+  };
+
+  const passwordResponse = responseRecorder();
+  await resetUserPassword({
+    params: { id: '8' },
+    body: { password: 'matkhau-moi' }
+  }, passwordResponse.res);
+  assert.equal(passwordResponse.record.statusCode, 400);
+  assert.match(passwordResponse.record.body.error, /Super Admin/);
+
+  const client = {
+    async query(sql) {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return { rows: [] };
+      if (sql.includes('SELECT id, is_admin FROM users')) {
+        return { rowCount: 1, rows: [{ id: 8, is_admin: true }] };
+      }
+      if (sql.includes('DELETE FROM users')) deleteAttempted = true;
+      throw new Error(`Truy vấn xóa không mong đợi: ${sql}`);
+    },
+    release() {}
+  };
+  db.getClient = async () => client;
+
+  const deleteResponse = responseRecorder();
+  await deleteUser({
+    params: { id: '8' },
+    body: { reason: 'Thu hồi tài khoản đặc quyền không còn sử dụng' },
+    userId: 7
+  }, deleteResponse.res);
+  assert.equal(deleteResponse.record.statusCode, 400);
+  assert.match(deleteResponse.record.body.error, /CLI/);
+  assert.equal(deleteAttempted, false);
 });
 
 test('admin chỉ nhận CCCD đã che khi xem state', async (t) => {

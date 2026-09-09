@@ -50,7 +50,6 @@ function signToken(user) {
     {
       uid: user.id,
       email: user.email,
-      admin: !!user.is_admin,
       ver: Number(user.token_version || 0)
     },
     JWT_SECRET,
@@ -281,7 +280,7 @@ async function login(req, res) {
   return res.json({
     accountUserId: Number(user.id),
     email: user.email,
-    isAdmin: !!user.is_admin,
+    isSuperAdmin: !!user.is_admin,
     accountContext: accountContextForUser(user.id, user.token_version)
   });
 }
@@ -326,7 +325,7 @@ async function verifyEmail(req, res) {
   return res.json({
     accountUserId: Number(user.id),
     email: user.email,
-    isAdmin: !!user.is_admin,
+    isSuperAdmin: !!user.is_admin,
     verified: true,
     accountContext: accountContextForUser(user.id, user.token_version)
   });
@@ -512,7 +511,7 @@ async function requireAuth(req, res, next) {
     }
     req.userId = payload.uid;
     req.userEmail = user.email;
-    req.isAdmin = !!user.is_admin;
+    req.isSuperAdmin = !!user.is_admin;
     req.accountContext = accountContextForUser(payload.uid, user.token_version);
     const submittedContext = req.get('x-trobill-account-context');
     if ((submittedContext || isMutationRequest(req)) &&
@@ -528,9 +527,9 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// Middleware: chỉ cho admin. Dùng SAU requireAuth.
+// Middleware: chỉ cho Super Admin nền tảng. Dùng SAU requireAuth.
 // Kiểm tra lại DB (không tin cờ trong token) để việc thu hồi quyền có hiệu lực ngay.
-async function requireAdmin(req, res, next) {
+async function requireSuperAdmin(req, res, next) {
   try {
     const { rows } = await db.query('SELECT is_admin FROM users WHERE id=$1', [req.userId]);
     if (!rows[0] || !rows[0].is_admin) {
@@ -553,5 +552,5 @@ module.exports = {
   resetPassword,
   clearSessionCookie,
   requireAuth,
-  requireAdmin
+  requireSuperAdmin
 };

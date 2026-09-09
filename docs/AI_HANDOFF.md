@@ -9,12 +9,12 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành tối ưu startup hai pha; Production đo trung vị 4,36 giây tới dữ liệu đầu, dữ liệu nền và console sạch |
+| Trạng thái | Đã triển khai và kiểm thử local việc tách Super Admin khỏi Owner; chờ người dùng kiểm tra trước khi commit/phát hành |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu hiệu năng; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `3f4695a` — owner bỏ vòng workspace, chỉ chờ dữ liệu dashboard cốt lõi; phần phụ nạp nền có context guard |
-| Việc code tiếp theo | Sau smoke test payment, quay lại Giai đoạn 0; không tự kết luận vấn đề/thông điệp khi chưa đủ 10 phỏng vấn đúng mẫu |
-| Việc vận hành còn mở | Smoke test một đơn pending; nối provider thanh toán thật; tuyển/phỏng vấn 10 chủ trọ; `OPS_ALERT_WEBHOOK_URL` tùy chọn; adapter HĐĐT chờ provider |
+| Worktree kỳ vọng | Có thay đổi local Super Admin chưa commit; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `abba711` — căn đều nhóm nút biên nhận subscription; thay đổi Super Admin chưa phát hành |
+| Việc code tiếp theo | Cho người dùng kiểm tra Owner/Super Admin rồi mới commit/push khi được phép |
+| Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
@@ -94,6 +94,18 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Thay đổi local đang chờ phát hành: tách rõ Super Admin nền tảng khỏi Owner chủ
+  trọ và các vai trò nhân viên. Login, xác minh email và `/api/me` trả
+  `isSuperAdmin`; client chỉ hiện lối vào `admin.html` cho cờ này; middleware
+  `requireSuperAdmin` kiểm tra lại cột legacy `users.is_admin` mỗi request.
+  Endpoint/nút cấp-gỡ quyền trên web đã bị xóa; CLI mới là
+  `npm run make-super-admin`; web cũng chặn đổi mật khẩu/xóa Super Admin khác.
+  Seed ưu tiên `SUPER_ADMIN_*` nhưng tạm đọc fallback
+  `ADMIN_*` để không khóa deployment hiện hữu. Không có migration, không tự thu
+  hồi tài khoản hiện tại. Full suite đạt 469/469 sau chốt bảo vệ tài khoản đặc
+  quyền; secret scan sạch và diff check sạch. Chưa commit, push, deploy hoặc chạy
+  thay đổi database từ xa.
 
 - `c42019a` + `3f4695a`: tối ưu đường tải từ đăng nhập/reload tới dữ liệu đầu.
   Đồng bộ ledger không còn chặn render, chỉ chạy khi thiếu invoice, cờ paid cũ,

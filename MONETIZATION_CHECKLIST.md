@@ -152,7 +152,7 @@ Trạng thái ngày 24/08/2026:
 - [x] Tự động kích hoạt hoặc gia hạn gói sau khi thanh toán thành công.
 - [x] Có lịch sử thanh toán và biên nhận cho chủ trọ.
 - [x] Có quy trình hoàn tiền hoặc xử lý thanh toán nhầm.
-  Admin có bảng đối soát payment `pending` và có thể xác nhận thủ công sau khi
+  Super Admin có bảng đối soát payment `pending` và có thể xác nhận thủ công sau khi
   kiểm tra tiền thực nhận. Mã giao dịch dùng chung khóa idempotency với webhook;
   xác nhận, cập nhật gói và audit nằm trong cùng transaction. Người dùng có nút
   báo đã chuyển để yêu cầu kiểm tra nhưng không thể tự đổi trạng thái payment.
@@ -164,12 +164,12 @@ Trạng thái ngày 24/08/2026:
 - [x] Hiển thị doanh thu tháng, doanh thu năm và doanh thu định kỳ.
 - [x] Hiển thị tỷ lệ dùng thử chuyển thành trả phí.
 - [x] Hiển thị số gói sắp hết hạn cần chăm sóc.
-- [x] Cho phép admin gia hạn hoặc cấp gói có ghi rõ lý do và audit log.
+- [x] Cho phép Super Admin gia hạn hoặc cấp gói có ghi rõ lý do và audit log.
 
   Trang quản trị hiển thị gói hiện tại của từng tài khoản, chỉ đưa ra thao tác
   dùng thử/nâng gói/gia hạn phù hợp và bắt buộc xác nhận lý do 10–500 ký tự.
   Cập nhật subscription và ghi `subscription_change_logs` chạy trong cùng
-  transaction; bảng nhật ký admin chỉ trả metadata chu kỳ hoặc số ngày trial.
+  transaction; bảng nhật ký Super Admin chỉ trả metadata chu kỳ hoặc số ngày trial.
 
 ### Hoàn thành giai đoạn khi
 

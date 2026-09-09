@@ -156,7 +156,8 @@ test('đăng ký lưu hash token, không đăng nhập trước khi xác minh v�
   assert.equal(verification.record.statusCode, 200);
   assert.equal(verification.record.body.accountUserId, 9);
   assert.equal(verification.record.body.email, 'new@example.com');
-  assert.equal(verification.record.body.isAdmin, false);
+  assert.equal(verification.record.body.isSuperAdmin, false);
+  assert.equal(Object.hasOwn(verification.record.body, 'isAdmin'), false);
   assert.equal(verification.record.body.verified, true);
   assert.match(verification.record.body.accountContext, /^[a-f0-9]{64}$/);
   assert.equal(verification.record.cookie.name, 'trobill_session');

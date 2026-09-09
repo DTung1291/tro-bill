@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TrọBill — Quản trị</title>
+  <title>TrọBill — Super Admin</title>
   <link rel="stylesheet" href="style.css?v=78" />
 </head>
 <body>
   <div class="admin-wrap">
     <header class="admin-header">
-      <h1>Quản trị người dùng</h1>
+      <h1>Super Admin · Quản trị hệ thống</h1>
       <div class="admin-header-actions">
         <a href="index.html" class="admin-link">← Về ứng dụng</a>
         <button id="admin-logout" class="admin-btn-ghost">Đăng xuất</button>
@@ -203,14 +203,14 @@
     <section class="admin-config" id="admin-users-section">
       <h2>👥 Tài khoản và gói dịch vụ</h2>
       <p class="admin-config-note">
-        Cấp dùng thử, nâng gói hoặc gia hạn thủ công chỉ dành cho trường hợp hỗ trợ đã được xác minh. Mọi thao tác bắt buộc có lý do và được ghi nhật ký.
+        Chủ trọ là Owner của workspace; nhân viên dùng quyền được phân công. Super Admin là quyền nền tảng và không thể cấp từ trang này. Cấp dùng thử, nâng gói hoặc gia hạn thủ công chỉ dành cho trường hợp hỗ trợ đã được xác minh.
       </p>
       <div class="admin-table-wrap">
         <table class="admin-table admin-users-table" id="admin-table" hidden>
           <thead>
             <tr>
               <th>ID</th><th>Email</th><th>Gói hiện tại</th><th>Phòng</th><th>Lịch sử</th>
-              <th>Admin</th><th>Tạo lúc</th><th>Thao tác</th>
+              <th>Super Admin</th><th>Tạo lúc</th><th>Thao tác</th>
             </tr>
           </thead>
           <tbody id="admin-tbody"></tbody>
@@ -229,7 +229,7 @@
       <div class="admin-table-wrap">
         <table class="admin-subtable admin-subscription-log-table" id="subscription-change-log-table" hidden>
           <thead>
-            <tr><th>Thời gian</th><th>Admin</th><th>Tài khoản</th><th>Thao tác</th><th>Thay đổi</th><th>Lý do</th></tr>
+            <tr><th>Thời gian</th><th>Super Admin</th><th>Tài khoản</th><th>Thao tác</th><th>Thay đổi</th><th>Lý do</th></tr>
           </thead>
           <tbody id="subscription-change-log-tbody"></tbody>
         </table>
@@ -245,7 +245,7 @@
       <div class="admin-table-wrap">
         <table class="admin-subtable" id="sensitive-audit-table" hidden>
           <thead>
-            <tr><th>Thời gian</th><th>Admin</th><th>Tài khoản</th><th>Khách thuê</th><th>Lý do</th><th>Dấu vân tay IP</th></tr>
+            <tr><th>Thời gian</th><th>Super Admin</th><th>Tài khoản</th><th>Khách thuê</th><th>Lý do</th><th>Dấu vân tay IP</th></tr>
           </thead>
           <tbody id="sensitive-audit-tbody"></tbody>
         </table>
@@ -265,7 +265,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=79"></script>
-  <script src="admin.js?v=79"></script>
+  <script src="api.js?v=80"></script>
+  <script src="admin.js?v=80"></script>
 </body>
 </html>
