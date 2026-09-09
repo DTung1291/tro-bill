@@ -240,6 +240,9 @@ function summaryJson(row, options = {}) {
     debtAgeBucket: debtAge.bucket,
     status,
     transactionCount: Number(row.transaction_count) || 0,
+    detailSnapshot: row.detail_snapshot && typeof row.detail_snapshot === 'object'
+      ? row.detail_snapshot
+      : {},
     lastPaymentAt: row.last_payment_at || null,
     issuedAt: row.issued_at,
     updatedAt: row.updated_at
@@ -253,6 +256,7 @@ const SUMMARY_SELECT = `
            AS bank_account_id,
          COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd,
          i.issued_total_vnd AS original_issued_total_vnd,
+         i.detail_snapshot,
          i.finalized_at, i.finalization_contract_id, i.issued_at, i.updated_at,
          COALESCE(SUM(t.amount_vnd), 0) AS paid_amount_vnd,
          COUNT(t.id)::int AS transaction_count,

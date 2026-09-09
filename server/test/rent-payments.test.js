@@ -105,7 +105,8 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
     paid_amount_vnd: '500000',
     prior_debt_vnd: '700000',
     prior_unpaid_invoice_count: 2,
-    oldest_unpaid_period: '2026-06'
+    oldest_unpaid_period: '2026-06',
+    detail_snapshot: { rentAmountVnd: 1500000, electricAmountVnd: 500000 }
   }), { now: '2026-08-25T05:00:00.000Z' });
   assert.equal(summary.invoiceTotalVnd, 2000000);
   assert.equal(summary.remainingVnd, 1500000);
@@ -118,6 +119,10 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
   assert.equal(summary.overdueDays, 56);
   assert.equal(summary.debtAgeBucket, 'overdue_31_plus');
   assert.equal(summary.transferContent, 'HD00000015');
+  assert.deepEqual(summary.detailSnapshot, {
+    rentAmountVnd: 1500000,
+    electricAmountVnd: 500000
+  });
   assert.equal(receiptCode(60, '2026-08'), 'PT-202608-00001O');
 });
 
@@ -844,5 +849,26 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=133/);
+  assert.match(htmlSource, /app\.js\?v=134/);
+});
+
+test('khởi động hiển thị dữ liệu trước và chỉ đồng bộ ledger cần thiết ở nền', () => {
+  const root = path.join(__dirname, '..', '..');
+  const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const startAppSource = appSource.slice(
+    appSource.indexOf('async function startApp()'),
+    appSource.indexOf('// Hiện nút vào trang quản trị')
+  );
+
+  assert.doesNotMatch(startAppSource, /await syncRentInvoicesWithLedger\(\)/);
+  assert.ok(
+    startAppSource.indexOf('showAuthScreen(false)')
+      < startAppSource.indexOf('window.setTimeout(() =>')
+  );
+  assert.match(startAppSource, /window\.setTimeout\(\(\) => \{[\s\S]*void ensureRentInvoicesSynced\(\{ isCurrent \}\)/);
+  assert.match(appSource, /!rentInvoiceSyncNeeded\(\)\) return false/);
+  assert.match(appSource, /rentInvoiceSyncContextIsCurrent\(options\)/);
+  assert.match(appSource, /entry\.legacyPaid && Number\(invoice\.transactionCount\) === 0/);
+  assert.match(appSource, /canonicalRentInvoiceDetail\(serverDetail\) !== canonicalRentInvoiceDetail\(entryDetail\)/);
+  assert.match(appSource, /RENT_INVOICE_SYNC_PROMISE === activePromise/);
 });

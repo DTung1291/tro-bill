@@ -1901,6 +1901,7 @@ function rentInvoicesForSync() {
         roomName: bill.roomName || '',
         period: history.period,
         invoiceTotalVnd: Math.round(Number(bill.total)),
+        legacyPaid: bill.paid === true,
         detail: historicalInvoiceDetail(bill, history.period)
       });
     }
@@ -1917,6 +1918,7 @@ function rentInvoicesForSync() {
         roomName: room.name || '',
         period,
         invoiceTotalVnd: Math.round(Number(bill.total)),
+        legacyPaid: rec.paid === true,
         detail: currentInvoiceDetail(room, rec, bill, period)
       });
     }
@@ -1924,44 +1926,83 @@ function rentInvoicesForSync() {
   return [...entries.values()];
 }
 
-async function refreshRentInvoiceSummaries() {
+function rentInvoiceSyncContextIsCurrent(options = {}) {
+  return typeof options.isCurrent !== 'function' || options.isCurrent();
+}
+
+async function refreshRentInvoiceSummaries(options = {}) {
+  if (!rentInvoiceSyncContextIsCurrent(options)) return null;
   const result = await API.getRentPaymentSummaries();
+  if (!rentInvoiceSyncContextIsCurrent(options)) return null;
   setRentInvoiceSummaries(result.invoices || []);
   syncLegacyPaidFlagsFromLedger();
   return result.invoices || [];
 }
 
-async function syncRentInvoicesWithLedger() {
+async function syncRentInvoicesWithLedger(options = {}) {
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
   const entries = rentInvoicesForSync();
   if (entries.length === 0) {
     syncLegacyPaidFlagsFromLedger();
-    return;
+    return false;
   }
   for (let index = 0; index < entries.length; index += 250) {
+    if (!rentInvoiceSyncContextIsCurrent(options)) return false;
     await API.syncRentInvoices(entries.slice(index, index + 250));
   }
-  await refreshRentInvoiceSummaries();
+  if (!rentInvoiceSyncContextIsCurrent(options)) return false;
+  const refreshed = await refreshRentInvoiceSummaries(options);
+  return refreshed !== null;
 }
 
 function rentInvoiceSyncNeeded() {
   return rentInvoicesForSync().some((entry) => {
     const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(entry.roomId, entry.period));
     if (!invoice) return true;
+    if (entry.legacyPaid && Number(invoice.transactionCount) === 0) return true;
     if (invoice.finalizedAt) return false;
-    return Number(invoice.transactionCount) === 0
-      && Number(invoice.invoiceTotalVnd) !== Number(entry.invoiceTotalVnd);
+    const transactionCount = Number(invoice.transactionCount) || 0;
+    const totalChanged = Number(invoice.invoiceTotalVnd) !== Number(entry.invoiceTotalVnd);
+    const serverDetail = invoice.detailSnapshot && typeof invoice.detailSnapshot === 'object'
+      ? invoice.detailSnapshot
+      : {};
+    const entryDetail = entry.detail && typeof entry.detail === 'object' ? entry.detail : {};
+    const serverHasDetail = Object.keys(serverDetail).length > 0;
+    const entryHasDetail = Object.keys(entryDetail).length > 0;
+    const detailChanged = entryHasDetail
+      && canonicalRentInvoiceDetail(serverDetail) !== canonicalRentInvoiceDetail(entryDetail);
+    const canBackfillDetail = !serverHasDetail && entryHasDetail && !totalChanged;
+    return canBackfillDetail || (transactionCount === 0 && (totalChanged || detailChanged));
   });
 }
 
-async function ensureRentInvoicesSynced() {
-  if (!rentInvoiceSyncNeeded()) return;
-  if (!RENT_INVOICE_SYNC_PROMISE) {
-    RENT_INVOICE_SYNC_PROMISE = (async () => {
-      if (_savePending) await flushState({ throwOnError: true });
-      await syncRentInvoicesWithLedger();
-    })().finally(() => { RENT_INVOICE_SYNC_PROMISE = null; });
+function canonicalRentInvoiceDetail(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalRentInvoiceDetail).join(',')}]`;
   }
-  await RENT_INVOICE_SYNC_PROMISE;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => (
+      `${JSON.stringify(key)}:${canonicalRentInvoiceDetail(value[key])}`
+    )).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function ensureRentInvoicesSynced(options = {}) {
+  if (!rentInvoiceSyncContextIsCurrent(options) || !rentInvoiceSyncNeeded()) return false;
+  if (!RENT_INVOICE_SYNC_PROMISE) {
+    const syncPromise = (async () => {
+      if (_savePending) await flushState({ throwOnError: true });
+      return syncRentInvoicesWithLedger(options);
+    })();
+    RENT_INVOICE_SYNC_PROMISE = syncPromise;
+  }
+  const activePromise = RENT_INVOICE_SYNC_PROMISE;
+  try {
+    return await activePromise;
+  } finally {
+    if (RENT_INVOICE_SYNC_PROMISE === activePromise) RENT_INVOICE_SYNC_PROMISE = null;
+  }
 }
 
 function paymentStatusLabel(payment) {
@@ -11674,14 +11715,6 @@ async function startApp() {
   RENT_BANK_TRANSACTIONS = Array.isArray(bankTransactionsResult.transactions)
     ? bankTransactionsResult.transactions
     : [];
-  if (ownerWorkspace) {
-    try {
-      await syncRentInvoicesWithLedger();
-    } catch (error) {
-      console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
-      syncLegacyPaidFlagsFromLedger();
-    }
-  }
   if (expectedGeneration !== _sessionGeneration ||
       expectedAccountContext !== API.getAccountContext() ||
       expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
@@ -11704,6 +11737,22 @@ async function startApp() {
     initPeriod();
     initTheme();
     navigate('dashboard');
+  }
+  if (ownerWorkspace) {
+    const isCurrent = () => (
+      expectedGeneration === _sessionGeneration
+      && expectedAccountContext === API.getAccountContext()
+      && expectedWorkspaceId === API.getWorkspaceAccountId()
+    );
+    window.setTimeout(() => {
+      void ensureRentInvoicesSynced({ isCurrent }).then((synced) => {
+        if (synced && isCurrent()) renderRentPaymentViews();
+      }).catch((error) => {
+        if (!isCurrent()) return;
+        console.warn('Không đồng bộ được hóa đơn với ledger:', error.message);
+        syncLegacyPaidFlagsFromLedger();
+      });
+    }, 0);
   }
 }
 
