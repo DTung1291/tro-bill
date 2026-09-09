@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Màn hình đăng nhập/đăng ký đã được người dùng cho phép push; bước kế tiếp là bảng giá và gia hạn/thanh toán |
+| Trạng thái | Auth đã push; lát cắt bảng giá và gia hạn/thanh toán đã hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit auth layout, trước khi bắt đầu lát cắt bảng giá/thanh toán |
-| Phần ứng dụng phát hành gần nhất | `ed42a8f` đã push `main` — tách Super Admin khỏi Owner; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Chuẩn hóa bảng giá và gia hạn/thanh toán, giữ nguyên nghiệp vụ và cho người dùng kiểm tra trước khi chuyển phần khác |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt bảng giá/thanh toán và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `d98b8cd` đã push `main` — làm mới màn hình đăng nhập/đăng ký; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra bảng giá, lịch sử và popup thanh toán trên desktop/mobile; chỉ commit/push sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,23 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: màn hình đăng nhập/đăng ký dùng
+- Thay đổi local đang chờ người dùng kiểm tra: khu vực gói dịch vụ trong Cài đặt
+  có header riêng, trạng thái/hạn mức gói hiện tại, hướng dẫn mua ba bước, thẻ
+  gói và lịch sử giao dịch rõ thứ bậc hơn. Popup VietQR tăng giới hạn hợp lý lên
+  780px, hiển thị trạng thái chờ thanh toán và ba bước đối soát; dưới 680px về
+  một cột, nút sao chép chiếm toàn chiều rộng để không bị che. Logic tạo đơn,
+  webhook và xác nhận thủ công không đổi. CSS pin tăng `132 → 133`; test mục
+  tiêu 25/25 và full suite 469/469 đạt khi chạy ngoài sandbox (các test HTTP cần
+  bind localhost). Chưa commit/push và không có migration.
+
+- `d98b8cd`: màn hình đăng nhập/đăng ký dùng
   bố cục hai cột trên desktop với thông điệp sản phẩm và ba lợi ích thật; dưới
   900px thu về form một cột, dưới 520px giảm padding/radius và vẫn cho màn hình
   cuộn khi chiều cao thiếu. Tab, input, focus, nút chính/phụ, phản hồi lỗi và
   liên kết bảng giá được chuẩn hóa; logic auth, cookie và API không đổi. CSS pin
-  tăng `131 → 132`; test mục tiêu 11/11 và full suite 469/469 đạt. Người dùng đã
-  cho phép commit/push; không có migration.
+  tăng `131 → 132`; test mục tiêu 11/11 và full suite 469/469 đạt. Commit đã push
+  `main`; deployment Production chưa được xác minh trong phiên hiện tại và không
+  có migration.
 
 - `ed42a8f`: tách rõ Super Admin nền tảng khỏi Owner chủ
   trọ và các vai trò nhân viên. Login, xác minh email và `/api/me` trả

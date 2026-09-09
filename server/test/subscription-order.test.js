@@ -191,18 +191,26 @@ test('VietQR URL mã hóa an toàn mọi tham số', () => {
   assert.match(url, /accountName=NGUYEN%20VAN%20A%20%26%20CO$/);
 });
 
-test('popup thanh toán đủ rộng cho QR, chi tiết và nút sao chép', () => {
+test('luồng chọn gói và popup thanh toán có thứ bậc rõ, responsive, không cắt nội dung', () => {
   const root = path.resolve(__dirname, '../..');
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
   assert.match(
     css,
-    /\.modal\.subscription-order-modal\s*\{[^}]*width:\s*min\(94vw,\s*720px\);[^}]*max-width:\s*720px;/s
+    /\.modal\.subscription-order-modal\s*\{[^}]*width:\s*min\(94vw,\s*780px\);[^}]*max-width:\s*780px;/s
   );
   assert.match(
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.subscription-order-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=132"/);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*520px\)[\s\S]*?\.subscription-history-head\s*\{[^}]*flex-direction:\s*column/
+  );
+  assert.match(html, /class="subscription-commerce"[\s\S]*id="subscription-plan-list"/);
+  assert.match(html, /class="subscription-purchase-guide"[\s\S]*Chờ xác nhận/);
+  assert.match(html, /class="subscription-order-status">Chờ thanh toán/);
+  assert.match(html, /class="subscription-order-guide"[\s\S]*Chờ hệ thống xác nhận giao dịch/);
+  assert.match(html, /href="style\.css\?v=133"/);
 });

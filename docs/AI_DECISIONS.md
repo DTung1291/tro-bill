@@ -823,8 +823,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-049 — Làm mới UI theo từng luồng, không viết lại toàn bộ frontend
 
-- **Trạng thái:** Áp dụng từ 09/09/2026; lát cắt đăng nhập/đăng ký đã hoàn thành,
-  kiểm thử và được người dùng cho phép push.
+- **Trạng thái:** Áp dụng từ 09/09/2026; lát cắt đăng nhập/đăng ký đã push tại
+  `d98b8cd`, lát cắt bảng giá/gia hạn/thanh toán đã hoàn thành local và đang chờ
+  người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -834,7 +835,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   luồng bill, auth và phân quyền; sửa theo luồng cho phép đo chất lượng và rollback
   từng phần.
 - **Hệ quả:** Màn hình auth dùng bố cục giới thiệu + form trên desktop, một cột
-  trên mobile, chỉ dùng CSS/HTML nhẹ và không thay đổi API hoặc logic phiên. Asset
-  CSS phải tăng version; các test pin asset và responsive contract phải được cập
-  nhật cùng thay đổi. Không đánh dấu checklist thương mại là hoàn thành chỉ vì
-  giao diện đẹp hơn.
+  trên mobile. Khu vực gói trong Cài đặt có thứ bậc riêng cho gói hiện tại, chọn
+  gói, lịch sử và popup VietQR ba bước; popup thu về một cột và nút sao chép toàn
+  chiều rộng trên mobile. Hai lát cắt chỉ dùng CSS/HTML nhẹ, không thay đổi API,
+  webhook, đối soát hoặc logic phiên. Asset CSS phải tăng version; các test pin
+  asset và responsive contract phải được cập nhật cùng thay đổi. Không đánh dấu
+  checklist thương mại là hoàn thành chỉ vì giao diện đẹp hơn.
