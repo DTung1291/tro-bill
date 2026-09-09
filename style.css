@@ -271,34 +271,112 @@ body.workspace-staff-active .main { padding-top: 112px; }
 /* ===========================
    CARDS
    =========================== */
+.dashboard-finance {
+  margin-bottom: 28px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--bg2);
+  box-shadow: var(--shadow);
+}
+.dashboard-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.dashboard-section-kicker {
+  display: block;
+  color: var(--primary);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dashboard-section-heading h2 {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.15rem;
+  letter-spacing: -.02em;
+}
+.dashboard-section-heading p,
+.dashboard-room-heading p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px; margin-bottom: 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 .card {
-  background: var(--bg2);
+  min-width: 0;
+  min-height: 148px;
+  background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 18px;
   position: relative; overflow: hidden;
-  transition: transform var(--transition), border-color var(--transition);
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
 }
 .card::before {
   content: ''; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  border-radius: var(--radius) var(--radius) 0 0;
+  top: 0; bottom: 0; left: 0; width: 3px;
+  border-radius: var(--radius) 0 0 var(--radius);
 }
-.card:hover { transform: translateY(-2px); border-color: var(--primary); }
+.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(79, 70, 229, .38);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .07);
+}
+.card--primary {
+  display: flex;
+  grid-column: span 2;
+  grid-row: span 2;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(124, 58, 237, .22), transparent 38%),
+    linear-gradient(135deg, rgba(79, 70, 229, .14), rgba(8, 145, 178, .05)),
+    var(--bg2);
+}
 .card--primary::before  { background: linear-gradient(90deg, var(--primary), #a78bfa); }
 .card--electric::before { background: var(--electric); }
 .card--water::before    { background: var(--water); }
 .card--expense::before  { background: var(--red); }
 .card--profit::before   { background: var(--green); }
 .card--status::before   { background: var(--green); }
-.card-label { font-size: .8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-.card-value { font-size: 1.4rem; font-weight: 800; }
-.card-sub { font-size: .82rem; color: var(--text-muted); margin-top: 4px; }
+.card-icon {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  margin-bottom: 14px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg2);
+  color: var(--primary);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.card-label {
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+.card-value {
+  color: var(--text);
+  font-size: clamp(1.2rem, 2.8vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.card--primary .card-value { color: var(--primary); font-size: clamp(1.45rem, 3.4vw, 1.9rem); }
+.card-sub { margin-top: 5px; color: var(--text-muted); font-size: .75rem; line-height: 1.4; }
 
 /* ===========================
    SECTION HEADER
@@ -312,15 +390,26 @@ body.workspace-staff-active .main { padding-top: 112px; }
 /* ===========================
    ROOM STATUS LIST
    =========================== */
-.room-status-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.room-status-item {
-  background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  transition: border-color var(--transition);
+.dashboard-room-section {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--bg2);
+  box-shadow: var(--shadow);
 }
-.room-status-item:hover { border-color: var(--primary); }
+.dashboard-room-heading { align-items: flex-end; margin-bottom: 16px; }
+.dashboard-room-heading .section-title { margin-top: 4px; font-size: 1.15rem; }
+.dashboard-room-heading .btn { flex: 0 0 auto; }
+.room-status-list { display: flex; flex-direction: column; gap: 9px; }
+.room-status-item {
+  min-width: 0;
+  background: var(--bg3); border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.room-status-item:hover { border-color: rgba(79, 70, 229, .3); background: var(--bg2); }
 .room-status-name { font-weight: 700; font-size: .95rem; }
 .dashboard-room-property {
   display: inline-flex;
@@ -329,7 +418,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-size: .72rem;
   font-weight: 700;
 }
-.room-status-total { font-weight: 800; font-size: 1.05rem; color: var(--primary); }
+.room-status-total { font-weight: 800; font-size: 1rem; color: var(--text); }
 .room-status-detail { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
 .room-status-payment,
 .room-status-badges {
@@ -5165,6 +5254,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .main { padding: calc(72px + env(safe-area-inset-top, 0px)) 16px calc(72px + env(safe-area-inset-bottom, 0px)); }
 
   .cards-grid { grid-template-columns: 1fr 1fr; }
+  .card--primary { grid-row: auto; }
   .expense-layout { grid-template-columns: 1fr; }
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
   .rate-effective-panel { grid-template-columns: 1fr; align-items: stretch; }
@@ -6063,6 +6153,15 @@ body.workspace-staff-active .main { padding-top: 112px; }
 
 /* Mobile room and history cards */
 @media (max-width: 480px) {
+  .dashboard-finance,
+  .dashboard-room-section { padding: 16px; }
+  .dashboard-section-heading,
+  .dashboard-room-heading { align-items: stretch; flex-direction: column; }
+  .dashboard-section-heading p { align-self: flex-start; }
+  .dashboard-room-heading .btn { width: 100%; justify-content: center; }
+  .cards-grid { grid-template-columns: minmax(0, 1fr); }
+  .card--primary { grid-column: auto; grid-row: auto; }
+  .card { min-height: 0; }
   .room-card {
     flex-direction: column;
     align-items: stretch;
@@ -6086,16 +6185,15 @@ body.workspace-staff-active .main { padding-top: 112px; }
   }
   .history-room-row { align-items: flex-start; gap: 10px; }
   .history-room-row > div:last-child { flex-wrap: wrap; justify-content: flex-end; }
-  .room-status-item { align-items: flex-start; }
-  .room-status-payment { min-width: 0; }
-  .room-status-badges { align-items: flex-end; }
+  .room-status-item { align-items: stretch; flex-direction: column; }
+  .room-status-payment { align-items: flex-start; min-width: 0; }
+  .room-status-badges { align-items: flex-start; }
   .debt-age-badge { white-space: normal; text-align: center; }
   .history-actions { flex-wrap: wrap; }
   .history-actions .btn { flex: 1; justify-content: center; }
 }
 
 @media (max-width: 360px) {
-  .cards-grid { grid-template-columns: 1fr !important; }
   .expense-summary { grid-template-columns: 1fr; }
 }
 

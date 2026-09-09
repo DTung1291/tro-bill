@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=133" />
+  <link rel="stylesheet" href="style.css?v=134" />
 </head>
 
 <body>
@@ -177,42 +177,65 @@
         </div>
       </div>
 
-      <div class="cards-grid">
-        <div class="card card--primary">
-          <div class="card-label">Tổng phải thu</div>
-          <div class="card-value" id="total-amount">0 đ</div>
-          <div class="card-sub" id="total-net">Đã thu: 0 đ</div>
+      <section class="dashboard-finance" aria-labelledby="dashboard-finance-title">
+        <div class="dashboard-section-heading">
+          <div>
+            <span class="dashboard-section-kicker">Tài chính tháng này</span>
+            <h2 id="dashboard-finance-title">Dòng tiền và vận hành</h2>
+          </div>
+          <p>Số liệu cập nhật theo kỳ và khu đang chọn.</p>
         </div>
-        <div class="card card--electric">
-          <div class="card-label">Tiền điện</div>
-          <div class="card-value" id="total-electric">0 đ</div>
+        <div class="cards-grid">
+          <div class="card card--primary">
+            <span class="card-icon" aria-hidden="true">₫</span>
+            <div class="card-label">Tổng phải thu</div>
+            <div class="card-value" id="total-amount">0 đ</div>
+            <div class="card-sub" id="total-net">Đã thu: 0 đ</div>
+          </div>
+          <div class="card card--profit">
+            <span class="card-icon" aria-hidden="true">↗</span>
+            <div class="card-label">Còn lại sau chi phí</div>
+            <div class="card-value" id="total-profit">0 đ</div>
+            <div class="card-sub" id="total-profit-note">Tiền đã thu - chi phí thực tế</div>
+          </div>
+          <div class="card card--expense">
+            <span class="card-icon" aria-hidden="true">↘</span>
+            <div class="card-label">Chi phí thực tế</div>
+            <div class="card-value" id="total-expenses">0 đ</div>
+            <div class="card-sub" id="total-expenses-note">Đã trả nhà cung cấp · gồm chi phí chung</div>
+          </div>
+          <div class="card card--electric">
+            <span class="card-icon" aria-hidden="true">⚡</span>
+            <div class="card-label">Tiền điện</div>
+            <div class="card-value" id="total-electric">0 đ</div>
+            <div class="card-sub">Đã tính trong tổng phải thu</div>
+          </div>
+          <div class="card card--water">
+            <span class="card-icon" aria-hidden="true">💧</span>
+            <div class="card-label">Tiền nước</div>
+            <div class="card-value" id="total-water">0 đ</div>
+            <div class="card-sub">Đã tính trong tổng phải thu</div>
+          </div>
+          <div class="card card--status">
+            <span class="card-icon" aria-hidden="true">✓</span>
+            <div class="card-label">Tiến độ nhập chỉ số</div>
+            <div class="card-value"><span id="rooms-entered">0</span>/<span id="rooms-total">0</span></div>
+            <div class="card-sub">phòng đã hoàn thành</div>
+          </div>
         </div>
-        <div class="card card--water">
-          <div class="card-label">Tiền nước</div>
-          <div class="card-value" id="total-water">0 đ</div>
-        </div>
-        <div class="card card--expense">
-          <div class="card-label">Chi phí thực tế</div>
-          <div class="card-value" id="total-expenses">0 đ</div>
-          <div class="card-sub" id="total-expenses-note">Đã trả nhà cung cấp · gồm chi phí chung</div>
-        </div>
-        <div class="card card--profit">
-          <div class="card-label">Còn lại sau chi phí</div>
-          <div class="card-value" id="total-profit">0 đ</div>
-          <div class="card-sub" id="total-profit-note">Tiền đã thu - chi phí thực tế</div>
-        </div>
-        <div class="card card--status">
-          <div class="card-label">Phòng đã nhập</div>
-          <div class="card-value"><span id="rooms-entered">0</span>/<span id="rooms-total">0</span></div>
-          <div class="card-sub">phòng</div>
-        </div>
-      </div>
+      </section>
 
-      <div class="section-header">
-        <h2 class="section-title">Trạng thái từng phòng</h2>
-        <button class="btn btn--sm btn--ghost" id="btn-enter-all">Nhập chỉ số →</button>
-      </div>
-      <div class="room-status-list" id="room-status-list"></div>
+      <section class="dashboard-room-section" aria-labelledby="dashboard-room-title">
+        <div class="section-header dashboard-room-heading">
+          <div>
+            <span class="dashboard-section-kicker">Theo dõi từng phòng</span>
+            <h2 class="section-title" id="dashboard-room-title">Trạng thái hóa đơn</h2>
+            <p>Kiểm tra chỉ số, số tiền và tình trạng thanh toán trong cùng một danh sách.</p>
+          </div>
+          <button class="btn btn--sm btn--primary" id="btn-enter-all">Nhập chỉ số →</button>
+        </div>
+        <div class="room-status-list" id="room-status-list"></div>
+      </section>
 
     </section>
 

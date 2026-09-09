@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Auth đã push; lát cắt bảng giá và gia hạn/thanh toán đã hoàn thành local, chờ người dùng kiểm tra |
+| Trạng thái | Auth và bảng giá/thanh toán đã push; lát cắt Tổng quan đã hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt bảng giá/thanh toán và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `d98b8cd` đã push `main` — làm mới màn hình đăng nhập/đăng ký; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra bảng giá, lịch sử và popup thanh toán trên desktop/mobile; chỉ commit/push sau khi xác nhận |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Tổng quan và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `1e66c8b` đã push `main` — làm mới bảng giá, lịch sử và popup thanh toán; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra Tổng quan trên desktop/mobile; chỉ commit/push và chuyển sang Quản lý phòng sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,14 +95,23 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: khu vực gói dịch vụ trong Cài đặt
+- Thay đổi local đang chờ người dùng kiểm tra: Tổng quan gom số liệu vào khối
+  **Dòng tiền và vận hành**, ưu tiên Tổng phải thu, Còn lại sau chi phí và các
+  chỉ số hỗ trợ theo lưới ba cột. Danh sách phòng thành khối **Trạng thái hóa
+  đơn** với CTA nhập chỉ số rõ hơn. Dưới 640px lưới còn hai cột; dưới 480px về
+  một cột, CTA toàn chiều rộng và từng phòng xếp dọc để không ép số tiền/badge.
+  Không thay đổi công thức, filter hoặc logic render. CSS pin tăng `133 → 134`;
+  test mục tiêu 16/16 đạt. Chưa commit/push và không có migration.
+
+- `1e66c8b`: khu vực gói dịch vụ trong Cài đặt
   có header riêng, trạng thái/hạn mức gói hiện tại, hướng dẫn mua ba bước, thẻ
   gói và lịch sử giao dịch rõ thứ bậc hơn. Popup VietQR tăng giới hạn hợp lý lên
   780px, hiển thị trạng thái chờ thanh toán và ba bước đối soát; dưới 680px về
   một cột, nút sao chép chiếm toàn chiều rộng để không bị che. Logic tạo đơn,
   webhook và xác nhận thủ công không đổi. CSS pin tăng `132 → 133`; test mục
   tiêu 25/25 và full suite 469/469 đạt khi chạy ngoài sandbox (các test HTTP cần
-  bind localhost). Chưa commit/push và không có migration.
+  bind localhost). Commit đã push `main`; deployment Production chưa được xác
+  minh trong phiên hiện tại và không có migration.
 
 - `d98b8cd`: màn hình đăng nhập/đăng ký dùng
   bố cục hai cột trên desktop với thông điệp sản phẩm và ba lợi ích thật; dưới

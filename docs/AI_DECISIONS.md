@@ -823,9 +823,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-049 — Làm mới UI theo từng luồng, không viết lại toàn bộ frontend
 
-- **Trạng thái:** Áp dụng từ 09/09/2026; lát cắt đăng nhập/đăng ký đã push tại
-  `d98b8cd`, lát cắt bảng giá/gia hạn/thanh toán đã hoàn thành local và đang chờ
-  người dùng kiểm tra.
+- **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
+  bảng giá/gia hạn/thanh toán đã push tại `1e66c8b`, Tổng quan đã hoàn thành local
+  và đang chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -841,3 +841,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   webhook, đối soát hoặc logic phiên. Asset CSS phải tăng version; các test pin
   asset và responsive contract phải được cập nhật cùng thay đổi. Không đánh dấu
   checklist thương mại là hoàn thành chỉ vì giao diện đẹp hơn.
+
+  Lát cắt Tổng quan nhóm số liệu thành khối dòng tiền ba cột, ưu tiên tổng phải
+  thu và tách danh sách trạng thái hóa đơn thành một bề mặt riêng. Responsive
+  lần lượt về hai cột và một cột; công thức tài chính, lọc khu và logic render
+  hiện hữu được giữ nguyên.
