@@ -91,7 +91,7 @@ test('route Vercel, liên kết app và layout mobile đều được nối', ()
     route.source === '/huong-dan' && route.destination === '/quick-start.html'
   )), true);
   assert.match(index, /href="\/huong-dan"[^>]*>Mở hướng dẫn/);
-  assert.match(index, /app\.js\?v=136/);
+  assert.match(index, /app\.js\?v=137/);
   assert.match(appSource, /href="\/huong-dan"/);
   assert.match(landing, /href="\/huong-dan">Hướng dẫn/);
   assert.match(styles, /@media \(max-width: 600px\)/);

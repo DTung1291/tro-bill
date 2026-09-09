@@ -129,6 +129,19 @@ test('reload khóa dashboard cho đến khi server xác nhận phiên đăng nh�
   assert.match(appSource, /el\.classList\.remove\('auth-screen--pending'\);[\s\S]*el\.hidden = !show;/);
 });
 
+test('đăng xuất phản hồi ngay và chỉ flush state khi còn thay đổi chưa lưu', () => {
+  const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const logoutSource = appSource.slice(
+    appSource.indexOf("logoutBtn.addEventListener('click'"),
+    appSource.indexOf('setMode(resetToken')
+  );
+
+  assert.match(logoutSource, /const hasPendingSave = _savePending \|\| Boolean\(_saveInFlight\)/);
+  assert.match(logoutSource, /showAuthPending\([\s\S]*if \(hasPendingSave\) await flushState\(\);[\s\S]*await API\.logout\(\)/);
+  assert.match(logoutSource, /catch \(err\) \{[\s\S]*showAuthScreen\(false\)/);
+  assert.doesNotMatch(logoutSource, /addEventListener\('click',[\s\S]*?\{\s*await flushState\(\)/);
+});
+
 test('giao diện xếp hàng PUT state để snapshot cũ không ghi đè snapshot mới', () => {
   const appSource = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   assert.match(appSource, /let _saveInFlight = null/);

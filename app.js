@@ -11656,6 +11656,24 @@ function showAuthScreen(show) {
   if (adminBtn && show) { adminBtn.hidden = true; adminBtn.classList.remove('show'); }
 }
 
+function showAuthPending(message = 'Đang kiểm tra phiên đăng nhập...') {
+  const el = document.getElementById('auth-screen');
+  const messageEl = document.getElementById('auth-loading-message');
+  const nav = document.getElementById('main-nav');
+  const bottomNav = document.getElementById('bottom-nav');
+  const logoutBtn = document.getElementById('logout-btn');
+  if (messageEl) messageEl.textContent = message;
+  if (el) {
+    el.hidden = false;
+    el.classList.add('auth-screen--pending');
+    el.setAttribute('aria-busy', 'true');
+  }
+  document.querySelectorAll('.page').forEach(page => { page.style.visibility = 'hidden'; });
+  if (nav) nav.style.visibility = 'hidden';
+  if (bottomNav) bottomNav.style.display = 'none';
+  if (logoutBtn) logoutBtn.hidden = true;
+}
+
 function handleAuthExpired() {
   _sessionGeneration += 1;
   cancelPendingStateSave();
@@ -12047,8 +12065,14 @@ function initAuthUI() {
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-      await flushState();
+      if (logoutBtn.disabled) return;
+      const hasPendingSave = _savePending || Boolean(_saveInFlight);
+      logoutBtn.disabled = true;
+      showAuthPending(hasPendingSave
+        ? 'Đang lưu thay đổi và đăng xuất...'
+        : 'Đang đăng xuất...');
       try {
+        if (hasPendingSave) await flushState();
         await API.logout();
         _sessionGeneration += 1;
         cancelPendingStateSave();
@@ -12057,7 +12081,10 @@ function initAuthUI() {
         _appStarted = false;
         showAuthScreen(true);
       } catch (err) {
+        showAuthScreen(false);
         showToast('Không thể đăng xuất, vui lòng thử lại', 'error', 3000);
+      } finally {
+        logoutBtn.disabled = false;
       }
     });
   }
