@@ -771,3 +771,29 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khi có adapter provider thật và giao dịch pilot Production. Revision
   `5332f0638046`, CI `34299403260`, deployment
   `dpl_CxQGts8wZu3VMaSc3e4W3y851ayt` ready; không cần migration mới.
+
+## D-047 — Lần hiển thị đầu không chờ đồng bộ ledger hoặc dữ liệu cài đặt phụ
+
+- **Trạng thái:** Đã phát hành Production ngày 09/09/2026.
+- **Quyết định:** Luồng khởi động owner chỉ chờ state, entitlement, tóm tắt sổ
+  thu và trạng thái sửa chữa trước khi render. Đồng bộ hóa đơn với ledger, danh
+  sách workspace, tài khoản ngân hàng, plans/lịch sử payment, kênh đối soát,
+  team và hồ sơ HĐĐT chạy sau lần render đầu. `/api/me`, login và xác minh email
+  trả thêm `accountUserId`; client dùng giá trị đã khóa với `accountContext` để
+  vào thẳng workspace của chính phiên, còn workspace được giao vẫn phải xác
+  minh qua `/api/workspaces`. Mọi kết quả nền chỉ được áp dụng khi đồng thời còn
+  đúng session generation, account context và workspace ID.
+- **Lý do:** Runtime Logs cho thấy startup cũ chạy `/me → /workspaces → 11 API`
+  rồi còn chờ đồng bộ toàn bộ hóa đơn lịch sử; riêng sync có thể giữ màn hình
+  khoảng 15 giây dù dữ liệu ít. Sau khi bỏ sync khỏi critical path, phép đo đúng
+  tới lúc kỳ và 7 phòng được render vẫn là 6,59 giây vì 11 request phụ cùng nằm
+  trong `Promise.all`. Các dữ liệu cài đặt đó không cần để dashboard đầu tiên
+  chính xác.
+- **Hệ quả:** Ledger vẫn được đồng bộ ở nền khi tổng, chi tiết hoặc cờ paid cũ
+  thật sự lệch; summary trả `detailSnapshot` để không bỏ sót thay đổi cùng tổng.
+  Tác vụ của phiên cũ tự hủy và promise cũ không được xóa promise của phiên mới.
+  Production cùng Chrome/account đo ba hard navigation tới sentinel dữ liệu thật
+  là 4,60 giây, 4,36 giây và 1,80 giây (trung vị 4,36 giây); dữ liệu phụ sau đó
+  đầy đủ và console sạch. Commits `c42019a` + `3f4695a`, CI `34317034949` và
+  `34318766043`; deployment cuối `dpl_6egiSBnuuFJmJkBEPsaLK9EDEwVi`, không có
+  migration.

@@ -9,10 +9,10 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã phát hành đối soát payment subscription thủ công; chờ chủ sản phẩm smoke test bằng một đơn pending hợp lệ |
+| Trạng thái | Đã phát hành tối ưu startup hai pha; Production đo trung vị 4,36 giây tới dữ liệu đầu, dữ liệu nền và console sạch |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit ICP; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `5332f06` — webhook tự động + admin đối soát thủ công dùng chung khóa giao dịch |
+| Worktree kỳ vọng | Sạch sau commit tài liệu hiệu năng; luôn xác minh bằng Git trước khi sửa |
+| Phần ứng dụng phát hành gần nhất | `3f4695a` — owner bỏ vòng workspace, chỉ chờ dữ liệu dashboard cốt lõi; phần phụ nạp nền có context guard |
 | Việc code tiếp theo | Sau smoke test payment, quay lại Giai đoạn 0; không tự kết luận vấn đề/thông điệp khi chưa đủ 10 phỏng vấn đúng mẫu |
 | Việc vận hành còn mở | Smoke test một đơn pending; nối provider thanh toán thật; tuyển/phỏng vấn 10 chủ trọ; `OPS_ALERT_WEBHOOK_URL` tùy chọn; adapter HĐĐT chờ provider |
 
@@ -95,6 +95,20 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- `c42019a` + `3f4695a`: tối ưu đường tải từ đăng nhập/reload tới dữ liệu đầu.
+  Đồng bộ ledger không còn chặn render, chỉ chạy khi thiếu invoice, cờ paid cũ,
+  tổng hoặc detail thay đổi; summary trả `detailSnapshot`. Owner dùng
+  `accountUserId` từ phiên để bỏ vòng `/api/workspaces`; state, entitlement, sổ
+  thu và trạng thái sửa chữa là bốn nguồn cốt lõi, còn ngân hàng/plans/payment/
+  channels/team/HĐĐT/workspace directory nạp nền. Kết quả nền bị chặn nếu session
+  generation, account context hoặc workspace ID thay đổi. Full suite đạt 464/464,
+  secret scan và diff check sạch; CI lần lượt `34317034949` và `34318766043`.
+  Production cuối `dpl_6egiSBnuuFJmJkBEPsaLK9EDEwVi` ready, revision
+  `3f4695aa555d`, database/schema `ok`, runtime role `restricted`, pins
+  `api 115 / app 135`, error log sạch. Đo cùng Chrome/account tới sentinel sau
+  khi kỳ `9/2026` và 7 phòng đã render: 4,60 s, 4,36 s, 1,80 s (trung vị 4,36 s),
+  so với 6,59 s sau pha đầu và khoảng 15 s ở sync cũ. Sau 5 giây, ngân hàng,
+  team, HĐĐT và workspace directory đều đầy đủ; console không có warning/error.
 - `5332f06`: thêm bảng admin **Đối soát thanh toán gói** và API xác nhận thủ
   công cho payment pending. Admin bắt buộc nhập mã giao dịch, thời điểm nhận và
   lý do; server khóa payment/subscription, kiểm tra thời hạn đơn và trạng thái
