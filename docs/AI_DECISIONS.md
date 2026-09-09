@@ -800,8 +800,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-048 — Super Admin nền tảng tách khỏi Owner workspace
 
-- **Trạng thái:** Đã triển khai local ngày 09/09/2026, chờ người dùng kiểm tra
-  và cho phép phát hành.
+- **Trạng thái:** Đã push `main` ngày 09/09/2026 tại commit `ed42a8f`; chưa xác
+  minh deployment Production trong phiên hiện tại.
 - **Quyết định:** Quyền quản trị toàn nền tảng được gọi là **Super Admin** và
   chỉ vai trò này vào `admin.html` hoặc `/api/admin/*`. Owner là chủ trọ sở hữu
   workspace và tiếp tục quản lý Cài đặt, khu, dữ liệu và nhân viên của mình;
@@ -820,3 +820,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   break-glass. Web cũng từ chối đổi mật khẩu hoặc xóa một Super Admin khác;
   phải thu hồi cờ bằng CLI trước. Biến `ADMIN_*` cũ chỉ được seed đọc fallback để deployment hiện
   tại không mất quyền truy cập trong lúc chuyển sang `SUPER_ADMIN_*`.
+
+## D-049 — Làm mới UI theo từng luồng, không viết lại toàn bộ frontend
+
+- **Trạng thái:** Áp dụng từ 09/09/2026; lát cắt đăng nhập/đăng ký đã hoàn thành,
+  kiểm thử và được người dùng cho phép push.
+- **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
+  đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
+  HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
+  responsive và được người dùng duyệt trước khi chuyển sang phần kế tiếp.
+- **Lý do:** Frontend đã có nhiều nghiệp vụ ổn định nhưng stylesheet lớn và các
+  popup/bảng được bổ sung theo thời gian. Viết lại đồng loạt làm tăng nguy cơ phá
+  luồng bill, auth và phân quyền; sửa theo luồng cho phép đo chất lượng và rollback
+  từng phần.
+- **Hệ quả:** Màn hình auth dùng bố cục giới thiệu + form trên desktop, một cột
+  trên mobile, chỉ dùng CSS/HTML nhẹ và không thay đổi API hoặc logic phiên. Asset
+  CSS phải tăng version; các test pin asset và responsive contract phải được cập
+  nhật cùng thay đổi. Không đánh dấu checklist thương mại là hoàn thành chỉ vì
+  giao diện đẹp hơn.

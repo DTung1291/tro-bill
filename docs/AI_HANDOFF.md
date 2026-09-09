@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 09/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã triển khai và kiểm thử local việc tách Super Admin khỏi Owner; chờ người dùng kiểm tra trước khi commit/phát hành |
+| Trạng thái | Màn hình đăng nhập/đăng ký đã được người dùng cho phép push; bước kế tiếp là bảng giá và gia hạn/thanh toán |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local Super Admin chưa commit; luôn xác minh bằng Git trước khi sửa |
-| Phần ứng dụng phát hành gần nhất | `abba711` — căn đều nhóm nút biên nhận subscription; thay đổi Super Admin chưa phát hành |
-| Việc code tiếp theo | Cho người dùng kiểm tra Owner/Super Admin rồi mới commit/push khi được phép |
+| Worktree kỳ vọng | Sạch sau commit auth layout, trước khi bắt đầu lát cắt bảng giá/thanh toán |
+| Phần ứng dụng phát hành gần nhất | `ed42a8f` đã push `main` — tách Super Admin khỏi Owner; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Chuẩn hóa bảng giá và gia hạn/thanh toán, giữ nguyên nghiệp vụ và cho người dùng kiểm tra trước khi chuyển phần khác |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,15 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ phát hành: tách rõ Super Admin nền tảng khỏi Owner chủ
+- Thay đổi local đang chờ người dùng kiểm tra: màn hình đăng nhập/đăng ký dùng
+  bố cục hai cột trên desktop với thông điệp sản phẩm và ba lợi ích thật; dưới
+  900px thu về form một cột, dưới 520px giảm padding/radius và vẫn cho màn hình
+  cuộn khi chiều cao thiếu. Tab, input, focus, nút chính/phụ, phản hồi lỗi và
+  liên kết bảng giá được chuẩn hóa; logic auth, cookie và API không đổi. CSS pin
+  tăng `131 → 132`; test mục tiêu 11/11 và full suite 469/469 đạt. Người dùng đã
+  cho phép commit/push; không có migration.
+
+- `ed42a8f`: tách rõ Super Admin nền tảng khỏi Owner chủ
   trọ và các vai trò nhân viên. Login, xác minh email và `/api/me` trả
   `isSuperAdmin`; client chỉ hiện lối vào `admin.html` cho cờ này; middleware
   `requireSuperAdmin` kiểm tra lại cột legacy `users.is_admin` mỗi request.
@@ -104,8 +112,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   Seed ưu tiên `SUPER_ADMIN_*` nhưng tạm đọc fallback
   `ADMIN_*` để không khóa deployment hiện hữu. Không có migration, không tự thu
   hồi tài khoản hiện tại. Full suite đạt 469/469 sau chốt bảo vệ tài khoản đặc
-  quyền; secret scan sạch và diff check sạch. Chưa commit, push, deploy hoặc chạy
-  thay đổi database từ xa.
+  quyền; secret scan sạch và diff check sạch. Commit đã push `main`; không có
+  migration. Deployment Production chưa được xác minh trong phiên hiện tại.
 
 - `c42019a` + `3f4695a`: tối ưu đường tải từ đăng nhập/reload tới dữ liệu đầu.
   Đồng bộ ledger không còn chặn render, chỉ chạy khi thiếu invoice, cờ paid cũ,

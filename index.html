@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=131" />
+  <link rel="stylesheet" href="style.css?v=132" />
 </head>
 
 <body>
@@ -28,36 +28,59 @@
       <strong>🏠 TrọBill</strong>
       <span id="auth-loading-message">Đang kiểm tra phiên đăng nhập...</span>
     </div>
-    <div class="auth-card">
-      <div class="auth-brand"><span class="brand-icon">🏠</span> TrọBill</div>
-      <p class="auth-sub" id="auth-sub">Tính tiền nhà trọ hàng tháng</p>
+    <div class="auth-shell">
+      <section class="auth-intro" aria-label="Giới thiệu TrọBill">
+        <a class="auth-intro-brand" href="/gioi-thieu" aria-label="Xem giới thiệu TrọBill">
+          <span class="auth-intro-mark" aria-hidden="true">🏠</span>
+          <span>TrọBill</span>
+        </a>
+        <div class="auth-intro-copy">
+          <span class="auth-eyebrow">Quản lý nhà trọ gọn hơn mỗi tháng</span>
+          <h1>Chốt bill, gửi QR và theo dõi công nợ trong một nơi.</h1>
+          <p>Từ chỉ số điện nước đến phiếu thu, mọi bước đều rõ ràng cho chủ trọ và khách thuê.</p>
+        </div>
+        <ul class="auth-benefits">
+          <li><span aria-hidden="true">✓</span><strong>Tính bill chính xác</strong><small>Lưu giá theo hiệu lực và lịch sử từng kỳ.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>Thu tiền minh bạch</strong><small>VietQR đúng số tiền còn lại, có đối soát.</small></li>
+          <li><span aria-hidden="true">✓</span><strong>Dữ liệu có kiểm soát</strong><small>Phân quyền theo workspace, khu và nghiệp vụ.</small></li>
+        </ul>
+        <p class="auth-trust-note"><span aria-hidden="true">●</span> Có thể bắt đầu miễn phí · Dữ liệu được sao lưu mã hóa</p>
+      </section>
 
-      <div class="auth-tabs" id="auth-tabs">
-        <button type="button" class="auth-tab active" id="auth-tab-login">Đăng nhập</button>
-        <button type="button" class="auth-tab" id="auth-tab-register">Đăng ký</button>
+      <div class="auth-card">
+        <div class="auth-card-head">
+          <div class="auth-brand"><span class="auth-brand-mark" aria-hidden="true">🏠</span> TrọBill</div>
+          <p class="auth-sub" id="auth-sub">Tính tiền nhà trọ hàng tháng</p>
+        </div>
+
+        <div class="auth-tabs" id="auth-tabs">
+          <button type="button" class="auth-tab active" id="auth-tab-login">Đăng nhập</button>
+          <button type="button" class="auth-tab" id="auth-tab-register">Đăng ký</button>
+        </div>
+
+        <form id="auth-form" class="auth-form" autocomplete="on">
+          <label class="auth-label" id="auth-email-label">Email
+            <input type="email" id="auth-email" required autocomplete="username" placeholder="ban@email.com" />
+          </label>
+          <label class="auth-label" id="auth-password-label">Mật khẩu
+            <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Tối thiểu 6 ký tự" minlength="6" />
+          </label>
+          <label class="auth-label" id="auth-confirm-label" hidden>Nhập lại mật khẩu mới
+            <input type="password" id="auth-confirm-password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" minlength="6" />
+          </label>
+          <label class="auth-policy-consent" id="auth-policy-consent" hidden>
+            <input type="checkbox" id="auth-policy-checkbox" />
+            <span>Tôi đã đọc và đồng ý với <a href="privacy.html" target="_blank" rel="noopener">Chính sách bảo mật</a> và <a href="terms.html" target="_blank" rel="noopener">Điều khoản sử dụng</a>.</span>
+          </label>
+          <button type="button" class="auth-mode-action" id="auth-forgot">Quên mật khẩu?</button>
+          <p class="auth-feedback auth-feedback--error" id="auth-feedback" role="status" aria-live="polite" hidden></p>
+          <button type="button" class="auth-secondary" id="auth-resend" hidden>Gửi lại email xác minh</button>
+          <a class="auth-dev-link" id="auth-dev-verify" href="#" hidden>Mở liên kết local</a>
+          <button type="submit" class="auth-submit" id="auth-submit">Đăng nhập</button>
+        </form>
+        <a class="auth-dev-link auth-pricing-link" href="/gioi-thieu">Xem tính năng và bảng giá <span aria-hidden="true">→</span></a>
+        <p class="auth-card-foot">Bằng việc tiếp tục, bạn đồng ý sử dụng TrọBill theo chính sách hiện hành.</p>
       </div>
-
-      <form id="auth-form" autocomplete="on">
-        <label class="auth-label" id="auth-email-label">Email
-          <input type="email" id="auth-email" required autocomplete="username" placeholder="ban@email.com" />
-        </label>
-        <label class="auth-label" id="auth-password-label">Mật khẩu
-          <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Tối thiểu 6 ký tự" minlength="6" />
-        </label>
-        <label class="auth-label" id="auth-confirm-label" hidden>Nhập lại mật khẩu mới
-          <input type="password" id="auth-confirm-password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" minlength="6" />
-        </label>
-        <label class="auth-policy-consent" id="auth-policy-consent" hidden>
-          <input type="checkbox" id="auth-policy-checkbox" />
-          <span>Tôi đã đọc và đồng ý với <a href="privacy.html" target="_blank" rel="noopener">Chính sách bảo mật</a> và <a href="terms.html" target="_blank" rel="noopener">Điều khoản sử dụng</a>.</span>
-        </label>
-        <button type="button" class="auth-mode-action" id="auth-forgot">Quên mật khẩu?</button>
-        <p class="auth-feedback auth-feedback--error" id="auth-feedback" role="status" aria-live="polite" hidden></p>
-        <button type="button" class="auth-secondary" id="auth-resend" hidden>Gửi lại email xác minh</button>
-        <a class="auth-dev-link" id="auth-dev-verify" href="#" hidden>Mở liên kết local</a>
-        <button type="submit" class="auth-submit" id="auth-submit">Đăng nhập</button>
-      </form>
-      <a class="auth-dev-link auth-pricing-link" href="/gioi-thieu">Xem tính năng và bảng giá</a>
     </div>
   </div>
 

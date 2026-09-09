@@ -88,6 +88,11 @@ test('landing render bảng giá an toàn và có layout mobile', () => {
 
   assert.match(index, /class="auth-dev-link auth-pricing-link" href="\/gioi-thieu">Xem tính năng và bảng giá/);
   assert.match(appStyles, /\.auth-pricing-link\s*\{\s*margin-top:\s*10px;/);
+  assert.match(index, /class="auth-shell"/);
+  assert.match(index, /Chốt bill, gửi QR và theo dõi công nợ trong một nơi/);
+  assert.match(index, /class="auth-benefits"/);
+  assert.match(appStyles, /@media \(max-width: 900px\)[\s\S]*\.auth-intro \{ display: none;/);
+  assert.match(appStyles, /@media \(max-width: 520px\)[\s\S]*\.auth-card \{ max-width: none;/);
   assert.match(script, /fetch\('\/api\/public\/plans'/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
