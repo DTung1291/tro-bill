@@ -148,6 +148,39 @@
       <button id="subscription-bank-save" class="admin-btn">Lưu tài khoản thu gói</button>
     </section>
 
+    <section class="admin-config" id="subscription-payment-admin-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>✅ Đối soát thanh toán gói</h2>
+          <p class="admin-config-note">
+            Webhook sẽ xác nhận tự động khi giao dịch khớp. Chỉ xác nhận thủ công sau khi đã kiểm tra tiền thực nhận, đúng mã giao dịch, số tiền và thời điểm chuyển.
+          </p>
+        </div>
+        <div class="admin-action-list">
+          <label class="admin-filter-label">Trạng thái
+            <select id="subscription-payment-admin-filter">
+              <option value="pending">Chờ thanh toán</option>
+              <option value="paid">Đã thanh toán</option>
+              <option value="all">Tất cả</option>
+            </select>
+          </label>
+          <button type="button" class="admin-btn-ghost" id="subscription-payment-admin-refresh">Làm mới</button>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-subtable admin-refund-table" id="subscription-payment-admin-table" hidden>
+          <thead>
+            <tr>
+              <th>Tạo lúc</th><th>Tài khoản</th><th>Đơn / gói</th><th>Số tiền</th>
+              <th>Nội dung CK</th><th>Trạng thái</th><th>Đối soát</th><th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="subscription-payment-admin-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-muted" id="subscription-payment-admin-empty" hidden>Không có payment ở trạng thái này.</p>
+    </section>
+
     <section class="admin-config">
       <h2>🏷️ Giá và trạng thái gói</h2>
       <p class="admin-config-note">
@@ -232,7 +265,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=78"></script>
-  <script src="admin.js?v=78"></script>
+  <script src="api.js?v=79"></script>
+  <script src="admin.js?v=79"></script>
 </body>
 </html>

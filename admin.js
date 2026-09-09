@@ -349,7 +349,9 @@
   const manualChangeActionLabels = {
     trial_started: 'Cấp dùng thử',
     subscription_upgraded: 'Cấp / nâng gói',
-    subscription_renewed: 'Gia hạn'
+    subscription_renewed: 'Gia hạn',
+    subscription_upgraded_by_payment: 'Xác nhận payment · nâng gói',
+    subscription_renewed_by_payment: 'Xác nhận payment · gia hạn'
   };
 
   function currentSubscriptionSummary(user) {
@@ -559,7 +561,11 @@
     bodyEl.innerHTML = logs.map((log) => {
       const detail = log.trialDays
         ? `${log.trialDays} ngày`
-        : (log.billingCycle === 'yearly' ? 'Chu kỳ năm' : (log.billingCycle === 'monthly' ? 'Chu kỳ tháng' : ''));
+        : (log.confirmationMethod === 'manual_admin'
+          ? `Payment #${log.paymentId}`
+          : (log.billingCycle === 'yearly'
+            ? 'Chu kỳ năm'
+            : (log.billingCycle === 'monthly' ? 'Chu kỳ tháng' : '')));
       const planChange = `${log.previousPlanCode || '—'} → ${log.newPlanCode || '—'}`;
       const statusChange = `${log.previousStatus || '—'} → ${log.newStatus || '—'}`;
       return `<tr>
@@ -728,6 +734,188 @@
       handleErr(e);
     }
   });
+
+  // ---------- Đối soát payment subscription tự động / thủ công ----------
+  const subscriptionPaymentFilter = $('#subscription-payment-admin-filter');
+  const subscriptionPaymentRefresh = $('#subscription-payment-admin-refresh');
+  const subscriptionPaymentTable = $('#subscription-payment-admin-table');
+  const subscriptionPaymentTbody = $('#subscription-payment-admin-tbody');
+  const subscriptionPaymentEmpty = $('#subscription-payment-admin-empty');
+  const subscriptionPaymentStatusLabels = {
+    pending: 'Chờ thanh toán',
+    paid: 'Đã thanh toán',
+    failed: 'Cần kiểm tra',
+    refunded: 'Đã hoàn tiền',
+    canceled: 'Đã hủy'
+  };
+
+  function localDateTimeValue(date = new Date()) {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  function paymentSettlementDetail(payment) {
+    if (!payment.settlement) return '<span class="admin-cell-note">Chưa có giao dịch</span>';
+    const confirmation = payment.confirmation;
+    const source = confirmation?.method === 'manual_admin'
+      ? `Thủ công bởi ${confirmation.actorEmail || 'admin'}`
+      : 'Webhook tự động';
+    return `<code>${esc(payment.settlement.reference)}</code>` +
+      `<br><span class="admin-cell-note">${esc(source)}</span>`;
+  }
+
+  function openManualPaymentConfirmation(payment) {
+    openAdminModal(`Xác nhận payment #${payment.id}`, `
+      <div class="admin-subscription-current">
+        <strong>${esc(payment.user.email)}</strong>
+        <span>${esc(payment.plan.name)} · ${payment.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'}</span>
+        <span>${fmtVND(payment.amountVnd)}</span>
+        <span>Mã đơn ${esc(payment.orderReference)}</span>
+      </div>
+      <form class="admin-subscription-form" id="admin-payment-confirm-form">
+        <label>Mã giao dịch ngân hàng
+          <input id="admin-payment-transaction-reference" type="text" minlength="3" maxlength="100" autocomplete="off" placeholder="Ví dụ: FT26090912345678" required />
+          <span class="admin-cell-note">Nhập đúng mã giao dịch thực nhận; một mã chỉ được dùng cho một payment.</span>
+        </label>
+        <label>Thời điểm nhận tiền
+          <input id="admin-payment-paid-at" type="datetime-local" required />
+          <span class="admin-cell-note">Phải nằm trong thời hạn của đơn: ${esc(fmtDate(payment.createdAt))} – ${esc(fmtDate(payment.expiresAt))}.</span>
+        </label>
+        <label class="admin-subscription-reason">Lý do xác nhận
+          <textarea id="admin-payment-confirm-reason" minlength="10" maxlength="500" required placeholder="Ví dụ: Đã đối chiếu đúng số tiền và mã giao dịch trên ứng dụng ngân hàng."></textarea>
+          <span class="admin-cell-note">Lý do được lưu nguyên văn trong audit log.</span>
+        </label>
+        <p class="admin-config-note">
+          Thao tác này sẽ đánh dấu payment đã thanh toán, gia hạn/nâng gói và tạo biên nhận. Không dùng chỉ dựa trên ảnh chụp chưa đối chiếu tiền thực nhận.
+        </p>
+        <p class="admin-msg admin-msg-error" id="admin-payment-confirm-error" hidden></p>
+        <div class="admin-subscription-form-actions">
+          <button type="button" class="admin-btn-ghost" id="admin-payment-confirm-cancel">Hủy</button>
+          <button type="submit" class="admin-btn" id="admin-payment-confirm-submit">Xác nhận đã nhận tiền</button>
+        </div>
+      </form>`);
+
+    const form = $('#admin-payment-confirm-form');
+    const transactionInput = $('#admin-payment-transaction-reference');
+    const paidAtInput = $('#admin-payment-paid-at');
+    const reasonInput = $('#admin-payment-confirm-reason');
+    const errorElement = $('#admin-payment-confirm-error');
+    const submit = $('#admin-payment-confirm-submit');
+    paidAtInput.value = localDateTimeValue();
+    paidAtInput.max = localDateTimeValue(new Date(Date.now() + 5 * 60_000));
+    $('#admin-payment-confirm-cancel').addEventListener('click', closeUserModal);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorElement.hidden = true;
+      const transactionReference = transactionInput.value.trim();
+      const reason = reasonInput.value.trim();
+      const paidAtDate = new Date(paidAtInput.value);
+      if (!/^[A-Za-z0-9._:/-]{3,100}$/.test(transactionReference)) {
+        errorElement.textContent = 'Mã giao dịch phải từ 3 đến 100 ký tự và không chứa khoảng trắng.';
+        errorElement.hidden = false;
+        transactionInput.focus();
+        return;
+      }
+      if (!paidAtInput.value || Number.isNaN(paidAtDate.getTime())) {
+        errorElement.textContent = 'Thời điểm nhận tiền không hợp lệ.';
+        errorElement.hidden = false;
+        paidAtInput.focus();
+        return;
+      }
+      if (reason.length < 10 || reason.length > 500) {
+        errorElement.textContent = 'Lý do xác nhận phải từ 10 đến 500 ký tự.';
+        errorElement.hidden = false;
+        reasonInput.focus();
+        return;
+      }
+      if (!confirm(
+        `Xác nhận đã thực nhận ${fmtVND(payment.amountVnd)} cho ${payment.user.email}?\n\n` +
+        `Mã giao dịch: ${transactionReference}\n` +
+        `Mã đơn: ${payment.orderReference}`
+      )) return;
+
+      submit.disabled = true;
+      try {
+        const result = await API.admin.confirmSubscriptionPayment(payment.id, {
+          transactionReference,
+          paidAt: paidAtDate.toISOString(),
+          reason
+        });
+        closeUserModal();
+        await Promise.all([
+          loadAdminSubscriptionPayments(),
+          loadUsers(),
+          loadRevenueSummary(),
+          loadManualSubscriptionChangeLogs()
+        ]);
+        showMsg(
+          result.duplicate
+            ? `Payment #${payment.id} đã được xác nhận trước đó; không gia hạn lặp.`
+            : `Đã xác nhận payment #${payment.id}, cập nhật gói và ghi audit.`,
+          false
+        );
+      } catch (error) {
+        if (error.code === 401) return gotoLogin();
+        errorElement.textContent = error.message || 'Không xác nhận được payment.';
+        errorElement.hidden = false;
+        submit.disabled = false;
+      }
+    });
+    transactionInput.focus();
+  }
+
+  function renderAdminSubscriptionPayments(payments) {
+    subscriptionPaymentTbody.textContent = '';
+    for (const payment of payments) {
+      const row = document.createElement('tr');
+      const expired = payment.status === 'pending'
+        && payment.expiresAt
+        && new Date(payment.expiresAt).getTime() <= Date.now();
+      row.innerHTML = `
+        <td>${esc(fmtDate(payment.createdAt))}</td>
+        <td class="admin-user-email">${esc(payment.user.email)}</td>
+        <td><code>${esc(payment.orderReference)}</code><br><span class="admin-cell-note">${esc(payment.plan.name)} · ${payment.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'}</span></td>
+        <td>${fmtVND(payment.amountVnd)}<br><span class="admin-cell-note">${esc(payment.receiver.bankId)} · ${esc(payment.receiver.accountMasked)}</span></td>
+        <td><code>${esc(payment.transferContent)}</code></td>
+        <td><span class="admin-refund-status admin-refund-status--${esc(payment.status)}">${esc(subscriptionPaymentStatusLabels[payment.status] || payment.status)}</span>${expired ? '<br><span class="admin-cell-note">Đơn đã hết hạn</span>' : ''}</td>
+        <td>${paymentSettlementDetail(payment)}</td>
+        <td class="admin-actions"><div class="admin-action-list"></div></td>`;
+      const actions = row.querySelector('.admin-action-list');
+      if (payment.status === 'pending') {
+        actions.appendChild(btn(
+          expired ? 'Đối soát giao dịch trước hạn' : 'Xác nhận đã nhận tiền',
+          'admin-btn',
+          () => openManualPaymentConfirmation(payment)
+        ));
+      } else {
+        actions.textContent = '—';
+      }
+      subscriptionPaymentTbody.appendChild(row);
+    }
+    subscriptionPaymentTable.hidden = payments.length === 0;
+    subscriptionPaymentEmpty.hidden = payments.length !== 0;
+  }
+
+  async function loadAdminSubscriptionPayments() {
+    subscriptionPaymentRefresh.disabled = true;
+    try {
+      const result = await API.admin.listSubscriptionPayments(
+        subscriptionPaymentFilter.value,
+        100
+      );
+      renderAdminSubscriptionPayments(result.payments || []);
+    } catch (error) {
+      if (error.code === 401) return gotoLogin();
+      subscriptionPaymentTable.hidden = true;
+      subscriptionPaymentEmpty.hidden = false;
+      subscriptionPaymentEmpty.textContent = error.message || 'Không tải được danh sách payment.';
+    } finally {
+      subscriptionPaymentRefresh.disabled = false;
+    }
+  }
+
+  subscriptionPaymentFilter.addEventListener('change', loadAdminSubscriptionPayments);
+  subscriptionPaymentRefresh.addEventListener('click', loadAdminSubscriptionPayments);
 
   // ---------- Giá và trạng thái gói ----------
   const plansTable = $('#plans-table');
@@ -984,6 +1172,7 @@
         loadRevenueSummary(),
         loadConfig(),
         loadPlans(),
+        loadAdminSubscriptionPayments(),
         loadSubscriptionRefundRequests(),
         loadManualSubscriptionChangeLogs(),
         loadSensitiveAccessLogs()

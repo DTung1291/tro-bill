@@ -82,3 +82,25 @@ giữ các trường cần đối soát, hash SHA-256 của raw payload và kế
 
 Không gửi thử webhook đã ký vào Production bằng giao dịch giả. Dùng Preview và
 database staging để kiểm thử adapter trước khi kết nối nguồn giao dịch thật.
+
+## Đối soát thủ công khi webhook thiếu hoặc chậm
+
+Admin có thể mở **Đối soát thanh toán gói** để xác nhận một đơn đang `pending`
+sau khi kiểm tra tiền thực nhận trên ứng dụng/ngân hàng. Thao tác bắt buộc nhập
+mã giao dịch, thời điểm nhận tiền và lý do hỗ trợ. Server chỉ chấp nhận giao dịch
+nằm trong thời hạn của đơn, khi subscription vẫn đúng trạng thái lúc tạo đơn.
+
+Luồng thủ công và webhook dùng chung namespace settlement
+`bank_transfer + transactionId`. Vì vậy:
+
+- một mã giao dịch không thể thanh toán cho hai đơn;
+- xác nhận thủ công và cập nhật subscription diễn ra trong cùng transaction;
+- mọi xác nhận thủ công có actor, lý do và payment ID trong audit log;
+- webhook đến sau với đúng mã giao dịch chỉ được coi là retry, không gia hạn lần
+  thứ hai;
+- nút **Tôi đã chuyển khoản / cần kiểm tra** của người dùng chỉ tạo yêu cầu đối
+  soát, không tự đánh dấu payment là `paid`.
+
+Thủ công là đường dự phòng vận hành, không thay thế yêu cầu kết nối adapter thật.
+Checklist “ghi nhận tự động” chỉ được đóng sau khi provider thật và ít nhất một
+giao dịch pilot Production đã được xác minh.

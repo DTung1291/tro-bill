@@ -566,7 +566,8 @@ async function changeSubscription(req, res) {
 
 // GET /api/admin/subscription/manual-change-logs
 // Chỉ trả những thao tác cấp/gia hạn thủ công do admin thực hiện. Metadata được
-// thu hẹp về chu kỳ/số ngày trial để không vô tình mở rộng dữ liệu audit ra UI.
+// thu hẹp về chu kỳ/số ngày trial/payment ID để không vô tình mở rộng dữ liệu
+// audit ra UI.
 async function listAdminManualChangeLogs(req, res) {
   const requestedLimit = Number(req.query?.limit || 100);
   const limit = Number.isInteger(requestedLimit)
@@ -578,7 +579,13 @@ async function listAdminManualChangeLogs(req, res) {
             previous_status, new_status, reason, metadata, created_at
      FROM subscription_change_logs
      WHERE actor_user_id IS NOT NULL
-       AND action IN ('trial_started', 'subscription_upgraded', 'subscription_renewed')
+       AND (
+         action IN ('trial_started', 'subscription_upgraded', 'subscription_renewed')
+         OR (
+           action IN ('subscription_upgraded_by_payment', 'subscription_renewed_by_payment')
+           AND metadata->>'confirmationMethod'='manual_admin'
+         )
+       )
      ORDER BY created_at DESC
      LIMIT $1`,
     [limit]
@@ -606,6 +613,12 @@ async function listAdminManualChangeLogs(req, res) {
           : null,
         trialDays: Number.isInteger(Number(metadata.trialDays))
           ? Number(metadata.trialDays)
+          : null,
+        paymentId: Number.isInteger(Number(metadata.paymentId))
+          ? Number(metadata.paymentId)
+          : null,
+        confirmationMethod: metadata.confirmationMethod === 'manual_admin'
+          ? 'manual_admin'
           : null,
         createdAt: row.created_at
       };

@@ -751,3 +751,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   phỏng vấn, ba vấn đề, thông điệp, bảng giá hoặc pilot là hoàn thành chỉ từ giả
   thuyết nội bộ. Bằng chứng trong Git phải ẩn danh; dữ liệu liên hệ nằm ngoài
   repository trong công cụ riêng tư của chủ sản phẩm.
+
+## D-046 — Xác nhận thanh toán thủ công dùng chung định danh với webhook
+
+- **Trạng thái:** Đã triển khai, chờ phát hành Production ngày 09/09/2026.
+- **Quyết định:** Webhook là đường xác nhận tự động chính; admin có đường dự
+  phòng để xác nhận payment `pending` sau khi đối chiếu tiền thực nhận. Cả hai
+  đường dùng cùng cặp `bank_transfer + transactionId`, khóa payment/subscription
+  và cập nhật trạng thái payment, subscription, audit trong một transaction.
+  Xác nhận thủ công bắt buộc mã giao dịch, thời điểm nhận và lý do; chỉ nhận giao
+  dịch trong thời hạn đơn và khi subscription chưa đổi so với lúc tạo đơn.
+- **Lý do:** VietQR tĩnh không phát webhook nên nếu chỉ có tự động, đơn có thể
+  chờ vô hạn; nếu admin cấp gói bằng thao tác rời, cùng giao dịch có thể được
+  webhook đến muộn áp dụng thêm lần nữa và mất liên kết với payment gốc.
+- **Hệ quả:** Một giao dịch không thể dùng cho hai payment; webhook đến sau xác
+  nhận thủ công chỉ là retry và không gia hạn lặp. Mọi thao tác thủ công có actor,
+  reason và payment ID trong audit. Yêu cầu “đã chuyển khoản” từ người dùng chỉ
+  mở đối soát, không tự chuyển payment sang `paid`. Checklist tự động vẫn mở tới
+  khi có adapter provider thật và giao dịch pilot Production.

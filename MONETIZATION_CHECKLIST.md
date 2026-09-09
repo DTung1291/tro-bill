@@ -152,6 +152,10 @@ Trạng thái ngày 24/08/2026:
 - [x] Tự động kích hoạt hoặc gia hạn gói sau khi thanh toán thành công.
 - [x] Có lịch sử thanh toán và biên nhận cho chủ trọ.
 - [x] Có quy trình hoàn tiền hoặc xử lý thanh toán nhầm.
+  Admin có bảng đối soát payment `pending` và có thể xác nhận thủ công sau khi
+  kiểm tra tiền thực nhận. Mã giao dịch dùng chung khóa idempotency với webhook;
+  xác nhận, cập nhật gói và audit nằm trong cùng transaction. Người dùng có nút
+  báo đã chuyển để yêu cầu kiểm tra nhưng không thể tự đổi trạng thái payment.
 - [ ] Nếu bán trong ứng dụng Android trên Google Play, hoàn thiện Play Billing và xác minh giao dịch phía server.
 
 ### Trang quản trị doanh thu
@@ -653,7 +657,9 @@ scan sạch.
   chối `409 WEBHOOK_EVENT_PAYLOAD_MISMATCH` nếu cùng event ID bị gửi lại với loại
   event hoặc raw payload khác. Tiêu chí vẫn mở vì VietQR tĩnh không phát webhook;
   cần nối adapter của nhà cung cấp thật và xác minh ít nhất một giao dịch pilot
-  trên production. Production revision `ac14d1ccb3ff`, CI `34193887394`, 437/437
+  trên production. Đường dự phòng đối soát thủ công dùng cùng khóa transaction
+  với webhook nên không thể gia hạn lặp; mục vẫn mở vì đường tự động chưa có
+  provider thật. Production revision `ac14d1ccb3ff`, CI `34193887394`, 437/437
   test và secret scan sạch.
 - [x] Hóa đơn tiền trọ hỗ trợ công nợ và thanh toán một phần.
 - [ ] Có ít nhất 70% khách pilot quay lại ở kỳ lập bill thứ hai.

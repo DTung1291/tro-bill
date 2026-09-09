@@ -40,6 +40,7 @@ const plans = require('./plans');
 const { createSubscriptionOrder } = require('./subscription-orders');
 const { paymentWebhook } = require('./payment-webhook');
 const paymentHistory = require('./subscription-payment-history');
+const subscriptionPaymentAdmin = require('./subscription-payment-admin');
 const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
 const financialReports = require('./financial-reports');
@@ -587,6 +588,16 @@ app.get(
   '/api/admin/subscription/manual-change-logs',
   adminGuard,
   wrap(subscription.listAdminManualChangeLogs)
+);
+app.get(
+  '/api/admin/subscription/payments',
+  adminGuard,
+  wrap(subscriptionPaymentAdmin.listAdminSubscriptionPayments)
+);
+app.post(
+  '/api/admin/subscription/payments/:id/confirm',
+  adminGuard,
+  wrap(subscriptionPaymentAdmin.confirmSubscriptionPaymentManually)
 );
 app.delete('/api/admin/users/:id', adminGuard, wrap(admin.deleteUser));
 app.post('/api/admin/users/:id/password', adminGuard, wrap(admin.resetPassword));

@@ -739,6 +739,15 @@ const API = (() => {
       'GET',
       `/api/admin/subscription/manual-change-logs?limit=${encodeURIComponent(limit)}`
     ),
+    listSubscriptionPayments: (status = 'pending', limit = 100) => request(
+      'GET',
+      `/api/admin/subscription/payments?status=${encodeURIComponent(status)}&limit=${encodeURIComponent(limit)}`
+    ),
+    confirmSubscriptionPayment: (paymentId, input) => request(
+      'POST',
+      `/api/admin/subscription/payments/${encodeURIComponent(paymentId)}/confirm`,
+      input
+    ),
     revealTenantCccd: (userId, tenantId, reason) => request(
       'POST',
       `/api/admin/users/${userId}/tenants/${encodeURIComponent(tenantId)}/reveal-cccd`,

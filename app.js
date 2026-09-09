@@ -1089,7 +1089,9 @@ function renderSubscriptionPaymentHistory() {
       const supportButton = document.createElement('button');
       supportButton.type = 'button';
       supportButton.className = 'btn btn--sm btn--ghost';
-      supportButton.textContent = 'Báo chuyển nhầm / hoàn tiền';
+      supportButton.textContent = payment.status === 'pending'
+        ? 'Tôi đã chuyển khoản / cần kiểm tra'
+        : 'Yêu cầu hoàn tiền';
       supportButton.addEventListener('click', () => openSubscriptionRefundModal(payment));
       detailActions.appendChild(supportButton);
     }
@@ -1144,6 +1146,9 @@ function openSubscriptionRefundModal(payment) {
   amountInput.value = String(payment.amountVnd || '');
   amountInput.max = typeInput.value === 'refund' ? String(payment.amountVnd) : '';
   reasonInput.value = '';
+  reasonInput.placeholder = payment.status === 'paid'
+    ? 'Ví dụ: Tôi mua nhầm gói và đề nghị hoàn tiền…'
+    : 'Ví dụ: Tôi đã chuyển lúc 10:30 nhưng đơn vẫn đang chờ thanh toán…';
   paymentText.textContent = `${payment.planName} · ${payment.orderReference}`;
   modal.hidden = false;
   syncModalScrollLock();
