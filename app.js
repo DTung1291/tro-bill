@@ -3560,19 +3560,20 @@ function renderExpenses() {
   const expenses = getPeriodExpenses(period);
   const listEl = document.getElementById('expense-list');
   const summaryEl = document.getElementById('expense-summary');
+  const total = getExpenseTotal(period);
 
   document.getElementById('expenses-period-label').textContent = periodLabel(period);
   document.getElementById('expenses-month-input').value = periodInputValue(period);
-  document.getElementById('expense-total').textContent = fmt(getExpenseTotal(period));
+  document.getElementById('expense-total').textContent = fmt(total);
+  document.getElementById('expense-overview-total').textContent = fmt(total);
   renderExpensePropertyOptions();
 
   summaryEl.innerHTML = Object.entries(EXPENSE_CATEGORIES)
-    .filter(([category]) => category !== 'other')
     .map(([category, meta]) => {
-      const total = expenses
+      const categoryTotal = expenses
         .filter(item => item.category === category)
         .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      return `<div class="expense-summary-item"><div class="expense-summary-label">${meta.icon} ${meta.label}</div><div class="expense-summary-value">${fmt(total)}</div></div>`;
+      return `<div class="expense-summary-item expense-summary-item--${category}"><div class="expense-summary-icon" aria-hidden="true">${meta.icon}</div><div><div class="expense-summary-label">${meta.label}</div><div class="expense-summary-value">${fmt(categoryTotal)}</div></div></div>`;
     }).join('');
 
   if (expenses.length === 0) {
@@ -3590,7 +3591,7 @@ function renderExpenses() {
     const property = STATE.properties.find(entry => Number(entry.id) === Number(item.propertyId));
     const propertyLabel = property ? `🏢 ${property.name}` : '🌐 Chi phí chung';
     return `
-      <div class="expense-item">
+      <article class="expense-item">
         <div class="expense-item-icon">${meta.icon}</div>
         <div class="expense-item-main">
           <div class="expense-item-name">${escapeHtml(name)}</div>
@@ -3598,16 +3599,16 @@ function renderExpenses() {
           ${item.maintenanceRequestCode ? `<div class="expense-item-maintenance">🔧 ${escapeHtml(item.maintenanceRequestCode)}${item.maintenanceRoomName ? ` · ${escapeHtml(item.maintenanceRoomName)}` : ''}</div>` : ''}
           <div class="expense-item-meta">${escapeHtml(details)}</div>
         </div>
-        <div class="expense-item-amount">${fmt(item.amount)}</div>
+        <div class="expense-item-amount"><span>Đã trả</span><strong>${fmt(item.amount)}</strong></div>
         ${item.maintenanceRequestCode ? `
           <div class="expense-item-actions">
             <span class="tenant-maintenance-badge" title="Khoản này được quản lý từ yêu cầu sửa chữa">Đã liên kết</span>
           </div>` : `
           <div class="expense-item-actions">
-            <button class="btn btn--ghost btn--sm" data-edit-expense="${item.id}" title="Sửa">✏️</button>
-            <button class="btn btn--danger btn--sm" data-delete-expense="${item.id}" title="Xóa">🗑️</button>
+            <button class="btn btn--ghost btn--sm" data-edit-expense="${item.id}" aria-label="Sửa khoản ${escapeHtml(name)}">✏️ Sửa</button>
+            <button class="btn btn--danger btn--sm" data-delete-expense="${item.id}" aria-label="Xóa khoản ${escapeHtml(name)}">🗑️ Xóa</button>
           </div>`}
-      </div>`;
+      </article>`;
   }).join('');
 
   listEl.querySelectorAll('[data-edit-expense]').forEach(button => {
@@ -8481,9 +8482,12 @@ document.getElementById('btn-save-month').addEventListener('click', saveMonth);
 // ============================================================
 function renderHistory() {
   const listEl = document.getElementById('history-list');
+  const countEl = document.getElementById('history-period-count');
   listEl.innerHTML = '';
+  const history = Array.isArray(STATE.history) ? STATE.history : [];
+  if (countEl) countEl.textContent = `${history.length} kỳ`;
 
-  if (!STATE.history || STATE.history.length === 0) {
+  if (history.length === 0) {
     listEl.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">📅</div>
@@ -8494,10 +8498,10 @@ function renderHistory() {
   }
 
   // Sort history newest first
-  const sortedHistory = [...STATE.history].sort((a, b) => b.period.localeCompare(a.period));
+  const sortedHistory = [...history].sort((a, b) => b.period.localeCompare(a.period));
 
   for (const record of sortedHistory) {
-    const card = document.createElement('div');
+    const card = document.createElement('article');
     card.className = 'history-month-card';
     
     const totalRevenue = record.bills.reduce((sum, b) => sum + (b.total || 0), 0);
@@ -8514,21 +8518,27 @@ function renderHistory() {
     const totalRooms = record.bills.length;
 
     card.innerHTML = `
-      <div class="history-month-header" data-toggle-history="${record.period}">
-        <div>
+      <div class="history-month-header" data-toggle-history="${record.period}" role="button" tabindex="0" aria-expanded="false" aria-controls="history-body-${record.period}">
+        <div class="history-month-heading">
+          <span class="history-month-kicker">Kỳ hóa đơn đã lưu</span>
           <div class="history-month-title">${periodLabel(record.period)}</div>
           <div class="history-month-meta">
-            Đã thu: ${paidCount}/${totalRooms} phòng &nbsp;|&nbsp; Thực thu: ${fmt(netRevenue)}
+            Đã tất toán ${paidCount}/${totalRooms} phòng
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="history-month-total">${fmt(totalRevenue)}</div>
-          <span style="font-size: 1rem; color: var(--text-muted); transition: transform 0.2s">▼</span>
+        <div class="history-month-summary">
+          <div>
+            <span>Tổng hóa đơn</span>
+            <strong class="history-month-total">${fmt(totalRevenue)}</strong>
+          </div>
+          <span class="history-month-chevron" aria-hidden="true">⌄</span>
         </div>
       </div>
       <div class="history-month-body" id="history-body-${record.period}">
-        <div style="margin-bottom:12px; font-size:0.85rem; color:var(--text-muted)">
-          Chi phí khấu trừ: ${fmt(record.deduction || 0)}
+        <div class="history-snapshot-summary">
+          <div><span>Đã thu vào hóa đơn</span><strong>${fmt(collectedRevenue)}</strong></div>
+          <div><span>Chi phí khấu trừ</span><strong>${fmt(record.deduction || 0)}</strong></div>
+          <div><span>Sau khấu trừ</span><strong class="${netRevenue < 0 ? 'is-negative' : ''}">${fmt(netRevenue)}</strong></div>
         </div>
         <div class="history-rooms-list">
           ${record.bills.map(b => {
@@ -8544,21 +8554,21 @@ function renderHistory() {
                 : '';
             const adjustmentDesc = `${b.surchargeAmount > 0 ? ` | ➕ ${fmt(b.surchargeAmount)}` : ''}${b.lateFeeAmount > 0 ? ` | ⏱️ ${fmt(b.lateFeeAmount)}` : ''}${b.discountAmount > 0 ? ` | 🏷️ -${fmt(b.discountAmount)}` : ''}`;
             return `
-            <div class="history-room-row">
-              <div>
-                <span class="history-room-name">${b.roomName}</span>
+            <article class="history-room-row">
+              <div class="history-room-main">
+                <span class="history-room-name">${escapeHtml(b.roomName)}</span>
                 <div class="history-room-debt-age">${debtAgeBadge(payment)}</div>
-                <div style="font-size:0.75rem;color:var(--text-muted)">
+                <div class="history-room-breakdown">
                   ⚡ ${fmtNum(b.kwh)} kWh | ${waterDesc}${b.trashFee > 0 ? ` | 🗑️ ${fmt(b.trashFee)}` : ''}${b.wifiFee > 0 ? ` | 📶 ${fmt(b.wifiFee)}` : ''}${b.manageFee > 0 ? ` | 💼 ${fmt(b.manageFee)}` : ''}${rentDesc}${adjustmentDesc}${b.utilityOnly ? ' | 🏁 Chỉ thu điện nước' : ''}
                 </div>
               </div>
-              <div style="display:flex;align-items:center;gap:10px">
+              <div class="history-room-actions">
                 <span class="history-room-total">${fmt(b.total)}</span>
                 <button class="btn ${payment.settled ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-history-paid data-history-period="${record.period}" data-history-room="${escapeHtml(b.roomId)}" ${Number(b.total) <= 0 ? 'disabled' : ''}>
                   ${Number(b.total) <= 0 ? 'Không phải thu' : payment.invoiceId ? (payment.settled ? 'Xem giao dịch' : paymentStatusLabel(payment)) : payment.settled ? 'Chuyển vào sổ' : 'Ghi nhận đã thu'}
                 </button>
               </div>
-            </div>
+            </article>
             `;
           }).join('')}
         </div>
@@ -8571,11 +8581,17 @@ function renderHistory() {
 
     const header = card.querySelector(`[data-toggle-history="${record.period}"]`);
     const body = card.querySelector(`#history-body-${record.period}`);
-    const arrow = header.querySelector('span');
-    
-    header.addEventListener('click', () => {
+    const arrow = header.querySelector('.history-month-chevron');
+    const toggleHistory = () => {
       const isOpen = body.classList.toggle('open');
+      header.setAttribute('aria-expanded', String(isOpen));
       arrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    };
+    header.addEventListener('click', toggleHistory);
+    header.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      toggleHistory();
     });
 
     card.querySelectorAll('[data-history-paid]').forEach(btn => {

@@ -825,8 +825,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 - **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
-  phòng đã push tại `f51acf9`; Nhập chỉ số/Hóa đơn đã hoàn thành local và đang
-  chờ người dùng kiểm tra.
+  phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`; Chi phí thực
+  tế/Lịch sử tháng đã hoàn thành local và đang chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -861,3 +861,10 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   riêng tổng phải thu, đã thu và tổng còn phải thu gồm nợ cũ. Các phép tính,
   ledger, đồng bộ invoice, gửi/chia sẻ và phân quyền server không thay đổi; dữ
   liệu tên phòng/ghi chú động tiếp tục phải escape.
+
+  Lát cắt Chi phí thực tế/Lịch sử tháng tách tổng quan chi ra khỏi form và sổ
+  chi, hiển thị cả nhóm “Khác” thay vì làm nó biến mất khỏi cơ cấu. Lịch sử vẫn
+  là snapshot hóa đơn đã lưu nhưng số thu tiếp tục đọc từ ledger hiện hành; giao
+  diện phải gọi rõ “Sau khấu trừ” thay cho nhãn dễ nhầm với tổng tiền đã thu.
+  Việc mở snapshot phải dùng được bằng bàn phím và phản ánh `aria-expanded`.
+  Không thay đổi cách lưu/xóa chi phí, snapshot lịch sử hoặc giao dịch thanh toán.

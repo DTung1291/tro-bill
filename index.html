@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=136" />
+  <link rel="stylesheet" href="style.css?v=137" />
 </head>
 
 <body>
@@ -336,7 +336,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Chi phí thực tế</h1>
-          <p class="page-sub" id="expenses-period-label">Tháng --/----</p>
+          <p class="page-sub"><span id="expenses-period-label">Tháng --/----</span> · Theo dõi tiền đã trả để biết dòng tiền thực.</p>
         </div>
         <div class="expenses-toolbar">
           <button class="btn btn--ghost btn--sm" id="btn-transfer-expenses">Chuyển dữ liệu tháng</button>
@@ -347,11 +347,27 @@
           </div>
         </div>
       </div>
-      <div class="expense-summary" id="expense-summary"></div>
+      <section class="expense-overview" aria-labelledby="expense-overview-title">
+        <header class="expense-overview-head">
+          <div>
+            <span class="expense-section-kicker">Dòng tiền đi ra</span>
+            <h2 id="expense-overview-title">Tổng quan chi phí trong kỳ</h2>
+            <p>Khoản chung chỉ tính khi xem tất cả khu; khoản theo khu được đưa vào lợi nhuận riêng của khu đó.</p>
+          </div>
+          <div class="expense-overview-total">
+            <span>Tổng đã trả</span>
+            <strong id="expense-overview-total">0 đ</strong>
+          </div>
+        </header>
+        <div class="expense-summary" id="expense-summary"></div>
+      </section>
       <div class="expense-layout">
         <form class="expense-form" id="expense-form">
-          <h2 class="section-title">Thêm khoản đã trả</h2>
-          <p class="expense-help">Ghi số tiền bạn thực tế thanh toán cho nhà cung cấp, tách biệt với tiền thu của khách.</p>
+          <div class="expense-card-head">
+            <span class="expense-section-kicker">Ghi nhận</span>
+            <h2 class="section-title">Thêm khoản đã trả</h2>
+            <p class="expense-help">Ghi số tiền bạn thực tế thanh toán cho nhà cung cấp, tách biệt với tiền thu của khách.</p>
+          </div>
           <input type="hidden" id="expense-id" />
           <div class="form-row">
             <label class="form-label" for="expense-category">Loại chi phí</label>
@@ -395,8 +411,11 @@
           </div>
         </form>
         <div class="expense-list-card">
-          <div class="section-header">
-            <h2 class="section-title">Khoản đã thanh toán</h2>
+          <div class="section-header expense-list-head">
+            <div>
+              <span class="expense-section-kicker">Sổ chi trong kỳ</span>
+              <h2 class="section-title">Khoản đã thanh toán</h2>
+            </div>
             <span class="expense-total" id="expense-total">0 đ</span>
           </div>
           <div class="expense-list" id="expense-list"></div>
@@ -641,14 +660,27 @@
     <!-- PAGE: HISTORY -->
     <section class="page" id="page-history">
       <div class="page-header">
-        <h1 class="page-title">Lịch sử tháng</h1>
-      </div>
-      <div class="history-list" id="history-list">
-        <div class="empty-state">
-          <div class="empty-icon">📅</div>
-          <p>Chưa có tháng nào được lưu.<br>Dùng nút <strong>Lưu tháng này</strong> trên tab Hóa đơn.</p>
+        <div>
+          <h1 class="page-title">Lịch sử tháng</h1>
+          <p class="page-sub">Mở lại snapshot đã lưu để đối chiếu hóa đơn và giao dịch.</p>
         </div>
       </div>
+      <section class="history-workspace" aria-labelledby="history-workspace-title">
+        <header class="history-workspace-head">
+          <div>
+            <span class="history-workspace-kicker">Dữ liệu đã chốt</span>
+            <h2 id="history-workspace-title">Các kỳ đã lưu</h2>
+            <p>Mỗi kỳ giữ nguyên bản chụp hóa đơn; giao dịch thu tiền tiếp tục lấy từ sổ máy chủ.</p>
+          </div>
+          <span class="history-period-count" id="history-period-count">0 kỳ</span>
+        </header>
+        <div class="history-list" id="history-list">
+          <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <p>Chưa có tháng nào được lưu.<br>Dùng nút <strong>Lưu tháng này</strong> trên tab Hóa đơn.</p>
+          </div>
+        </div>
+      </section>
     </section>
 
     <!-- PAGE: SETTINGS -->
@@ -2571,7 +2603,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=140"></script>
+  <script src="app.js?v=141"></script>
 </body>
 
 </html>
