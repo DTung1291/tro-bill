@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 10/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Nhập chỉ số/Hóa đơn đã push; lát cắt Chi phí thực tế/Lịch sử tháng hoàn thành local, chờ người dùng kiểm tra |
+| Trạng thái | Chi phí thực tế/Lịch sử tháng đã push; lát cắt Cài đặt vận hành hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Chi phí thực tế/Lịch sử tháng và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `4113398` đã push `main` — làm rõ luồng Nhập chỉ số/Hóa đơn; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra Chi phí thực tế/Lịch sử tháng trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Cài đặt vận hành, test và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `627f2c9` đã push `main` — làm mới Chi phí thực tế/Lịch sử tháng; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra Cài đặt vận hành trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: Chi phí thực tế có bề mặt tổng
+- Thay đổi local đang chờ người dùng kiểm tra: Cài đặt có trung tâm điều hướng
+  nhanh tới Gói dịch vụ, Nhân sự, Thu tiền, Nhắc lịch và Dữ liệu. Các vùng dài
+  được chia thành ba tiêu đề Tài chính/Tự động hóa/Tài khoản; thẻ khoản khấu
+  trừ, tài khoản VietQR mặc định, nhắc chốt chỉ số, xuất nhập dữ liệu, bắt đầu
+  nhanh và ủng hộ dùng cùng phân cấp header/nội dung/thao tác. Form VietQR và
+  nhắc lịch dùng lớp responsive thay cho kích thước inline; dưới 640px trường
+  nhập và nút xếp dọc, mục lục còn hai cột. Không đổi ID, API hoặc logic lưu;
+  CSS pin tăng `137 → 138`. Test mục tiêu 41/41 và full suite 474/474 đạt khi
+  chạy ngoài sandbox; không có migration và chưa xác minh deployment Production.
+
+- `627f2c9`: Chi phí thực tế có bề mặt tổng
   quan riêng, hiển thị tổng đã trả và đủ sáu nhóm chi phí; form ghi nhận và sổ
   chi có header/nhóm thao tác rõ hơn. Mỗi dòng chi trình bày khu, nguồn liên kết,
   ngày/ghi chú và số tiền theo thứ bậc, nút sửa/xóa có nhãn đầy đủ. Lịch sử tháng
@@ -104,8 +114,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `aria-expanded`; tên phòng được escape. Dưới 640px tổng quan/form thu về một
   cột; dưới 480px dòng lịch sử và thao tác chi xếp dọc. CSS pin tăng `136 → 137`,
   app pin tăng `140 → 141`; test mục tiêu 47/47, kiểm tra cú pháp app và full
-  suite 473/473 đạt. Chưa commit/push, không có migration và chưa xác minh
-  deployment Production.
+  suite 473/473 đạt. Commit đã push `main`; không có migration và deployment
+  Production chưa được xác minh trong phiên hiện tại.
 
 - `4113398`: Nhập chỉ số/Hóa đơn thành luồng
   hai bước rõ ràng. Bước nhập có thẻ tiến độ, số phòng đã xong/còn lại, phần trăm

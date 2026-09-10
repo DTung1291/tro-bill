@@ -497,6 +497,223 @@ body.workspace-staff-active .main { padding-top: 112px; }
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   font-size: .85rem; color: var(--text-muted);
 }
+.settings-anchor-target,
+#settings-subscription,
+#team-members-card { scroll-margin-top: 88px; }
+.settings-hub {
+  display: grid;
+  grid-template-columns: minmax(220px, .72fr) minmax(0, 1.6fr);
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid rgba(79, 70, 229, .2);
+  border-radius: calc(var(--radius) + 4px);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(79, 70, 229, .12), transparent 36%),
+    var(--bg2);
+  box-shadow: var(--shadow);
+}
+.settings-hub-head {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.settings-hub-head > strong {
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 1rem;
+  letter-spacing: -.015em;
+}
+.settings-hub-head p,
+.settings-section-heading p,
+.settings-card-heading p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.settings-section-kicker {
+  display: block;
+  color: var(--primary);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.settings-hub-links {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.settings-hub-links a {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+}
+.settings-hub-links a:hover,
+.settings-hub-links a:focus-visible {
+  border-color: rgba(79, 70, 229, .45);
+  background: var(--primary-light);
+  outline: none;
+  transform: translateY(-1px);
+}
+.settings-hub-links a > span { margin-bottom: 7px; font-size: 1rem; }
+.settings-hub-links a > strong { font-size: .76rem; }
+.settings-hub-links a > small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: .64rem;
+  line-height: 1.35;
+}
+.settings-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 28px 0 12px;
+  padding: 0 2px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-section-heading h2 {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.12rem;
+  letter-spacing: -.02em;
+}
+.settings-section-heading p { max-width: 680px; }
+.settings-section-number {
+  flex: 0 0 auto;
+  color: var(--border);
+  font-size: 1.55rem;
+  font-weight: 850;
+  letter-spacing: -.05em;
+}
+.settings-operation-card {
+  width: 100%;
+  margin-top: 12px;
+  padding: 16px;
+  justify-content: space-between;
+  gap: 16px;
+}
+.settings-section-heading + .settings-operation-card { margin-top: 0; }
+.settings-card-heading { min-width: 0; }
+.settings-card-heading strong { color: var(--text); }
+.settings-card-heading p { max-width: 620px; }
+.settings-deduction-card .inline-input { width: 150px; }
+.default-bank-settings-card,
+.meter-reminder-settings-card,
+.donate-settings-card { display: block; }
+.default-bank-settings-fields {
+  display: grid;
+  grid-template-columns: minmax(150px, .8fr) minmax(140px, .72fr) minmax(150px, .72fr) minmax(210px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.default-bank-settings-fields .inline-input { width: 100%; min-width: 0; }
+.default-bank-settings-custom { display: none; }
+.meter-reminder-settings-fields {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+.settings-check-option {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  gap: 7px;
+  color: var(--text);
+  cursor: pointer;
+}
+.meter-reminder-field {
+  display: grid;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: .72rem;
+}
+.meter-reminder-field .inline-input { width: 128px; }
+.account-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.donate-empty-hint {
+  margin: 12px 0 10px;
+  color: var(--text-muted);
+  font-size: .78rem;
+}
+.donate-vietqr-fields {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.donate-vietqr-fields label { color: var(--text-muted); font-size: .78rem; }
+.donate-vietqr-fields .inline-input { width: 130px; }
+.donate-iap-block {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.donate-iap-block > span {
+  width: 100%;
+  color: var(--text-muted);
+  font-size: .76rem;
+}
+.donate-thanks { margin-top: 10px; color: var(--text-muted); font-size: .72rem; }
+@media (max-width: 1020px) {
+  .settings-hub { grid-template-columns: minmax(0, 1fr); }
+  .settings-hub-links { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; padding-bottom: 3px; }
+  .default-bank-settings-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .default-bank-settings-fields .btn { justify-self: start; }
+}
+@media (max-width: 640px) {
+  .settings-hub { padding: 16px; }
+  .settings-hub-links { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .settings-hub-links a:last-child { grid-column: 1 / -1; }
+  .settings-section-heading { align-items: flex-start; margin-top: 24px; }
+  .settings-section-number { font-size: 1.25rem; }
+  .settings-operation-card { align-items: stretch; flex-direction: column; }
+  .settings-operation-card > .btn,
+  .getting-started-card > .btn { width: 100%; justify-content: center; }
+  .settings-deduction-card .settings-inline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+  .settings-deduction-card .inline-input { width: 100%; }
+  .settings-deduction-card .btn { grid-column: 1 / -1; justify-content: center; }
+  .default-bank-settings-fields { grid-template-columns: minmax(0, 1fr); }
+  .default-bank-settings-fields .btn { width: 100%; justify-content: center; }
+  .meter-reminder-settings-fields { align-items: stretch; flex-direction: column; }
+  .meter-reminder-field .inline-input { width: 100%; }
+  .meter-reminder-settings-fields .btn { width: 100%; justify-content: center; }
+  .account-data-actions { width: 100%; }
+  .account-data-actions .btn { width: 100%; justify-content: center; }
+  .privacy-settings-actions,
+  .privacy-settings-actions .btn,
+  .account-delete-card .btn,
+  .settings-security-card .btn { width: 100%; justify-content: center; }
+  .donate-vietqr-fields { align-items: stretch; flex-direction: column; }
+  .donate-vietqr-fields .inline-input,
+  .donate-vietqr-fields .btn { width: 100%; }
+  .donate-vietqr-fields .btn { justify-content: center; }
+}
 .invoice-reminder-settings {
   display: block;
   width: 100%;

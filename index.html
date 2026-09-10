@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=137" />
+  <link rel="stylesheet" href="style.css?v=138" />
 </head>
 
 <body>
@@ -692,7 +692,42 @@
         </div>
       </div>
 
-      <section class="subscription-commerce" aria-labelledby="subscription-commerce-title">
+      <nav class="settings-hub" aria-label="Đi đến nhóm cài đặt">
+        <div class="settings-hub-head">
+          <span class="settings-section-kicker">Trung tâm vận hành</span>
+          <strong>Đi nhanh đến nội dung cần cấu hình</strong>
+          <p>Mỗi thay đổi chỉ áp dụng cho tài khoản và nhà trọ đang đăng nhập.</p>
+        </div>
+        <div class="settings-hub-links">
+          <a href="#settings-subscription">
+            <span aria-hidden="true">💳</span>
+            <strong>Gói dịch vụ</strong>
+            <small>Hạn dùng và thanh toán</small>
+          </a>
+          <a href="#team-members-card">
+            <span aria-hidden="true">👥</span>
+            <strong>Nhân sự</strong>
+            <small>Vai trò và phạm vi</small>
+          </a>
+          <a href="#settings-payments">
+            <span aria-hidden="true">🏦</span>
+            <strong>Thu tiền</strong>
+            <small>VietQR và đối soát</small>
+          </a>
+          <a href="#settings-automation">
+            <span aria-hidden="true">⏰</span>
+            <strong>Nhắc lịch</strong>
+            <small>Chỉ số và công nợ</small>
+          </a>
+          <a href="#settings-data">
+            <span aria-hidden="true">🛡️</span>
+            <strong>Dữ liệu</strong>
+            <small>Sao lưu và bảo mật</small>
+          </a>
+        </div>
+      </nav>
+
+      <section class="subscription-commerce" id="settings-subscription" aria-labelledby="subscription-commerce-title">
         <header class="subscription-commerce-head">
           <div>
             <span class="subscription-commerce-eyebrow">Gói dịch vụ</span>
@@ -790,8 +825,20 @@
         <p class="settings-security-note" id="team-member-status">Đang tải danh sách vai trò…</p>
       </section>
 
-      <div class="settings-card">
-        <span>⚙️ Khoản khấu trừ thêm khi in báo cáo:</span>
+      <header class="settings-section-heading settings-anchor-target" id="settings-payments">
+        <div>
+          <span class="settings-section-kicker">Tài chính</span>
+          <h2>Thu tiền và đối soát</h2>
+          <p>Cấu hình báo cáo, tài khoản nhận tiền và kênh xác nhận giao dịch.</p>
+        </div>
+        <span class="settings-section-number" aria-hidden="true">01</span>
+      </header>
+
+      <div class="settings-card settings-operation-card settings-deduction-card">
+        <div class="settings-card-heading">
+          <strong>⚙️ Khoản khấu trừ báo cáo</strong>
+          <p>Khoản điều chỉnh được trừ thêm khi in báo cáo tháng.</p>
+        </div>
         <div class="settings-inline">
           <input type="number" id="deduction-input" class="inline-input" placeholder="450000" />
           <span>đ</span>
@@ -799,10 +846,13 @@
         </div>
       </div>
 
-      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
-        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">🏦 Tài khoản nhận tiền mặc định (VietQR):</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <select id="bank-select" class="inline-input" style="width: 170px; font-weight: inherit;">
+      <div class="settings-card settings-operation-card default-bank-settings-card">
+        <div class="settings-card-heading">
+          <strong>🏦 Tài khoản nhận tiền mặc định</strong>
+          <p>Dùng cho VietQR khi một khu chưa được gán tài khoản riêng.</p>
+        </div>
+        <div class="default-bank-settings-fields">
+          <select id="bank-select" class="inline-input default-bank-settings-bank">
             <option value="">-- Chọn ngân hàng --</option>
             <option value="MB">MB Bank (MB)</option>
             <option value="VCB">Vietcombank (VCB)</option>
@@ -817,9 +867,9 @@
             <option value="VIB">VIB</option>
             <option value="custom">Khác (Tự nhập)...</option>
           </select>
-          <input type="text" id="bank-custom-input" class="inline-input" placeholder="Mã ngân hàng (e.g. OCB)" style="width: 160px; display: none;" />
-          <input type="text" id="bank-account-input" class="inline-input" placeholder="Số tài khoản" style="width: 140px;" />
-          <input type="text" id="bank-owner-input" class="inline-input" placeholder="Tên chủ tài khoản (KHONG DAU)" style="width: 210px;" />
+          <input type="text" id="bank-custom-input" class="inline-input default-bank-settings-custom" placeholder="Mã ngân hàng (e.g. OCB)" />
+          <input type="text" id="bank-account-input" class="inline-input default-bank-settings-account" placeholder="Số tài khoản" />
+          <input type="text" id="bank-owner-input" class="inline-input default-bank-settings-owner" placeholder="Tên chủ tài khoản (KHONG DAU)" />
           <button class="btn btn--sm" id="save-bank-settings">Lưu cấu hình</button>
         </div>
         <div class="bank-transfer-reference-hint">
@@ -962,15 +1012,28 @@
         </section>
       </div>
 
-      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
-        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text)">⏰ Nhắc nhở chốt chỉ số hàng tháng:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+      <header class="settings-section-heading settings-anchor-target" id="settings-automation">
+        <div>
+          <span class="settings-section-kicker">Tự động hóa</span>
+          <h2>Nhắc lịch và hồ sơ hóa đơn</h2>
+          <p>Kiểm soát thời điểm nhắc việc, nhắc công nợ và thông tin phục vụ hóa đơn điện tử.</p>
+        </div>
+        <span class="settings-section-number" aria-hidden="true">02</span>
+      </header>
+
+      <div class="settings-card settings-operation-card meter-reminder-settings-card">
+        <div class="settings-card-heading">
+          <strong>⏰ Nhắc chốt chỉ số hàng tháng</strong>
+          <p>Hiển thị lời nhắc vào ngày và giờ bạn chọn.</p>
+        </div>
+        <div class="meter-reminder-settings-fields">
+          <label class="settings-check-option">
             <input type="checkbox" id="reminder-enabled-input" />
             <span>Kích hoạt nhắc nhở</span>
           </label>
-          <span style="margin-left: 10px;">Nhắc vào ngày:</span>
-          <select id="reminder-day-select" class="inline-input" style="width: 70px;">
+          <label class="meter-reminder-field">
+            <span>Ngày trong tháng</span>
+            <select id="reminder-day-select" class="inline-input">
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
@@ -1002,9 +1065,12 @@
             <option value="29">29</option>
             <option value="30">30</option>
             <option value="31">31</option>
-          </select>
-          <span>lúc:</span>
-          <input type="time" id="reminder-time-input" class="inline-input" style="width: 90px;" />
+            </select>
+          </label>
+          <label class="meter-reminder-field">
+            <span>Thời gian</span>
+            <input type="time" id="reminder-time-input" class="inline-input" />
+          </label>
           <button class="btn btn--sm" id="save-reminder-settings">Lưu nhắc nhở</button>
         </div>
       </div>
@@ -1154,19 +1220,31 @@
         </form>
       </section>
 
-      <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
-        <span>💾 Dữ liệu tài khoản:</span>
-        <div style="display:flex; gap:8px">
+      <header class="settings-section-heading settings-anchor-target" id="settings-data">
+        <div>
+          <span class="settings-section-kicker">Tài khoản</span>
+          <h2>Dữ liệu và bảo mật</h2>
+          <p>Xuất nhập dữ liệu, kiểm tra quyền riêng tư và quản lý các phiên đăng nhập.</p>
+        </div>
+        <span class="settings-section-number" aria-hidden="true">03</span>
+      </header>
+
+      <div class="settings-card settings-operation-card account-data-card">
+        <div class="settings-card-heading">
+          <strong>💾 Dữ liệu tài khoản</strong>
+          <p>Tải bản sao có nhật ký hoặc nhập dữ liệu đã chuẩn bị.</p>
+        </div>
+        <div class="account-data-actions">
           <button class="btn btn--sm btn--ghost" id="btn-export-data">📤 Xuất dữ liệu có audit</button>
           <button class="btn btn--sm btn--ghost" id="btn-import-trigger">📥 Nhập Excel (.CSV) / JSON</button>
-          <input type="file" id="import-file-input" accept=".json,.csv,application/json,text/csv" style="display:none" />
+          <input type="file" id="import-file-input" accept=".json,.csv,application/json,text/csv" hidden />
         </div>
       </div>
 
-      <div class="settings-card" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
-        <div>
+      <div class="settings-card settings-operation-card getting-started-card">
+        <div class="settings-card-heading">
           <strong>🚀 Bắt đầu với TrọBill</strong>
-          <div class="settings-security-note">Quy trình 5 bước và file dữ liệu giả lập không chứa thông tin khách thuê.</div>
+          <p>Quy trình 5 bước và file dữ liệu giả lập không chứa thông tin khách thuê.</p>
         </div>
         <a class="btn btn--sm btn--ghost" href="/huong-dan" target="_blank" rel="noopener">Mở hướng dẫn</a>
       </div>
@@ -1209,31 +1287,34 @@
       </div>
 
       <!-- ☕ Ủng hộ nhà phát triển (Donate) -->
-      <div class="settings-card" style="margin-top: 12px; display: block; width: 100%;">
-        <div style="font-weight: 600; margin-bottom: 10px; color: var(--text)">☕ Ủng hộ nhà phát triển:</div>
+      <div class="settings-card settings-operation-card donate-settings-card">
+        <div class="settings-card-heading">
+          <strong>☕ Ủng hộ nhà phát triển</strong>
+          <p>Tạo mã VietQR với số tiền bạn muốn gửi.</p>
+        </div>
 
         <!-- Thông tin nhận ủng hộ do admin thiết lập chung -->
-        <div id="donate-empty-hint" style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;" hidden>
+        <div id="donate-empty-hint" class="donate-empty-hint" hidden>
           💡 Quản trị viên chưa thiết lập thông tin ủng hộ.
         </div>
 
         <!-- VietQR Block -->
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
-          <span style="font-size: 0.85rem; color: var(--text-muted)">Số tiền (đ):</span>
+        <div class="donate-vietqr-fields">
+          <label for="donate-amount-input">Số tiền (đ)</label>
           <input type="number" id="donate-amount-input" class="inline-input" value="50000"
-            min="5000" step="5000" style="width: 120px;" placeholder="50000" />
+            min="5000" step="5000" placeholder="50000" />
           <button class="btn btn--sm" id="btn-donate-vietqr">📸 Tạo mã VietQR</button>
         </div>
 
         <!-- Google Play Donate Tiers – hiển thị khi chạy trong App Android -->
-        <div id="donate-iap-block" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
-          <span style="font-size: 0.8rem; color: var(--text-muted); width: 100%; margin-bottom: 2px;">Hoặc qua CH Play:</span>
+        <div id="donate-iap-block" class="donate-iap-block">
+          <span>Hoặc qua CH Play:</span>
           <button class="btn btn--sm btn--ghost" id="btn-donate-20k">☕ Cà phê (20k)</button>
           <button class="btn btn--sm btn--ghost" id="btn-donate-50k">🍺 Ly bia (50k)</button>
           <button class="btn btn--sm btn--primary" id="btn-donate-100k">🍕 Bữa trưa (100k)</button>
         </div>
 
-        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 8px;">
+        <div class="donate-thanks">
           💜 Cảm ơn bạn đã ủng hộ TrọBill!
         </div>
       </div>

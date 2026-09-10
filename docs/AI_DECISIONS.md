@@ -825,8 +825,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 - **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
-  phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`; Chi phí thực
-  tế/Lịch sử tháng đã hoàn thành local và đang chờ người dùng kiểm tra.
+  phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`, Chi phí thực
+  tế/Lịch sử tháng tại `627f2c9`; Cài đặt vận hành đã hoàn thành local và đang
+  chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -868,3 +869,10 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   diện phải gọi rõ “Sau khấu trừ” thay cho nhãn dễ nhầm với tổng tiền đã thu.
   Việc mở snapshot phải dùng được bằng bàn phím và phản ánh `aria-expanded`.
   Không thay đổi cách lưu/xóa chi phí, snapshot lịch sử hoặc giao dịch thanh toán.
+
+  Lát cắt Cài đặt vận hành thêm mục lục anchor thuần HTML để đi tới năm vùng
+  chính, đồng thời chia phần cấu hình dài thành Tài chính, Tự động hóa và Dữ liệu
+  & bảo mật. Những form cũ vẫn giữ nguyên ID/listener nhưng bỏ kích thước inline
+  ở các khối chính để responsive nhất quán; trên mobile trường nhập và CTA xếp
+  dọc. Không thêm trạng thái client, request API hay quyền mới cho việc điều
+  hướng và trình bày này.
