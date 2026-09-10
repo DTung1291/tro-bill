@@ -3364,14 +3364,31 @@ function setBillingRowCompletion(tr, isComplete, shouldAnimate = false) {
 function refreshBillingProgress() {
   const metaEl = document.getElementById('billing-progress-meta');
   const fillEl = document.getElementById('billing-progress-fill');
+  const trackEl = document.getElementById('billing-progress-track');
+  const doneEl = document.getElementById('billing-progress-done');
+  const remainingEl = document.getElementById('billing-progress-remaining');
+  const percentEl = document.getElementById('billing-progress-percent');
+  const reviewButton = document.getElementById('btn-review-bills');
   if (!metaEl || !fillEl) return;
 
   const total = STATE.rooms.length;
   const done = document.querySelectorAll('#billing-tbody .billing-row--complete').length;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  metaEl.textContent = `${done}/${total} phòng hoàn thành`;
+  metaEl.textContent = total === 0
+    ? 'Thêm phòng trước khi nhập chỉ số.'
+    : done === total
+      ? `Đã chốt đủ ${total}/${total} phòng trong kỳ này.`
+      : `${done}/${total} phòng hoàn thành · còn ${total - done} phòng cần nhập.`;
   fillEl.style.width = `${percent}%`;
+  if (trackEl) trackEl.setAttribute('aria-valuenow', String(percent));
+  if (doneEl) doneEl.textContent = String(done);
+  if (remainingEl) remainingEl.textContent = String(Math.max(0, total - done));
+  if (percentEl) percentEl.textContent = `${percent}%`;
+  if (reviewButton) {
+    reviewButton.disabled = done === 0;
+    reviewButton.hidden = !workspacePageAllowed('report');
+  }
 }
 
 // ============================================================
@@ -7978,8 +7995,10 @@ function renderReport() {
   const period = STATE.currentPeriod;
   const listEl = document.getElementById('report-list');
   const summaryEl = document.getElementById('report-summary-bar');
+  const backToBillingButton = document.getElementById('btn-back-to-billing');
   document.getElementById('report-period-label').textContent = periodLabel(period);
   document.getElementById('report-month-input').value = periodInputValue(period);
+  if (backToBillingButton) backToBillingButton.hidden = !workspacePageAllowed('billing');
   renderFinancialReport();
   listEl.innerHTML = '';
   if (summaryEl) summaryEl.innerHTML = '';
@@ -7996,10 +8015,11 @@ function renderReport() {
     return;
   }
 
-  if (summaryEl) summaryEl.style.display = 'flex';
+  if (summaryEl) summaryEl.style.display = 'grid';
 
   let totalRevenue = 0;
   let totalPaid = 0;
+  let totalOutstanding = 0;
   let paidCount = 0;
   const activeBills = [];
   const staffReadOnly = !isOwnerWorkspace();
@@ -8012,6 +8032,7 @@ function renderReport() {
     const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
     totalRevenue += bill.total;
     totalPaid += Math.min(bill.total, payment.paidAmountVnd);
+    totalOutstanding += Math.max(0, payment.totalDueVnd);
     if (payment.accountSettled) paidCount++;
     activeBills.push({ room, rec, bill, payment });
   }
@@ -8019,16 +8040,19 @@ function renderReport() {
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div class="report-summary-item">
-        <span>💰 Tổng cộng hóa đơn:</span>
+        <span class="report-summary-label">Tổng phải thu</span>
         <span class="report-summary-val">${fmt(totalRevenue)}</span>
+        <small class="report-summary-note">${activeBills.length} hóa đơn trong kỳ</small>
       </div>
-      <div class="report-summary-item">
-        <span>✅ Đã phân bổ vào hóa đơn:</span>
-        <span class="report-summary-val" style="color: var(--green)">${fmt(totalPaid)}</span>
+      <div class="report-summary-item report-summary-item--collected">
+        <span class="report-summary-label">Đã thu</span>
+        <span class="report-summary-val">${fmt(totalPaid)}</span>
+        <small class="report-summary-note">Đã tất toán ${paidCount}/${activeBills.length} phòng</small>
       </div>
-      <div class="report-summary-item">
-        <span>🧾 Trạng thái:</span>
-        <span class="report-summary-val" style="color: var(--wifi)">Đã thu ${paidCount}/${activeBills.length} phòng</span>
+      <div class="report-summary-item report-summary-item--outstanding">
+        <span class="report-summary-label">Còn phải thu</span>
+        <span class="report-summary-val">${fmt(totalOutstanding)}</span>
+        <small class="report-summary-note">Gồm công nợ cũ nếu có</small>
       </div>
     `;
   }
@@ -8048,15 +8072,16 @@ function renderReport() {
     const billPreviewBtnHtml = `<button class="btn btn--ghost btn--sm bill-preview-trigger" data-bill-preview-room="${room.id}">Xem bill + VietQR</button>`;
 
     const card = document.createElement('div');
-    card.className = 'bill-card';
+    card.className = `bill-card${paid ? ' bill-card--settled' : ''}`;
     card.innerHTML = `
       <div class="bill-header">
         <div>
-          <div class="bill-room-name">${room.name}</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">${periodLabel(period)}</div>
-          <div class="bill-transfer-reference">🧾 ${escapeHtml(getVietQrDescription(room, period) || 'Đang tạo mã...')}</div>
+          <span class="bill-card-eyebrow">${periodLabel(period)}</span>
+          <div class="bill-room-name">${escapeHtml(room.name)}</div>
+          <div class="bill-transfer-reference">${escapeHtml(getVietQrDescription(room, period) || 'Đang tạo mã chuyển khoản...')}</div>
         </div>
         <div class="bill-header-payment">
+          <span class="bill-total-label">Tổng hóa đơn</span>
           <div class="bill-total-big">${fmt(bill.total)}</div>
           ${debtAgeBadge(payment)}
         </div>
@@ -8152,19 +8177,23 @@ function renderReport() {
           </div>` : ''}
         </div>
         ${utilityOnly ? `<div class="report-bill-note report-bill-note--warning">🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</div>` : ''}
-        ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${rec.note}</div>` : ''}
+        ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${escapeHtml(rec.note)}</div>` : ''}
         <hr class="bill-divider" />
         <div class="bill-row" style="font-size:1rem;font-weight:800">
           <div>TỔNG CỘNG</div>
           <div style="color:var(--primary)">${fmt(bill.total)}</div>
         </div>
         <div class="bill-footer">
-          <button class="btn ${paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-paid-room="${room.id}" ${bill.total <= 0 || staffReadOnly ? 'disabled' : ''}>
-            ${bill.total <= 0 ? 'Không có khoản phải thu' : paymentButtonLabel}
-          </button>
-          ${billPreviewBtnHtml}
-          <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
-          <button class="btn btn--ghost btn--sm" data-share-room="${room.id}" ${staffReadOnly ? 'disabled' : ''}>📤 Gửi</button>
+          <div class="bill-footer-primary">
+            <button class="btn ${paid ? 'btn--paid is-paid' : 'btn--ghost'} btn--sm" data-paid-room="${room.id}" ${bill.total <= 0 || staffReadOnly ? 'disabled' : ''}>
+              ${bill.total <= 0 ? 'Không có khoản phải thu' : paymentButtonLabel}
+            </button>
+            ${billPreviewBtnHtml}
+          </div>
+          <div class="bill-footer-secondary">
+            <button class="btn btn--ghost btn--sm" data-copy-room="${room.id}">📋 Copy</button>
+            <button class="btn btn--ghost btn--sm" data-share-room="${room.id}" ${staffReadOnly ? 'disabled' : ''}>📤 Gửi</button>
+          </div>
         </div>
       </div>
     `;
@@ -8841,6 +8870,8 @@ document.getElementById('billing-month-input').addEventListener('change', (e) =>
   STATE.currentPeriod = nextPeriod;
   renderPage(activePage);
 });
+document.getElementById('btn-review-bills')?.addEventListener('click', () => navigate('report'));
+document.getElementById('btn-back-to-billing')?.addEventListener('click', () => navigate('billing'));
 document.getElementById('report-prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('report-next-month').addEventListener('click', () => shiftPeriod(+1));
 document.getElementById('report-month-input').addEventListener('change', (e) => {

@@ -825,7 +825,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 - **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
-  phòng đã hoàn thành local và đang chờ người dùng kiểm tra.
+  phòng đã push tại `f51acf9`; Nhập chỉ số/Hóa đơn đã hoàn thành local và đang
+  chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -852,3 +853,11 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   vụ khỏi sửa/xóa. Markup động vẫn dùng listener hiện hữu; dữ liệu ghi chú phải
   escape trước khi đưa vào thẻ. Không thay đổi mô hình trạng thái phòng, giá theo
   mốc hiệu lực, khách, hợp đồng hoặc API.
+
+  Lát cắt Nhập chỉ số/Hóa đơn biểu diễn quy trình thành hai bước. Tiến độ chỉ số
+  được suy từ các thẻ bill hợp lệ và CTA sang hóa đơn chỉ bật khi có ít nhất một
+  phòng hoàn thành; nhân viên không có nghiệp vụ hóa đơn không thấy CTA. Trang
+  Hóa đơn ưu tiên danh sách thu tiền trước phần phân tích tài chính, trình bày
+  riêng tổng phải thu, đã thu và tổng còn phải thu gồm nợ cũ. Các phép tính,
+  ledger, đồng bộ invoice, gửi/chia sẻ và phân quyền server không thay đổi; dữ
+  liệu tên phòng/ghi chú động tiếp tục phải escape.

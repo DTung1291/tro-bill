@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 10/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Auth, bảng giá và Tổng quan đã push; lát cắt Quản lý phòng đã hoàn thành local, chờ người dùng kiểm tra |
+| Trạng thái | Auth, bảng giá, Tổng quan và Quản lý phòng đã push; lát cắt Nhập chỉ số/Hóa đơn hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Quản lý phòng và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `9289f1a` đã push `main` — làm mới Tổng quan; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra Quản lý phòng trên desktop/mobile; chỉ commit/push và chuyển sang Nhập chỉ số/Hóa đơn sau khi xác nhận |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Nhập chỉ số/Hóa đơn và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `f51acf9` đã push `main` — làm mới Quản lý phòng; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra Nhập chỉ số/Hóa đơn trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,14 +95,26 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: Quản lý phòng có bề mặt danh sách
+- Thay đổi local đang chờ người dùng kiểm tra: Nhập chỉ số/Hóa đơn thành luồng
+  hai bước rõ ràng. Bước nhập có thẻ tiến độ, số phòng đã xong/còn lại, phần trăm
+  và CTA chỉ bật khi đã có hóa đơn hợp lệ. Bước hóa đơn ưu tiên danh sách cần thu
+  trước báo cáo tài chính, tóm tắt Tổng phải thu/Đã thu/Còn phải thu và nhóm nút
+  thu tiền/VietQR tách khỏi sao chép/gửi. Trên màn hình dưới 680px, tóm tắt và
+  toàn bộ nhóm nút về một cột; thẻ hóa đơn thu hẹp tiếp dưới 480px. CTA giữa hai
+  bước vẫn tôn trọng phạm vi nghiệp vụ nhân viên; tên phòng và ghi chú được escape
+  khi render. CSS pin tăng `135 → 136`, app pin tăng `139 → 140`; test mục tiêu
+  51/51, kiểm tra cú pháp app và full suite 472/472 đạt. Chưa commit/push, không
+  có migration và chưa xác minh deployment Production.
+
+- `f51acf9`: Quản lý phòng có bề mặt danh sách
   riêng và mỗi thẻ ưu tiên tên/trạng thái, giá thuê hiện hành cùng mốc hiệu lực.
   Phí điện/nước/dịch vụ, ngày vào ở, số người và ghi chú được nhóm theo ngữ cảnh;
   chỉ số điện nước chuyển vào phần mở rộng để giảm nhiễu. Nút vận hành/khách/hợp
   đồng tách khỏi sửa/xóa; dưới 760px thông tin về một cột, dưới 480px toàn bộ nút
   xếp dọc. Ghi chú phòng được escape khi render. CSS pin tăng `134 → 135`, app
   pin tăng `138 → 139`; test mục tiêu 34/34, kiểm tra cú pháp app và full suite
-  471/471 đạt. Chưa commit/push và không có migration.
+  471/471 đạt. Commit đã push `main`; không có migration và deployment Production
+  chưa được xác minh trong phiên hiện tại.
 
 - `9289f1a`: Tổng quan gom số liệu vào khối
   **Dòng tiền và vận hành**, ưu tiên Tổng phải thu, Còn lại sau chi phí và các

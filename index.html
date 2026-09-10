@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=135" />
+  <link rel="stylesheet" href="style.css?v=136" />
 </head>
 
 <body>
@@ -277,7 +277,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Nhập chỉ số</h1>
-          <p class="page-sub" id="billing-period-label">Tháng --/----</p>
+          <p class="page-sub"><span class="workflow-step">Bước 1/2</span><span id="billing-period-label">Tháng --/----</span> · Ghi điện nước để hệ thống tính bill.</p>
         </div>
         <div class="billing-toolbar">
           <button class="btn btn--ghost btn--sm" id="btn-transfer-period">Chuyển dữ liệu tháng</button>
@@ -289,13 +289,20 @@
         </div>
       </div>
       <div class="billing-progress" id="billing-progress">
-        <div class="billing-progress-top">
-          <div class="billing-progress-title">Tiến độ nhập tháng</div>
-          <div class="billing-progress-meta" id="billing-progress-meta">0/0 phòng hoàn thành</div>
+        <div class="billing-progress-copy">
+          <span class="billing-progress-kicker">Tiến độ chốt chỉ số</span>
+          <div class="billing-progress-title">Hoàn thành từng phòng, sau đó rà soát hóa đơn.</div>
+          <div class="billing-progress-meta" id="billing-progress-meta" aria-live="polite">0/0 phòng hoàn thành</div>
         </div>
-        <div class="billing-progress-bar">
+        <div class="billing-progress-stats" aria-label="Tóm tắt tiến độ nhập chỉ số">
+          <div><strong id="billing-progress-done">0</strong><span>Đã xong</span></div>
+          <div><strong id="billing-progress-remaining">0</strong><span>Còn lại</span></div>
+          <div><strong id="billing-progress-percent">0%</strong><span>Tiến độ</span></div>
+        </div>
+        <div class="billing-progress-bar" id="billing-progress-track" role="progressbar" aria-label="Tiến độ nhập chỉ số" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="billing-progress-fill" id="billing-progress-fill"></div>
         </div>
+        <button class="btn btn--primary btn--sm billing-review-button" id="btn-review-bills" type="button" disabled>Xem hóa đơn đã nhập →</button>
       </div>
       <div class="billing-table-wrap">
         <table class="billing-table" id="billing-table">
@@ -402,7 +409,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Hóa đơn</h1>
-          <p class="page-sub" id="report-period-label">Tháng --/----</p>
+          <p class="page-sub"><span class="workflow-step">Bước 2/2</span><span id="report-period-label">Tháng --/----</span> · Rà soát, gửi bill và theo dõi thu tiền.</p>
         </div>
         <div class="report-toolbar">
           <div class="period-switcher period-switcher--compact" aria-label="Chọn tháng hóa đơn">
@@ -612,13 +619,23 @@
           <p>Thực thu chỉ tính giao dịch thu tiền và hoàn tác phát sinh trong kỳ, không tính tiền cọc chuyển sang bù công nợ. Cọc thuần bằng tiền thu cọc trừ tiền hoàn cọc; khấu trừ cọc được trình bày riêng vì là chuyển số dư, không phải dòng tiền mới. Công nợ được chốt tại cuối kỳ và mỗi hóa đơn chỉ được tính một lần. Tỷ lệ lấp đầy bằng ngày-phòng có khách chia cho ngày-phòng có thể cho thuê; ngày sửa chữa được loại khỏi mẫu số, còn giữ chỗ được trình bày riêng và vẫn thuộc quỹ phòng có thể cho thuê. Trạng thái từng ngày ưu tiên có khách, rồi giữ chỗ, sửa chữa và cuối cùng là trống. Báo cáo lịch sử dùng danh sách phòng hiện tại. Khi lọc một khu, chi phí chỉ gồm khoản gắn trực tiếp với khu đó. Khi lọc một phòng, chi phí chỉ gồm khoản sửa chữa đã liên kết trực tiếp với phòng; hệ thống không tự phân bổ chi phí chung.</p>
         </details>
       </section>
-      <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
-      <div class="report-list" id="report-list">
-        <div class="empty-state">
-          <div class="empty-icon">🧾</div>
-          <p>Nhập chỉ số để xem hóa đơn</p>
+      <section class="invoice-workspace" aria-labelledby="invoice-workspace-title">
+        <header class="invoice-workspace-head">
+          <div>
+            <span class="invoice-workspace-kicker">Thu tiền theo phòng</span>
+            <h2 id="invoice-workspace-title">Danh sách hóa đơn</h2>
+            <p>Xem số tiền còn phải thu, mở VietQR hoặc gửi bill cho khách thuê.</p>
+          </div>
+          <button class="btn btn--ghost btn--sm" id="btn-back-to-billing" type="button">← Nhập lại chỉ số</button>
+        </header>
+        <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
+        <div class="report-list" id="report-list">
+          <div class="empty-state">
+            <div class="empty-icon">🧾</div>
+            <p>Nhập chỉ số để xem hóa đơn</p>
+          </div>
         </div>
-      </div>
+      </section>
     </section>
 
     <!-- PAGE: HISTORY -->
@@ -2554,7 +2571,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=139"></script>
+  <script src="app.js?v=140"></script>
 </body>
 
 </html>
