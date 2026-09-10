@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=138" />
+  <link rel="stylesheet" href="style.css?v=139" />
 </head>
 
 <body>
@@ -88,41 +88,44 @@
   <nav class="nav" id="main-nav">
     <div class="nav-inner">
       <div class="nav-brand">
-        <span class="brand-icon">🏠</span>
-        <span class="brand-name">TrọBill</span>
+        <span class="brand-icon" aria-hidden="true">🏠</span>
+        <span class="nav-brand-copy">
+          <span class="brand-name">TrọBill</span>
+          <small>Quản lý vận hành</small>
+        </span>
       </div>
       <label class="workspace-switcher" id="workspace-switcher" hidden>
-        <span class="workspace-switcher-label">Không gian</span>
+        <span class="workspace-switcher-label">Đang làm việc</span>
         <select id="workspace-select" aria-label="Chọn tài khoản làm việc"></select>
       </label>
-      <div class="nav-nav-wrap" style="display:flex;align-items:center;gap:10px">
-        <!-- Desktop tabs (hidden on mobile) -->
-        <div class="nav-tabs nav-tabs--desktop">
-          <button class="nav-tab active" data-page="dashboard" id="tab-dashboard">
-            <span class="tab-icon">📊</span><span class="tab-label">Tổng quan</span>
-          </button>
-          <button class="nav-tab" data-page="rooms" id="tab-rooms">
-            <span class="tab-icon">🏡</span><span class="tab-label">Phòng</span>
-          </button>
-          <button class="nav-tab" data-page="billing" id="tab-billing">
-            <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
-          </button>
-          <button class="nav-tab" data-page="expenses" id="tab-expenses">
-            <span class="tab-icon">💸</span><span class="tab-label">Chi phí</span>
-          </button>
-          <button class="nav-tab" data-page="report" id="tab-report">
-            <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
-          </button>
-          <button class="nav-tab" data-page="history" id="tab-history">
-            <span class="tab-icon">📅</span><span class="tab-label">Lịch sử</span>
-          </button>
-          <button class="nav-tab" data-page="settings" id="tab-settings">
-            <span class="tab-icon">⚙️</span><span class="tab-label">Cài đặt</span>
-          </button>
-        </div>
-        <button class="btn-theme-toggle" id="theme-toggle" title="Đổi giao diện">🌓</button>
-        <a class="btn-theme-toggle admin-entry-btn" id="admin-entry" href="admin.html" title="Super Admin" hidden>🛡️</a>
-        <button class="btn-theme-toggle" id="logout-btn" title="Đăng xuất" hidden>🚪</button>
+      <div class="nav-utilities" aria-label="Tiện ích tài khoản">
+        <button class="btn-theme-toggle" id="theme-toggle" title="Đổi giao diện" aria-label="Đổi giao diện sáng hoặc tối">🌓</button>
+        <a class="btn-theme-toggle admin-entry-btn" id="admin-entry" href="admin.html" title="Super Admin" aria-label="Mở trang Super Admin" hidden>🛡️</a>
+        <button class="btn-theme-toggle" id="logout-btn" title="Đăng xuất" aria-label="Đăng xuất" hidden>🚪</button>
+      </div>
+      <!-- Desktop tabs (hidden on mobile) -->
+      <div class="nav-tabs nav-tabs--desktop" aria-label="Chức năng chính">
+        <button class="nav-tab active" data-page="dashboard" id="tab-dashboard">
+          <span class="tab-icon">📊</span><span class="tab-label">Tổng quan</span>
+        </button>
+        <button class="nav-tab" data-page="rooms" id="tab-rooms">
+          <span class="tab-icon">🏡</span><span class="tab-label">Phòng</span>
+        </button>
+        <button class="nav-tab" data-page="billing" id="tab-billing">
+          <span class="tab-icon">⚡</span><span class="tab-label">Nhập số</span>
+        </button>
+        <button class="nav-tab" data-page="expenses" id="tab-expenses">
+          <span class="tab-icon">💸</span><span class="tab-label">Chi phí</span>
+        </button>
+        <button class="nav-tab" data-page="report" id="tab-report">
+          <span class="tab-icon">🧾</span><span class="tab-label">Hóa đơn</span>
+        </button>
+        <button class="nav-tab" data-page="history" id="tab-history">
+          <span class="tab-icon">📅</span><span class="tab-label">Lịch sử</span>
+        </button>
+        <button class="nav-tab" data-page="settings" id="tab-settings">
+          <span class="tab-icon">⚙️</span><span class="tab-label">Cài đặt</span>
+        </button>
       </div>
     </div>
   </nav>

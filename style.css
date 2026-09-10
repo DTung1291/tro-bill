@@ -7901,3 +7901,233 @@ body.admin-page {
   .data-import-actions { display: grid; grid-template-columns: 1fr; }
   .data-import-actions .btn { width: 100%; }
 }
+
+/* ============================================================
+   KHUNG ỨNG DỤNG — điều hướng dùng chung desktop/mobile
+   ============================================================ */
+:root { --app-nav-height: 110px; }
+html { scroll-padding-top: calc(var(--app-nav-height) + 16px); }
+
+.nav {
+  opacity: 1;
+  background: color-mix(in srgb, var(--bg2) 92%, transparent);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .07);
+}
+.nav-inner {
+  display: grid;
+  grid-template-areas:
+    "brand workspace utilities"
+    "tabs tabs tabs";
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  max-width: 1180px;
+  min-height: var(--app-nav-height);
+  height: auto;
+  padding: 10px 20px 9px;
+  column-gap: 18px;
+  row-gap: 8px;
+}
+.nav-brand {
+  grid-area: brand;
+  gap: 9px;
+  min-width: 0;
+}
+.nav-brand .brand-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(79, 70, 229, .18);
+  border-radius: 12px;
+  background: var(--primary-light);
+  font-size: 1.15rem;
+}
+.nav-brand-copy { display: grid; min-width: 0; }
+.nav-brand-copy .brand-name { line-height: 1.1; }
+.nav-brand-copy small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: .58rem;
+  font-weight: 650;
+  letter-spacing: .025em;
+  white-space: nowrap;
+}
+.workspace-switcher {
+  grid-area: workspace;
+  justify-self: start;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 5px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg3);
+}
+.workspace-switcher-label {
+  color: var(--text-muted);
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.workspace-switcher select {
+  width: min(260px, 38vw);
+  max-width: 260px;
+  min-height: 30px;
+  padding: 4px 26px 4px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+}
+.workspace-switcher select:focus-visible {
+  border-radius: 7px;
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.nav-utilities {
+  display: flex;
+  grid-area: utilities;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.nav-utilities .btn-theme-toggle {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg3);
+  font-size: 1rem;
+}
+.nav-utilities .btn-theme-toggle:hover { background: var(--primary-light); }
+.nav-utilities .btn-theme-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.nav-tabs--desktop {
+  display: flex !important;
+  grid-area: tabs;
+  width: 100%;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg3);
+}
+.nav-tabs--desktop .nav-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 38px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  font-size: .73rem;
+}
+.nav-tabs--desktop .nav-tab .tab-icon { font-size: .92rem; }
+.nav-tabs--desktop .nav-tab.active {
+  background: var(--bg2);
+  box-shadow: 0 2px 9px rgba(15, 23, 42, .08);
+}
+.nav-tabs--desktop .nav-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.workspace-access-banner {
+  top: calc(var(--app-nav-height) + env(safe-area-inset-top, 0px));
+  width: min(100% - 32px, 1140px);
+  border-radius: 0 0 12px 12px;
+}
+.main {
+  max-width: 1120px;
+  padding-top: calc(var(--app-nav-height) + 24px);
+}
+body.workspace-staff-active .main {
+  padding-top: calc(var(--app-nav-height) + 64px);
+}
+
+@media (max-width: 640px) {
+  :root { --app-nav-height: 62px; }
+  .nav-inner {
+    grid-template-areas: "brand workspace utilities";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: var(--app-nav-height);
+    padding: 8px 12px;
+    column-gap: 8px;
+    row-gap: 0;
+  }
+  .nav-brand { gap: 7px; }
+  .nav-brand .brand-icon { width: 36px; height: 36px; border-radius: 11px; }
+  .nav-brand-copy small { display: none; }
+  .workspace-switcher {
+    min-width: 0;
+    justify-self: stretch;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .workspace-switcher-label { display: none; }
+  .workspace-switcher select {
+    width: 100%;
+    max-width: 160px;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 24px 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg3);
+    font-size: .7rem;
+  }
+  .nav-utilities { gap: 3px; }
+  .nav-utilities .btn-theme-toggle { width: 34px; height: 34px; border: 0; background: transparent; }
+  .nav-tabs--desktop { display: none !important; }
+  .workspace-access-banner {
+    top: calc(var(--app-nav-height) + env(safe-area-inset-top, 0px));
+    width: calc(100% - 20px);
+  }
+  .main {
+    padding-top: calc(var(--app-nav-height) + 18px);
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+  body.workspace-staff-active .main {
+    padding-top: calc(var(--app-nav-height) + 68px);
+  }
+  .bottom-nav {
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    height: 66px;
+    padding: 5px 3px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 17px;
+    background: color-mix(in srgb, var(--bg2) 94%, transparent);
+    box-shadow: 0 12px 35px rgba(15, 23, 42, .18);
+  }
+  .bottom-nav .nav-tab {
+    min-width: 0;
+    height: 54px;
+    gap: 3px;
+    padding: 4px 1px;
+    border-radius: 12px;
+  }
+  .bottom-nav .nav-tab.active { background: var(--primary-light) !important; }
+  .bottom-nav .nav-tab .tab-icon { font-size: 1rem; line-height: 1; }
+  .bottom-nav .nav-tab .tab-label { font-size: .56rem; line-height: 1.08; }
+  .bottom-nav .nav-tab:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 370px) {
+  .nav-brand-copy { display: none; }
+  .workspace-switcher select { max-width: 142px; }
+}

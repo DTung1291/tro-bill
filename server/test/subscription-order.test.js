@@ -212,5 +212,5 @@ test('luồng chọn gói và popup thanh toán có thứ bậc rõ, responsive,
   assert.match(html, /class="subscription-purchase-guide"[\s\S]*Chờ xác nhận/);
   assert.match(html, /class="subscription-order-status">Chờ thanh toán/);
   assert.match(html, /class="subscription-order-guide"[\s\S]*Chờ hệ thống xác nhận giao dịch/);
-  assert.match(html, /href="style\.css\?v=138"/);
+  assert.match(html, /href="style\.css\?v=139"/);
 });
