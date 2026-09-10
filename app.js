@@ -5354,16 +5354,16 @@ function renderRooms() {
     const waterUnitText = room.waterType === 'người' ? 'người' : 'khối';
     const latestPaid = getLatestPaidElectric(room);
     const latestText = latestPaid !== null
-      ? `Số điện hiện tại (đã thu): <strong>${fmtNum(latestPaid)}</strong> <span style="font-size:0.7rem;color:var(--wifi)">*(Tự động)*</span>`
-      : `Số điện hiện tại: <strong>${fmtNum(room.electricPrev || 0)}</strong>`;
+      ? `<span>Số điện hiện tại (đã thu)</span><strong>${fmtNum(latestPaid)}</strong><em>Tự động</em>`
+      : `<span>Số điện hiện tại</span><strong>${fmtNum(room.electricPrev || 0)}</strong>`;
 
     const latestWaterPaid = getLatestPaidWater(room);
     const latestWaterText = latestWaterPaid !== null
-      ? `Số nước hiện tại (đã thu): <strong>${fmtNum(latestWaterPaid)}</strong> <span style="font-size:0.7rem;color:var(--wifi)">*(Tự động)*</span>`
-      : `Số nước hiện tại: <strong>${fmtNum(room.waterPrev || 0)}</strong>`;
+      ? `<span>Số nước hiện tại (đã thu)</span><strong>${fmtNum(latestWaterPaid)}</strong><em>Tự động</em>`
+      : `<span>Số nước hiện tại</span><strong>${fmtNum(room.waterPrev || 0)}</strong>`;
 
     const waterPrevHtml = room.waterType === 'khối'
-      ? `<div>Số nước khởi đầu: <strong>${fmtNum(room.waterPrev || 0)}</strong></div><div>${latestWaterText}</div>`
+      ? `<div><span>Số nước khởi đầu</span><strong>${fmtNum(room.waterPrev || 0)}</strong></div><div>${latestWaterText}</div>`
       : '';
 
     const roomStatus = getRoomOperationalStatus(room.id);
@@ -5375,32 +5375,60 @@ function renderRooms() {
 
     card.innerHTML = `
       <div class="room-card-info">
-        <div class="room-card-name">${propertyBadge}${escapeHtml(room.name)} ${statusBadge}</div>
-        <div class="room-card-details">
-          <span class="room-detail-chip room-detail-chip--rate-period">🗓️ ${ratePeriodLabel(rates.effectiveFrom)}</span>
-          ${rentStartLabel ? `<span class="room-detail-chip">🔑 Bắt đầu thuê: ${rentStartLabel}</span>` : ''}
-          <span class="room-detail-chip">🏷️ Thuê: ${fmt(rates.rentPrice)}/tháng</span>
-          <span class="room-detail-chip">⚡ Điện: ${fmtNum(rates.electricRate)}đ/kWh</span>
-          <span class="room-detail-chip">💧 Nước: ${fmtNum(rates.waterRate)}đ/${waterUnitText}</span>
-          <span class="room-detail-chip">👥 Số người: ${room.peopleCount || 1}</span>
-          <span class="room-detail-chip">🗑️ Rác: ${fmt(rates.trashFee)}</span>
-          ${hasWifi ? `<span class="room-detail-chip">📶 Wifi: ${fmt(rates.wifiFee)}</span>` : ''}
-          ${rates.manageFee > 0 ? `<span class="room-detail-chip">💼 QL & DV: ${fmt(rates.manageFee)}</span>` : ''}
-          ${room.notes ? `<span class="room-detail-chip">📝 ${room.notes}</span>` : ''}
+        <div class="room-card-head">
+          <div class="room-card-title-group">
+            ${propertyBadge}
+            <div class="room-card-title-row">
+              <h3 class="room-card-name">${escapeHtml(room.name)}</h3>
+              ${statusBadge}
+            </div>
+          </div>
+          <span class="room-card-tenant-count">${room.tenants ? room.tenants.length : 0} khách</span>
         </div>
-        <div style="font-size:.75rem;color:var(--text-muted);margin-top:6px;display:flex;flex-direction:column;gap:2px">
-          <div>Số điện khởi đầu: <strong>${fmtNum(room.electricPrev || 0)}</strong></div>
-          <div>${latestText}</div>
-          ${waterPrevHtml}
+
+        <div class="room-card-overview">
+          <div class="room-card-rent">
+            <span>Tiền thuê hiện tại</span>
+            <strong>${fmt(rates.rentPrice)}<small>/tháng</small></strong>
+            <em>${ratePeriodLabel(rates.effectiveFrom)}</em>
+          </div>
+          <div class="room-card-details">
+            <span class="room-detail-chip">⚡ ${fmtNum(rates.electricRate)}đ/kWh</span>
+            <span class="room-detail-chip">💧 ${fmtNum(rates.waterRate)}đ/${waterUnitText}</span>
+            <span class="room-detail-chip">🗑️ Rác ${fmt(rates.trashFee)}</span>
+            ${hasWifi ? `<span class="room-detail-chip">📶 Wifi ${fmt(rates.wifiFee)}</span>` : ''}
+            ${rates.manageFee > 0 ? `<span class="room-detail-chip">💼 QL &amp; DV ${fmt(rates.manageFee)}</span>` : ''}
+          </div>
         </div>
+
+        <div class="room-card-meta">
+          ${rentStartLabel ? `<span>🔑 Bắt đầu thuê: <strong>${rentStartLabel}</strong></span>` : '<span>🔑 Chưa có ngày bắt đầu thuê</span>'}
+          <span>👥 Số người: <strong>${room.peopleCount || 1}</strong></span>
+          ${room.notes ? `<span>📝 ${escapeHtml(room.notes)}</span>` : ''}
+        </div>
+
+        <details class="room-meter-details">
+          <summary>Chỉ số điện nước hiện tại</summary>
+          <div class="room-meter-grid">
+            <div><span>Số điện khởi đầu</span><strong>${fmtNum(room.electricPrev || 0)}</strong></div>
+            <div>${latestText}</div>
+            ${waterPrevHtml}
+          </div>
+        </details>
       </div>
       <div class="room-card-actions">
-        <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">📦 Vận hành &amp; tài sản</button>
+        <div class="room-card-actions-main">
+          <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">📦 Vận hành &amp; tài sản</button>
+          ${isOwnerWorkspace() ? `
+            <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
+            <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
+          ` : ''}
+        </div>
         ${isOwnerWorkspace() ? `
-          <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
-          <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
-          <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
-          <button class="btn btn--danger btn--sm" data-delete="${room.id}">🗑️</button>
+          <div class="room-card-actions-secondary">
+            <button class="btn btn--ghost btn--sm" data-edit="${room.id}">✏️ Sửa</button>
+            <button class="btn btn--danger btn--sm" data-delete="${room.id}" aria-label="Xóa phòng ${escapeHtml(room.name)}">🗑️</button>
+          </div>
         ` : ''}
       </div>
     `;

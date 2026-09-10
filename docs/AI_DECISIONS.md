@@ -824,8 +824,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 ## D-049 — Làm mới UI theo từng luồng, không viết lại toàn bộ frontend
 
 - **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
-  bảng giá/gia hạn/thanh toán đã push tại `1e66c8b`, Tổng quan đã hoàn thành local
-  và đang chờ người dùng kiểm tra.
+  bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
+  phòng đã hoàn thành local và đang chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -846,3 +846,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   thu và tách danh sách trạng thái hóa đơn thành một bề mặt riêng. Responsive
   lần lượt về hai cột và một cột; công thức tài chính, lọc khu và logic render
   hiện hữu được giữ nguyên.
+
+  Lát cắt Quản lý phòng ưu tiên trạng thái và giá thuê hiện hành, nhóm phí và
+  metadata, đưa chỉ số điện nước vào vùng mở rộng, đồng thời tách thao tác nghiệp
+  vụ khỏi sửa/xóa. Markup động vẫn dùng listener hiện hữu; dữ liệu ghi chú phải
+  escape trước khi đưa vào thẻ. Không thay đổi mô hình trạng thái phòng, giá theo
+  mốc hiệu lực, khách, hợp đồng hoặc API.

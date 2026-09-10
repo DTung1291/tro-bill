@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=134" />
+  <link rel="stylesheet" href="style.css?v=135" />
 </head>
 
 <body>
@@ -244,7 +244,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Quản lý phòng</h1>
-          <p class="page-sub" id="rooms-property-summary">Tất cả khu</p>
+          <p class="page-sub">Theo dõi giá thuê, khách, hợp đồng và tình trạng vận hành.</p>
         </div>
         <div class="rooms-toolbar">
           <label class="sr-only" for="room-property-filter">Lọc phòng theo khu</label>
@@ -255,12 +255,21 @@
           <button class="btn btn--primary" id="btn-add-room">+ Thêm phòng</button>
         </div>
       </div>
-      <div class="rooms-list" id="rooms-list">
-        <div class="empty-state">
-          <div class="empty-icon">🏡</div>
-          <p>Chưa có phòng nào.</p>
+      <section class="rooms-directory" aria-labelledby="rooms-directory-title">
+        <header class="rooms-directory-head">
+          <div>
+            <span class="rooms-directory-kicker">Danh sách vận hành</span>
+            <h2 id="rooms-directory-title">Phòng và khách thuê</h2>
+          </div>
+          <span class="rooms-property-summary" id="rooms-property-summary">Tất cả khu</span>
+        </header>
+        <div class="rooms-list" id="rooms-list">
+          <div class="empty-state">
+            <div class="empty-icon">🏡</div>
+            <p>Chưa có phòng nào.</p>
+          </div>
         </div>
-      </div>
+      </section>
     </section>
 
     <!-- PAGE: BILLING -->
@@ -2545,7 +2554,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=138"></script>
+  <script src="app.js?v=139"></script>
 </body>
 
 </html>
