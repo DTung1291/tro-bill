@@ -131,7 +131,7 @@ test('bảng tài khoản giữ đủ cột trên desktop và chuyển thành ca
   const adminSource = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
-  assert.match(html, /style\.css\?v=78/);
+  assert.match(html, /style\.css\?v=79/);
   assert.match(adminSource, /data-label="Email" class="admin-user-email"/);
   assert.match(adminSource, /data-label="Thao tác" class="admin-actions"><div class="admin-action-list"><\/div><\/td>/);
   assert.match(styleSource, /\.admin-users-table \{ min-width: 0; table-layout: fixed; \}/);

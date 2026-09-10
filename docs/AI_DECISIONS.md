@@ -826,8 +826,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Trạng thái:** Áp dụng từ 09/09/2026; đăng nhập/đăng ký đã push tại `d98b8cd`,
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
   phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`, Chi phí thực
-  tế/Lịch sử tháng tại `627f2c9`; Cài đặt vận hành đã hoàn thành local và đang
-  chờ người dùng kiểm tra.
+  tế/Lịch sử tháng tại `627f2c9`, Cài đặt vận hành tại `aaa5f0f`; Super Admin
+  đã hoàn thành local và đang chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -876,3 +876,11 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   ở các khối chính để responsive nhất quán; trên mobile trường nhập và CTA xếp
   dọc. Không thêm trạng thái client, request API hay quyền mới cho việc điều
   hướng và trình bày này.
+
+  Lát cắt Super Admin dùng header riêng để phân biệt quyền nền tảng với Owner,
+  thêm thanh anchor bám phía trên và gom các bề mặt theo Tổng quan, đối soát,
+  cấu hình, tài khoản và audit. Thẻ chỉ số có màu ngữ nghĩa nhưng số liệu vẫn do
+  luồng render hiện hữu cấp; bảng rộng tiếp tục cuộn có chủ đích, riêng bảng tài
+  khoản chuyển sang card responsive. Modal giữ header cố định trong khung và chỉ
+  cuộn phần nội dung để không vượt viewport. Không đổi API, ID listener hoặc mô
+  hình phân quyền Super Admin đã chốt tại D-048.

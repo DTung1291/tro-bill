@@ -4,21 +4,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Super Admin</title>
-  <link rel="stylesheet" href="style.css?v=78" />
+  <link rel="stylesheet" href="style.css?v=79" />
 </head>
-<body>
+<body class="admin-page">
   <div class="admin-wrap">
     <header class="admin-header">
-      <h1>Super Admin · Quản trị hệ thống</h1>
+      <div class="admin-header-brand">
+        <span class="admin-header-mark" aria-hidden="true">🛡️</span>
+        <div>
+          <span class="admin-eyebrow">TrọBill Control Center</span>
+          <h1>Vận hành nền tảng</h1>
+          <p>Doanh thu, thanh toán, gói dịch vụ và nhật ký bảo mật tại một nơi.</p>
+        </div>
+      </div>
       <div class="admin-header-actions">
-        <a href="index.html" class="admin-link">← Về ứng dụng</a>
+        <span class="admin-role-badge">Super Admin</span>
+        <a href="index.html" class="admin-link">Về ứng dụng</a>
         <button id="admin-logout" class="admin-btn-ghost">Đăng xuất</button>
       </div>
     </header>
 
+    <nav class="admin-nav" aria-label="Đi đến nhóm quản trị">
+      <a href="#admin-revenue-section"><span aria-hidden="true">📈</span>Tổng quan</a>
+      <a href="#subscription-payment-admin-section"><span aria-hidden="true">✅</span>Thanh toán</a>
+      <a href="#plans-admin-section"><span aria-hidden="true">🏷️</span>Gói dịch vụ</a>
+      <a href="#admin-users-section"><span aria-hidden="true">👥</span>Tài khoản</a>
+      <a href="#subscription-change-audit-section"><span aria-hidden="true">🧾</span>Nhật ký</a>
+      <a href="#admin-donation-config"><span aria-hidden="true">⚙️</span>Cấu hình</a>
+    </nav>
+
     <p id="admin-msg" class="admin-msg" hidden></p>
 
-    <section class="admin-revenue" id="admin-revenue-section">
+    <main class="admin-content">
+    <section class="admin-revenue admin-anchor-target" id="admin-revenue-section">
       <div class="admin-section-head">
         <div>
           <h2>📈 Tổng quan doanh thu TrọBill</h2>
@@ -27,20 +45,20 @@
         <button type="button" class="admin-btn-ghost" id="admin-revenue-refresh">Làm mới</button>
       </div>
       <div class="admin-revenue-grid">
-        <article><span>Đang dùng thử</span><strong id="revenue-trialing">—</strong></article>
-        <article><span>Đang trả phí</span><strong id="revenue-paying">—</strong></article>
-        <article><span>Đã hết hạn</span><strong id="revenue-expired">—</strong></article>
-        <article><span>Sắp hết hạn ≤ 7 ngày</span><strong id="revenue-expiring">—</strong></article>
-        <article><span>Doanh thu thuần tháng</span><strong id="revenue-month">—</strong><small id="revenue-month-detail"></small></article>
-        <article><span>Doanh thu thuần năm</span><strong id="revenue-year">—</strong><small id="revenue-year-detail"></small></article>
-        <article><span>MRR</span><strong id="revenue-mrr">—</strong><small id="revenue-arr"></small></article>
-        <article><span>Trial → trả phí</span><strong id="revenue-conversion">—</strong><small id="revenue-conversion-detail"></small></article>
+        <article class="admin-metric admin-metric--account"><span>Đang dùng thử</span><strong id="revenue-trialing">—</strong></article>
+        <article class="admin-metric admin-metric--account"><span>Đang trả phí</span><strong id="revenue-paying">—</strong></article>
+        <article class="admin-metric admin-metric--account"><span>Đã hết hạn</span><strong id="revenue-expired">—</strong></article>
+        <article class="admin-metric admin-metric--attention"><span>Sắp hết hạn ≤ 7 ngày</span><strong id="revenue-expiring">—</strong></article>
+        <article class="admin-metric admin-metric--revenue"><span>Doanh thu thuần tháng</span><strong id="revenue-month">—</strong><small id="revenue-month-detail"></small></article>
+        <article class="admin-metric admin-metric--revenue"><span>Doanh thu thuần năm</span><strong id="revenue-year">—</strong><small id="revenue-year-detail"></small></article>
+        <article class="admin-metric admin-metric--revenue"><span>MRR</span><strong id="revenue-mrr">—</strong><small id="revenue-arr"></small></article>
+        <article class="admin-metric admin-metric--conversion"><span>Trial → trả phí</span><strong id="revenue-conversion">—</strong><small id="revenue-conversion-detail"></small></article>
       </div>
       <p class="admin-cell-note" id="admin-revenue-generated"></p>
     </section>
 
     <!-- Cấu hình ủng hộ nhà phát triển (toàn cục) -->
-    <section class="admin-config">
+    <section class="admin-config admin-anchor-target" id="admin-donation-config">
       <h2>☕ Thông tin ủng hộ nhà phát triển (dùng chung)</h2>
       <p class="admin-config-note">Thông tin này hiển thị cho tất cả người dùng khi họ tạo mã VietQR ủng hộ.</p>
       <div class="admin-config-grid">
@@ -77,7 +95,7 @@
       <button id="cfg-save" class="admin-btn">Lưu cấu hình</button>
     </section>
 
-    <section class="admin-config" id="subscription-refund-admin-section">
+    <section class="admin-config admin-config--warning" id="subscription-refund-admin-section">
       <div class="admin-section-head">
         <div>
           <h2>↩️ Hoàn tiền và chuyển khoản nhầm</h2>
@@ -112,7 +130,7 @@
       <p class="admin-muted" id="subscription-refund-empty" hidden>Không có yêu cầu ở trạng thái này.</p>
     </section>
 
-    <section class="admin-config">
+    <section class="admin-config" id="subscription-bank-config">
       <h2>💳 Thu tiền gói TrọBill</h2>
       <p class="admin-config-note">
         Tài khoản này chỉ dùng cho đơn mua hoặc gia hạn gói TrọBill. Mỗi đơn có số tiền và nội dung chuyển khoản riêng.
@@ -148,7 +166,7 @@
       <button id="subscription-bank-save" class="admin-btn">Lưu tài khoản thu gói</button>
     </section>
 
-    <section class="admin-config" id="subscription-payment-admin-section">
+    <section class="admin-config admin-config--primary admin-anchor-target" id="subscription-payment-admin-section">
       <div class="admin-section-head">
         <div>
           <h2>✅ Đối soát thanh toán gói</h2>
@@ -181,7 +199,7 @@
       <p class="admin-muted" id="subscription-payment-admin-empty" hidden>Không có payment ở trạng thái này.</p>
     </section>
 
-    <section class="admin-config">
+    <section class="admin-config admin-anchor-target" id="plans-admin-section">
       <h2>🏷️ Giá và trạng thái gói</h2>
       <p class="admin-config-note">
         Chỉ gói đã kích hoạt, công khai và có đủ giá tháng/năm mới xuất hiện cho người dùng. Mỗi thay đổi đều phải nhập lý do và được ghi audit log.
@@ -200,7 +218,7 @@
       <p class="admin-muted" id="plans-empty" hidden>Chưa tải được danh sách gói.</p>
     </section>
 
-    <section class="admin-config" id="admin-users-section">
+    <section class="admin-config admin-anchor-target" id="admin-users-section">
       <h2>👥 Tài khoản và gói dịch vụ</h2>
       <p class="admin-config-note">
         Chủ trọ là Owner của workspace; nhân viên dùng quyền được phân công. Super Admin là quyền nền tảng và không thể cấp từ trang này. Cấp dùng thử, nâng gói hoặc gia hạn thủ công chỉ dành cho trường hợp hỗ trợ đã được xác minh.
@@ -218,7 +236,7 @@
       </div>
     </section>
 
-    <section class="admin-config" id="subscription-change-audit-section">
+    <section class="admin-config admin-config--audit admin-anchor-target" id="subscription-change-audit-section">
       <div class="admin-section-head">
         <div>
           <h2>🧾 Nhật ký cấp và gia hạn gói</h2>
@@ -237,7 +255,7 @@
       <p class="admin-muted" id="subscription-change-log-empty" hidden>Chưa có thao tác cấp hoặc gia hạn gói thủ công.</p>
     </section>
 
-    <section class="admin-config" id="sensitive-audit-section">
+    <section class="admin-config admin-config--audit" id="sensitive-audit-section">
       <h2>🪪 Nhật ký xem CCCD đầy đủ</h2>
       <p class="admin-config-note">
         CCCD được che mặc định. Mỗi lần xem đầy đủ phải nhập lý do hỗ trợ và được lưu tại đây để người phụ trách dữ liệu rà soát.
@@ -252,6 +270,7 @@
       </div>
       <p class="admin-muted" id="sensitive-audit-empty" hidden>Chưa có lần xem CCCD đầy đủ nào.</p>
     </section>
+    </main>
   </div>
 
   <!-- Modal xem dữ liệu của 1 user -->

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 10/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Chi phí thực tế/Lịch sử tháng đã push; lát cắt Cài đặt vận hành hoàn thành local, chờ người dùng kiểm tra |
+| Trạng thái | Cài đặt vận hành đã push; lát cắt Super Admin hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Cài đặt vận hành, test và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `627f2c9` đã push `main` — làm mới Chi phí thực tế/Lịch sử tháng; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra Cài đặt vận hành trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Super Admin, test và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `aaa5f0f` đã push `main` — tổ chức lại Cài đặt vận hành; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra Super Admin trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: Cài đặt có trung tâm điều hướng
+- Thay đổi local đang chờ người dùng kiểm tra: trang Super Admin có header nhận
+  diện rõ phạm vi nền tảng, badge vai trò và thanh điều hướng nhanh tới Tổng
+  quan, Thanh toán, Gói, Tài khoản, Nhật ký và Cấu hình. Thẻ doanh thu dùng lưới
+  bốn cột và màu ngữ nghĩa; các khu đối soát, hoàn tiền và audit có cấp độ bề
+  mặt riêng. Bảng tiếp tục cuộn trong khung trên desktop, danh sách tài khoản
+  chuyển thành card trên màn hình nhỏ; modal khóa chiều cao và chỉ cuộn phần nội
+  dung. Không đổi ID, listener, API hay phân quyền; CSS pin tăng `78 → 79`. Test
+  mục tiêu 12/12 và full suite 475/475 đạt; ID HTML và diff check sạch. Không có
+  migration và chưa xác minh Production.
+
+- `aaa5f0f`: Cài đặt có trung tâm điều hướng
   nhanh tới Gói dịch vụ, Nhân sự, Thu tiền, Nhắc lịch và Dữ liệu. Các vùng dài
   được chia thành ba tiêu đề Tài chính/Tự động hóa/Tài khoản; thẻ khoản khấu
   trừ, tài khoản VietQR mặc định, nhắc chốt chỉ số, xuất nhập dữ liệu, bắt đầu
