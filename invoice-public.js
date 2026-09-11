@@ -8,6 +8,7 @@
   const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
   const MAX_PROOF_BYTES = 192 * 1024;
   let activeToken = '';
+  let activeInvoice = null;
   let encodedProofDataUrl = '';
 
   function text(id, value) {
@@ -133,7 +134,7 @@
     if (!valid) {
       image.removeAttribute('src');
       section.hidden = true;
-      return;
+      return false;
     }
     image.src = imageUrl;
     text('invoice-payment-amount', money.format(Number(payment.amountVnd)));
@@ -141,6 +142,7 @@
     text('invoice-payment-account', `${payment.bankId || '—'} · ${payment.accountNumber || '—'}`);
     text('invoice-payment-content', payment.transferContent || '—');
     section.hidden = false;
+    return true;
   }
 
   function renderPaymentProof(proof, invoice) {
@@ -154,6 +156,81 @@
     submitted.hidden = !hasProof;
     if (hasProof) {
       text('invoice-payment-proof-submitted-at', `Gửi lúc: ${dateTime(proof.submittedAt)}`);
+    }
+    return Boolean(hasProof);
+  }
+
+  function renderNextStep(invoice, options = {}) {
+    const panel = document.getElementById('invoice-next-step');
+    const icon = document.getElementById('invoice-next-step-icon');
+    const remainingVnd = Math.max(0, Number(invoice?.remainingVnd) || 0);
+    let status = 'action';
+    let iconText = '→';
+    let title = 'Kiểm tra và thanh toán hóa đơn';
+    let description = 'Đối chiếu chi tiết trước khi thực hiện thanh toán.';
+
+    if (invoice?.status === 'paid' || remainingVnd === 0) {
+      status = 'complete';
+      iconText = '✓';
+      title = 'Hóa đơn đã được thanh toán';
+      description = 'Bạn có thể tải phiếu thu và xem lại lịch sử xác nhận bên dưới.';
+    } else if (options.hasProof) {
+      status = 'pending';
+      iconText = '⌛';
+      title = 'Minh chứng đã được gửi';
+      description = 'Chủ trọ sẽ đối chiếu giao dịch. Minh chứng không tự động đổi trạng thái hóa đơn.';
+    } else if (options.hasPayment) {
+      title = invoice?.status === 'partial'
+        ? `Thanh toán phần còn lại ${money.format(remainingVnd)}`
+        : `Thanh toán ${money.format(remainingVnd)}`;
+      description = 'Quét VietQR hoặc chuyển đúng số tiền và nội dung bên dưới.';
+    } else {
+      status = 'notice';
+      iconText = '!';
+      title = `Còn phải thanh toán ${money.format(remainingVnd)}`;
+      description = 'Hóa đơn chưa có VietQR. Vui lòng liên hệ chủ trọ để xác nhận cách thanh toán.';
+    }
+
+    panel.dataset.status = status;
+    icon.textContent = iconText;
+    text('invoice-next-step-title', title);
+    text('invoice-next-step-description', description);
+  }
+
+  async function copyInvoiceValue(button) {
+    const sourceId = String(button?.dataset?.copySource || '');
+    const source = sourceId ? document.getElementById(sourceId) : null;
+    const value = String(source?.textContent || '').trim();
+    if (!source || !value || value === '—') return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const fallback = document.createElement('textarea');
+        fallback.value = value;
+        fallback.setAttribute('readonly', '');
+        fallback.style.position = 'fixed';
+        fallback.style.opacity = '0';
+        document.body.appendChild(fallback);
+        let copied = false;
+        try {
+          fallback.select();
+          copied = document.execCommand('copy');
+        } finally {
+          fallback.remove();
+        }
+        if (!copied) throw new Error('COPY_UNAVAILABLE');
+      }
+      button.textContent = 'Đã sao chép';
+      button.dataset.copied = 'true';
+      window.setTimeout(() => {
+        button.textContent = 'Sao chép';
+        delete button.dataset.copied;
+      }, 1800);
+    } catch (_) {
+      button.textContent = 'Không sao chép được';
+      window.setTimeout(() => { button.textContent = 'Sao chép'; }, 1800);
     }
   }
 
@@ -456,8 +533,14 @@
       if (!response.ok) throw new Error(data.error || 'Không gửi được minh chứng.');
       encodedProofDataUrl = '';
       document.getElementById('invoice-payment-proof-file').value = '';
-      document.getElementById('invoice-payment-proof-preview').removeAttribute('src');
+      const preview = document.getElementById('invoice-payment-proof-preview');
+      preview.removeAttribute('src');
+      preview.hidden = true;
       renderPaymentProof(data.proof, { remainingVnd: 1 });
+      renderNextStep(activeInvoice || { remainingVnd: 1 }, {
+        hasPayment: !document.getElementById('invoice-payment').hidden,
+        hasProof: true
+      });
     } catch (error) {
       setProofMessage(error.message || 'Không gửi được minh chứng.', true);
     } finally {
@@ -474,6 +557,7 @@
 
   function render(data) {
     const invoice = data.invoice || {};
+    activeInvoice = invoice;
     const labels = { unpaid: 'Chưa thanh toán', partial: 'Thanh toán một phần', paid: 'Đã thanh toán' };
     text('invoice-room', invoice.roomName || 'Phòng trọ');
     text('invoice-period', periodLabel(invoice.period));
@@ -488,8 +572,9 @@
     status.dataset.status = invoice.status || 'unpaid';
     renderDetails(data.details || {});
     renderMeterPhotos(data.meterPhotos || {});
-    renderPayment(data.payment || null);
-    renderPaymentProof(data.link?.paymentProof || null, invoice);
+    const hasPayment = renderPayment(data.payment || null);
+    const hasProof = renderPaymentProof(data.link?.paymentProof || null, invoice);
+    renderNextStep(invoice, { hasPayment, hasProof });
     renderReceipts(data.receipts || [], invoice);
     renderHistory(data.history || {});
     loading.hidden = true;
@@ -525,5 +610,8 @@
     ?.addEventListener('change', selectPaymentProof);
   document.getElementById('invoice-payment-proof-form')
     ?.addEventListener('submit', submitPaymentProof);
+  document.querySelectorAll('.public-invoice-copy-button').forEach(button => {
+    button.addEventListener('click', () => copyInvoiceValue(button));
+  });
   boot();
 })();

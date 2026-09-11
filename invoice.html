@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://img.vietqr.io; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <title>Hóa đơn TrọBill</title>
-  <link rel="stylesheet" href="invoice-public.css?v=7" />
+  <link rel="stylesheet" href="invoice-public.css?v=8" />
 </head>
 <body>
   <main class="public-invoice-shell">
@@ -17,6 +17,7 @@
         <strong>TrọBill</strong>
         <p>Hóa đơn dành cho khách thuê</p>
       </div>
+      <span class="public-invoice-security"><span aria-hidden="true">🔒</span> Liên kết bảo mật</span>
     </header>
 
     <section class="public-invoice-card" id="invoice-loading">
@@ -42,7 +43,7 @@
       <dl class="public-invoice-meta">
         <div><dt>Kỳ hóa đơn</dt><dd id="invoice-period">—</dd></div>
         <div><dt>Hạn thanh toán</dt><dd id="invoice-due-date">—</dd></div>
-        <div><dt>Mã chuyển khoản</dt><dd><code id="invoice-transfer-content">—</code></dd></div>
+        <div><dt>Mã chuyển khoản</dt><dd class="public-invoice-copy-row"><code id="invoice-transfer-content">—</code><button type="button" class="public-invoice-copy-button" data-copy-source="invoice-transfer-content">Sao chép</button></dd></div>
         <div><dt>Liên kết hết hạn</dt><dd id="invoice-link-expiry">—</dd></div>
       </dl>
       <div class="public-invoice-summary">
@@ -50,32 +51,12 @@
         <div><span>Đã thanh toán</span><strong id="invoice-paid">—</strong></div>
         <div class="public-invoice-summary-due"><span>Còn lại</span><strong id="invoice-remaining">—</strong></div>
       </div>
-      <section class="public-invoice-details" id="invoice-details" hidden>
-        <div class="public-invoice-details-head">
-          <div>
-            <p>Chi tiết hóa đơn</p>
-            <h2>Các khoản trong kỳ</h2>
-          </div>
-          <span id="invoice-utility-only" hidden>Chỉ thu điện, nước</span>
-        </div>
-        <div class="public-invoice-detail-list" id="invoice-detail-list"></div>
-      </section>
-      <section class="public-invoice-meter-photos" id="invoice-meter-photos" hidden>
-        <div class="public-invoice-details-head">
-          <div>
-            <p>Đối chiếu chỉ số</p>
-            <h2>Ảnh đồng hồ trong kỳ</h2>
-          </div>
-        </div>
-        <div class="public-invoice-meter-photo-grid">
-          <figure id="invoice-electricity-photo" hidden>
-            <img id="invoice-electricity-photo-img" alt="Ảnh khung chỉ số đồng hồ điện" loading="lazy" />
-            <figcaption>Đồng hồ điện</figcaption>
-          </figure>
-          <figure id="invoice-water-photo" hidden>
-            <img id="invoice-water-photo-img" alt="Ảnh khung chỉ số đồng hồ nước" loading="lazy" />
-            <figcaption>Đồng hồ nước</figcaption>
-          </figure>
+      <section class="public-invoice-next-step" id="invoice-next-step" aria-live="polite">
+        <span class="public-invoice-next-step-icon" id="invoice-next-step-icon" aria-hidden="true">→</span>
+        <div>
+          <span>Việc cần làm</span>
+          <strong id="invoice-next-step-title">Đang xác định trạng thái…</strong>
+          <p id="invoice-next-step-description">Vui lòng kiểm tra số tiền và thông tin hóa đơn.</p>
         </div>
       </section>
       <section class="public-invoice-payment" id="invoice-payment" hidden>
@@ -91,7 +72,7 @@
             <div><dt>Số tiền</dt><dd id="invoice-payment-amount">—</dd></div>
             <div><dt>Người nhận</dt><dd id="invoice-payment-owner">—</dd></div>
             <div><dt>Ngân hàng · tài khoản</dt><dd id="invoice-payment-account">—</dd></div>
-            <div><dt>Nội dung chuyển khoản</dt><dd><code id="invoice-payment-content">—</code></dd></div>
+            <div><dt>Nội dung chuyển khoản</dt><dd class="public-invoice-copy-row"><code id="invoice-payment-content">—</code><button type="button" class="public-invoice-copy-button" data-copy-source="invoice-payment-content">Sao chép</button></dd></div>
           </dl>
         </div>
         <p>Tiền được chuyển thẳng vào tài khoản chủ trọ. TrọBill không nhận, giữ hoặc chuyển tiếp tiền thuê.</p>
@@ -126,6 +107,34 @@
         <div class="public-invoice-receipt-list" id="invoice-receipt-list"></div>
         <p>Phiếu thu chỉ xuất hiện sau khi chủ trọ ghi nhận hoặc đối soát giao dịch. Tệp tải về là ảnh PNG để dễ lưu và chia sẻ.</p>
       </section>
+      <section class="public-invoice-details" id="invoice-details" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Chi tiết hóa đơn</p>
+            <h2>Các khoản trong kỳ</h2>
+          </div>
+          <span id="invoice-utility-only" hidden>Chỉ thu điện, nước</span>
+        </div>
+        <div class="public-invoice-detail-list" id="invoice-detail-list"></div>
+      </section>
+      <section class="public-invoice-meter-photos" id="invoice-meter-photos" hidden>
+        <div class="public-invoice-details-head">
+          <div>
+            <p>Đối chiếu chỉ số</p>
+            <h2>Ảnh đồng hồ trong kỳ</h2>
+          </div>
+        </div>
+        <div class="public-invoice-meter-photo-grid">
+          <figure id="invoice-electricity-photo" hidden>
+            <img id="invoice-electricity-photo-img" alt="Ảnh khung chỉ số đồng hồ điện" loading="lazy" />
+            <figcaption>Đồng hồ điện</figcaption>
+          </figure>
+          <figure id="invoice-water-photo" hidden>
+            <img id="invoice-water-photo-img" alt="Ảnh khung chỉ số đồng hồ nước" loading="lazy" />
+            <figcaption>Đồng hồ nước</figcaption>
+          </figure>
+        </div>
+      </section>
       <section class="public-invoice-history" id="invoice-history" hidden>
         <div class="public-invoice-details-head">
           <div>
@@ -150,6 +159,6 @@
       <p class="public-invoice-privacy">Liên kết này chỉ hiển thị thông tin thanh toán của hóa đơn, không hiển thị CCCD hoặc dữ liệu nhạy cảm của khách thuê.</p>
     </article>
   </main>
-  <script src="invoice-public.js?v=7"></script>
+  <script src="invoice-public.js?v=8"></script>
 </body>
 </html>

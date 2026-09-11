@@ -118,7 +118,7 @@ test('migration backfill snapshot và trang khách thuê render phòng, điện,
   assert.match(appSource, /function currentInvoiceDetail/);
   assert.match(appSource, /function historicalInvoiceDetail/);
   assert.match(publicHtml, /id="invoice-detail-list"/);
-  assert.match(publicHtml, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
+  assert.match(publicHtml, /invoice-public\.css\?v=8[\s\S]*invoice-public\.js\?v=8/);
   assert.match(publicHtml, /id="invoice-payment"/);
   assert.match(publicHtml, /img-src 'self' data: https:\/\/img\.vietqr\.io/);
   assert.match(publicJs, /appendDetailRow\(list, 'Tiền phòng'/);

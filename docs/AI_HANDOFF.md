@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 10/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Super Admin đã push; lát cắt khung điều hướng ứng dụng hoàn thành local, chờ người dùng kiểm tra |
+| Cập nhật lần cuối | 11/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Khung điều hướng ứng dụng đã push; lát cắt hóa đơn công khai hoàn thành local, chờ người dùng kiểm tra |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt khung điều hướng ứng dụng, test và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `b8745fc` đã push `main` — làm mới giao diện Super Admin; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra điều hướng chung trên desktop/mobile; chỉ commit/push và chuyển sang lát cắt UI kế tiếp sau khi xác nhận |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt hóa đơn công khai, test và tài liệu bàn giao; chưa commit/push |
+| Phần ứng dụng phát hành gần nhất | `2c965b9` đã push `main` — làm mới khung điều hướng ứng dụng; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra hóa đơn công khai trên desktop/mobile; chỉ commit/push và chuyển sang cổng báo sửa sau khi xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,15 +95,25 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: khung ứng dụng tách điều hướng
+- Thay đổi local đang chờ người dùng kiểm tra: hóa đơn công khai ưu tiên số tiền
+  còn lại và thẻ “Việc cần làm” theo trạng thái trước QR. Luồng nội dung đổi
+  thành thanh toán/minh chứng/phiếu thu trước, chi tiết khoản thu và lịch sử sau;
+  QR có nút sao chép nội dung chuyển khoản. Sau khi gửi minh chứng, hướng dẫn đổi
+  ngay sang chờ đối soát mà không cần reload. Các vùng dài thành card riêng,
+  mobile thu về một cột và CTA chiếm toàn chiều rộng. Token vẫn bị xóa khỏi URL,
+  request không dùng cookie và không lưu dữ liệu trình duyệt. CSS/JS pin tăng
+  `7 → 8`; syntax, test mục tiêu 25/25 và full suite 477/477 đạt. Không có
+  migration và chưa xác minh Production.
+
+- `2c965b9`: khung ứng dụng tách điều hướng
   desktop thành hai tầng, giữ nhận diện/workspace/tiện ích ở hàng đầu và bảy
   nghiệp vụ ở dải riêng. Workspace có vùng chọn rõ hơn; nút đổi theme, Super
   Admin và đăng xuất có nhãn truy cập. Mobile giữ top bar gọn và chuyển bottom
   nav thành thanh nổi có safe-area, trạng thái active và focus rõ; chiều cao nav,
   banner workspace nhân viên, nội dung và toast dùng cùng hệ offset. Không đổi
   ID, listener hoặc logic phân quyền/chuyển trang; CSS pin tăng `138 → 139`. Test
-  mục tiêu 81/81 và full suite 476/476 đạt; ID HTML và diff check sạch. Không có
-  migration và chưa xác minh Production.
+  mục tiêu 81/81 và full suite 476/476 đạt; ID HTML và diff check sạch. Commit đã
+  push `main`; không có migration và chưa xác minh Production.
 
 - `b8745fc`: trang Super Admin có header nhận
   diện rõ phạm vi nền tảng, badge vai trò và thanh điều hướng nhanh tới Tổng

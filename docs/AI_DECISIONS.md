@@ -827,8 +827,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
   phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`, Chi phí thực
   tế/Lịch sử tháng tại `627f2c9`, Cài đặt vận hành tại `aaa5f0f`, Super Admin
-  tại `b8745fc`; khung điều hướng ứng dụng đã hoàn thành local và đang chờ người
-  dùng kiểm tra.
+  tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`; hóa đơn công khai đã
+  hoàn thành local và đang chờ người dùng kiểm tra.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -892,3 +892,11 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   nghiệp vụ nằm trong bottom nav nổi có safe-area và vùng focus rõ. Chiều cao
   nav là một token dùng chung cho nội dung và banner nhân viên để không che nhau.
   Toàn bộ ID, listener chuyển trang và chốt quyền theo workspace được giữ nguyên.
+
+  Lát cắt hóa đơn công khai đặt số còn phải trả và hướng dẫn theo trạng thái lên
+  trước QR; thanh toán, minh chứng và phiếu thu đứng trước phần đối chiếu chi
+  tiết/lịch sử. Trạng thái đã trả, đã gửi minh chứng, có QR hoặc thiếu QR dùng
+  lời nhắc khác nhau nhưng không tự xác nhận giao dịch. Nút sao chép chỉ đọc text
+  đang hiển thị; token vẫn xóa khỏi URL trước request, không dùng cookie và không
+  ghi local/session storage. CSS/JS riêng của cổng công khai phải tăng pin cùng
+  thay đổi.

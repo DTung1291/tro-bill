@@ -178,7 +178,7 @@ test('migration cô lập link cũ và giao diện render lịch sử không ch�
   assert.match(migration, /^BEGIN;/);
   assert.match(migration, /COMMIT;[\s\S]*runtime_scope_select_ready/);
   assert.match(html, /id="invoice-history"/);
-  assert.match(html, /invoice-public\.css\?v=7[\s\S]*invoice-public\.js\?v=7/);
+  assert.match(html, /invoice-public\.css\?v=8[\s\S]*invoice-public\.js\?v=8/);
   assert.match(js, /function renderHistory/);
   assert.match(js, /renderHistory\(data\.history \|\| \{\}\)/);
   assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|document\.write/);
