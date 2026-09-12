@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 12/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Chính sách hạn hóa đơn cấu hình được và UX/UI Cài đặt đã hoàn thành; migration Preview/Production đạt 4/4, 483/483 test đạt; chờ push/deploy |
+| Trạng thái | Chính sách hạn hóa đơn cấu hình được và UX/UI Cài đặt đã phát hành; migration Preview/Production đạt 4/4, 483/483 test đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Commit chính sách hạn hóa đơn đã sẵn sàng; chỉ còn cập nhật ghi chú triển khai trước khi push |
-| Phần ứng dụng phát hành gần nhất | Hotfix `218c33c` sửa commit CI đỏ `2de7da9`, theo sau là commit UX/UI cổng báo sửa; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Push/deploy và smoke test readiness trước khi chọn lát cắt UX/UI kế tiếp |
+| Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
+| Phần ứng dụng phát hành gần nhất | `6bcddd4` chính sách hạn hóa đơn cấu hình được; CI xanh, Production revision `6bcddd475ec9` và readiness đã xác minh |
+| Việc code tiếp theo | Chọn lát cắt UX/UI kế tiếp, giữ nguyên snapshot hạn của hóa đơn lịch sử |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -103,7 +103,10 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   Preview `br-ancient-wave-azwc43to / neondb` và Production
   `br-fancy-star-azyclc1h / neondb`; cả hai đạt 4/4 kiểm tra hậu migration.
   Production backfill 22 hóa đơn cũ. Test mục tiêu 47/47, toàn suite 483/483,
-  secret scan và diff check đều sạch; code đang chờ push/deploy ở mốc ghi chú này.
+  secret scan và diff check đều sạch. Commit `6bcddd4` đã push, CI
+  `34703907477` thành công; deployment `dpl_28Xn56yJaHo3xok1LSPRJLpzPj4Y`
+  `Ready`, alias Production trả revision `6bcddd475ec9`, database/schema `ok` và
+  runtime role `restricted`.
 
 - Hotfix local cho `2de7da9`: tuổi nợ dùng `issued_at` của hóa đơn chưa thanh
   toán cũ nhất thay vì hóa đơn hiện tại; nếu thiếu timestamp cũ thì fallback về
