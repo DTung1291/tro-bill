@@ -209,9 +209,12 @@ function summaryJson(row, options = {}) {
   const totalDue = priorDebt + remaining;
   const oldestUnpaidPeriod = row.oldest_unpaid_period || null;
   const debtAgePeriod = oldestUnpaidPeriod || row.period;
+  const debtAgeIssuedAt = oldestUnpaidPeriod
+    ? (row.oldest_unpaid_issued_at || null)
+    : row.issued_at;
   const debtAge = DebtAge.classify(debtAgePeriod, totalDue, {
     ...options,
-    issuedAt: row.issued_at
+    issuedAt: debtAgeIssuedAt
   });
   let status = 'unpaid';
   if (collected > 0 && remaining > 0) status = 'partial';
@@ -238,6 +241,7 @@ function summaryJson(row, options = {}) {
     priorUnpaidInvoiceCount: Number(row.prior_unpaid_invoice_count) || 0,
     oldestUnpaidPeriod,
     debtAgePeriod,
+    debtAgeIssuedAt,
     dueDate: debtAge.dueDate,
     overdueDays: debtAge.overdueDays,
     debtAgeBucket: debtAge.bucket,
@@ -312,7 +316,24 @@ const SUMMARY_SELECT = `
               SELECT SUM(older_tx.amount_vnd)
               FROM rent_payment_transactions older_tx
               WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
-            ), 0)) AS oldest_unpaid_period
+            ), 0)) AS oldest_unpaid_period,
+         (SELECT older.issued_at
+          FROM rent_invoices older
+          WHERE older.user_id=i.user_id
+            AND older.room_id=i.room_id
+            AND older.period<i.period
+            AND (
+              NULLIF(left(current_room.rent_start_date, 7), '') IS NULL
+              OR i.period < left(current_room.rent_start_date, 7)
+              OR older.period >= left(current_room.rent_start_date, 7)
+            )
+            AND COALESCE(older.final_total_vnd, older.issued_total_vnd) > COALESCE((
+              SELECT SUM(older_tx.amount_vnd)
+              FROM rent_payment_transactions older_tx
+              WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
+            ), 0)
+          ORDER BY older.period, older.id
+          LIMIT 1) AS oldest_unpaid_issued_at
   FROM rent_invoices i
   LEFT JOIN rent_payment_transactions t
     ON t.user_id=i.user_id AND t.invoice_id=i.id

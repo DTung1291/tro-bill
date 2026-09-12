@@ -65,7 +65,8 @@ test('mẫu hợp đồng điền đúng dữ liệu, đủ 8 điều và phụ 
   assert.match(html, /Ba triệu đồng/);
   assert.match(html, /3 tháng\/lần/);
   assert.match(html, /9\.000\.000 đồng\/kỳ/);
-  assert.match(html, /ngày 10/);
+  assert.match(html, /Hạn thanh toán chậm nhất là <strong>ngày 10<\/strong>/);
+  assert.doesNotMatch(html, /10 ngày kể từ ngày nhận hóa đơn/);
   assert.match(html, /PL-202610-000011/);
   for (let article = 1; article <= 8; article += 1) {
     assert.match(html, new RegExp(`ĐIỀU ${article}:`));

@@ -241,7 +241,7 @@ function priorDebtFromLoadedInvoices(roomId, period) {
   return total;
 }
 
-function oldestPriorDebtPeriodFromLoadedInvoices(roomId, period) {
+function oldestPriorDebtInvoiceFromLoadedInvoices(roomId, period) {
   const room = STATE.rooms.find((item) => item.id === roomId);
   const currentTenancyStart = String(room?.rentStartDate || '').slice(0, 7);
   let oldest = null;
@@ -251,7 +251,7 @@ function oldestPriorDebtPeriodFromLoadedInvoices(roomId, period) {
         && period >= currentTenancyStart
         && invoice.period < currentTenancyStart) continue;
     if (Math.max(0, Number(invoice.remainingVnd) || 0) === 0) continue;
-    if (!oldest || invoice.period < oldest) oldest = invoice.period;
+    if (!oldest || invoice.period < oldest.period) oldest = invoice;
   }
   return oldest;
 }
@@ -271,12 +271,14 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
   const priorDebtVnd = invoice
     ? Math.max(0, Number(invoice.priorDebtVnd) || 0)
     : priorDebtFromLoadedInvoices(roomId, period);
-  const oldestUnpaidPeriod = invoice?.oldestUnpaidPeriod
-    || oldestPriorDebtPeriodFromLoadedInvoices(roomId, period);
+  const oldestLoadedInvoice = oldestPriorDebtInvoiceFromLoadedInvoices(roomId, period);
+  const oldestUnpaidPeriod = invoice?.oldestUnpaidPeriod || oldestLoadedInvoice?.period || null;
   const totalDueVnd = priorDebtVnd + remaining;
   const debtAgePeriod = invoice?.debtAgePeriod || oldestUnpaidPeriod || period;
+  const debtAgeIssuedAt = invoice?.debtAgeIssuedAt
+    || (oldestUnpaidPeriod ? oldestLoadedInvoice?.issuedAt : invoice?.issuedAt);
   const calculatedDebtAge = DebtAge.classify(debtAgePeriod, totalDueVnd, {
-    issuedAt: invoice?.issuedAt
+    issuedAt: debtAgeIssuedAt
   });
   let status = paidAmount > 0 ? 'partial' : 'unpaid';
   if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
@@ -295,6 +297,7 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
       : 0,
     oldestUnpaidPeriod,
     debtAgePeriod,
+    debtAgeIssuedAt: debtAgeIssuedAt || null,
     dueDate: calculatedDebtAge.dueDate,
     overdueDays: calculatedDebtAge.overdueDays,
     debtAgeBucket: calculatedDebtAge.bucket,
@@ -6589,7 +6592,7 @@ function buildBillPreviewContent(room, rec, bill, period) {
           </div>
           <div class="bill-preview-meta-item">
             <strong>Hạn thanh toán:</strong>
-            <span>${escapeHtml(payment.dueDate || billDueDate(period, payment.invoice?.issuedAt))}</span>
+            <span>${escapeHtml(payment.dueDate || billDueDate(payment.debtAgePeriod || period, payment.debtAgeIssuedAt))}</span>
           </div>
           <div class="bill-preview-meta-item">
             <strong>Tuổi nợ:</strong>
@@ -6714,7 +6717,7 @@ function billMessageContext() {
     paidAmountVnd: payment.paidAmountVnd,
     priorDebtVnd: payment.priorDebtVnd,
     totalDueVnd: payment.totalDueVnd,
-    dueDate: payment.dueDate || billDueDate(period, payment.invoice?.issuedAt),
+    dueDate: payment.dueDate || billDueDate(payment.debtAgePeriod || period, payment.debtAgeIssuedAt),
     overdueDays: payment.overdueDays,
     transferContent: getVietQrDescription(room, period),
     bankRecipient: rentBankRecipientText(room),

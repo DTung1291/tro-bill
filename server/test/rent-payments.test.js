@@ -60,6 +60,7 @@ function summaryRow(overrides = {}) {
     prior_debt_vnd: '0',
     prior_unpaid_invoice_count: 0,
     oldest_unpaid_period: null,
+    oldest_unpaid_issued_at: null,
     transaction_count: 1,
     last_payment_at: '2026-08-25T01:00:00.000Z',
     issued_at: '2026-08-25T01:00:00.000Z',
@@ -106,6 +107,7 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
     prior_debt_vnd: '700000',
     prior_unpaid_invoice_count: 2,
     oldest_unpaid_period: '2026-06',
+    oldest_unpaid_issued_at: '2026-06-05T08:00:00.000Z',
     detail_snapshot: { rentAmountVnd: 1500000, electricAmountVnd: 500000 }
   }), { now: '2026-08-25T05:00:00.000Z' });
   assert.equal(summary.invoiceTotalVnd, 2000000);
@@ -115,8 +117,9 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
   assert.equal(summary.priorUnpaidInvoiceCount, 2);
   assert.equal(summary.oldestUnpaidPeriod, '2026-06');
   assert.equal(summary.debtAgePeriod, '2026-06');
-  assert.equal(summary.dueDate, '2026-06-30');
-  assert.equal(summary.overdueDays, 56);
+  assert.equal(summary.debtAgeIssuedAt, '2026-06-05T08:00:00.000Z');
+  assert.equal(summary.dueDate, '2026-06-15');
+  assert.equal(summary.overdueDays, 71);
   assert.equal(summary.debtAgeBucket, 'overdue_31_plus');
   assert.equal(summary.transferContent, 'HD00000015');
   assert.deepEqual(summary.detailSnapshot, {
@@ -141,6 +144,7 @@ test('nợ trước ngày bắt đầu thuê hiện tại không chuyển sang k
 
   assert.match(capturedSql, /current_room\.rent_start_date/);
   assert.match(capturedSql, /older\.period >= left\(current_room\.rent_start_date, 7\)/);
+  assert.match(capturedSql, /ORDER BY older\.period, older\.id[\s\S]*AS oldest_unpaid_issued_at/);
   assert.match(capturedSql, /LEFT JOIN rooms current_room/);
 });
 
@@ -849,7 +853,7 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=141/);
+  assert.match(htmlSource, /app\.js\?v=142/);
 });
 
 test('khởi động hiển thị dữ liệu trước và chỉ đồng bộ ledger cần thiết ở nền', () => {

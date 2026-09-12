@@ -225,7 +225,7 @@ const ContractTemplate = (() => {
         <section>
           <h2>ĐIỀU 4: GIÁ THUÊ VÀ PHƯƠNG THỨC THANH TOÁN</h2>
           <p>1. Giá thuê phòng nêu tại Điều 1 của Hợp đồng này là: <strong>${numberVnd(contract.monthlyRentVnd)}/tháng</strong> (bằng chữ: <strong>${rentWords}</strong>). Tiền thuê không bao gồm chi phí điện, nước, điện thoại, internet, phí vệ sinh...</p>
-          <p>Chu kỳ thanh toán: Bên B thanh toán trước <strong>${billingCycleMonths} tháng/lần</strong>, tương ứng <strong>${numberVnd(cycleRentVnd)}/kỳ</strong> (bằng chữ: <strong>${cycleRentWords}</strong>). Hạn thanh toán là <strong>10 ngày kể từ ngày nhận hóa đơn</strong>; riêng kỳ đầu, nếu hạn thanh toán trước ngày bắt đầu thuê thì hạn thanh toán là ngày bắt đầu thuê. Nếu quá thời hạn trên mà không được Bên A chấp thuận gia hạn, hai bên xử lý theo thỏa thuận và quy định pháp luật.</p>
+          <p>Chu kỳ thanh toán: Bên B thanh toán trước <strong>${billingCycleMonths} tháng/lần</strong>, tương ứng <strong>${numberVnd(cycleRentVnd)}/kỳ</strong> (bằng chữ: <strong>${cycleRentWords}</strong>). Hạn thanh toán chậm nhất là <strong>ngày ${paymentDueDay}</strong> của tháng đầu mỗi chu kỳ; riêng kỳ đầu, nếu ngày này trước ngày bắt đầu thuê thì hạn thanh toán là ngày bắt đầu thuê. Nếu quá thời hạn trên mà không được Bên A chấp thuận gia hạn, hai bên xử lý theo thỏa thuận và quy định pháp luật.</p>
           <p>Đơn vị thanh toán: Tiền đồng Việt Nam.</p>
           <p>Phương thức thanh toán: Bên B có thể thanh toán bằng tiền mặt hoặc chuyển khoản vào tài khoản sau của bên A: <strong>${text(bankPayment)}</strong>.</p>
         </section>

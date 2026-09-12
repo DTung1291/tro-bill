@@ -23,6 +23,11 @@ test('hạn hóa đơn là issued_at + 10 ngày khi có issuedAt', () => {
   });
   assert.equal(nextDay.overdueDays, 1);
   assert.equal(nextDay.bucket, DebtAge.BUCKETS.OVERDUE_1_7);
+  assert.equal(DebtAge.dueDate('khong-hop-le', '2026-08-01T08:00:00.000Z'), '');
+  assert.equal(
+    DebtAge.dueDate('2026-08', '2026-08-01T18:00:00.000Z', 'Asia/Ho_Chi_Minh'),
+    '2026-08-12'
+  );
 });
 
 test('fallback về cuối tháng khi không có issuedAt (hóa đơn cũ)', () => {
@@ -69,8 +74,9 @@ test('giao diện nạp bộ phân loại trước app và hiển thị tuổi n
   const htmlSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
-  assert.match(htmlSource, /debt-age\.js\?v=83[\s\S]*app\.js\?v=141/);
-  assert.match(appSource, /oldestPriorDebtPeriodFromLoadedInvoices/);
+  assert.match(htmlSource, /debt-age\.js\?v=84[\s\S]*app\.js\?v=142/);
+  assert.match(appSource, /oldestPriorDebtInvoiceFromLoadedInvoices/);
+  assert.match(appSource, /issuedAt: debtAgeIssuedAt/);
   assert.match(appSource, /debtAgeBadge\(payment\)/);
   assert.match(appSource, /debtAgeMessageLine\(payment\)/);
   assert.match(styleSource, /debt-age-badge--overdue-31-plus/);

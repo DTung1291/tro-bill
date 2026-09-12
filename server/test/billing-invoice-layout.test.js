@@ -37,5 +37,5 @@ test('luồng nhập chỉ số và hóa đơn có tiến độ, CTA và respons
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.bill-footer-primary,[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=139"[\s\S]*src="app\.js\?v=141"/);
+  assert.match(html, /href="style\.css\?v=139"[\s\S]*src="app\.js\?v=142"/);
 });

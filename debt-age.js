@@ -30,23 +30,24 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
-  function dueDate(period, issuedAt) {
-    // Nếu có issuedAt, tính hạn = issuedAt + 10 ngày
+  function dateFromSerialDay(value) {
+    const date = new Date(value * DAY_MS);
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  }
+
+  function dueDate(period, issuedAt, timeZone = DEFAULT_TIME_ZONE) {
+    if (!isPeriod(period)) return '';
     if (issuedAt) {
-      try {
-        const issued = new Date(issuedAt);
-        if (!Number.isNaN(issued.getTime())) {
-          const issuedParts = zonedDateParts(issued);
-          const dueSerial = serialDay(issuedParts) + 10;
-          const dueMs = dueSerial * DAY_MS;
-          const dueParts = zonedDateParts(new Date(dueMs));
-          return `${dueParts.year}-${String(dueParts.month).padStart(2, '0')}-${String(dueParts.day).padStart(2, '0')}`;
+      const issued = new Date(issuedAt);
+      if (!Number.isNaN(issued.getTime())) {
+        try {
+          const issuedDay = serialDay(zonedDateParts(issued, timeZone));
+          return dateFromSerialDay(issuedDay + 10);
+        } catch (_) {
+          // Giữ fallback cho timestamp hoặc múi giờ không hợp lệ.
         }
-      } catch (e) {
-        // Nếu lỗi, fallback về logic cũ
       }
     }
-    // Fallback: hạn = cuối tháng (cho hóa đơn cũ chưa có issuedAt)
     const day = daysInPeriod(period);
     return day ? `${period}-${String(day).padStart(2, '0')}` : '';
   }
@@ -74,7 +75,7 @@
 
   function classify(period, outstandingVnd, options = {}) {
     if (!isPeriod(period)) throw new TypeError('Kỳ hóa đơn không hợp lệ');
-    const due = dueDate(period, options.issuedAt);
+    const due = dueDate(period, options.issuedAt, options.timeZone || DEFAULT_TIME_ZONE);
     const outstanding = Math.max(0, Number(outstandingVnd) || 0);
     const today = zonedDateParts(options.now || new Date(), options.timeZone || DEFAULT_TIME_ZONE);
 

@@ -21,7 +21,7 @@ test('khung ứng dụng phân cấp điều hướng desktop và mobile rõ rà
     /id="theme-toggle"[^>]*aria-label="Đổi giao diện sáng hoặc tối"[\s\S]*id="admin-entry"[^>]*aria-label="Mở trang Super Admin"[\s\S]*id="logout-btn"[^>]*aria-label="Đăng xuất"/
   );
   assert.doesNotMatch(html, /class="nav-nav-wrap"|class="nav-inner"[^>]*style=/);
-  assert.match(html, /href="style\.css\?v=139"[\s\S]*src="app\.js\?v=141"/);
+  assert.match(html, /href="style\.css\?v=139"[\s\S]*src="app\.js\?v=142"/);
 
   assert.match(shellCss, /:root\s*\{[^}]*--app-nav-height:\s*110px/);
   assert.match(
