@@ -4,6 +4,9 @@ const BEFORE_DAY_OPTIONS = Object.freeze([14, 7, 5, 3, 2, 1]);
 const AFTER_DAY_OPTIONS = Object.freeze([1, 2, 3, 5, 7, 14, 30]);
 const DEFAULT_BEFORE_DAYS = Object.freeze([3, 1]);
 const DEFAULT_AFTER_DAYS = Object.freeze([1, 3, 7]);
+const DEFAULT_INVOICE_DUE_DAYS = 10;
+const MIN_INVOICE_DUE_DAYS = 1;
+const MAX_INVOICE_DUE_DAYS = 90;
 
 class RentInvoiceReminderSettingsError extends Error {
   constructor(code, message) {
@@ -39,6 +42,7 @@ function normalizeInvoiceReminderSettings(settings = {}, options = {}) {
   const hasEnabled = Object.prototype.hasOwnProperty.call(settings, 'invoiceReminderEnabled');
   const hasBefore = Object.prototype.hasOwnProperty.call(settings, 'invoiceReminderBeforeDays');
   const hasAfter = Object.prototype.hasOwnProperty.call(settings, 'invoiceReminderAfterDays');
+  const hasDueDays = Object.prototype.hasOwnProperty.call(settings, 'invoiceDueDays');
   const allowMissing = options.allowMissing === true;
   if (hasEnabled && typeof settings.invoiceReminderEnabled !== 'boolean') {
     throw new RentInvoiceReminderSettingsError(
@@ -69,7 +73,20 @@ function normalizeInvoiceReminderSettings(settings = {}, options = {}) {
       'Cần chọn ít nhất một mốc nhắc trước hạn hoặc sau hạn'
     );
   }
-  return { enabled, beforeDays, afterDays };
+  let dueDays = allowMissing && !hasDueDays ? null : Number(
+    hasDueDays ? settings.invoiceDueDays : DEFAULT_INVOICE_DUE_DAYS
+  );
+  if (dueDays !== null && (
+    !Number.isSafeInteger(dueDays)
+    || dueDays < MIN_INVOICE_DUE_DAYS
+    || dueDays > MAX_INVOICE_DUE_DAYS
+  )) {
+    throw new RentInvoiceReminderSettingsError(
+      'INVALID_INVOICE_DUE_DAYS',
+      `Hạn thanh toán phải từ ${MIN_INVOICE_DUE_DAYS} đến ${MAX_INVOICE_DUE_DAYS} ngày sau khi phát hành`
+    );
+  }
+  return { enabled, beforeDays, afterDays, dueDays };
 }
 
 module.exports = {
@@ -77,6 +94,9 @@ module.exports = {
   BEFORE_DAY_OPTIONS,
   DEFAULT_AFTER_DAYS,
   DEFAULT_BEFORE_DAYS,
+  DEFAULT_INVOICE_DUE_DAYS,
+  MAX_INVOICE_DUE_DAYS,
+  MIN_INVOICE_DUE_DAYS,
   RentInvoiceReminderSettingsError,
   normalizeInvoiceReminderSettings
 };

@@ -25,7 +25,8 @@ const STATE = {
     reminderTime: '20:00',
     invoiceReminderEnabled: false,
     invoiceReminderBeforeDays: [3, 1],
-    invoiceReminderAfterDays: [1, 3, 7]
+    invoiceReminderAfterDays: [1, 3, 7],
+    invoiceDueDays: 10
   },
   currentPeriod: null,  // "YYYY-MM"
   history: [],          // Record of monthly snapshots: { period, deduction, timestamp, bills: [] }
@@ -59,6 +60,34 @@ function renderInvoiceReminderSettings() {
   document.querySelectorAll('input[name="invoice-reminder-after"]').forEach(input => {
     input.checked = afterDays.has(Number(input.value));
   });
+  const dueDaysInput = document.getElementById('invoice-due-days');
+  if (dueDaysInput) dueDaysInput.value = String(normalizeInvoiceDueDays(STATE.settings.invoiceDueDays));
+  renderInvoiceDuePreview();
+}
+
+function normalizeInvoiceDueDays(value) {
+  const days = Number(value);
+  return Number.isSafeInteger(days) && days >= 1 && days <= 90 ? days : 10;
+}
+
+function renderInvoiceDuePreview() {
+  const input = document.getElementById('invoice-due-days');
+  const preview = document.getElementById('invoice-due-preview');
+  if (!input || !preview) return;
+  const rawDays = Number(input.value);
+  if (!Number.isSafeInteger(rawDays) || rawDays < 1 || rawDays > 90) {
+    preview.textContent = 'Nhập từ 1 đến 90 ngày để xem trước.';
+    preview.classList.add('is-invalid');
+    return;
+  }
+  preview.classList.remove('is-invalid');
+  const now = new Date();
+  const issued = DebtAge.zonedDateParts(now);
+  const period = `${issued.year}-${String(issued.month).padStart(2, '0')}`;
+  const issuedDate = `${String(issued.day).padStart(2, '0')}/${String(issued.month).padStart(2, '0')}/${issued.year}`;
+  const dueKey = DebtAge.dueDate(period, now, DebtAge.DEFAULT_TIME_ZONE, rawDays);
+  const [dueYear, dueMonth, dueDay] = dueKey.split('-');
+  preview.textContent = `Phát hành ${issuedDate} → hạn ${dueDay}/${dueMonth}/${dueYear}`;
 }
 
 function selectedInvoiceReminderDays(name, options) {
@@ -277,8 +306,14 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
   const debtAgePeriod = invoice?.debtAgePeriod || oldestUnpaidPeriod || period;
   const debtAgeIssuedAt = invoice?.debtAgeIssuedAt
     || (oldestUnpaidPeriod ? oldestLoadedInvoice?.issuedAt : invoice?.issuedAt);
+  const debtAgeDueDate = invoice?.debtAgeDueDate
+    || invoice?.dueDate
+    || (oldestUnpaidPeriod
+      ? (oldestLoadedInvoice?.invoiceDueDate || oldestLoadedInvoice?.dueDate)
+      : null);
   const calculatedDebtAge = DebtAge.classify(debtAgePeriod, totalDueVnd, {
-    issuedAt: debtAgeIssuedAt
+    issuedAt: debtAgeIssuedAt,
+    dueDate: debtAgeDueDate
   });
   let status = paidAmount > 0 ? 'partial' : 'unpaid';
   if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
@@ -1515,7 +1550,8 @@ function clearSensitiveStateFromMemory() {
     reminderTime: '20:00',
     invoiceReminderEnabled: false,
     invoiceReminderBeforeDays: [3, 1],
-    invoiceReminderAfterDays: [1, 3, 7]
+    invoiceReminderAfterDays: [1, 3, 7],
+    invoiceDueDays: 10
   };
   STATE.currentPeriod = null;
   STATE.history = [];
@@ -1705,6 +1741,7 @@ function loadState(savedObj) {
       INVOICE_REMINDER_AFTER_OPTIONS,
       [1, 3, 7]
     );
+    STATE.settings.invoiceDueDays = normalizeInvoiceDueDays(STATE.settings.invoiceDueDays);
     
     // Normalize history snapshots
     STATE.history = (saved.history || []).map(h => ({
@@ -9443,6 +9480,8 @@ if (saveReminderBtn) {
 }
 
 const saveInvoiceReminderBtn = document.getElementById('save-invoice-reminder-settings');
+const invoiceDueDaysInput = document.getElementById('invoice-due-days');
+if (invoiceDueDaysInput) invoiceDueDaysInput.addEventListener('input', renderInvoiceDuePreview);
 if (saveInvoiceReminderBtn) {
   saveInvoiceReminderBtn.addEventListener('click', async () => {
     const enabled = !!document.getElementById('invoice-reminder-enabled')?.checked;
@@ -9454,6 +9493,12 @@ if (saveInvoiceReminderBtn) {
       'invoice-reminder-after',
       INVOICE_REMINDER_AFTER_OPTIONS
     );
+    const dueDays = Number(invoiceDueDaysInput?.value);
+    if (!Number.isSafeInteger(dueDays) || dueDays < 1 || dueDays > 90) {
+      showToast('Hạn thanh toán phải từ 1 đến 90 ngày sau khi phát hành', 'error');
+      invoiceDueDaysInput?.focus();
+      return;
+    }
     if (enabled && beforeDays.length + afterDays.length === 0) {
       showToast('Cần chọn ít nhất một mốc nhắc trước hạn hoặc sau hạn', 'error');
       return;
@@ -9461,20 +9506,23 @@ if (saveInvoiceReminderBtn) {
     const previous = {
       enabled: !!STATE.settings.invoiceReminderEnabled,
       beforeDays: [...(STATE.settings.invoiceReminderBeforeDays || [])],
-      afterDays: [...(STATE.settings.invoiceReminderAfterDays || [])]
+      afterDays: [...(STATE.settings.invoiceReminderAfterDays || [])],
+      dueDays: normalizeInvoiceDueDays(STATE.settings.invoiceDueDays)
     };
     saveInvoiceReminderBtn.disabled = true;
     try {
       STATE.settings.invoiceReminderEnabled = enabled;
       STATE.settings.invoiceReminderBeforeDays = beforeDays;
       STATE.settings.invoiceReminderAfterDays = afterDays;
+      STATE.settings.invoiceDueDays = dueDays;
       saveState();
       await flushState({ throwOnError: true });
-      showToast(enabled ? 'Đã bật nhắc thanh toán tự động ✓' : 'Đã tắt nhắc thanh toán tự động', 'success');
+      showToast(`Đã lưu hạn thanh toán ${dueDays} ngày${enabled ? ' và bật nhắc tự động' : ''} ✓`, 'success');
     } catch (_) {
       STATE.settings.invoiceReminderEnabled = previous.enabled;
       STATE.settings.invoiceReminderBeforeDays = previous.beforeDays;
       STATE.settings.invoiceReminderAfterDays = previous.afterDays;
+      STATE.settings.invoiceDueDays = previous.dueDays;
       renderInvoiceReminderSettings();
     } finally {
       saveInvoiceReminderBtn.disabled = false;

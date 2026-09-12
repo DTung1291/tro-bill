@@ -36,7 +36,8 @@ test('chuẩn hóa mốc nhắc theo danh sách hỗ trợ và loại bỏ trùn
   }), {
     enabled: true,
     beforeDays: [7, 3, 1],
-    afterDays: [1, 3, 30]
+    afterDays: [1, 3, 30],
+    dueDays: 10
   });
   assert.throws(
     () => normalizeInvoiceReminderSettings({
@@ -60,8 +61,18 @@ test('chuẩn hóa mốc nhắc theo danh sách hỗ trợ và loại bỏ trùn
 test('client cũ không gửi cấu hình mới thì server giữ nguyên giá trị database', () => {
   assert.deepEqual(
     normalizeInvoiceReminderSettings({ reminderEnabled: true }, { allowMissing: true }),
-    { enabled: null, beforeDays: null, afterDays: null }
+    { enabled: null, beforeDays: null, afterDays: null, dueDays: null }
   );
+});
+
+test('hạn thanh toán chỉ nhận số ngày nguyên trong phạm vi vận hành', () => {
+  assert.equal(normalizeInvoiceReminderSettings({ invoiceDueDays: 45 }).dueDays, 45);
+  for (const invoiceDueDays of [0, 91, 1.5, 'không hợp lệ']) {
+    assert.throws(
+      () => normalizeInvoiceReminderSettings({ invoiceDueDays }),
+      (error) => error.code === 'INVALID_INVOICE_DUE_DAYS'
+    );
+  }
 });
 
 test('cron chỉ xếp lịch cho hóa đơn còn nợ của kỳ thuê hiện tại và đúng mốc cấu hình', async () => {
@@ -78,7 +89,8 @@ test('cron chỉ xếp lịch cho hóa đơn còn nợ của kỳ thuê hiện t
   assert.match(received.sql, /invoice_reminder_enabled=true/);
   assert.match(received.sql, /invoice\.period >= left\(room\.rent_start_date, 7\)/);
   assert.match(received.sql, /COALESCE\(invoice\.final_total_vnd, invoice\.issued_total_vnd\) > COALESCE/);
-  assert.match(received.sql, /invoice\.issued_at AT TIME ZONE 'Asia\/Ho_Chi_Minh'/);
+  assert.match(received.sql, /invoice\.due_date/);
+  assert.doesNotMatch(received.sql, /invoice\.issued_at AT TIME ZONE 'Asia\/Ho_Chi_Minh'/);
   assert.match(received.sql, /JOIN LATERAL[\s\S]*ORDER BY current_tenant\.sort_order/);
   assert.match(received.sql, /reminder_offset_days=ANY\(invoice_reminder_before_days\)/);
   assert.match(received.sql, /-reminder_offset_days=ANY\(invoice_reminder_after_days\)/);
@@ -140,6 +152,7 @@ test('schema, state, giao diện và checklist có cấu hình nhắc hóa đơn
   const checklist = fs.readFileSync(path.join(root, 'MONETIZATION_CHECKLIST.md'), 'utf8');
 
   assert.match(schema, /invoice_reminder_before_days INTEGER\[\]/);
+  assert.match(schema, /invoice_due_days\s+SMALLINT/);
   assert.match(schema, /trigger_source\s+TEXT NOT NULL DEFAULT 'manual'/);
   assert.match(migration, /BEGIN;[\s\S]*ALTER TABLE settings[\s\S]*COMMIT;/);
   assert.match(migration, /rent_invoice_deliveries_reminder_offset_valid/);
@@ -150,9 +163,11 @@ test('schema, state, giao diện và checklist có cấu hình nhắc hóa đơn
   assert.match(schedules, /async function enqueueAutomaticInvoiceReminders/);
   assert.match(schedules, /INVOICE_ALREADY_PAID/);
   assert.match(html, /id="invoice-reminder-enabled"/);
+  assert.match(html, /id="invoice-due-days"/);
   assert.match(html, /name="invoice-reminder-before"/);
   assert.match(html, /name="invoice-reminder-after"/);
   assert.match(app, /save-invoice-reminder-settings/);
+  assert.match(app, /renderInvoiceDuePreview/);
   assert.match(css, /\.invoice-reminder-groups/);
   assert.match(checklist, /\[x\] Tự động nhắc trước hạn và sau hạn theo cấu hình\./);
   assert.match(checklist, /\[x\] Dừng nhắc ngay khi hóa đơn đã được thanh toán đủ\./);

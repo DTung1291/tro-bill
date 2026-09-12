@@ -212,9 +212,13 @@ function summaryJson(row, options = {}) {
   const debtAgeIssuedAt = oldestUnpaidPeriod
     ? (row.oldest_unpaid_issued_at || null)
     : row.issued_at;
+  const debtAgeDueDate = oldestUnpaidPeriod
+    ? (row.oldest_unpaid_due_date || null)
+    : row.due_date;
   const debtAge = DebtAge.classify(debtAgePeriod, totalDue, {
     ...options,
-    issuedAt: debtAgeIssuedAt
+    issuedAt: debtAgeIssuedAt,
+    dueDate: debtAgeDueDate
   });
   let status = 'unpaid';
   if (collected > 0 && remaining > 0) status = 'partial';
@@ -242,6 +246,8 @@ function summaryJson(row, options = {}) {
     oldestUnpaidPeriod,
     debtAgePeriod,
     debtAgeIssuedAt,
+    debtAgeDueDate: debtAge.dueDate,
+    invoiceDueDate: row.due_date || debtAge.dueDate,
     dueDate: debtAge.dueDate,
     overdueDays: debtAge.overdueDays,
     debtAgeBucket: debtAge.bucket,
@@ -264,7 +270,7 @@ const SUMMARY_SELECT = `
          COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd,
          i.issued_total_vnd AS original_issued_total_vnd,
          i.detail_snapshot,
-         i.finalized_at, i.finalization_contract_id, i.issued_at, i.updated_at,
+         i.finalized_at, i.finalization_contract_id, i.issued_at, i.due_date, i.updated_at,
          COALESCE(SUM(t.amount_vnd), 0) AS paid_amount_vnd,
          COUNT(t.id)::int AS transaction_count,
          MAX(t.occurred_at) FILTER (WHERE t.amount_vnd > 0) AS last_payment_at,
@@ -333,7 +339,24 @@ const SUMMARY_SELECT = `
               WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
             ), 0)
           ORDER BY older.period, older.id
-          LIMIT 1) AS oldest_unpaid_issued_at
+          LIMIT 1) AS oldest_unpaid_issued_at,
+         (SELECT older.due_date
+          FROM rent_invoices older
+          WHERE older.user_id=i.user_id
+            AND older.room_id=i.room_id
+            AND older.period<i.period
+            AND (
+              NULLIF(left(current_room.rent_start_date, 7), '') IS NULL
+              OR i.period < left(current_room.rent_start_date, 7)
+              OR older.period >= left(current_room.rent_start_date, 7)
+            )
+            AND COALESCE(older.final_total_vnd, older.issued_total_vnd) > COALESCE((
+              SELECT SUM(older_tx.amount_vnd)
+              FROM rent_payment_transactions older_tx
+              WHERE older_tx.user_id=older.user_id AND older_tx.invoice_id=older.id
+            ), 0)
+          ORDER BY older.period, older.id
+          LIMIT 1) AS oldest_unpaid_due_date
   FROM rent_invoices i
   LEFT JOIN rent_payment_transactions t
     ON t.user_id=i.user_id AND t.invoice_id=i.id
@@ -536,8 +559,10 @@ async function settleInvoice(req, res) {
     const roomName = input.roomName || source.room_name || '';
     const invoiceResult = await client.query(
       `INSERT INTO rent_invoices
-         (user_id, room_id, room_name_snapshot, period, issued_total_vnd)
-       VALUES ($1,$2,$3,$4,$5)
+         (user_id, room_id, room_name_snapshot, period, issued_total_vnd, due_date)
+       VALUES ($1,$2,$3,$4,$5,
+         ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+           + COALESCE((SELECT invoice_due_days FROM settings WHERE user_id=$1), 10)))
        ON CONFLICT (user_id, room_id, period) DO UPDATE SET
          room_name_snapshot=CASE
            WHEN rent_invoices.finalized_at IS NULL THEN EXCLUDED.room_name_snapshot
@@ -996,8 +1021,11 @@ async function syncInvoices(req, res) {
       const detail = totalVnd === entry.totalVnd ? entry.detail : {};
       const inserted = await client.query(
         `INSERT INTO rent_invoices
-           (user_id, room_id, room_name_snapshot, period, issued_total_vnd, detail_snapshot)
-         VALUES ($1,$2,$3,$4,$5,$6::jsonb)
+           (user_id, room_id, room_name_snapshot, period, issued_total_vnd,
+            detail_snapshot, due_date)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,
+           ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+             + COALESCE((SELECT invoice_due_days FROM settings WHERE user_id=$1), 10)))
          ON CONFLICT (user_id, room_id, period) DO NOTHING
          RETURNING id, issued_total_vnd, detail_snapshot`,
         [
@@ -1163,8 +1191,10 @@ async function migrateLegacyPaid(req, res) {
         : entry.totalVnd;
       const invoiceInsert = await client.query(
         `INSERT INTO rent_invoices
-           (user_id, room_id, room_name_snapshot, period, issued_total_vnd)
-         VALUES ($1,$2,$3,$4,$5)
+           (user_id, room_id, room_name_snapshot, period, issued_total_vnd, due_date)
+         VALUES ($1,$2,$3,$4,$5,
+           ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+             + COALESCE((SELECT invoice_due_days FROM settings WHERE user_id=$1), 10)))
          ON CONFLICT (user_id, room_id, period) DO NOTHING
          RETURNING id`,
         [
@@ -1243,7 +1273,7 @@ async function loadRentPaymentExport(userId) {
       `SELECT id, room_id, room_name_snapshot, period, issued_total_vnd,
               final_total_vnd, final_detail_snapshot,
               finalization_contract_id, finalized_at, detail_snapshot,
-              issued_at, updated_at
+              issued_at, due_date, updated_at
        FROM rent_invoices WHERE user_id=$1 ORDER BY period, id`,
       [userId]
     ),
@@ -1280,6 +1310,7 @@ async function loadRentPaymentExport(userId) {
         : Number(row.finalization_contract_id),
       finalizedAt: row.finalized_at,
       issuedAt: row.issued_at,
+      dueDate: row.due_date,
       updatedAt: row.updated_at
     })),
     receipts: receiptResult.rows.map(receiptJson),

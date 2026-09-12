@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS settings (
   invoice_reminder_enabled     BOOLEAN   NOT NULL DEFAULT false,
   invoice_reminder_before_days INTEGER[] NOT NULL DEFAULT ARRAY[3,1],
   invoice_reminder_after_days  INTEGER[] NOT NULL DEFAULT ARRAY[1,3,7],
+  invoice_due_days             SMALLINT  NOT NULL DEFAULT 10,
   theme                 TEXT     NOT NULL DEFAULT 'system'
 );
 ALTER TABLE settings
@@ -163,6 +164,8 @@ ALTER TABLE settings
   ADD COLUMN IF NOT EXISTS invoice_reminder_before_days INTEGER[] NOT NULL DEFAULT ARRAY[3,1];
 ALTER TABLE settings
   ADD COLUMN IF NOT EXISTS invoice_reminder_after_days INTEGER[] NOT NULL DEFAULT ARRAY[1,3,7];
+ALTER TABLE settings
+  ADD COLUMN IF NOT EXISTS invoice_due_days SMALLINT NOT NULL DEFAULT 10;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -179,6 +182,13 @@ BEGIN
     ALTER TABLE settings ADD CONSTRAINT settings_invoice_reminder_after_valid CHECK (
       cardinality(invoice_reminder_after_days) <= 7
       AND invoice_reminder_after_days <@ ARRAY[1,2,3,5,7,14,30]
+    );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='settings_invoice_due_days_valid'
+  ) THEN
+    ALTER TABLE settings ADD CONSTRAINT settings_invoice_due_days_valid CHECK (
+      invoice_due_days BETWEEN 1 AND 90
     );
   END IF;
 END $$;
@@ -2172,6 +2182,7 @@ CREATE TABLE IF NOT EXISTS rent_invoices (
   issued_total_vnd   NUMERIC(12, 0) NOT NULL,
   detail_snapshot    JSONB NOT NULL DEFAULT '{}'::jsonb,
   issued_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  due_date           DATE NOT NULL DEFAULT ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + 10),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT rent_invoices_user_id_id_unique UNIQUE (user_id, id),
   CONSTRAINT rent_invoices_room_period_unique UNIQUE (user_id, room_id, period),
@@ -2185,6 +2196,14 @@ CREATE TABLE IF NOT EXISTS rent_invoices (
 );
 ALTER TABLE rent_invoices
   ADD COLUMN IF NOT EXISTS detail_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE rent_invoices
+  ADD COLUMN IF NOT EXISTS due_date DATE;
+UPDATE rent_invoices
+SET due_date=((issued_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + 10)
+WHERE due_date IS NULL;
+ALTER TABLE rent_invoices
+  ALTER COLUMN due_date SET DEFAULT ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + 10),
+  ALTER COLUMN due_date SET NOT NULL;
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -2244,6 +2263,10 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF NEW.due_date IS DISTINCT FROM OLD.due_date THEN
+    RAISE EXCEPTION 'rent invoice due date is immutable'
+      USING ERRCODE='23514';
+  END IF;
   IF OLD.finalized_at IS NOT NULL AND (
     NEW.room_name_snapshot IS DISTINCT FROM OLD.room_name_snapshot
     OR NEW.issued_total_vnd IS DISTINCT FROM OLD.issued_total_vnd
@@ -2828,10 +2851,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rent_payment_receipt_invoice
 -- Chuyển các snapshot cũ sang hóa đơn và một giao dịch đủ tiền. Cả hai câu
 -- lệnh đều idempotent để schema có thể chạy lại an toàn.
 INSERT INTO rent_invoices
-  (user_id, room_id, room_name_snapshot, period, issued_total_vnd, issued_at)
+  (user_id, room_id, room_name_snapshot, period, issued_total_vnd, issued_at, due_date)
 SELECT hs.user_id, hb.room_id, COALESCE(hb.room_name, ''), hs.period,
        GREATEST(0, ROUND(COALESCE(hb.total, 0))),
-       to_timestamp(GREATEST(0, hs.created_at) / 1000.0)
+       to_timestamp(GREATEST(0, hs.created_at) / 1000.0),
+       ((to_timestamp(GREATEST(0, hs.created_at) / 1000.0)
+          AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + 10)
 FROM history_bills hb
 JOIN history_snapshots hs ON hs.id=hb.snapshot_id
 WHERE hb.room_id IS NOT NULL AND hb.room_id <> ''

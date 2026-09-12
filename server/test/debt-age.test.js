@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const DebtAge = require('../../debt-age');
 
-test('hạn hóa đơn là issued_at + 10 ngày khi có issuedAt', () => {
+test('hạn hóa đơn cũ là issued_at + 10 ngày và hỗ trợ xem trước số ngày cấu hình', () => {
   // Phát hành 2026-08-01, hạn = 2026-08-11
   const withIssuedAt = DebtAge.classify('2026-08', 3000000, {
     issuedAt: '2026-08-01T08:00:00.000Z',
@@ -28,6 +28,23 @@ test('hạn hóa đơn là issued_at + 10 ngày khi có issuedAt', () => {
     DebtAge.dueDate('2026-08', '2026-08-01T18:00:00.000Z', 'Asia/Ho_Chi_Minh'),
     '2026-08-12'
   );
+  assert.equal(
+    DebtAge.dueDate('2026-08', '2026-08-01T18:00:00.000Z', 'Asia/Ho_Chi_Minh', 20),
+    '2026-08-22'
+  );
+});
+
+test('snapshot dueDate được ưu tiên và không bị tính lại từ issuedAt', () => {
+  const result = DebtAge.classify('2026-08', 3000000, {
+    issuedAt: '2026-08-01T08:00:00.000Z',
+    dueDate: '2026-09-01',
+    now: '2026-08-31T17:00:00.000Z'
+  });
+  assert.equal(result.dueDate, '2026-09-01');
+  assert.equal(result.overdueDays, 0);
+  assert.equal(result.bucket, DebtAge.BUCKETS.NOT_DUE);
+  assert.equal(DebtAge.isDateKey('2026-02-29'), false);
+  assert.equal(DebtAge.isDateKey('2028-02-29'), true);
 });
 
 test('fallback về cuối tháng khi không có issuedAt (hóa đơn cũ)', () => {
@@ -74,7 +91,7 @@ test('giao diện nạp bộ phân loại trước app và hiển thị tuổi n
   const htmlSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const styleSource = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
-  assert.match(htmlSource, /debt-age\.js\?v=84[\s\S]*app\.js\?v=142/);
+  assert.match(htmlSource, /debt-age\.js\?v=85[\s\S]*app\.js\?v=143/);
   assert.match(appSource, /oldestPriorDebtInvoiceFromLoadedInvoices/);
   assert.match(appSource, /issuedAt: debtAgeIssuedAt/);
   assert.match(appSource, /debtAgeBadge\(payment\)/);

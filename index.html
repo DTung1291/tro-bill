@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=139" />
+  <link rel="stylesheet" href="style.css?v=140" />
 </head>
 
 <body>
@@ -1081,14 +1081,30 @@
       <section class="settings-card invoice-reminder-settings" aria-labelledby="invoice-reminder-settings-title">
         <div class="invoice-reminder-settings__head">
           <div>
-            <strong id="invoice-reminder-settings-title">✉️ Tự động nhắc thanh toán hóa đơn</strong>
-            <p>Gửi email cho khách thuê còn nợ theo các mốc trước và sau ngày cuối tháng.</p>
+            <strong id="invoice-reminder-settings-title">🗓️ Hạn thanh toán &amp; nhắc nợ</strong>
+            <p>Quản lý hạn của hóa đơn mới và các mốc email tính từ đúng hạn đã lưu trên từng hóa đơn.</p>
           </div>
           <label class="invoice-reminder-toggle">
             <input type="checkbox" id="invoice-reminder-enabled" />
-            <span>Kích hoạt</span>
+            <span>Nhắc email</span>
           </label>
         </div>
+        <div class="invoice-due-policy">
+          <div class="invoice-due-policy__copy">
+            <strong>Hạn mặc định cho hóa đơn mới</strong>
+            <p>Tính từ ngày phát hành; hóa đơn đã phát hành luôn giữ nguyên hạn cũ.</p>
+          </div>
+          <label class="invoice-due-field" for="invoice-due-days">
+            <span>Sau</span>
+            <input type="number" id="invoice-due-days" min="1" max="90" step="1" inputmode="numeric" value="10" />
+            <span>ngày</span>
+          </label>
+          <output class="invoice-due-preview" id="invoice-due-preview" for="invoice-due-days" aria-live="polite"></output>
+        </div>
+        <p class="invoice-due-contract-note">
+          <span aria-hidden="true">ℹ️</span>
+          Ngày thanh toán ghi trong hợp đồng là điều khoản riêng. Đổi cấu hình này không sửa hợp đồng và không đổi hạn của hóa đơn cũ.
+        </p>
         <div class="invoice-reminder-groups">
           <fieldset class="invoice-reminder-group">
             <legend>Trước hạn</legend>
@@ -1116,7 +1132,7 @@
         </div>
         <div class="invoice-reminder-settings__foot">
           <p>Gửi khoảng 07:15 giờ Việt Nam qua Brevo. Hệ thống kiểm tra lại công nợ ngay trước khi gửi và không nhắc hóa đơn đã thu đủ.</p>
-          <button type="button" class="btn btn--sm btn--primary" id="save-invoice-reminder-settings">Lưu cấu hình email</button>
+          <button type="button" class="btn btn--sm btn--primary" id="save-invoice-reminder-settings">Lưu hạn &amp; nhắc email</button>
         </div>
       </section>
 
@@ -2680,14 +2696,14 @@
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
-  <script src="debt-age.js?v=84"></script>
+  <script src="debt-age.js?v=85"></script>
   <script src="bill-message-templates.js?v=1"></script>
   <script src="data-import.js?v=1"></script>
   <script src="rental-contract-cycle.js?v=2"></script>
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=142"></script>
+  <script src="app.js?v=143"></script>
 </body>
 
 </html>

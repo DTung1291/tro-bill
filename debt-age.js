@@ -1,6 +1,7 @@
 /**
  * Phân loại tuổi nợ hóa đơn TrọBill.
- * Hạn thanh toán là ngày phát hành hóa đơn (issued_at) + 10 ngày, tính theo múi giờ Việt Nam.
+ * Ưu tiên hạn thanh toán đã chụp trên hóa đơn. Hóa đơn cũ chưa có snapshot
+ * vẫn dùng ngày phát hành + 10 ngày, tính theo múi giờ Việt Nam.
  * Dùng được trực tiếp trên trình duyệt và qua CommonJS để kiểm thử bằng Node.
  */
 (function initDebtAge(root, factory) {
@@ -11,6 +12,7 @@
   'use strict';
 
   const DEFAULT_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+  const DEFAULT_DUE_DAYS = 10;
   const DAY_MS = 24 * 60 * 60 * 1000;
   const BUCKETS = Object.freeze({
     SETTLED: 'settled',
@@ -35,14 +37,26 @@
     return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
   }
 
-  function dueDate(period, issuedAt, timeZone = DEFAULT_TIME_ZONE) {
+  function isDateKey(value) {
+    const text = String(value || '');
+    if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(text)) return false;
+    const [year, month, day] = text.split('-').map(Number);
+    return dateFromSerialDay(serialDay({ year, month, day })) === text;
+  }
+
+  function dueDate(period, issuedAt, timeZone = DEFAULT_TIME_ZONE, dueDays = DEFAULT_DUE_DAYS) {
     if (!isPeriod(period)) return '';
     if (issuedAt) {
       const issued = new Date(issuedAt);
       if (!Number.isNaN(issued.getTime())) {
         try {
           const issuedDay = serialDay(zonedDateParts(issued, timeZone));
-          return dateFromSerialDay(issuedDay + 10);
+          const normalizedDueDays = Number.isSafeInteger(Number(dueDays))
+            && Number(dueDays) >= 1
+            && Number(dueDays) <= 90
+            ? Number(dueDays)
+            : DEFAULT_DUE_DAYS;
+          return dateFromSerialDay(issuedDay + normalizedDueDays);
         } catch (_) {
           // Giữ fallback cho timestamp hoặc múi giờ không hợp lệ.
         }
@@ -75,7 +89,14 @@
 
   function classify(period, outstandingVnd, options = {}) {
     if (!isPeriod(period)) throw new TypeError('Kỳ hóa đơn không hợp lệ');
-    const due = dueDate(period, options.issuedAt, options.timeZone || DEFAULT_TIME_ZONE);
+    const due = isDateKey(options.dueDate)
+      ? String(options.dueDate)
+      : dueDate(
+        period,
+        options.issuedAt,
+        options.timeZone || DEFAULT_TIME_ZONE,
+        options.dueDays
+      );
     const outstanding = Math.max(0, Number(outstandingVnd) || 0);
     const today = zonedDateParts(options.now || new Date(), options.timeZone || DEFAULT_TIME_ZONE);
 
@@ -113,11 +134,13 @@
 
   return {
     BUCKETS,
+    DEFAULT_DUE_DAYS,
     DEFAULT_TIME_ZONE,
     classify,
     daysInPeriod,
     dueDate,
     isPeriod,
+    isDateKey,
     label,
     zonedDateParts
   };

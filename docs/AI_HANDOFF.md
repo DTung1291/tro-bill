@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 12/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Hotfix hạn thanh toán và UX/UI cổng báo sửa đã kiểm thử, tách thành hai commit và push `main` trong đợt bàn giao này |
+| Trạng thái | Chính sách hạn hóa đơn cấu hình được và UX/UI Cài đặt đã hoàn thành; migration Preview/Production đạt 4/4, 483/483 test đạt; chờ push/deploy |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi push; luôn xác minh lại bằng Git vì có thể có agent khác cùng cập nhật repository |
+| Worktree kỳ vọng | Commit chính sách hạn hóa đơn đã sẵn sàng; chỉ còn cập nhật ghi chú triển khai trước khi push |
 | Phần ứng dụng phát hành gần nhất | Hotfix `218c33c` sửa commit CI đỏ `2de7da9`, theo sau là commit UX/UI cổng báo sửa; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Xác minh CI/deployment và người dùng smoke test cổng báo sửa desktop/mobile trước khi chọn lát cắt UX/UI kế tiếp |
+| Việc code tiếp theo | Push/deploy và smoke test readiness trước khi chọn lát cắt UX/UI kế tiếp |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Đã hoàn thành chính sách hạn hóa đơn cấu hình được: setting
+  `invoiceDueDays` (1–90), snapshot bất biến `rent_invoices.due_date`, summary/
+  cổng công khai/cron cùng đọc snapshot. UI Cài đặt gộp “Hạn thanh toán & nhắc
+  nợ”, có xem trước ngày thực tế và cảnh báo tách biệt điều khoản hợp đồng.
+  Migration `20260912_invoice_due_date_policy.sql` đã chạy ngày 12/09/2026 trên
+  Preview `br-ancient-wave-azwc43to / neondb` và Production
+  `br-fancy-star-azyclc1h / neondb`; cả hai đạt 4/4 kiểm tra hậu migration.
+  Production backfill 22 hóa đơn cũ. Test mục tiêu 47/47, toàn suite 483/483,
+  secret scan và diff check đều sạch; code đang chờ push/deploy ở mốc ghi chú này.
 
 - Hotfix local cho `2de7da9`: tuổi nợ dùng `issued_at` của hóa đơn chưa thanh
   toán cũ nhất thay vì hóa đơn hiện tại; nếu thiếu timestamp cũ thì fallback về

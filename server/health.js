@@ -29,6 +29,20 @@ const SCHEMA_READY_QUERY = `
         AND table_name='settings'
         AND column_name='invoice_reminder_enabled'
     )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public'
+        AND table_name='settings'
+        AND column_name='invoice_due_days'
+        AND is_nullable='NO'
+    )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public'
+        AND table_name='rent_invoices'
+        AND column_name='due_date'
+        AND is_nullable='NO'
+    )
     AND to_regclass('public.rental_contracts') IS NOT NULL
     AND to_regclass('public.rental_contract_amendments') IS NOT NULL
     AND EXISTS (

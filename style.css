@@ -735,6 +735,68 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-size: .78rem;
   line-height: 1.5;
 }
+.invoice-due-policy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 5%, var(--bg2));
+}
+.invoice-due-policy__copy { min-width: 0; }
+.invoice-due-policy__copy strong { color: var(--text); font-size: .84rem; }
+.invoice-due-policy__copy p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.invoice-due-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.invoice-due-field input {
+  width: 78px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+.invoice-due-field input:focus {
+  border-color: var(--primary);
+  outline: 3px solid color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.invoice-due-preview {
+  grid-column: 1 / -1;
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg3);
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.invoice-due-preview.is-invalid { color: var(--red); }
+.invoice-due-contract-note {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: .75rem;
+  line-height: 1.5;
+}
 .invoice-reminder-toggle {
   display: inline-flex;
   align-items: center;
@@ -4448,6 +4510,9 @@ body.workspace-staff-active .main { padding-top: 112px; }
 
 @media (max-width: 760px) {
   .invoice-reminder-groups { grid-template-columns: minmax(0, 1fr); }
+  .invoice-due-policy { grid-template-columns: minmax(0, 1fr); }
+  .invoice-due-field { justify-content: space-between; }
+  .invoice-due-preview { grid-column: auto; }
   .invoice-reminder-settings__foot { align-items: stretch; flex-direction: column; }
   .invoice-reminder-settings__foot .btn { justify-content: center; }
   .electronic-invoice-profile__head,

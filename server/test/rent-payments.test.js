@@ -61,9 +61,11 @@ function summaryRow(overrides = {}) {
     prior_unpaid_invoice_count: 0,
     oldest_unpaid_period: null,
     oldest_unpaid_issued_at: null,
+    oldest_unpaid_due_date: null,
     transaction_count: 1,
     last_payment_at: '2026-08-25T01:00:00.000Z',
     issued_at: '2026-08-25T01:00:00.000Z',
+    due_date: '2026-09-04',
     updated_at: '2026-08-25T01:00:00.000Z',
     ...overrides
   };
@@ -108,6 +110,7 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
     prior_unpaid_invoice_count: 2,
     oldest_unpaid_period: '2026-06',
     oldest_unpaid_issued_at: '2026-06-05T08:00:00.000Z',
+    oldest_unpaid_due_date: '2026-06-20',
     detail_snapshot: { rentAmountVnd: 1500000, electricAmountVnd: 500000 }
   }), { now: '2026-08-25T05:00:00.000Z' });
   assert.equal(summary.invoiceTotalVnd, 2000000);
@@ -118,8 +121,10 @@ test('summary giữ riêng nợ cũ và tổng cần thu, không cộng lại v�
   assert.equal(summary.oldestUnpaidPeriod, '2026-06');
   assert.equal(summary.debtAgePeriod, '2026-06');
   assert.equal(summary.debtAgeIssuedAt, '2026-06-05T08:00:00.000Z');
-  assert.equal(summary.dueDate, '2026-06-15');
-  assert.equal(summary.overdueDays, 71);
+  assert.equal(summary.dueDate, '2026-06-20');
+  assert.equal(summary.debtAgeDueDate, '2026-06-20');
+  assert.equal(summary.invoiceDueDate, '2026-09-04');
+  assert.equal(summary.overdueDays, 66);
   assert.equal(summary.debtAgeBucket, 'overdue_31_plus');
   assert.equal(summary.transferContent, 'HD00000015');
   assert.deepEqual(summary.detailSnapshot, {
@@ -145,6 +150,7 @@ test('nợ trước ngày bắt đầu thuê hiện tại không chuyển sang k
   assert.match(capturedSql, /current_room\.rent_start_date/);
   assert.match(capturedSql, /older\.period >= left\(current_room\.rent_start_date, 7\)/);
   assert.match(capturedSql, /ORDER BY older\.period, older\.id[\s\S]*AS oldest_unpaid_issued_at/);
+  assert.match(capturedSql, /SELECT older\.due_date[\s\S]*AS oldest_unpaid_due_date/);
   assert.match(capturedSql, /LEFT JOIN rooms current_room/);
 });
 
@@ -853,7 +859,7 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=142/);
+  assert.match(htmlSource, /app\.js\?v=143/);
 });
 
 test('khởi động hiển thị dữ liệu trước và chỉ đồng bộ ledger cần thiết ở nền', () => {

@@ -924,3 +924,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khoản riêng đã được người dùng cấu hình và vẫn phải xuất đúng; không tự đổi
   hợp đồng thành “10 ngày từ ngày nhận hóa đơn” nếu chưa có thay đổi schema/form
   và sự đồng ý của hai bên. Mọi thay đổi asset phải tăng query version.
+
+## D-051 — Hạn thanh toán là snapshot trên từng hóa đơn
+
+- **Trạng thái:** Áp dụng từ 12/09/2026; migration tiến tới
+  `20260912_invoice_due_date_policy.sql` phải chạy trước khi deploy code.
+- **Quyết định:** Chủ tài khoản cấu hình `invoiceDueDays` từ 1–90 ngày trong
+  Cài đặt. Khi phát hành, mọi đường tạo `rent_invoices` chụp `due_date` theo ngày
+  Việt Nam và cấu hình tại thời điểm đó. Đổi cấu hình chỉ tác động hóa đơn mới;
+  runtime role và trigger không cho sửa `due_date` của hóa đơn đã phát hành.
+- **Nguồn chuẩn:** Summary công nợ, cổng hóa đơn công khai và cron nhắc email đều
+  đọc `rent_invoices.due_date`. Khi có nợ cũ, summary lấy `due_date` của hóa đơn
+  chưa thanh toán cũ nhất. Fallback `issued_at + 10` chỉ dành cho payload/schema
+  legacy trong thời gian chuyển đổi.
+- **Tách biệt hợp đồng:** `rental_contracts.payment_due_day` vẫn là ngày trong
+  tháng đã thỏa thuận trên hợp đồng. Giao diện phải nói rõ đổi hạn vận hành không
+  sửa điều khoản hợp đồng hoặc hóa đơn cũ.

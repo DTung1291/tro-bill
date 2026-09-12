@@ -208,7 +208,7 @@ test('UI nối nút Excel và PDF vào đúng báo cáo đã lọc cùng print C
   assert.match(index, /id="annual-revenue-evidence"/);
   assert.match(index, /id="annual-revenue-month-rows"/);
   assert.match(index, /id="annual-revenue-location-rows"/);
-  assert.match(index, /financial-report-export\.js\?v=2[\s\S]*app\.js\?v=142/);
+  assert.match(index, /financial-report-export\.js\?v=2[\s\S]*app\.js\?v=143/);
   assert.match(app, /FinancialReportExport\.buildXlsx\(report/);
   assert.match(app, /FinancialReportExport\.buildPrintHtml/);
   assert.match(app, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
