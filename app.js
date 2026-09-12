@@ -275,7 +275,9 @@ function rentInvoicePaymentState(roomId, period, invoiceTotalVnd, legacyPaid = f
     || oldestPriorDebtPeriodFromLoadedInvoices(roomId, period);
   const totalDueVnd = priorDebtVnd + remaining;
   const debtAgePeriod = invoice?.debtAgePeriod || oldestUnpaidPeriod || period;
-  const calculatedDebtAge = DebtAge.classify(debtAgePeriod, totalDueVnd);
+  const calculatedDebtAge = DebtAge.classify(debtAgePeriod, totalDueVnd, {
+    issuedAt: invoice?.issuedAt
+  });
   let status = paidAmount > 0 ? 'partial' : 'unpaid';
   if (remaining === 0) status = paidAmount > total ? 'overpaid' : 'paid';
   return {
@@ -2533,8 +2535,8 @@ function billCode(room, period) {
   return `TB-${period.replace('-', '')}-${roomPart || 'ROOM'}`;
 }
 
-function billDueDate(period) {
-  return DebtAge.dueDate(period) || period;
+function billDueDate(period, issuedAt) {
+  return DebtAge.dueDate(period, issuedAt) || period;
 }
 
 function triggerHaptic(type = 'light') {
@@ -6587,7 +6589,7 @@ function buildBillPreviewContent(room, rec, bill, period) {
           </div>
           <div class="bill-preview-meta-item">
             <strong>Hạn thanh toán:</strong>
-            <span>${escapeHtml(payment.dueDate || billDueDate(period))}</span>
+            <span>${escapeHtml(payment.dueDate || billDueDate(period, payment.invoice?.issuedAt))}</span>
           </div>
           <div class="bill-preview-meta-item">
             <strong>Tuổi nợ:</strong>
@@ -6712,7 +6714,7 @@ function billMessageContext() {
     paidAmountVnd: payment.paidAmountVnd,
     priorDebtVnd: payment.priorDebtVnd,
     totalDueVnd: payment.totalDueVnd,
-    dueDate: payment.dueDate || billDueDate(period),
+    dueDate: payment.dueDate || billDueDate(period, payment.invoice?.issuedAt),
     overdueDays: payment.overdueDays,
     transferContent: getVietQrDescription(room, period),
     bankRecipient: rentBankRecipientText(room),

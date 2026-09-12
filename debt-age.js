@@ -1,6 +1,6 @@
 /**
  * Phân loại tuổi nợ hóa đơn TrọBill.
- * Hạn thanh toán là ngày cuối cùng của kỳ và được tính theo múi giờ Việt Nam.
+ * Hạn thanh toán là ngày phát hành hóa đơn (issued_at) + 10 ngày, tính theo múi giờ Việt Nam.
  * Dùng được trực tiếp trên trình duyệt và qua CommonJS để kiểm thử bằng Node.
  */
 (function initDebtAge(root, factory) {
@@ -30,7 +30,23 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
-  function dueDate(period) {
+  function dueDate(period, issuedAt) {
+    // Nếu có issuedAt, tính hạn = issuedAt + 10 ngày
+    if (issuedAt) {
+      try {
+        const issued = new Date(issuedAt);
+        if (!Number.isNaN(issued.getTime())) {
+          const issuedParts = zonedDateParts(issued);
+          const dueSerial = serialDay(issuedParts) + 10;
+          const dueMs = dueSerial * DAY_MS;
+          const dueParts = zonedDateParts(new Date(dueMs));
+          return `${dueParts.year}-${String(dueParts.month).padStart(2, '0')}-${String(dueParts.day).padStart(2, '0')}`;
+        }
+      } catch (e) {
+        // Nếu lỗi, fallback về logic cũ
+      }
+    }
+    // Fallback: hạn = cuối tháng (cho hóa đơn cũ chưa có issuedAt)
     const day = daysInPeriod(period);
     return day ? `${period}-${String(day).padStart(2, '0')}` : '';
   }
@@ -58,12 +74,14 @@
 
   function classify(period, outstandingVnd, options = {}) {
     if (!isPeriod(period)) throw new TypeError('Kỳ hóa đơn không hợp lệ');
-    const dueDay = daysInPeriod(period);
-    const [year, month] = period.split('-').map(Number);
-    const due = dueDate(period);
+    const due = dueDate(period, options.issuedAt);
     const outstanding = Math.max(0, Number(outstandingVnd) || 0);
     const today = zonedDateParts(options.now || new Date(), options.timeZone || DEFAULT_TIME_ZONE);
-    const overdueDays = Math.max(0, serialDay(today) - serialDay({ year, month, day: dueDay }));
+
+    // Parse due date để tính overdueDays
+    const dueParts = due ? due.split('-').map(Number) : null;
+    const dueDay = dueParts ? { year: dueParts[0], month: dueParts[1], day: dueParts[2] } : null;
+    const overdueDays = dueDay ? Math.max(0, serialDay(today) - serialDay(dueDay)) : 0;
 
     let bucket = BUCKETS.SETTLED;
     if (outstanding > 0 && overdueDays === 0) bucket = BUCKETS.NOT_DUE;

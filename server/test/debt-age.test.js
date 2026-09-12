@@ -6,7 +6,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const DebtAge = require('../../debt-age');
 
-test('hạn hóa đơn là ngày cuối tháng và ngày kế tiếp mới quá hạn', () => {
+test('hạn hóa đơn là issued_at + 10 ngày khi có issuedAt', () => {
+  // Phát hành 2026-08-01, hạn = 2026-08-11
+  const withIssuedAt = DebtAge.classify('2026-08', 3000000, {
+    issuedAt: '2026-08-01T08:00:00.000Z',
+    now: '2026-08-11T16:59:59.000Z'
+  });
+  assert.equal(withIssuedAt.dueDate, '2026-08-11');
+  assert.equal(withIssuedAt.overdueDays, 0);
+  assert.equal(withIssuedAt.bucket, DebtAge.BUCKETS.NOT_DUE);
+
+  // Ngày tiếp theo (12/08) thì quá hạn
+  const nextDay = DebtAge.classify('2026-08', 3000000, {
+    issuedAt: '2026-08-01T08:00:00.000Z',
+    now: '2026-08-11T17:00:00.000Z'
+  });
+  assert.equal(nextDay.overdueDays, 1);
+  assert.equal(nextDay.bucket, DebtAge.BUCKETS.OVERDUE_1_7);
+});
+
+test('fallback về cuối tháng khi không có issuedAt (hóa đơn cũ)', () => {
   const atDueDate = DebtAge.classify('2026-08', 3000000, {
     now: '2026-08-31T16:59:59.000Z'
   });
@@ -38,7 +57,10 @@ test('không gắn tuổi quá hạn khi đã thu đủ và hỗ trợ tháng nh
   const settled = DebtAge.classify('2026-01', 0, { now: '2026-08-25T05:00:00.000Z' });
   assert.equal(settled.bucket, DebtAge.BUCKETS.SETTLED);
   assert.equal(settled.isOverdue, false);
+  // Fallback về cuối tháng khi không có issuedAt
   assert.equal(DebtAge.dueDate('2028-02'), '2028-02-29');
+  // Với issuedAt, tính issued_at + 10 ngày
+  assert.equal(DebtAge.dueDate('2028-02', '2028-02-01T00:00:00Z'), '2028-02-11');
 });
 
 test('giao diện nạp bộ phân loại trước app và hiển thị tuổi nợ', () => {

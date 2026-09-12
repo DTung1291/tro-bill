@@ -299,10 +299,7 @@ async function enqueueAutomaticInvoiceReminders(dependencies = {}) {
          invoice.period,
          settings.invoice_reminder_before_days,
          settings.invoice_reminder_after_days,
-         (
-           to_date(invoice.period || '-01', 'YYYY-MM-DD')
-           + interval '1 month - 1 day'
-         )::date AS due_date
+         (invoice.issued_at::date + interval '10 days')::date AS due_date
        FROM rent_invoices invoice
        JOIN settings ON settings.user_id=invoice.user_id
          AND settings.invoice_reminder_enabled=true

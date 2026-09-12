@@ -188,7 +188,9 @@ function publicInvoiceJson(row) {
   const total = Number(row.issued_total_vnd) || 0;
   const paid = Math.max(0, Number(row.paid_amount_vnd) || 0);
   const remaining = Math.max(0, total - paid);
-  const debtAge = DebtAge.classify(row.period, remaining);
+  const debtAge = DebtAge.classify(row.period, remaining, {
+    issuedAt: row.issued_at
+  });
   const transferContent = InvoiceReference.fromInvoiceId(row.invoice_id);
   let details = {};
   try {
@@ -315,6 +317,7 @@ async function resolvePublicInvoiceLink(req, res) {
               COALESCE(invoice.final_detail_snapshot, invoice.detail_snapshot)
                 AS detail_snapshot,
               invoice.finalized_at,
+              invoice.issued_at,
               COALESCE(assigned_bank.bank_id, default_bank.bank_id, settings.bank_id)
                 AS bank_id,
               COALESCE(assigned_bank.account_number, default_bank.account_number, settings.bank_account)

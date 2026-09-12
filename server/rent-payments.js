@@ -209,7 +209,10 @@ function summaryJson(row, options = {}) {
   const totalDue = priorDebt + remaining;
   const oldestUnpaidPeriod = row.oldest_unpaid_period || null;
   const debtAgePeriod = oldestUnpaidPeriod || row.period;
-  const debtAge = DebtAge.classify(debtAgePeriod, totalDue, options);
+  const debtAge = DebtAge.classify(debtAgePeriod, totalDue, {
+    ...options,
+    issuedAt: row.issued_at
+  });
   let status = 'unpaid';
   if (collected > 0 && remaining > 0) status = 'partial';
   if (remaining === 0) status = collected > total ? 'overpaid' : 'paid';
