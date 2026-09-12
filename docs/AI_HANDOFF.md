@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 11/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Khung điều hướng ứng dụng đã push; lát cắt hóa đơn công khai hoàn thành local, chờ người dùng kiểm tra |
+| Cập nhật lần cuối | 12/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Hotfix hạn thanh toán và UX/UI cổng báo sửa đã kiểm thử, tách thành hai commit và push `main` trong đợt bàn giao này |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt hóa đơn công khai, test và tài liệu bàn giao; chưa commit/push |
-| Phần ứng dụng phát hành gần nhất | `2c965b9` đã push `main` — làm mới khung điều hướng ứng dụng; deployment Production chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra hóa đơn công khai trên desktop/mobile; chỉ commit/push và chuyển sang cổng báo sửa sau khi xác nhận |
+| Worktree kỳ vọng | Sạch sau khi push; luôn xác minh lại bằng Git vì có thể có agent khác cùng cập nhật repository |
+| Phần ứng dụng phát hành gần nhất | Hotfix `218c33c` sửa commit CI đỏ `2de7da9`, theo sau là commit UX/UI cổng báo sửa; deployment Production chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Xác minh CI/deployment và người dùng smoke test cổng báo sửa desktop/mobile trước khi chọn lát cắt UX/UI kế tiếp |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,26 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Thay đổi local đang chờ người dùng kiểm tra: hóa đơn công khai ưu tiên số tiền
+- Hotfix local cho `2de7da9`: tuổi nợ dùng `issued_at` của hóa đơn chưa thanh
+  toán cũ nhất thay vì hóa đơn hiện tại; nếu thiếu timestamp cũ thì fallback về
+  cuối kỳ cũ, không đặt lại tuổi nợ. Cron quy đổi ngày phát hành theo
+  `Asia/Ho_Chi_Minh`; helper dùng cùng timezone, kiểm tra kỳ không hợp lệ và
+  asset pin tăng `debt-age 83 → 84`, `app 141 → 142`. Mẫu hợp đồng quay lại dùng
+  `paymentDueDay` đã cấu hình, không tự đổi điều khoản thành “10 ngày từ ngày
+  nhận”. Test mục tiêu 45/45 và full suite ngoài sandbox 479/479 đạt; secret scan
+  và diff check sạch. Không có migration; commit `218c33c` được push `main` cùng
+  đợt bàn giao, deployment chưa được xác minh.
+
+- Lát cắt UX/UI cổng báo sửa hoàn thành local: thêm badge liên kết bảo mật, thẻ
+  trạng thái theo yêu cầu đang mở, biểu mẫu ba bước, giải thích mức độ, trạng
+  thái gửi và bộ đếm lịch sử. Danh sách dùng màu theo vòng đời; responsive về
+  một cột ở 680px, CTA toàn chiều rộng ở 520px và header tự wrap ở 390px. Không
+  đổi API, token fragment, idempotency hoặc dữ liệu trả công khai; CSS/JS pin
+  tăng `1 → 2` và `2 → 3`. Test mục tiêu 21/21 và full suite ngoài sandbox
+  479/479 đạt; chưa kiểm tra bằng dữ liệu thật. Lát cắt được commit ngay sau
+  `218c33c` và push `main` cùng đợt bàn giao; deployment chưa được xác minh.
+
+- `9a60a20`: hóa đơn công khai ưu tiên số tiền
   còn lại và thẻ “Việc cần làm” theo trạng thái trước QR. Luồng nội dung đổi
   thành thanh toán/minh chứng/phiếu thu trước, chi tiết khoản thu và lịch sử sau;
   QR có nút sao chép nội dung chuyển khoản. Sau khi gửi minh chứng, hướng dẫn đổi
@@ -103,7 +122,7 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   mobile thu về một cột và CTA chiếm toàn chiều rộng. Token vẫn bị xóa khỏi URL,
   request không dùng cookie và không lưu dữ liệu trình duyệt. CSS/JS pin tăng
   `7 → 8`; syntax, test mục tiêu 25/25 và full suite 477/477 đạt. Không có
-  migration và chưa xác minh Production.
+  migration và chưa xác minh Production. Commit đã push `main`.
 
 - `2c965b9`: khung ứng dụng tách điều hướng
   desktop thành hai tầng, giữ nhận diện/workspace/tiện ích ở hàng đầu và bảy

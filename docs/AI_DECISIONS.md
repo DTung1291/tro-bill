@@ -827,8 +827,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   bảng giá/gia hạn/thanh toán tại `1e66c8b`, Tổng quan tại `9289f1a`; Quản lý
   phòng đã push tại `f51acf9`, Nhập chỉ số/Hóa đơn tại `4113398`, Chi phí thực
   tế/Lịch sử tháng tại `627f2c9`, Cài đặt vận hành tại `aaa5f0f`, Super Admin
-  tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`; hóa đơn công khai đã
-  hoàn thành local và đang chờ người dùng kiểm tra.
+  tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`, hóa đơn công khai tại
+  `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -900,3 +900,27 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   đang hiển thị; token vẫn xóa khỏi URL trước request, không dùng cookie và không
   ghi local/session storage. CSS/JS riêng của cổng công khai phải tăng pin cùng
   thay đổi.
+
+  Lát cắt cổng báo sửa đặt trạng thái yêu cầu đang mở trước cảnh báo và biểu
+  mẫu. Biểu mẫu chia ba bước nhưng giữ nguyên trường/API; mức độ chỉ bổ sung lời
+  giải thích, không tự thay đổi ưu tiên. Sau khi gửi, trạng thái và lịch sử cập
+  nhật từ response idempotent hiện có. Token tiếp tục được xóa khỏi fragment,
+  không lưu trình duyệt và không mở rộng dữ liệu công khai.
+
+## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
+
+- **Trạng thái:** Áp dụng từ 12/09/2026 tại hotfix `218c33c`, push `main` cùng
+  đợt bàn giao.
+- **Quyết định:** Hạn vận hành của một hóa đơn có `issued_at` là ngày phát hành
+  tại `Asia/Ho_Chi_Minh` cộng 10 ngày. Khi tổng cần thu gồm nợ cũ, tuổi nợ và hạn
+  hiển thị phải lấy từ hóa đơn chưa thanh toán cũ nhất; nếu timestamp cũ không
+  có trong payload thì fallback về cuối kỳ cũ, tuyệt đối không dùng ngày phát
+  hành của hóa đơn mới. Cron nhắc email phải dùng cùng ngày Việt Nam.
+- **Lý do:** Dùng kỳ nợ cũ nhưng timestamp hóa đơn mới làm khoản nợ lâu ngày trở
+  lại “chưa đến hạn”; ép `timestamptz` sang `date` theo timezone database còn có
+  thể lệch giao diện một ngày.
+- **Hệ quả:** Summary API trả thêm `debtAgeIssuedAt`; frontend ưu tiên trường này
+  và chỉ suy từ invoice cũ đã tải khi cần. `paymentDueDay` trong hợp đồng là điều
+  khoản riêng đã được người dùng cấu hình và vẫn phải xuất đúng; không tự đổi
+  hợp đồng thành “10 ngày từ ngày nhận hóa đơn” nếu chưa có thay đổi schema/form
+  và sự đồng ý của hai bên. Mọi thay đổi asset phải tăng query version.

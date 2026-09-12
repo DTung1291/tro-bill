@@ -328,7 +328,7 @@ test('schema, quyền runtime, routes và trang công khai giữ token ngoài qu
   assert.match(htmlSource, /style\.css\?v=139[\s\S]*api\.js\?v=116[\s\S]*app\.js\?v=142/);
   assert.match(publicHtml, /name="referrer" content="no-referrer"/);
   assert.match(publicHtml, /Content-Security-Policy/);
-  assert.match(publicHtml, /maintenance-public\.css\?v=1[\s\S]*maintenance-public\.js\?v=2/);
+  assert.match(publicHtml, /maintenance-public\.css\?v=2[\s\S]*maintenance-public\.js\?v=3/);
   assert.match(publicJs, /location\.hash/);
   assert.match(publicJs, /history\.replaceState\(null, '', location\.pathname\)/);
   assert.match(publicJs, /credentials: 'same-origin'/);
