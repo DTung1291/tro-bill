@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI Báo cáo tài chính hoàn thành local; toàn bộ 484/484 test đạt, chưa commit/push |
+| Trạng thái | Lát cắt UX/UI Hợp đồng và vòng đời thuê hoàn thành local; toàn bộ 485/485 test đạt, chưa commit/push |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Báo cáo tài chính; không đè hoặc tách bỏ trước khi bàn giao |
-| Phần ứng dụng phát hành gần nhất | `6bcddd4` chính sách hạn hóa đơn và `cd1520a` tài liệu rollout; CI xanh, Production revision `cd1520aa6bd2` và readiness đã xác minh |
-| Việc code tiếp theo | Người dùng kiểm tra Báo cáo tài chính; nếu đạt thì commit/push trước khi chọn lát cắt UX/UI tiếp theo |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Hợp đồng; không đè hoặc tách bỏ trước khi bàn giao |
+| Phần ứng dụng phát hành gần nhất | `9b27b35` làm mới Báo cáo tài chính; CI `34727801397` xanh, Production revision `9b27b350f011` và readiness đã xác minh |
+| Việc code tiếp theo | Commit/push lát cắt Hợp đồng, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,23 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- Lát cắt UX/UI Hợp đồng và vòng đời thuê hoàn thành local: modal mở bằng hành
+  trình ba bước giữ chỗ → tạo hợp đồng → quản lý hồ sơ; header/footer cố định và
+  chỉ phần nội dung cuộn. Thẻ hợp đồng ưu tiên thời hạn, giá hiện hành, kỳ đến
+  hạn và nhắc hết hạn; nhóm thao tác dùng lưới đều, về một cột trên mobile.
+  Không đổi API, trạng thái, phụ lục, sổ cọc, bàn giao hay phân quyền. CSS pin
+  tăng `141 → 142`, app pin tăng `143 → 144`; test mục tiêu 35/35 và toàn suite
+  ngoài sandbox 485/485 đạt. Chưa commit/push ở mốc ghi chú này.
+
 - Lát cắt UX/UI Báo cáo tài chính hoàn thành local: tách header, nguồn dữ liệu,
   bộ lọc phạm vi và kết quả; đưa lợi nhuận tiền mặt thành thẻ chính, nhóm cơ cấu
   doanh thu/tiền cọc và hiệu suất phòng thành bề mặt riêng. Desktop dùng lưới
   12 cột; dưới 640px thao tác xếp dọc và dưới 480px mọi bộ lọc/chỉ số về một cột.
   Không đổi API, công thức, bộ lọc, xuất Excel/PDF hoặc quyền workspace. CSS pin
   tăng `140 → 141`; test mục tiêu 20/20 và toàn suite ngoài sandbox 484/484 đạt.
-  Chưa commit, push hoặc kiểm tra dữ liệu thật ở mốc ghi chú này.
+  Commit `9b27b35` đã push; CI `34727801397` thành công, deployment Production
+  `tro-bill-m9v0ast9m-dtung.vercel.app` `Ready` và alias chính trả revision
+  `9b27b350f011`, database/schema `ok`, runtime role `restricted`.
 
 - Đã hoàn thành chính sách hạn hóa đơn cấu hình được: setting
   `invoiceDueDays` (1–90), snapshot bất biến `rent_invoices.due_date`, summary/

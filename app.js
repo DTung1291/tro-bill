@@ -3970,13 +3970,13 @@ function renderRentalContracts() {
         <span class="rental-contract-status rental-contract-status--${escapeHtml(contract.status)}">${escapeHtml(rentalContractStatusLabel(contract.status))}</span>
       </div>
       <dl class="rental-contract-meta">
-        <div><dt>Thời hạn</dt><dd>${escapeHtml(rentalContractDateRange(contract))}</dd></div>
-        <div><dt>Giá ban đầu</dt><dd>${fmt(contract.monthlyRentVnd)}/tháng</dd></div>
-        <div><dt>Giá mới nhất</dt><dd>${fmt(contract.currentMonthlyRentVnd)}/tháng</dd></div>
-        <div><dt>Tiền cọc</dt><dd>${fmt(contract.depositVnd)}</dd></div>
-        <div><dt>Chu kỳ thanh toán</dt><dd>${escapeHtml(rentalContractCycleSummary(contract))}</dd></div>
-        <div><dt>Kỳ đến hạn tiếp theo</dt><dd>${escapeHtml(rentalContractNextPaymentLabel(contract))}</dd></div>
-        <div><dt>Nhắc hết hạn</dt><dd class="rental-contract-expiry rental-contract-expiry--${escapeHtml(expiry.level)}">${escapeHtml(expiry.label)}</dd></div>
+        <div class="rental-contract-meta-key"><dt>Thời hạn</dt><dd>${escapeHtml(rentalContractDateRange(contract))}</dd></div>
+        <div class="rental-contract-meta-key rental-contract-meta-current"><dt>Giá hiện hành</dt><dd>${fmt(contract.currentMonthlyRentVnd)}/tháng</dd></div>
+        <div class="rental-contract-meta-key rental-contract-meta-next"><dt>Kỳ đến hạn tiếp theo</dt><dd>${escapeHtml(rentalContractNextPaymentLabel(contract))}</dd></div>
+        <div class="rental-contract-meta-key"><dt>Nhắc hết hạn</dt><dd class="rental-contract-expiry rental-contract-expiry--${escapeHtml(expiry.level)}">${escapeHtml(expiry.label)}</dd></div>
+        <div class="rental-contract-meta-support"><dt>Giá ban đầu</dt><dd>${fmt(contract.monthlyRentVnd)}/tháng</dd></div>
+        <div class="rental-contract-meta-support"><dt>Tiền cọc</dt><dd>${fmt(contract.depositVnd)}</dd></div>
+        <div class="rental-contract-meta-support"><dt>Chu kỳ thanh toán</dt><dd>${escapeHtml(rentalContractCycleSummary(contract))}</dd></div>
       </dl>
       ${contract.terms ? `<p class="rental-contract-terms-view">${escapeHtml(contract.terms)}</p>` : ''}
       ${contract.statusReason ? `<p class="rental-contract-status-reason"><strong>Lý do:</strong> ${escapeHtml(contract.statusReason)}</p>` : ''}
@@ -3984,13 +3984,16 @@ function renderRentalContracts() {
         <strong>Phụ lục giá</strong>
         <ul>${amendmentItems}</ul>
       </div>
-      <div class="rental-contract-card-actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
-        ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
-        ${isOwnerWorkspace() && ['active', 'ended'].includes(contract.status) ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-maintenance>🔧 Báo sửa</button>' : ''}
-        ${contract.status === 'active' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="transfer">🔁 Chuyển phòng</button><button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="checkout">🚪 Trả phòng</button>' : ''}
-        ${canFinalizeCheckout ? '<button type="button" class="btn btn--primary btn--sm" data-contract-final-settlement>🧾 Quyết toán cuối</button>' : ''}
-        <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
+      <div class="rental-contract-action-panel">
+        <strong>Thao tác hợp đồng</strong>
+        <div class="rental-contract-card-actions">
+          <button type="button" class="btn btn--ghost btn--sm" data-contract-deposit>💰 Sổ cọc</button>
+          ${contract.status !== 'cancelled' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-handover>📦 Bàn giao tài sản</button>' : ''}
+          ${isOwnerWorkspace() && ['active', 'ended'].includes(contract.status) ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-maintenance>🔧 Báo sửa</button>' : ''}
+          ${contract.status === 'active' ? '<button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="transfer">🔁 Chuyển phòng</button><button type="button" class="btn btn--ghost btn--sm" data-contract-lifecycle="checkout">🚪 Trả phòng</button>' : ''}
+          ${canFinalizeCheckout ? '<button type="button" class="btn btn--primary btn--sm" data-contract-final-settlement>🧾 Quyết toán cuối</button>' : ''}
+          <button type="button" class="btn btn--ghost btn--sm" data-contract-document>📄 Xem / In hợp đồng</button>
+        </div>
       </div>
       ${amendmentForm}
       ${statusPanel}`;

@@ -829,7 +829,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tế/Lịch sử tháng tại `627f2c9`, Cài đặt vận hành tại `aaa5f0f`, Super Admin
   tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`, hóa đơn công khai tại
   `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
-  Báo cáo tài chính đã hoàn thành local trong lát cắt kế tiếp ngày 13/09/2026.
+  Báo cáo tài chính đã phát hành tại `9b27b35`; modal Hợp đồng và vòng đời thuê
+  đã hoàn thành local trong lát cắt kế tiếp ngày 13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -913,6 +914,12 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   Desktop dùng lưới bất đối xứng để đọc nhanh quyết định dòng tiền; mobile thu
   toàn bộ bộ lọc, chỉ số và thẻ chi tiết về một cột. Công thức, dữ liệu máy chủ,
   bộ lọc, xuất Excel/PDF và quyền theo workspace không thay đổi.
+
+  Lát cắt Hợp đồng và vòng đời thuê trình bày quy trình giữ chỗ → tạo hợp đồng
+  → quản lý hồ sơ ở đầu modal, giữ header/footer cố định và chỉ cuộn nội dung.
+  Thẻ hợp đồng ưu tiên giá hiện hành, kỳ đến hạn tiếp theo và nhóm thao tác theo
+  lưới responsive. Không đổi trạng thái hợp đồng, snapshot giá, phụ lục, ledger
+  cọc, quy trình bàn giao/chuyển/trả phòng hoặc phân quyền.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 

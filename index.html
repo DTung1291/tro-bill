@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=141" />
+  <link rel="stylesheet" href="style.css?v=142" />
 </head>
 
 <body>
@@ -1698,15 +1698,31 @@
     <div class="modal rental-contract-modal" role="dialog" aria-modal="true" aria-labelledby="rental-contract-title">
       <div class="modal-header">
         <div>
+          <span class="rental-contract-modal-kicker">Vòng đời thuê phòng</span>
           <h2 class="modal-title" id="rental-contract-title">Hợp đồng thuê</h2>
           <p class="rental-contract-room" id="rental-contract-room"></p>
         </div>
         <button type="button" class="modal-close" id="rental-contract-close" aria-label="Đóng">✕</button>
       </div>
       <div class="rental-contract-body">
+        <ol class="rental-contract-journey" aria-label="Quy trình quản lý hợp đồng">
+          <li>
+            <span>01</span>
+            <div><strong>Giữ chỗ</strong><small>Tùy chọn trước khi nhận phòng</small></div>
+          </li>
+          <li>
+            <span>02</span>
+            <div><strong>Tạo hợp đồng</strong><small>Chốt người thuê, thời hạn và giá</small></div>
+          </li>
+          <li>
+            <span>03</span>
+            <div><strong>Quản lý hồ sơ</strong><small>Phụ lục, bàn giao và trả phòng</small></div>
+          </li>
+        </ol>
         <section class="rental-reservation-section" aria-labelledby="rental-reservation-title">
           <div class="rental-contract-section-head">
             <div>
+              <span class="rental-contract-section-kicker">Bước 01 · Tùy chọn</span>
               <h3 id="rental-reservation-title">Giữ chỗ</h3>
               <p>Mỗi phòng chỉ có một lượt giữ chỗ đang hoạt động; lượt hết hạn sẽ tự giải phóng phòng.</p>
             </div>
@@ -1742,6 +1758,7 @@
         <form class="rental-contract-create" id="rental-contract-form">
           <div class="rental-contract-section-head">
             <div>
+              <span class="rental-contract-section-kicker">Bước 02 · Điều khoản thuê</span>
               <h3>Tạo hợp đồng</h3>
               <p>Hợp đồng đang hoạt động sẽ đồng bộ ngày bắt đầu và giá thuê vào biểu phí của phòng.</p>
             </div>
@@ -1787,12 +1804,14 @@
             <textarea class="form-input rental-contract-terms" id="rental-contract-terms" maxlength="5000" rows="3" placeholder="Các thỏa thuận chính của hợp đồng…"></textarea>
           </label>
           <div class="rental-contract-create-actions">
+            <span>Tạo bản nháp để rà soát hoặc kích hoạt ngay khi hai bên đã thống nhất.</span>
             <button type="submit" class="btn btn--primary" id="rental-contract-submit">Tạo hợp đồng</button>
           </div>
         </form>
         <section class="rental-contract-list-section" aria-labelledby="rental-contract-list-title">
           <div class="rental-contract-section-head">
             <div>
+              <span class="rental-contract-section-kicker">Bước 03 · Theo dõi</span>
               <h3 id="rental-contract-list-title">Hồ sơ hợp đồng</h3>
               <p>Phụ lục giá đã tạo không thể sửa hoặc xóa; hãy tạo mốc mới nếu cần thay đổi tiếp.</p>
             </div>
@@ -2724,7 +2743,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=143"></script>
+  <script src="app.js?v=144"></script>
 </body>
 
 </html>
