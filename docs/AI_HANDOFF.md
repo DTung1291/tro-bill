@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI Quản lý khu/tòa nhà đã phát hành; test mục tiêu 26/26 và toàn bộ 505/505 đạt |
+| Trạng thái | Lát cắt UX/UI chụp/đọc chỉ số đã hoàn tất cục bộ; test mục tiêu 9/9 và toàn bộ 511/511 đạt, đang chờ quyền push |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
 | Phần ứng dụng phát hành gần nhất | `457a4d0` làm mới popup Quản lý khu/tòa nhà; CI `34758495206` xanh, Production revision `457a4d049e17` và readiness đã xác minh |
-| Việc code tiếp theo | Tiếp tục rà và làm mới lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
+| Việc code tiếp theo | Push commit OCR `d98f20a`, xác minh CI/Production và chờ người dùng duyệt trước lát cắt UX/UI tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI chụp/đọc chỉ số đã hoàn tất cục bộ: popup đi theo ba bước
+  chọn ảnh, căn dãy số và xác nhận; header/footer cố định, chỉ phần thân cuộn,
+  thao tác thu gọn an toàn trên mobile. Trạng thái bước và thông báo nhận diện
+  được cập nhật theo luồng; nhập số thủ công hợp lệ mở nút xác nhận, camera lỗi
+  vẫn cho chọn ảnh và không lưu ảnh đen khi không có nguồn ảnh. Không đổi OCR,
+  cách xử lý ảnh, callback lưu chỉ số hay giới hạn ảnh đồng hồ. CSS pin tăng
+  `149 → 150`, OCR pin tăng `90 → 91`; test mục tiêu 9/9 và toàn suite ngoài
+  sandbox 511/511 đạt, secret scan và diff check sạch. Commit ứng dụng
+  `d98f20a` đã tạo cục bộ nhưng chưa push vì cần người dùng xác nhận rõ quyền
+  đẩy lên repository GitHub đích và kích hoạt Production.
 
 - Lát cắt UX/UI Quản lý khu/tòa nhà đã phát hành: popup ưu tiên tổng số khu,
   tổng số phòng và khu mặc định; danh sách khu tách khỏi form thêm/sửa. Thẻ khu
