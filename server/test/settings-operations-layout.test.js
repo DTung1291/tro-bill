@@ -36,5 +36,5 @@ test('cài đặt vận hành có mục lục, phân nhóm và responsive rõ r�
     css,
     /@media\s*\(max-width:\s*640px\)[\s\S]*?\.default-bank-settings-fields\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=145"[\s\S]*src="app\.js\?v=147"/);
+  assert.match(html, /href="style\.css\?v=146"[\s\S]*src="app\.js\?v=148"/);
 });

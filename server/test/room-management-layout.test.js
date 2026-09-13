@@ -22,5 +22,5 @@ test('quản lý phòng nhóm thông tin và thao tác, responsive trên mobile'
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.room-card-actions-main,[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=145"[\s\S]*src="app\.js\?v=147"/);
+  assert.match(html, /href="style\.css\?v=146"[\s\S]*src="app\.js\?v=148"/);
 });

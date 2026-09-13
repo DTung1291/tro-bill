@@ -27,5 +27,5 @@ test('tổng quan phân cấp tài chính và trạng thái phòng, thu về m�
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.room-status-item\s*\{[^}]*flex-direction:\s*column/
   );
-  assert.match(html, /href="style\.css\?v=145"/);
+  assert.match(html, /href="style\.css\?v=146"/);
 });

@@ -859,7 +859,7 @@ test('giao diện dùng API ledger thay cho đảo cờ paid và có màn hình 
   assert.match(apiSource, /\/api\/rent-payments\/transactions\/\$\{encodeURIComponent\(transactionId\)\}\/reverse/);
   assert.match(htmlSource, /id="rent-payment-modal"/);
   assert.match(htmlSource, /id="rent-payment-entry-form"/);
-  assert.match(htmlSource, /app\.js\?v=147/);
+  assert.match(htmlSource, /app\.js\?v=148/);
 });
 
 test('khởi động hiển thị dữ liệu trước và chỉ đồng bộ ledger cần thiết ở nền', () => {

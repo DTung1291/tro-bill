@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI form Thêm/Sửa phòng hoàn thành local; test mục tiêu 20/20 và toàn bộ 488/488 đạt, chưa commit/push |
+| Trạng thái | Lát cắt UX/UI popup sửa sai dữ liệu hoàn thành local; test mục tiêu 14/14 và toàn bộ 489/489 đạt, chưa commit/push |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt form Thêm/Sửa phòng; không đè hoặc tách bỏ trước khi bàn giao |
-| Phần ứng dụng phát hành gần nhất | `fa37bba` làm mới modal Khách trọ; CI `34728659303` xanh, Production revision `fa37bbad6266` và readiness đã xác minh |
-| Việc code tiếp theo | Commit/push lát cắt form Thêm/Sửa phòng, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt popup sửa sai dữ liệu; không đè hoặc tách bỏ trước khi bàn giao |
+| Phần ứng dụng phát hành gần nhất | `2805e93` làm mới form Thêm/Sửa phòng; CI `34728934034` xanh, Production revision `2805e9309c6d` và readiness đã xác minh |
+| Việc code tiếp theo | Commit/push lát cắt popup sửa sai dữ liệu, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,23 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI form Thêm/Sửa phòng hoàn thành local: form chia ba bước thông
+- Lát cắt UX/UI popup sửa sai dữ liệu hoàn thành local: sửa chỉ số cũ, chuyển kỳ
+  chỉ số và chuyển kỳ chi phí dùng cùng phân cấp. Nguồn → đích và hậu quả của
+  “Chuyển hẳn/Sao chép” được trình bày rõ; cảnh báo ghi đè và ngoại lệ chi phí
+  sửa chữa vẫn giữ nguyên. Modal khóa chiều cao và về một cột trên mobile. Không
+  đổi thuật toán chuyển, clone ID, xác nhận hay API state. CSS pin tăng
+  `145 → 146`, app pin tăng `147 → 148`; test mục tiêu 14/14 và toàn suite ngoài
+  sandbox 489/489 đạt. Chưa commit/push ở mốc ghi chú này.
+
+- Lát cắt UX/UI form Thêm/Sửa phòng đã phát hành: form chia ba bước thông
   tin phòng, biểu phí theo hiệu lực, nước và dịch vụ. Header/footer cố định, chỉ
   thân form cuộn; trường và nút về một cột trên mobile. Chuyển cách tính nước
   dùng `hidden` thay vì CSS inline. Không đổi lịch sử giá, cách tính thuê theo
   ngày, API state hay quyền gói. CSS pin tăng `144 → 145`, app pin tăng
-  `146 → 147`; test mục tiêu 20/20 và toàn suite ngoài sandbox 488/488 đạt. Chưa
-  commit/push ở mốc ghi chú này.
+  `146 → 147`; test mục tiêu 20/20 và toàn suite ngoài sandbox 488/488 đạt.
+  Commit `2805e93` đã push; CI `34728934034` thành công, deployment Production
+  `tro-bill-ph4auqg4i-dtung.vercel.app` `Ready` và alias chính trả revision
+  `2805e9309c6d`, database/schema `ok`, runtime role `restricted`.
 
 - Lát cắt UX/UI modal Khách trọ đã phát hành: danh sách và form hồ sơ là hai
   trạng thái riêng; thông tin liên hệ/định danh dùng lưới, hành động tiền cọc,

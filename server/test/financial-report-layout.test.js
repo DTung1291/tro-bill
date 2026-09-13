@@ -34,5 +34,5 @@ test('báo cáo tài chính ưu tiên lợi nhuận, tách bộ lọc và thu v�
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.financial-metric--profit,[\s\S]*?\.occupancy-metric--maintenance\s*\{[^}]*grid-column:\s*auto/
   );
-  assert.match(html, /href="style\.css\?v=145"/);
+  assert.match(html, /href="style\.css\?v=146"/);
 });

@@ -2809,7 +2809,7 @@ function openEditOldModal(roomId, targetType = 'elec') {
   desc.innerHTML = `Số ${unitName} cũ tự động từ tháng trước là: <strong>${fmtNum(autoVal)}</strong>.<br>Bạn có thể thay đổi số cũ áp dụng riêng cho <strong>${periodLabel(period)}</strong> (ví dụ: do thay công tơ/reset).`;
   label.textContent = `Số ${unitName} cũ mới (áp dụng ${periodLabel(period)})`;
   input.value = currentVal;
-  resetBtn.style.display = hasOverride ? 'inline-block' : 'none';
+  resetBtn.hidden = !hasOverride;
 
   modal.hidden = false;
 
