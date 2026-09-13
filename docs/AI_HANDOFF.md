@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI Hợp đồng và vòng đời thuê hoàn thành local; toàn bộ 485/485 test đạt, chưa commit/push |
+| Trạng thái | Lát cắt UX/UI Sổ thu tiền và Sổ cọc hoàn thành local; test mục tiêu 29/29 và toàn bộ 486/486 đạt, chưa commit/push |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Hợp đồng; không đè hoặc tách bỏ trước khi bàn giao |
-| Phần ứng dụng phát hành gần nhất | `9b27b35` làm mới Báo cáo tài chính; CI `34727801397` xanh, Production revision `9b27b350f011` và readiness đã xác minh |
-| Việc code tiếp theo | Commit/push lát cắt Hợp đồng, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Sổ thu tiền và Sổ cọc; không đè hoặc tách bỏ trước khi bàn giao |
+| Phần ứng dụng phát hành gần nhất | `fb75eca` làm mới Hợp đồng và vòng đời thuê; CI `34728051951` xanh, Production revision `fb75eca167cd` và readiness đã xác minh |
+| Việc code tiếp theo | Commit/push lát cắt Sổ thu tiền và Sổ cọc, xác minh Production rồi làm mới modal Khách trọ |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,24 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI Hợp đồng và vòng đời thuê hoàn thành local: modal mở bằng hành
+- Lát cắt UX/UI Sổ thu tiền và Sổ cọc hoàn thành local: số còn phải thu và số dư
+  cọc được ưu tiên; giao dịch mới tách khỏi lịch sử đối soát có bộ đếm. Hai modal
+  giữ header/footer cố định, chỉ cuộn nội dung; số liệu và thao tác thu về một cột
+  trên mobile. Không đổi append-only, idempotency, hoàn tác, công thức công nợ,
+  API hoặc phân quyền. CSS pin tăng `142 → 143`, app pin tăng `144 → 145`; test
+  mục tiêu 29/29 và toàn suite ngoài sandbox 486/486 đạt. Chưa commit/push ở mốc
+  ghi chú này.
+
+- Lát cắt UX/UI Hợp đồng và vòng đời thuê đã phát hành: modal mở bằng hành
   trình ba bước giữ chỗ → tạo hợp đồng → quản lý hồ sơ; header/footer cố định và
   chỉ phần nội dung cuộn. Thẻ hợp đồng ưu tiên thời hạn, giá hiện hành, kỳ đến
   hạn và nhắc hết hạn; nhóm thao tác dùng lưới đều, về một cột trên mobile.
   Không đổi API, trạng thái, phụ lục, sổ cọc, bàn giao hay phân quyền. CSS pin
   tăng `141 → 142`, app pin tăng `143 → 144`; test mục tiêu 35/35 và toàn suite
-  ngoài sandbox 485/485 đạt. Chưa commit/push ở mốc ghi chú này.
+  ngoài sandbox 485/485 đạt. Commit `fb75eca` đã push; CI `34728051951` thành
+  công, deployment Production `tro-bill-fo1zfy8a5-dtung.vercel.app` `Ready` và
+  alias chính trả revision `fb75eca167cd`, database/schema `ok`, runtime role
+  `restricted`.
 
 - Lát cắt UX/UI Báo cáo tài chính hoàn thành local: tách header, nguồn dữ liệu,
   bộ lọc phạm vi và kết quả; đưa lợi nhuận tiền mặt thành thẻ chính, nhóm cơ cấu

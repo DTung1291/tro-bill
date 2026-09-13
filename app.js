@@ -2236,17 +2236,22 @@ function renderRentPaymentLedgerContent(result) {
   title.textContent = `Giao dịch ${invoice.roomName || invoice.roomId} – ${invoice.period}`;
   body.innerHTML = `
     <div class="rent-payment-summary-grid">
+      <div class="rent-payment-summary-primary"><span>Còn lại tháng này</span><strong>${fmt(invoice.remainingVnd)}</strong><small>Số tiền cần tiếp tục thu</small></div>
       <div><span>Tổng hóa đơn</span><strong>${fmt(invoice.invoiceTotalVnd)}</strong></div>
-      <div><span>Đã thu</span><strong>${fmt(invoice.paidAmountVnd)}</strong></div>
-      <div><span>Còn lại tháng này</span><strong>${fmt(invoice.remainingVnd)}</strong></div>
-      <div><span>Nợ cũ trước kỳ</span><strong>${fmt(invoice.priorDebtVnd)}</strong></div>
-      <div><span>Nội dung chuyển khoản</span><strong class="rent-payment-transfer-content">${escapeHtml(invoice.transferContent || '—')}</strong></div>
+      <div class="rent-payment-summary-collected"><span>Đã thu</span><strong>${fmt(invoice.paidAmountVnd)}</strong></div>
+      <div class="rent-payment-summary-debt"><span>Nợ cũ trước kỳ</span><strong>${fmt(invoice.priorDebtVnd)}</strong></div>
+      <div class="rent-payment-summary-transfer"><span>Nội dung chuyển khoản</span><strong class="rent-payment-transfer-content">${escapeHtml(invoice.transferContent || '—')}</strong></div>
     </div>
     <div class="rent-payment-ledger-note">
       Sổ giao dịch chỉ thêm dòng mới. Hoàn tác sẽ tạo một dòng âm và giữ nguyên giao dịch gốc để đối soát.
     </div>
-    <div class="rent-payment-transaction-list">
-      ${transactions.length === 0 ? '<p class="rent-payment-empty">Chưa có giao dịch.</p>' : transactions.map(transaction => {
+    <section class="rent-payment-ledger-section">
+      <div class="finance-ledger-section-heading">
+        <div><span>Lịch sử đối soát</span><h3>Các giao dịch đã ghi nhận</h3></div>
+        <strong>${transactions.length.toLocaleString('vi-VN')} giao dịch</strong>
+      </div>
+      <div class="rent-payment-transaction-list">
+        ${transactions.length === 0 ? '<p class="rent-payment-empty">Chưa có giao dịch.</p>' : transactions.map(transaction => {
         const isReversal = transaction.entryType === 'reversal';
         const amountClass = Number(transaction.amountVnd) < 0 ? 'is-negative' : 'is-positive';
         const canReverse = transaction.entryType === 'payment' && !transaction.isReversed;
@@ -2266,8 +2271,9 @@ function renderRentPaymentLedgerContent(result) {
               ${canReverse ? `<button type="button" class="btn btn--danger btn--sm" data-reverse-rent-payment="${transaction.id}">Hoàn tác</button>` : ''}
             </div>
           </article>`;
-      }).join('')}
-    </div>`;
+        }).join('')}
+      </div>
+    </section>`;
 
   body.querySelectorAll('[data-reverse-rent-payment]').forEach(button => {
     button.addEventListener('click', async () => {
@@ -10438,11 +10444,13 @@ function renderTenantDeposit(result) {
   const balance = document.getElementById('deposit-balance');
   const context = document.getElementById('deposit-account-context');
   const list = document.getElementById('deposit-ledger-list');
+  const count = document.getElementById('deposit-ledger-count');
   if (!title || !balance || !context || !list) return;
 
-  title.textContent = `💰 Tiền cọc – ${account.tenantName || 'Khách thuê'}`;
+  title.textContent = `Tiền cọc – ${account.tenantName || 'Khách thuê'}`;
   balance.textContent = fmt(account.balanceVnd || 0);
   context.textContent = `${account.roomName || account.roomId || '—'} · ${account.transactionCount || 0} giao dịch`;
+  if (count) count.textContent = `${transactions.length.toLocaleString('vi-VN')} giao dịch`;
 
   if (transactions.length === 0) {
     list.innerHTML = '<p class="deposit-ledger-empty">Chưa có giao dịch tiền cọc.</p>';
@@ -10506,6 +10514,8 @@ async function openTenantDeposit(tenantId, options = {}) {
   if (!options.preserveForm) form.reset();
   error.hidden = true;
   error.textContent = '';
+  const count = document.getElementById('deposit-ledger-count');
+  if (count) count.textContent = 'Đang tải…';
   list.innerHTML = '<p class="deposit-ledger-empty">Đang tải sổ tiền cọc…</p>';
   modal.hidden = false;
   try {

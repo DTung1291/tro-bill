@@ -38,5 +38,5 @@ test('modal hợp đồng có quy trình rõ, giữ header footer và thao tác 
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.rental-contract-journey\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=142"[\s\S]*src="app\.js\?v=144"/);
+  assert.match(html, /href="style\.css\?v=143"[\s\S]*src="app\.js\?v=145"/);
 });

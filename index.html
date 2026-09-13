@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=142" />
+  <link rel="stylesheet" href="style.css?v=143" />
 </head>
 
 <body>
@@ -2364,13 +2364,17 @@
   <div class="modal-overlay" id="rent-payment-modal" hidden>
     <div class="modal rent-payment-modal">
       <div class="modal-header">
-        <h2 class="modal-title" id="rent-payment-modal-title">Sổ giao dịch tiền thuê</h2>
+        <div>
+          <span class="finance-ledger-modal-kicker">Đối soát hóa đơn</span>
+          <h2 class="modal-title" id="rent-payment-modal-title">Sổ giao dịch tiền thuê</h2>
+          <p class="finance-ledger-modal-subtitle">Theo dõi các lần thu, phiếu thu và giao dịch hoàn tác.</p>
+        </div>
         <button type="button" class="modal-close" id="rent-payment-modal-close-header" aria-label="Đóng">✕</button>
       </div>
       <div class="rent-payment-modal-body" id="rent-payment-modal-body"></div>
       <div class="rent-payment-modal-footer">
-        <button type="button" class="btn btn--primary" id="rent-payment-modal-add" hidden>+ Ghi nhận thêm</button>
         <button type="button" class="btn btn--ghost" id="rent-payment-modal-close-footer">Đóng</button>
+        <button type="button" class="btn btn--primary" id="rent-payment-modal-add" hidden>+ Ghi nhận thêm</button>
       </div>
     </div>
   </div>
@@ -2476,7 +2480,11 @@
   <div class="modal-overlay" id="deposit-modal" hidden>
     <div class="modal deposit-modal">
       <div class="modal-header">
-        <h2 class="modal-title" id="deposit-modal-title">💰 Tiền cọc khách thuê</h2>
+        <div>
+          <span class="finance-ledger-modal-kicker">Tài chính khách thuê</span>
+          <h2 class="modal-title" id="deposit-modal-title">Tiền cọc khách thuê</h2>
+          <p class="finance-ledger-modal-subtitle">Mọi thay đổi được lưu thành giao dịch để luôn có thể đối chiếu.</p>
+        </div>
         <button type="button" class="modal-close" id="deposit-modal-close" aria-label="Đóng">✕</button>
       </div>
       <div class="deposit-modal-body">
@@ -2487,6 +2495,12 @@
         </div>
 
         <form id="deposit-transaction-form" class="deposit-transaction-form">
+          <div class="finance-ledger-section-heading">
+            <div>
+              <span>Giao dịch mới</span>
+              <strong>Ghi nhận thay đổi số dư</strong>
+            </div>
+          </div>
           <div class="deposit-form-grid">
             <label class="form-row">
               <span class="form-label">Loại giao dịch</span>
@@ -2521,7 +2535,13 @@
         </form>
 
         <section class="deposit-ledger-section">
-          <h3>Lịch sử tiền cọc</h3>
+          <div class="finance-ledger-section-heading">
+            <div>
+              <span>Lịch sử đối soát</span>
+              <h3>Lịch sử tiền cọc</h3>
+            </div>
+            <strong id="deposit-ledger-count">0 giao dịch</strong>
+          </div>
           <div id="deposit-ledger-list" class="deposit-ledger-list"></div>
         </section>
       </div>
@@ -2743,7 +2763,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=144"></script>
+  <script src="app.js?v=145"></script>
 </body>
 
 </html>
