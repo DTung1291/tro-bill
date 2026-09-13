@@ -36,5 +36,5 @@ test('chi phí và lịch sử tháng có phân cấp, thao tác và responsive 
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.expense-item-actions\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/
   );
-  assert.match(html, /href="style\.css\?v=147"[\s\S]*src="app\.js\?v=149"/);
+  assert.match(html, /href="style\.css\?v=148"[\s\S]*src="app\.js\?v=150"/);
 });

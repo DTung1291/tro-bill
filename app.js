@@ -6848,7 +6848,7 @@ function openBillMessageModal() {
   closeBillPreview();
   modal.hidden = false;
   syncModalScrollLock();
-  document.getElementById('bill-message-content')?.focus();
+  document.getElementById('bill-message-template-type')?.focus();
   void loadBillMessageSchedules();
 }
 
@@ -7511,7 +7511,14 @@ async function openInvoiceShareModal() {
   closeBillPreview();
   document.getElementById('invoice-share-modal').hidden = false;
   syncModalScrollLock();
-  await loadInvoiceShareData();
+  const shareBody = document.getElementById('invoice-share-body');
+  shareBody?.setAttribute('aria-busy', 'true');
+  document.getElementById('invoice-share-expiry')?.focus();
+  try {
+    await loadInvoiceShareData();
+  } finally {
+    shareBody?.removeAttribute('aria-busy');
+  }
 }
 
 async function createInvoiceShareLink(event) {

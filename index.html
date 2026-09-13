@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=147" />
+  <link rel="stylesheet" href="style.css?v=148" />
 </head>
 
 <body>
@@ -2283,30 +2283,80 @@
 
   <!-- MODAL: Bill and debt reminder message templates -->
   <div class="modal-overlay" id="bill-message-modal" hidden>
-    <div class="modal bill-message-modal">
-      <div class="modal-header">
+    <div class="modal bill-message-modal" role="dialog" aria-modal="true" aria-labelledby="bill-message-title" aria-describedby="bill-message-subtitle">
+      <div class="modal-header bill-message-header">
         <div>
-          <h2 class="modal-title">Mẫu tin nhắn</h2>
+          <span class="delivery-modal-kicker">Gửi hóa đơn cho khách</span>
+          <h2 class="modal-title" id="bill-message-title">Soạn và gửi tin nhắn</h2>
           <p class="bill-message-subtitle" id="bill-message-subtitle"></p>
         </div>
         <button type="button" class="modal-close" id="bill-message-close-header" aria-label="Đóng">✕</button>
       </div>
       <div class="bill-message-body">
-        <label class="form-label" for="bill-message-template-type">Loại tin nhắn</label>
-        <select class="form-input" id="bill-message-template-type">
-          <option value="invoice">Thông báo hóa đơn</option>
-          <option value="reminder">Nhắc thanh toán</option>
-        </select>
-        <label class="form-label" for="bill-message-tenant">Khách nhận hóa đơn</label>
-        <select class="form-input" id="bill-message-tenant"></select>
-        <p class="bill-message-contact-note" id="bill-message-contact-note"></p>
-        <textarea class="form-input bill-message-content" id="bill-message-content" rows="13" readonly></textarea>
-        <div class="bill-message-link-result" id="bill-message-link-result" hidden>
-          <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
-          <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
-        </div>
+        <ol class="delivery-flow" aria-label="Quy trình gửi hóa đơn">
+          <li class="delivery-flow__item">
+            <span>1</span>
+            <div><strong>Chọn người nhận</strong><small>Khách và loại thông báo</small></div>
+          </li>
+          <li class="delivery-flow__item">
+            <span>2</span>
+            <div><strong>Kiểm tra nội dung</strong><small>Link bảo mật nếu cần</small></div>
+          </li>
+          <li class="delivery-flow__item">
+            <span>3</span>
+            <div><strong>Gửi hoặc hẹn lịch</strong><small>Chọn kênh phù hợp</small></div>
+          </li>
+        </ol>
+
+        <section class="bill-message-section" aria-labelledby="bill-message-recipient-title">
+          <div class="delivery-section-heading">
+            <div>
+              <span>Bước 1</span>
+              <h3 id="bill-message-recipient-title">Người nhận và mục đích</h3>
+            </div>
+          </div>
+          <div class="bill-message-fields">
+            <label class="bill-message-field" for="bill-message-template-type">
+              <span class="form-label">Loại tin nhắn</span>
+              <select class="form-input" id="bill-message-template-type">
+                <option value="invoice">Thông báo hóa đơn</option>
+                <option value="reminder">Nhắc thanh toán</option>
+              </select>
+            </label>
+            <label class="bill-message-field" for="bill-message-tenant">
+              <span class="form-label">Khách nhận hóa đơn</span>
+              <select class="form-input" id="bill-message-tenant"></select>
+            </label>
+          </div>
+          <p class="bill-message-contact-note" id="bill-message-contact-note"></p>
+        </section>
+
+        <section class="bill-message-section" aria-labelledby="bill-message-preview-title">
+          <div class="delivery-section-heading">
+            <div>
+              <span>Bước 2</span>
+              <h3 id="bill-message-preview-title">Kiểm tra nội dung trước khi gửi</h3>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="bill-message-create-link">🔗 Thêm link bảo mật</button>
+          </div>
+          <label class="form-label" for="bill-message-content">Nội dung khách sẽ nhận</label>
+          <textarea class="form-input bill-message-content" id="bill-message-content" rows="11" readonly></textarea>
+          <div class="bill-message-link-result" id="bill-message-link-result" role="status" hidden>
+            <div>
+              <strong>Link hóa đơn đã sẵn sàng</strong>
+              <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
+          </div>
+        </section>
+
         <section class="bill-message-schedule" aria-labelledby="bill-message-schedule-title">
-          <strong id="bill-message-schedule-title">🗓️ Hẹn ngày gửi email</strong>
+          <div class="delivery-section-heading">
+            <div>
+              <span>Bước 3 · Không bắt buộc</span>
+              <h3 id="bill-message-schedule-title">Hẹn ngày gửi email</h3>
+            </div>
+          </div>
           <div class="bill-message-schedule-form">
             <input type="date" class="form-input" id="bill-message-schedule-date" aria-label="Ngày gửi email hóa đơn" />
             <button type="button" class="btn btn--ghost" id="bill-message-schedule">Hẹn gửi</button>
@@ -2314,65 +2364,107 @@
           <p>Gửi từ khoảng 07:15 vào ngày đã chọn (giờ Việt Nam). Cron miễn phí có thể kích hoạt trễ hơn ít phút.</p>
           <div class="bill-message-schedule-list" id="bill-message-schedule-list" aria-live="polite"></div>
         </section>
-        <p class="bill-message-note">Zalo / ứng dụng dùng bảng chia sẻ miễn phí trên thiết bị. TrọBill chưa bật SMS hoặc Zalo API trả phí và không cộng phí theo lượt vào gói subscription. Nếu có kênh trả phí sau này, chi phí sẽ là add-on riêng và phải được xác nhận trước. Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</p>
+        <aside class="bill-message-note">Zalo / ứng dụng dùng bảng chia sẻ miễn phí trên thiết bị. TrọBill chưa bật SMS hoặc Zalo API trả phí và không cộng phí theo lượt vào gói subscription. Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</aside>
       </div>
       <div class="modal-actions bill-message-actions">
         <button type="button" class="btn btn--ghost" id="bill-message-close-footer">Đóng</button>
-        <button type="button" class="btn btn--ghost" id="bill-message-create-link">🔗 Tạo link</button>
-        <button type="button" class="btn btn--ghost" id="bill-message-share">📤 Zalo / ứng dụng</button>
-        <button type="button" class="btn btn--ghost" id="bill-message-email">✉️ Gửi email</button>
-        <button type="button" class="btn btn--primary" id="bill-message-copy">📋 Sao chép</button>
+        <div class="bill-message-send-group" aria-label="Chọn cách gửi ngay">
+          <span>Gửi ngay</span>
+          <div>
+            <button type="button" class="btn btn--ghost" id="bill-message-share">📤 Zalo / ứng dụng</button>
+            <button type="button" class="btn btn--ghost" id="bill-message-email">✉️ Gửi email</button>
+            <button type="button" class="btn btn--primary" id="bill-message-copy">📋 Sao chép nội dung</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- MODAL: Secure tenant invoice link -->
   <div class="modal-overlay" id="invoice-share-modal" hidden>
-    <div class="modal invoice-share-modal">
-      <div class="modal-header">
+    <div class="modal invoice-share-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-share-title" aria-describedby="invoice-share-subtitle">
+      <div class="modal-header invoice-share-header">
         <div>
-          <h2 class="modal-title">Liên kết hóa đơn cho khách thuê</h2>
+          <span class="delivery-modal-kicker">Cổng hóa đơn bảo mật</span>
+          <h2 class="modal-title" id="invoice-share-title">Tạo liên kết cho khách thuê</h2>
           <p class="invoice-share-subtitle" id="invoice-share-subtitle"></p>
         </div>
         <button type="button" class="modal-close" id="invoice-share-close-header" aria-label="Đóng">✕</button>
       </div>
-      <div class="invoice-share-body">
-        <div class="invoice-share-create">
-          <label class="form-label" for="invoice-share-expiry">Thời hạn liên kết</label>
+      <div class="invoice-share-body" id="invoice-share-body">
+        <ol class="delivery-flow invoice-share-flow" aria-label="Quy trình chia sẻ hóa đơn">
+          <li class="delivery-flow__item">
+            <span>1</span>
+            <div><strong>Tạo link</strong><small>Chọn thời hạn truy cập</small></div>
+          </li>
+          <li class="delivery-flow__item">
+            <span>2</span>
+            <div><strong>Gửi khách</strong><small>Chỉ sao chép link mới tạo</small></div>
+          </li>
+          <li class="delivery-flow__item">
+            <span>3</span>
+            <div><strong>Theo dõi</strong><small>Lượt mở và minh chứng</small></div>
+          </li>
+        </ol>
+
+        <section class="invoice-share-section invoice-share-create" aria-labelledby="invoice-share-create-title">
+          <div class="delivery-section-heading">
+            <div>
+              <span>Bước 1</span>
+              <h3 id="invoice-share-create-title">Chọn thời hạn và tạo link mới</h3>
+            </div>
+          </div>
           <div class="invoice-share-create-row">
-            <select class="form-input" id="invoice-share-expiry">
-              <option value="24">24 giờ</option>
-              <option value="72" selected>3 ngày</option>
-              <option value="168">7 ngày</option>
-              <option value="720">30 ngày</option>
-            </select>
+            <label for="invoice-share-expiry">
+              <span class="form-label">Thời hạn liên kết</span>
+              <select class="form-input" id="invoice-share-expiry">
+                <option value="24">24 giờ</option>
+                <option value="72" selected>3 ngày</option>
+                <option value="168">7 ngày</option>
+                <option value="720">30 ngày</option>
+              </select>
+            </label>
             <button type="button" class="btn btn--primary" id="invoice-share-create">Tạo liên kết mới</button>
           </div>
-          <p class="invoice-share-security-note">Token ngẫu nhiên chỉ hiện trong URL mới tạo. Có thể thu hồi bất cứ lúc nào.</p>
-        </div>
-        <div class="invoice-share-result" id="invoice-share-result" hidden>
-          <strong>Liên kết mới — hãy sao chép ngay</strong>
+          <p class="invoice-share-security-note">🔒 Link chỉ mở đúng hóa đơn này, tự hết hạn và có thể thu hồi bất cứ lúc nào. Token bảo mật chỉ xuất hiện trong URL mới tạo.</p>
+        </section>
+
+        <section class="invoice-share-result" id="invoice-share-result" aria-labelledby="invoice-share-result-title" role="status" hidden>
+          <div>
+            <span>Bước 2</span>
+            <strong id="invoice-share-result-title">Liên kết mới — hãy sao chép ngay</strong>
+          </div>
           <div class="payment-channel-value-row">
-            <input type="text" class="inline-input" id="invoice-share-url" readonly autocomplete="off" />
+            <input type="text" class="inline-input" id="invoice-share-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn vừa tạo" />
             <button type="button" class="btn btn--primary btn--sm" id="invoice-share-copy">Sao chép</button>
           </div>
-        </div>
-        <div class="invoice-share-list-head">
-          <strong>Các liên kết đã tạo</strong>
-          <button type="button" class="btn btn--ghost btn--sm" id="invoice-share-refresh">Làm mới</button>
-        </div>
-        <div class="invoice-share-list" id="invoice-share-list"></div>
-        <p class="invoice-share-empty" id="invoice-share-empty">Chưa có liên kết nào.</p>
-        <div class="invoice-share-list-head invoice-payment-proof-head">
-          <div>
-            <strong>Minh chứng khách đã gửi</strong>
-            <p>Chỉ ghi nhận thanh toán sau khi bạn đối chiếu tài khoản ngân hàng.</p>
+        </section>
+
+        <section class="invoice-share-section" aria-labelledby="invoice-share-history-title">
+          <div class="invoice-share-list-head">
+            <div>
+              <span>Bước 3</span>
+              <strong id="invoice-share-history-title">Theo dõi các liên kết đã tạo</strong>
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="invoice-share-refresh">Làm mới</button>
           </div>
-        </div>
-        <div class="invoice-payment-proof-list" id="invoice-payment-proof-list"></div>
-        <p class="invoice-share-empty" id="invoice-payment-proof-empty">Chưa có minh chứng chuyển khoản.</p>
+          <div class="invoice-share-list" id="invoice-share-list"></div>
+          <p class="invoice-share-empty" id="invoice-share-empty">Chưa có liên kết nào.</p>
+        </section>
+
+        <section class="invoice-share-section invoice-payment-proof-section" aria-labelledby="invoice-payment-proof-title">
+          <div class="invoice-share-list-head invoice-payment-proof-head">
+            <div>
+              <span>Đối chiếu</span>
+              <strong id="invoice-payment-proof-title">Minh chứng khách đã gửi</strong>
+              <p>Minh chứng chỉ để kiểm tra. Hãy đối chiếu ngân hàng trước khi ghi nhận đã thu tiền.</p>
+            </div>
+          </div>
+          <div class="invoice-payment-proof-list" id="invoice-payment-proof-list"></div>
+          <p class="invoice-share-empty" id="invoice-payment-proof-empty">Chưa có minh chứng chuyển khoản.</p>
+        </section>
       </div>
-      <div class="modal-actions">
+      <div class="modal-actions invoice-share-actions">
         <button type="button" class="btn btn--ghost" id="invoice-share-close-footer">Đóng</button>
       </div>
     </div>
@@ -2853,7 +2945,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=149"></script>
+  <script src="app.js?v=150"></script>
 </body>
 
 </html>
