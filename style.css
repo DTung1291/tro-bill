@@ -6880,54 +6880,215 @@ body.workspace-staff-active .main { padding-top: 112px; }
 /* ============================================================
    TENANTS MANAGEMENT & CCCD QR SCANNER (CR3)
    ============================================================ */
+.modal.tenants-modal {
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+}
+.tenants-modal > .modal-header {
+  align-items: flex-start;
+  flex: 0 0 auto;
+  gap: 16px;
+  padding: 20px 22px 18px;
+}
+.tenants-modal > .modal-header > div { min-width: 0; }
+.tenants-modal-kicker,
+.tenant-section-heading span,
+.tenant-form-heading span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--primary);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.tenants-modal-subtitle {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.tenants-modal-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px 22px;
+}
+.tenant-directory,
 .tenants-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 250px;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 12px;
 }
+.tenant-section-heading,
+.tenant-form-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tenant-section-heading > div,
+.tenant-form-heading > div { min-width: 0; }
+.tenant-section-heading h3,
+.tenant-form-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+.tenant-section-heading > strong {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: .7rem;
+}
+.tenant-form-heading > small {
+  color: var(--text-muted);
+  font-size: .7rem;
+}
+.tenant-directory-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+.tenant-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 5px;
+  padding: 34px 18px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  color: var(--text-muted);
+  text-align: center;
+}
+.tenant-empty strong { color: var(--text); font-size: .9rem; }
+.tenant-empty span { max-width: 420px; font-size: .76rem; line-height: 1.5; }
+.tenants-modal-body.is-form-open .tenant-directory { display: none; }
+.tenants-modal .form-input { width: 100%; }
 
 .tenant-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 16px;
   background: var(--bg3);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  gap: 12px;
-  transition: border-color var(--transition);
+  border-radius: var(--radius);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
-
 .tenant-item:hover {
-  border-color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
 }
-
 .tenant-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 1;
+  gap: 12px;
+  min-width: 0;
 }
-
 .tenant-name-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
-
-.tenant-meta {
-  font-size: 0.78rem;
+.tenant-name-row > strong { color: var(--text); font-size: .96rem; }
+.tenant-gender-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg2);
   color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 650;
 }
+.tenant-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.tenant-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tenant-meta-row > span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+.tenant-meta-row > strong,
+.tenant-sensitive-value > strong {
+  color: var(--text);
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+.tenant-meta-row--wide { grid-column: 1 / -1; }
+.tenant-sensitive-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+.tenant-sensitive-value .link-btn { font-size: .72rem; }
+.tenant-actions {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 104px;
+}
+.tenant-actions .btn { justify-content: center; width: 100%; }
 
 #tenant-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+}
+.tenant-identity-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+}
+.tenant-identity-tools > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tenant-identity-tools strong { color: var(--text); font-size: .8rem; }
+.tenant-identity-tools span { color: var(--text-muted); font-size: .7rem; line-height: 1.4; }
+.tenant-identity-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tenant-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
 }
 .sensitive-input-row { display: flex; gap: 8px; align-items: center; }
 .sensitive-input-row .form-input { min-width: 0; flex: 1; }
@@ -6937,13 +7098,40 @@ body.workspace-staff-active .main { padding-top: 112px; }
   gap: 9px;
   padding: 10px 12px;
   border-radius: 9px;
-  border: 1px solid var(--border);
-  background: var(--bg3);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  background: var(--primary-light);
   color: var(--text-muted);
   font-size: .76rem;
   line-height: 1.5;
 }
 .tenant-data-notice input { margin-top: 3px; }
+.tenant-data-notice a { color: var(--primary); font-weight: 700; }
+
+.modal.tenant-scan-modal-card {
+  display: flex;
+  flex-direction: column;
+  max-width: 450px;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+}
+.tenant-scan-modal-card > .modal-header { align-items: flex-start; }
+.tenant-scan-body {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+.tenant-scan-hint {
+  color: var(--text-muted);
+  font-size: .8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.tenant-scan-cancel { justify-content: center; width: 100%; }
 
 #cccd-qr-reader {
   position: relative;
@@ -6959,6 +7147,33 @@ body.workspace-staff-active .main { padding-top: 112px; }
   object-fit: cover !important;
   width: 100% !important;
   height: 100% !important;
+}
+
+@media (max-width: 640px) {
+  #tenants-modal,
+  #tenant-scan-modal { padding: 8px; }
+  .modal.tenants-modal,
+  .modal.tenant-scan-modal-card { max-height: calc(100dvh - 16px); }
+  .tenants-modal > .modal-header { padding: 17px 16px 15px; }
+  .tenants-modal-body { padding: 16px; }
+  .tenant-item { grid-template-columns: minmax(0, 1fr); }
+  .tenant-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; }
+  .tenant-form-heading,
+  .tenant-identity-tools { align-items: flex-start; flex-direction: column; }
+  .tenant-identity-actions { width: 100%; }
+  .tenant-identity-actions .btn { flex: 1; justify-content: center; }
+  .tenants-modal .form-row--2col { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .tenant-meta-grid { grid-template-columns: minmax(0, 1fr); }
+  .tenant-meta-row--wide { grid-column: auto; }
+  .tenant-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tenant-actions .btn:last-child { grid-column: 1 / -1; }
+  .tenant-directory-actions .btn { justify-content: center; width: 100%; }
+  .tenant-form-actions { align-items: stretch; flex-direction: column-reverse; }
+  .tenant-form-actions .btn { justify-content: center; width: 100%; }
+  .sensitive-input-row { align-items: stretch; flex-direction: column; }
 }
 
 /* Edit Old Meter Reading Button & Monthly Bill Note */

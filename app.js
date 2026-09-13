@@ -11139,13 +11139,11 @@ function openTenantsModal(roomId) {
     
     document.getElementById('tenants-room-name').textContent = room.name;
     
-    // Hide form, show add button
+    // Start from the directory view whenever the modal opens.
     const formEl = document.getElementById('tenant-form');
-    const addBtn = document.getElementById('tenant-add-btn');
-    formEl.style.display = 'none';
-    addBtn.style.display = 'block';
     formEl.reset();
     document.getElementById('tenant-id').value = '';
+    setTenantFormOpen(false);
     
     renderTenantsList(roomId);
     document.getElementById('tenants-modal').hidden = false;
@@ -11157,11 +11155,13 @@ function renderTenantsList(roomId) {
   if (!room) return;
   
   const container = document.getElementById('tenants-list-container');
+  const count = document.getElementById('tenants-count');
   container.innerHTML = '';
   
   const tenants = room.tenants || [];
+  if (count) count.textContent = `${tenants.length.toLocaleString('vi-VN')} khách`;
   if (tenants.length === 0) {
-    container.innerHTML = '<div class="empty-state" style="padding: 24px 10px;"><p style="margin:0;">Chưa có khách trọ nào.</p></div>';
+    container.innerHTML = '<div class="tenant-empty"><strong>Phòng chưa có khách trọ</strong><span>Thêm hồ sơ đầu tiên để quản lý liên hệ, tiền cọc và hợp đồng.</span></div>';
     return;
   }
   
@@ -11178,24 +11178,25 @@ function renderTenantsList(roomId) {
     
     item.innerHTML = `
       <div class="tenant-info">
-        <div class="tenant-name-row" style="display:flex; align-items:center; gap:8px;">
-          <span style="font-weight:600; font-size:0.92rem; color:var(--text);">${escapeHtml(t.fullName)}</span>
-          <span style="font-size:0.7rem; padding:1px 6px; border-radius:4px; background:var(--bg2); color:var(--text-muted); border:1px solid var(--border); font-weight:500;">
-            ${escapeHtml(t.gender || 'Nam')}
-          </span>
+        <div class="tenant-name-row">
+          <strong>${escapeHtml(t.fullName)}</strong>
+          <span class="tenant-gender-badge">${escapeHtml(t.gender || 'Nam')}</span>
         </div>
-        <div class="tenant-meta" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; display:flex; flex-direction:column; gap:2px;">
-          <div>📞 SĐT: ${escapeHtml(t.phone || '—')}</div>
-          <div>✉️ Email: ${escapeHtml(t.email || '—')}</div>
-          <div>🪪 CCCD: <span data-tenant-cccd-value="${escapeHtml(t.id)}">${escapeHtml(maskCccdForDisplay(t.cccd))}</span> (${escapeHtml(formatDate(t.issueDate))}) <button type="button" class="link-btn" data-reveal-tenant="${escapeHtml(t.id)}">Xem</button></div>
-          <div>🎂 Sinh nhật: ${formatDate(t.dob)}</div>
-          <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">📍 Thường trú: ${escapeHtml(t.address || '—')}</div>
+        <div class="tenant-meta-grid">
+          <div class="tenant-meta-row"><span>Điện thoại</span><strong>${escapeHtml(t.phone || '—')}</strong></div>
+          <div class="tenant-meta-row"><span>Email nhận bill</span><strong>${escapeHtml(t.email || '—')}</strong></div>
+          <div class="tenant-meta-row tenant-meta-row--identity">
+            <span>CCCD · cấp ${escapeHtml(formatDate(t.issueDate))}</span>
+            <div class="tenant-sensitive-value"><strong data-tenant-cccd-value="${escapeHtml(t.id)}">${escapeHtml(maskCccdForDisplay(t.cccd))}</strong><button type="button" class="link-btn" data-reveal-tenant="${escapeHtml(t.id)}">Xem</button></div>
+          </div>
+          <div class="tenant-meta-row"><span>Ngày sinh</span><strong>${escapeHtml(formatDate(t.dob))}</strong></div>
+          <div class="tenant-meta-row tenant-meta-row--wide"><span>Thường trú</span><strong>${escapeHtml(t.address || '—')}</strong></div>
         </div>
       </div>
-      <div class="tenant-actions" style="display:flex; gap:8px; align-self:flex-start; flex-wrap:wrap; justify-content:flex-end;">
-        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-deposit-tenant="${escapeHtml(t.id)}">💰 Cọc</button>
-        <button type="button" class="btn btn--ghost btn--sm" style="padding: 4px 8px; font-size: 0.8rem;" data-edit-tenant="${escapeHtml(t.id)}">✏️</button>
-        <button type="button" class="btn btn--danger btn--sm" style="padding: 4px 8px; font-size: 0.8rem; background: var(--red); border-color: var(--red);" data-delete-tenant="${escapeHtml(t.id)}">🗑️</button>
+      <div class="tenant-actions">
+        <button type="button" class="btn btn--ghost btn--sm" data-deposit-tenant="${escapeHtml(t.id)}">💰 Tiền cọc</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-edit-tenant="${escapeHtml(t.id)}">Sửa hồ sơ</button>
+        <button type="button" class="btn btn--danger btn--sm" data-delete-tenant="${escapeHtml(t.id)}">Xóa</button>
       </div>
     `;
 
@@ -11236,12 +11237,20 @@ function renderTenantsList(roomId) {
   });
 }
 
+function setTenantFormOpen(isOpen) {
+  const body = document.getElementById('tenants-modal-body');
+  const form = document.getElementById('tenant-form');
+  const addButton = document.getElementById('tenant-add-btn');
+  if (body) body.classList.toggle('is-form-open', isOpen);
+  if (form) form.hidden = !isOpen;
+  if (addButton) addButton.hidden = isOpen;
+}
+
 function openTenantForm(roomId, tenantId = null) {
   const room = STATE.rooms.find(r => r.id === roomId);
   if (!room) return;
   
   const formEl = document.getElementById('tenant-form');
-  const addBtn = document.getElementById('tenant-add-btn');
   const cccdInput = document.getElementById('tenant-cccd');
   const revealButton = document.getElementById('tenant-cccd-reveal-btn');
   const noticeCheckbox = document.getElementById('tenant-data-notice-ack');
@@ -11253,7 +11262,7 @@ function openTenantForm(roomId, tenantId = null) {
     const t = room.tenants.find(x => x.id === tenantId);
     if (!t) return;
     
-    document.getElementById('tenant-form-title').textContent = '✏️ Sửa thông tin khách trọ';
+    document.getElementById('tenant-form-title').textContent = 'Sửa thông tin khách trọ';
     document.getElementById('tenant-id').value = t.id;
     document.getElementById('tenant-fullname').value = t.fullName;
     document.getElementById('tenant-phone').value = t.phone || '';
@@ -11268,7 +11277,7 @@ function openTenantForm(roomId, tenantId = null) {
     document.getElementById('tenant-address').value = t.address || '';
     noticeCheckbox.checked = !!t.dataNoticeAcknowledged;
   } else {
-    document.getElementById('tenant-form-title').textContent = '➕ Thêm khách trọ mới';
+    document.getElementById('tenant-form-title').textContent = 'Thêm khách trọ mới';
     document.getElementById('tenant-id').value = '';
     cccdInput.readOnly = false;
     revealButton.hidden = true;
@@ -11276,8 +11285,7 @@ function openTenantForm(roomId, tenantId = null) {
     noticeCheckbox.checked = false;
   }
   
-  addBtn.style.display = 'none';
-  formEl.style.display = 'flex';
+  setTenantFormOpen(true);
 }
 
 function deleteTenant(roomId, tenantId) {
@@ -11425,6 +11433,7 @@ function initTenantsEvents() {
 
   document.getElementById('tenants-modal-close').addEventListener('click', () => {
     document.getElementById('tenants-modal').hidden = true;
+    setTenantFormOpen(false);
     stopCccdScanner();
   });
   
@@ -11433,8 +11442,7 @@ function initTenantsEvents() {
   });
   
   document.getElementById('tenant-form-cancel').addEventListener('click', () => {
-    document.getElementById('tenant-form').style.display = 'none';
-    document.getElementById('tenant-add-btn').style.display = 'block';
+    setTenantFormOpen(false);
   });
   
   document.getElementById('tenant-scan-close').addEventListener('click', stopCccdScanner);
@@ -11561,9 +11569,7 @@ function initTenantsEvents() {
     renderRooms(); // Refresh the room-detail count
     showToast(successMessage, 'success');
     
-    // Hide form
-    document.getElementById('tenant-form').style.display = 'none';
-    document.getElementById('tenant-add-btn').style.display = 'block';
+    setTenantFormOpen(false);
   });
 }
 

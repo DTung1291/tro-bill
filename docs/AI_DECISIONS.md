@@ -830,8 +830,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`, hóa đơn công khai tại
   `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
   Báo cáo tài chính đã phát hành tại `9b27b35`, modal Hợp đồng và vòng đời thuê
-  tại `fb75eca`; Sổ thu tiền và Sổ cọc đã hoàn thành local trong lát cắt kế tiếp
-  ngày 13/09/2026.
+  tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`; modal Khách trọ đã hoàn
+  thành local trong lát cắt kế tiếp ngày 13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -927,6 +927,13 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   header/footer cố định, chỉ cuộn nội dung; các nhóm số liệu, dòng giao dịch và
   thao tác thu về một cột trên mobile. Không đổi quy tắc append-only,
   idempotency, hoàn tác, công thức công nợ, API hoặc phân quyền.
+
+  Lát cắt modal Khách trọ tách danh sách và biểu mẫu thành hai trạng thái thay
+  thế nhau, đưa liên hệ/định danh vào lưới dễ quét và dùng nhãn đầy đủ cho thao
+  tác tiền cọc, sửa, xóa. Công cụ QR nói rõ ảnh chỉ xử lý trên thiết bị; CCCD
+  vẫn che mặc định, lần xem đầy đủ vẫn qua API có audit. Modal và máy quét chỉ
+  cuộn nội dung, về một cột trên mobile. Không đổi dữ liệu hồ sơ, xác nhận thông
+  báo quyền riêng tư, quyền workspace hoặc API.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 

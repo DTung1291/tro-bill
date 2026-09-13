@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI Sổ thu tiền và Sổ cọc hoàn thành local; test mục tiêu 29/29 và toàn bộ 486/486 đạt, chưa commit/push |
+| Trạng thái | Lát cắt UX/UI modal Khách trọ hoàn thành local; test mục tiêu 20/20 và toàn bộ 487/487 đạt, chưa commit/push |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt Sổ thu tiền và Sổ cọc; không đè hoặc tách bỏ trước khi bàn giao |
-| Phần ứng dụng phát hành gần nhất | `fb75eca` làm mới Hợp đồng và vòng đời thuê; CI `34728051951` xanh, Production revision `fb75eca167cd` và readiness đã xác minh |
-| Việc code tiếp theo | Commit/push lát cắt Sổ thu tiền và Sổ cọc, xác minh Production rồi làm mới modal Khách trọ |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt modal Khách trọ; không đè hoặc tách bỏ trước khi bàn giao |
+| Phần ứng dụng phát hành gần nhất | `1123a3c` làm mới Sổ thu tiền và Sổ cọc; CI `34728356348` xanh, Production revision `1123a3cedc4a` và readiness đã xác minh |
+| Việc code tiếp theo | Commit/push lát cắt modal Khách trọ, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,24 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI Sổ thu tiền và Sổ cọc hoàn thành local: số còn phải thu và số dư
+- Lát cắt UX/UI modal Khách trọ hoàn thành local: danh sách và form hồ sơ là hai
+  trạng thái riêng; thông tin liên hệ/định danh dùng lưới, hành động tiền cọc,
+  sửa và xóa có nhãn rõ. Công cụ CCCD giải thích ảnh chỉ xử lý trên thiết bị;
+  CCCD vẫn che mặc định và chỉ xem qua API có audit. Modal cùng máy quét khóa
+  chiều cao, cuộn nội dung và thu về một cột trên mobile. Không đổi schema, API,
+  quyền workspace hay xác nhận thông báo dữ liệu. CSS pin tăng `143 → 144`, app
+  pin tăng `145 → 146`; test mục tiêu 20/20 và toàn suite ngoài sandbox 487/487
+  đạt. Chưa commit/push ở mốc ghi chú này.
+
+- Lát cắt UX/UI Sổ thu tiền và Sổ cọc đã phát hành: số còn phải thu và số dư
   cọc được ưu tiên; giao dịch mới tách khỏi lịch sử đối soát có bộ đếm. Hai modal
   giữ header/footer cố định, chỉ cuộn nội dung; số liệu và thao tác thu về một cột
   trên mobile. Không đổi append-only, idempotency, hoàn tác, công thức công nợ,
   API hoặc phân quyền. CSS pin tăng `142 → 143`, app pin tăng `144 → 145`; test
-  mục tiêu 29/29 và toàn suite ngoài sandbox 486/486 đạt. Chưa commit/push ở mốc
-  ghi chú này.
+  mục tiêu 29/29 và toàn suite ngoài sandbox 486/486 đạt. Commit `1123a3c` đã
+  push; CI `34728356348` thành công, deployment Production
+  `tro-bill-51dtmrcdg-dtung.vercel.app` `Ready` và alias chính trả revision
+  `1123a3cedc4a`, database/schema `ok`, runtime role `restricted`.
 
 - Lát cắt UX/UI Hợp đồng và vòng đời thuê đã phát hành: modal mở bằng hành
   trình ba bước giữ chỗ → tạo hợp đồng → quản lý hồ sơ; header/footer cố định và

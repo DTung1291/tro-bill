@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=143" />
+  <link rel="stylesheet" href="style.css?v=144" />
 </head>
 
 <body>
@@ -2553,35 +2553,57 @@
 
   <!-- MODAL: Room Tenants Management -->
   <div class="modal-overlay" id="tenants-modal" hidden>
-    <div class="modal" style="max-width: 600px;">
+    <div class="modal tenants-modal">
       <div class="modal-header">
-        <h2 class="modal-title">👥 Khách trọ phòng <span id="tenants-room-name">—</span></h2>
-        <button class="modal-close" id="tenants-modal-close">✕</button>
+        <div>
+          <span class="tenants-modal-kicker">Hồ sơ lưu trú</span>
+          <h2 class="modal-title">Khách trọ phòng <span id="tenants-room-name">—</span></h2>
+          <p class="tenants-modal-subtitle">Quản lý thông tin liên hệ, tiền cọc và hồ sơ định danh của người đang ở.</p>
+        </div>
+        <button type="button" class="modal-close" id="tenants-modal-close" aria-label="Đóng">✕</button>
       </div>
       
-      <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+      <div class="tenants-modal-body" id="tenants-modal-body">
         <!-- Tenant List Section -->
-        <div id="tenants-list-container" class="tenants-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto;">
-          <!-- Dynamic list of tenants -->
-        </div>
-        
-        <!-- Add Button -->
-        <div style="display: flex; justify-content: flex-end;">
-          <button type="button" class="btn btn--primary btn--sm" id="tenant-add-btn">➕ Thêm khách trọ</button>
-        </div>
+        <section class="tenant-directory">
+          <div class="tenant-section-heading">
+            <div>
+              <span>Danh sách hiện tại</span>
+              <h3>Người đang ở trong phòng</h3>
+            </div>
+            <strong id="tenants-count">0 khách</strong>
+          </div>
+          <div id="tenants-list-container" class="tenants-list" aria-live="polite">
+            <!-- Dynamic list of tenants -->
+          </div>
+          <div class="tenant-directory-actions">
+            <button type="button" class="btn btn--primary" id="tenant-add-btn">+ Thêm khách trọ</button>
+          </div>
+        </section>
         
         <!-- Form for Add/Edit Tenant (hidden by default) -->
-        <form id="tenant-form" style="display: none; border-top: 1px solid var(--border); padding-top: 16px; flex-direction: column; gap: 12px;">
-          <h3 id="tenant-form-title" style="font-size: 0.95rem; font-weight: 700; margin: 0;">➕ Thêm khách trọ</h3>
+        <form id="tenant-form" hidden>
+          <div class="tenant-form-heading">
+            <div>
+              <span>Hồ sơ khách thuê</span>
+              <h3 id="tenant-form-title">Thêm khách trọ</h3>
+            </div>
+            <small>Các trường có dấu * là bắt buộc</small>
+          </div>
           
           <input type="hidden" id="tenant-id" />
           
           <!-- CCCD eKYC Buttons -->
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <button type="button" class="btn btn--success btn--sm" id="tenant-scan-btn" style="padding: 6px 12px; font-size: 0.8rem;">📸 Quét QR CCCD</button>
-            <button type="button" class="btn btn--ghost btn--sm" id="tenant-upload-btn" style="padding: 6px 12px; font-size: 0.8rem;">🖼️ Chọn ảnh CCCD</button>
-            <input type="file" id="tenant-qr-file" accept="image/*" style="display: none;" />
-            <span style="font-size: 0.75rem; color: var(--text-muted);">(Tự động điền nhanh)</span>
+          <div class="tenant-identity-tools">
+            <div>
+              <strong>Điền nhanh từ CCCD</strong>
+              <span>Ảnh chỉ được dùng trên thiết bị để đọc mã QR.</span>
+            </div>
+            <div class="tenant-identity-actions">
+              <button type="button" class="btn btn--success btn--sm" id="tenant-scan-btn">📸 Quét QR</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="tenant-upload-btn">🖼️ Chọn ảnh</button>
+              <input type="file" id="tenant-qr-file" accept="image/*" hidden />
+            </div>
           </div>
           
           <div class="form-row form-row--2col">
@@ -2641,7 +2663,7 @@
             <span>Tôi xác nhận đã gửi hoặc cho khách thuê xem <a href="tenant-data-notice.html" target="_blank" rel="noopener">thông báo xử lý dữ liệu</a>: họ tên, liên hệ, ngày sinh, địa chỉ và CCCD được lưu để quản lý hồ sơ thuê, lập hóa đơn và hỗ trợ nghĩa vụ liên quan đến hợp đồng; không dùng cho quảng cáo hoặc bán cho bên thứ ba.</span>
           </label>
           
-          <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
+          <div class="tenant-form-actions">
             <button type="button" class="btn btn--ghost btn--sm" id="tenant-form-cancel">Hủy</button>
             <button type="submit" class="btn btn--primary btn--sm">Lưu</button>
           </div>
@@ -2652,17 +2674,20 @@
 
   <!-- MODAL: CCCD QR Scanner Camera -->
   <div class="modal-overlay" id="tenant-scan-modal" hidden>
-    <div class="modal" style="max-width: 450px;">
+    <div class="modal tenant-scan-modal-card">
       <div class="modal-header">
-        <h2 class="modal-title">📸 Quét QR Căn cước công dân</h2>
-        <button class="modal-close" id="tenant-scan-close">✕</button>
+        <div>
+          <span class="tenants-modal-kicker">Điền hồ sơ nhanh</span>
+          <h2 class="modal-title">Quét QR Căn cước công dân</h2>
+        </div>
+        <button type="button" class="modal-close" id="tenant-scan-close" aria-label="Đóng">✕</button>
       </div>
-      <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px; align-items: center;">
-        <div id="cccd-qr-reader" style="width: 100%; max-width: 350px; background: #000; border-radius: 8px; overflow: hidden; aspect-ratio: 1/1;"></div>
-        <div style="font-size: 0.8rem; color: var(--text-muted); text-align: center; line-height: 1.4;">
+      <div class="tenant-scan-body">
+        <div id="cccd-qr-reader"></div>
+        <div class="tenant-scan-hint">
           Căn chỉnh mã QR ở góc phải phía trên của CCCD vào khung quét.
         </div>
-        <button type="button" class="btn btn--ghost" id="tenant-scan-cancel-btn" style="width: 100%;">Dừng quét</button>
+        <button type="button" class="btn btn--ghost tenant-scan-cancel" id="tenant-scan-cancel-btn">Dừng quét</button>
       </div>
     </div>
   </div>
@@ -2763,7 +2788,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=145"></script>
+  <script src="app.js?v=146"></script>
 </body>
 
 </html>
