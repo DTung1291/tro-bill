@@ -834,7 +834,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   `fa37bba`, form Thêm/Sửa phòng tại `2805e93`, nhóm popup sửa sai dữ liệu tại
   `8a210bc` và popup xem bill/VietQR tại `46db2a5` ngày 13/09/2026.
   Luồng soạn/gửi tin nhắn và quản lý link hóa đơn đã phát hành tại `414b3e2`
-  cùng ngày.
+  cùng ngày; popup Quản lý khu/tòa nhà tại `457a4d0`.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -965,6 +965,13 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   chứng cần đối chiếu. Cả hai modal khóa header/footer, chỉ cuộn thân và thu
   thao tác về một cột trên mobile. Không đổi token, API, nội dung mẫu, lịch gửi,
   email provider, minh chứng hoặc quy tắc xác nhận thanh toán.
+
+  Lát cắt Quản lý khu/tòa nhà ưu tiên tổng số khu, tổng số phòng và khu mặc định,
+  sau đó tách danh sách khu khỏi form thêm/sửa. Mỗi thẻ khu hiển thị số phòng,
+  trạng thái mặc định, địa chỉ/ghi chú và giải thích trực tiếp khi chưa thể xóa.
+  Form bám trong viewport trên desktop, chuyển thành luồng một cột trên tablet;
+  mobile gom các thao tác theo lưới đều. Không đổi CRUD khu, ownership, khu mặc
+  định, liên kết phòng, lọc dashboard, tài khoản nhận tiền hoặc quy tắc xóa.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 

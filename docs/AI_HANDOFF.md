@@ -9,10 +9,10 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI gửi/chia sẻ hóa đơn đã phát hành; test mục tiêu 36/36 và toàn bộ 500/500 đạt |
+| Trạng thái | Lát cắt UX/UI Quản lý khu/tòa nhà đã phát hành; test mục tiêu 26/26 và toàn bộ 505/505 đạt |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
-| Phần ứng dụng phát hành gần nhất | `414b3e2` làm mới luồng gửi/chia sẻ hóa đơn; CI `34744693666` xanh, Production revision `414b3e2b1846` và readiness đã xác minh |
+| Phần ứng dụng phát hành gần nhất | `457a4d0` làm mới popup Quản lý khu/tòa nhà; CI `34758495206` xanh, Production revision `457a4d049e17` và readiness đã xác minh |
 | Việc code tiếp theo | Tiếp tục rà và làm mới lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
@@ -94,6 +94,19 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI Quản lý khu/tòa nhà đã phát hành: popup ưu tiên tổng số khu,
+  tổng số phòng và khu mặc định; danh sách khu tách khỏi form thêm/sửa. Thẻ khu
+  hiển thị số phòng, trạng thái mặc định, địa chỉ/ghi chú và lý do chưa thể xóa;
+  form phản ánh rõ trạng thái thêm mới/chỉnh sửa. Modal khóa chiều cao, chỉ cuộn
+  thân; desktop giữ form trong viewport, tablet/mobile chuyển về một cột và nút
+  thao tác co đều. Không đổi API, ownership, khu mặc định, liên kết phòng, lọc,
+  tài khoản nhận tiền hay quy tắc xóa. CSS pin tăng `148 → 149`, app pin tăng
+  `150 → 151`; test mục tiêu 26/26 và toàn suite ngoài sandbox 505/505 đạt,
+  secret scan và diff check sạch. Commit `457a4d0` đã push; CI `34758495206`
+  thành công, alias Production trả revision `457a4d049e17`, database/schema
+  `ok`, runtime role `restricted`; HTML Production đã xác nhận đúng hai asset
+  pin và markup tổng quan mới.
 
 - Lát cắt UX/UI gửi/chia sẻ hóa đơn đã phát hành: popup soạn tin đi theo ba
   bước chọn người nhận, kiểm tra nội dung/link và gửi ngay hoặc hẹn lịch; popup
