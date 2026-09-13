@@ -5633,6 +5633,14 @@ function renderRoomRateHistoryDraft() {
   });
 }
 
+function syncRoomWaterFields(waterType) {
+  const isMetered = waterType === 'khối';
+  const previousReading = document.getElementById('room-water-prev-container');
+  const peopleCount = document.getElementById('room-people-count-container');
+  if (previousReading) previousReading.hidden = !isMetered;
+  if (peopleCount) peopleCount.hidden = isMetered;
+}
+
 function openRoomModal(roomId = null) {
   const modal = document.getElementById('room-modal');
   const title = document.getElementById('room-modal-title');
@@ -5659,9 +5667,7 @@ function openRoomModal(roomId = null) {
     document.getElementById('room-water-prev').value  = room.waterPrev || 0;
     document.getElementById('room-notes').value       = room.notes || '';
     
-    const isWaterByKhối = (room.waterType || 'người') === 'khối';
-    document.getElementById('room-water-prev-container').style.display = isWaterByKhối ? 'flex' : 'none';
-    document.getElementById('room-people-count-container').style.display = isWaterByKhối ? 'none' : 'flex';
+    syncRoomWaterFields(room.waterType || 'người');
   } else {
     roomRateHistoryDraft = [];
     title.textContent = 'Thêm phòng';
@@ -5681,8 +5687,7 @@ function openRoomModal(roomId = null) {
     document.getElementById('room-manage-fee').value = 0;
     document.getElementById('room-elec-prev').value = 0;
     document.getElementById('room-water-prev').value = 0;
-    document.getElementById('room-water-prev-container').style.display = 'none';
-    document.getElementById('room-people-count-container').style.display = 'flex';
+    syncRoomWaterFields('người');
   }
   updateRoomRateEffectiveHint();
   renderRoomRateHistoryDraft();
@@ -5832,11 +5837,7 @@ document.getElementById('property-form').addEventListener('submit', async event 
 });
 
 document.getElementById('room-water-type').addEventListener('change', (e) => {
-  const isKhối = e.target.value === 'khối';
-  const prevContainer   = document.getElementById('room-water-prev-container');
-  const peopleContainer = document.getElementById('room-people-count-container');
-  if (prevContainer)   prevContainer.style.display   = isKhối ? 'flex' : 'none';
-  if (peopleContainer) peopleContainer.style.display = isKhối ? 'none' : 'flex';
+  syncRoomWaterFields(e.target.value);
 });
 
 document.getElementById('rental-contract-form').addEventListener('submit', event => {

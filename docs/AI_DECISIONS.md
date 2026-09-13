@@ -830,8 +830,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`, hóa đơn công khai tại
   `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
   Báo cáo tài chính đã phát hành tại `9b27b35`, modal Hợp đồng và vòng đời thuê
-  tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`; modal Khách trọ đã hoàn
-  thành local trong lát cắt kế tiếp ngày 13/09/2026.
+  tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`, modal Khách trọ tại
+  `fa37bba`; form Thêm/Sửa phòng đã hoàn thành local trong lát cắt kế tiếp ngày
+  13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -934,6 +935,13 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   vẫn che mặc định, lần xem đầy đủ vẫn qua API có audit. Modal và máy quét chỉ
   cuộn nội dung, về một cột trên mobile. Không đổi dữ liệu hồ sơ, xác nhận thông
   báo quyền riêng tư, quyền workspace hoặc API.
+
+  Lát cắt form Thêm/Sửa phòng chia dữ liệu thành ba bước: thông tin phòng, biểu
+  phí theo hiệu lực, nước và dịch vụ. Header/footer cố định, thân form cuộn độc
+  lập; mobile xếp trường và thao tác thành một cột. Trường phụ thuộc cách tính
+  nước dùng thuộc tính `hidden` thay vì ghi `style.display` trực tiếp. Không đổi
+  cách chuẩn hóa lịch sử giá, tính thuê theo ngày, dữ liệu phòng, quyền gói hoặc
+  API state.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 

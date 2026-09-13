@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=144" />
+  <link rel="stylesheet" href="style.css?v=145" />
 </head>
 
 <body>
@@ -1543,116 +1543,152 @@
 
   <!-- MODAL: Add/Edit Room -->
   <div class="modal-overlay" id="room-modal" hidden>
-    <div class="modal">
+    <div class="modal room-form-modal">
       <div class="modal-header">
-        <h2 class="modal-title" id="room-modal-title">Thêm phòng</h2>
-        <button class="modal-close" id="room-modal-close">✕</button>
+        <div>
+          <span class="room-form-kicker">Thiết lập vận hành</span>
+          <h2 class="modal-title" id="room-modal-title">Thêm phòng</h2>
+          <p class="room-form-subtitle">Khai báo thông tin phòng, biểu phí và cách tính điện nước.</p>
+        </div>
+        <button type="button" class="modal-close" id="room-modal-close" aria-label="Đóng">✕</button>
       </div>
       <form class="modal-form" id="room-form">
         <input type="hidden" id="room-id" />
-        <div class="form-row">
-          <label class="form-label" for="room-property">Khu / tòa nhà *</label>
-          <select class="form-input" id="room-property" required></select>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label">Tên phòng *</label>
-            <input class="form-input" type="text" id="room-name" placeholder="VD: Nhà 1, Phòng A101..." required />
-          </div>
-          <div>
-            <label class="form-label">Ngày bắt đầu thuê</label>
-            <input class="form-input" type="date" id="room-rent-start-date" />
-            <p class="rate-effective-hint">Bỏ trống nếu luôn thu đủ tháng. Ngày bắt đầu thuê được tính tiền.</p>
-          </div>
-        </div>
-        <div class="form-row rate-effective-panel">
-          <div>
-            <label class="form-label">Biểu phí áp dụng từ tháng *</label>
-            <input class="form-input" type="month" id="room-rate-effective-from" required />
-          </div>
-          <p class="rate-effective-hint" id="room-rate-effective-hint">
-            Các tháng trước vẫn giữ nguyên biểu phí cũ.
-          </p>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label">Tiền thuê (đ/tháng) *</label>
-            <input class="form-input" type="number" id="room-rent" placeholder="2200000" min="0" required />
-          </div>
-          <div>
-            <label class="form-label">Đơn giá điện (đ/kWh) *</label>
-            <input class="form-input" type="number" id="room-elec-rate" placeholder="3400" min="0" required />
-          </div>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label">Phí rác (đ/tháng)</label>
-            <input class="form-input" type="number" id="room-trash" value="50000" min="0" />
-          </div>
-          <div>
-            <label class="form-label">Chỉ số điện hiện tại</label>
-            <input class="form-input" type="number" id="room-elec-prev" placeholder="0" />
-          </div>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label">Tính nước theo</label>
-            <select class="form-input" id="room-water-type">
-              <option value="người">Người</option>
-              <option value="khối">Khối</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">Đơn giá nước (đ)</label>
-            <input class="form-input" type="number" id="room-water-rate" value="50000" min="0" />
-          </div>
-        </div>
-        <div class="form-row form-row--2col" id="room-people-count-container">
-          <div>
-            <label class="form-label">Số người ở</label>
-            <input class="form-input" type="number" id="room-people-count" value="1" min="1" />
-          </div>
-          <div></div>
-        </div>
-        <div class="form-row form-row--2col" id="room-water-prev-container" style="display:none">
-          <div>
-            <label class="form-label">Chỉ số nước khởi đầu</label>
-            <input class="form-input" type="number" id="room-water-prev" placeholder="0" />
-          </div>
-          <div></div>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label checkbox-label" style="margin-top:26px">
-              <input type="checkbox" id="room-has-wifi" class="form-checkbox" />
-              <span>Sử dụng Wifi</span>
-            </label>
-          </div>
-          <div>
-            <label class="form-label">Phí Wifi (đ/tháng)</label>
-            <input class="form-input" type="number" id="room-wifi-fee" value="40000" min="0" />
-          </div>
-        </div>
-        <div class="form-row form-row--2col">
-          <div>
-            <label class="form-label">Phí quản lý & DV khác (đ/tháng)</label>
-            <input class="form-input" type="number" id="room-manage-fee" value="0" min="0" />
-          </div>
-          <div>
-            <label class="form-label">Ghi chú</label>
-            <input class="form-input" type="text" id="room-notes" placeholder="Tầng 1, phòng góc..." />
-          </div>
-        </div>
-        <section class="room-rate-history" id="room-rate-history-section" hidden>
-          <div class="room-rate-history__header">
-            <div>
-              <h3>Lịch sử biểu phí</h3>
-              <p>Chọn một mốc để xem hoặc chỉnh sửa. Giá ban đầu luôn được giữ lại.</p>
+        <div class="room-form-body">
+          <section class="room-form-section" aria-labelledby="room-form-general-title">
+            <div class="room-form-section-heading">
+              <span>Bước 01</span>
+              <div>
+                <h3 id="room-form-general-title">Thông tin phòng</h3>
+                <p>Xác định vị trí và thời điểm bắt đầu tính tiền thuê.</p>
+              </div>
             </div>
-          </div>
-          <div class="room-rate-history__list" id="room-rate-history-list"></div>
-        </section>
-        <div class="modal-actions">
+            <div class="form-row">
+              <label class="form-label" for="room-property">Khu / tòa nhà *</label>
+              <select class="form-input" id="room-property" required></select>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label">Tên phòng *</label>
+                <input class="form-input" type="text" id="room-name" placeholder="VD: Nhà 1, Phòng A101..." required />
+              </div>
+              <div>
+                <label class="form-label">Ngày bắt đầu thuê</label>
+                <input class="form-input" type="date" id="room-rent-start-date" />
+                <p class="rate-effective-hint">Bỏ trống nếu luôn thu đủ tháng. Ngày bắt đầu thuê được tính tiền.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="room-form-section" aria-labelledby="room-form-rate-title">
+            <div class="room-form-section-heading">
+              <span>Bước 02</span>
+              <div>
+                <h3 id="room-form-rate-title">Biểu phí theo hiệu lực</h3>
+                <p>Giá mới chỉ áp dụng từ tháng được chọn, không sửa hóa đơn cũ.</p>
+              </div>
+            </div>
+            <div class="form-row rate-effective-panel">
+              <div>
+                <label class="form-label">Biểu phí áp dụng từ tháng *</label>
+                <input class="form-input" type="month" id="room-rate-effective-from" required />
+              </div>
+              <p class="rate-effective-hint" id="room-rate-effective-hint">
+                Các tháng trước vẫn giữ nguyên biểu phí cũ.
+              </p>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label">Tiền thuê (đ/tháng) *</label>
+                <input class="form-input" type="number" id="room-rent" placeholder="2200000" min="0" required />
+              </div>
+              <div>
+                <label class="form-label">Đơn giá điện (đ/kWh) *</label>
+                <input class="form-input" type="number" id="room-elec-rate" placeholder="3400" min="0" required />
+              </div>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label">Phí rác (đ/tháng)</label>
+                <input class="form-input" type="number" id="room-trash" value="50000" min="0" />
+              </div>
+              <div>
+                <label class="form-label">Chỉ số điện hiện tại</label>
+                <input class="form-input" type="number" id="room-elec-prev" placeholder="0" />
+              </div>
+            </div>
+          </section>
+
+          <section class="room-form-section" aria-labelledby="room-form-service-title">
+            <div class="room-form-section-heading">
+              <span>Bước 03</span>
+              <div>
+                <h3 id="room-form-service-title">Nước và dịch vụ</h3>
+                <p>Chọn cách tính nước rồi bổ sung các dịch vụ cố định của phòng.</p>
+              </div>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label">Tính nước theo</label>
+                <select class="form-input" id="room-water-type">
+                  <option value="người">Người</option>
+                  <option value="khối">Khối</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Đơn giá nước (đ)</label>
+                <input class="form-input" type="number" id="room-water-rate" value="50000" min="0" />
+              </div>
+            </div>
+            <div class="form-row form-row--2col" id="room-people-count-container">
+              <div>
+                <label class="form-label">Số người ở</label>
+                <input class="form-input" type="number" id="room-people-count" value="1" min="1" />
+              </div>
+              <div></div>
+            </div>
+            <div class="form-row form-row--2col" id="room-water-prev-container" hidden>
+              <div>
+                <label class="form-label">Chỉ số nước khởi đầu</label>
+                <input class="form-input" type="number" id="room-water-prev" placeholder="0" />
+              </div>
+              <div></div>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label checkbox-label room-wifi-toggle">
+                  <input type="checkbox" id="room-has-wifi" class="form-checkbox" />
+                  <span>Sử dụng Wifi</span>
+                </label>
+              </div>
+              <div>
+                <label class="form-label">Phí Wifi (đ/tháng)</label>
+                <input class="form-input" type="number" id="room-wifi-fee" value="40000" min="0" />
+              </div>
+            </div>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label">Phí quản lý & DV khác (đ/tháng)</label>
+                <input class="form-input" type="number" id="room-manage-fee" value="0" min="0" />
+              </div>
+              <div>
+                <label class="form-label">Ghi chú</label>
+                <input class="form-input" type="text" id="room-notes" placeholder="Tầng 1, phòng góc..." />
+              </div>
+            </div>
+          </section>
+
+          <section class="room-rate-history" id="room-rate-history-section" hidden>
+            <div class="room-rate-history__header">
+              <div>
+                <h3>Lịch sử biểu phí</h3>
+                <p>Chọn một mốc để xem hoặc chỉnh sửa. Giá ban đầu luôn được giữ lại.</p>
+              </div>
+            </div>
+            <div class="room-rate-history__list" id="room-rate-history-list"></div>
+          </section>
+        </div>
+        <div class="modal-actions room-form-actions">
           <button type="button" class="btn btn--ghost" id="room-modal-cancel">Hủy</button>
           <button type="submit" class="btn btn--primary">Lưu phòng</button>
         </div>
@@ -2788,7 +2824,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=146"></script>
+  <script src="app.js?v=147"></script>
 </body>
 
 </html>

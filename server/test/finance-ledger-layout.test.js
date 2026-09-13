@@ -44,5 +44,5 @@ test('sổ thu tiền và tiền cọc ưu tiên số dư, đối soát và resp
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.rent-payment-modal-body \.rent-payment-summary-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=144"[\s\S]*src="app\.js\?v=146"/);
+  assert.match(html, /href="style\.css\?v=145"[\s\S]*src="app\.js\?v=147"/);
 });
