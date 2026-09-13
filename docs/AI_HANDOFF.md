@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Hotfix ghi nhận thu tiền và lát cắt UX/UI popup xem bill đã phát hành; toàn bộ 495/495 test đạt |
+| Trạng thái | Lát cắt UX/UI gửi/chia sẻ hóa đơn đã phát hành; test mục tiêu 36/36 và toàn bộ 500/500 đạt |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
-| Phần ứng dụng phát hành gần nhất | `2c2bdc9` sửa lỗi sổ thu tiền append-only; CI `34744275334` xanh, Production revision `2c2bdc998cae` và readiness đã xác minh |
-| Việc code tiếp theo | Người dùng thử lại “Ghi nhận thu tiền”, sau đó tiếp tục lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
+| Phần ứng dụng phát hành gần nhất | `414b3e2` làm mới luồng gửi/chia sẻ hóa đơn; CI `34744693666` xanh, Production revision `414b3e2b1846` và readiness đã xác minh |
+| Việc code tiếp theo | Tiếp tục rà và làm mới lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI gửi/chia sẻ hóa đơn đã phát hành: popup soạn tin đi theo ba
+  bước chọn người nhận, kiểm tra nội dung/link và gửi ngay hoặc hẹn lịch; popup
+  link tách rõ tạo, sao chép, theo dõi và minh chứng cần đối chiếu. Tạo link
+  không còn chen với nhóm nút gửi; hai modal giữ header/footer trong viewport,
+  chỉ cuộn thân và thao tác về một cột trên mobile. Không đổi API, token, mẫu
+  tin, email provider, lịch gửi, minh chứng hoặc quy tắc xác nhận thanh toán.
+  CSS pin tăng `147 → 148`, app pin tăng `149 → 150`; test mục tiêu 36/36 và
+  toàn suite ngoài sandbox 500/500 đạt, secret scan và diff check sạch. Commit
+  `414b3e2` đã push; CI `34744693666` thành công và alias Production trả
+  revision `414b3e2b1846`, database/schema `ok`, runtime role `restricted`.
 
 - Hotfix “Ghi nhận thu tiền” đã phát hành: log Production xác nhận PostgreSQL
   `42501 insufficient_privilege` tại `POST /api/rent-payments/settle`. Nguyên

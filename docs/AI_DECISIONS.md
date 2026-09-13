@@ -833,6 +833,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`, modal Khách trọ tại
   `fa37bba`, form Thêm/Sửa phòng tại `2805e93`, nhóm popup sửa sai dữ liệu tại
   `8a210bc` và popup xem bill/VietQR tại `46db2a5` ngày 13/09/2026.
+  Luồng soạn/gửi tin nhắn và quản lý link hóa đơn đã phát hành tại `414b3e2`
+  cùng ngày.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -955,6 +957,14 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khỏi thao tác hóa đơn điện tử, đóng và in. Header/footer cố định, chỉ nội dung
   cuộn; desktop, tablet và mobile dùng bố cục hành động riêng. Không đổi dữ liệu
   hóa đơn, công thức công nợ, đường gửi/chia sẻ, VietQR, HĐĐT hoặc phân quyền.
+
+  Lát cắt gửi và chia sẻ hóa đơn tiếp nối popup bill theo ba bước: chọn người
+  nhận, kiểm tra nội dung/link bảo mật, rồi gửi ngay hoặc hẹn lịch. Tạo link nằm
+  cạnh nội dung thay vì chen vào footer; footer chỉ nhóm các kênh gửi. Popup
+  quản lý link tách rõ tạo link, sao chép link mới, theo dõi lượt mở và minh
+  chứng cần đối chiếu. Cả hai modal khóa header/footer, chỉ cuộn thân và thu
+  thao tác về một cột trên mobile. Không đổi token, API, nội dung mẫu, lịch gửi,
+  email provider, minh chứng hoặc quy tắc xác nhận thanh toán.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 
