@@ -458,8 +458,7 @@ async function settleInvoice(req, res) {
     );
     const receiptReplay = await client.query(
       `SELECT * FROM rent_payment_receipts
-       WHERE user_id=$1 AND idempotency_key=$2
-       FOR UPDATE`,
+       WHERE user_id=$1 AND idempotency_key=$2`,
       [req.userId, input.idempotencyKey]
     );
     if (receiptReplay.rows[0]) {
@@ -527,8 +526,7 @@ async function settleInvoice(req, res) {
               COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd
        FROM rent_payment_transactions t
        JOIN rent_invoices i ON i.user_id=t.user_id AND i.id=t.invoice_id
-       WHERE t.user_id=$1 AND t.idempotency_key=$2
-       FOR UPDATE OF t`,
+       WHERE t.user_id=$1 AND t.idempotency_key=$2`,
       [req.userId, input.idempotencyKey]
     );
     if (replay.rows[0]) {
@@ -851,11 +849,16 @@ async function reverseTransaction(req, res) {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
+    await client.query(
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended($1::text || ':rent-payment-reversal:' || $2, 0)
+       )`,
+      [req.userId, transactionId]
+    );
     const originalResult = await client.query(
       `SELECT t.id, t.invoice_id, t.amount_vnd, t.payment_method, t.entry_type
        FROM rent_payment_transactions t
-       WHERE t.user_id=$1 AND t.id=$2
-       FOR UPDATE OF t`,
+       WHERE t.user_id=$1 AND t.id=$2`,
       [req.userId, transactionId]
     );
     const original = originalResult.rows[0];

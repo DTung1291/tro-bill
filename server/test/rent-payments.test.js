@@ -697,7 +697,7 @@ test('hoàn tác tạo dòng âm tham chiếu giao dịch gốc, không sửa d�
   const client = {
     async query(sql, params = []) {
       calls.push({ sql, params });
-      if (sql.includes('FOR UPDATE OF t') && sql.includes('t.id=$2')) {
+      if (sql.includes('FROM rent_payment_transactions t') && sql.includes('t.id=$2')) {
         return {
           rows: [{
             id: 91,
@@ -751,6 +751,7 @@ test('hoàn tác tạo dòng âm tham chiếu giao dịch gốc, không sửa d�
     calls.filter(call => call.sql.includes('INSERT INTO data_audit_logs')).map(call => call.params[3]),
     ['rent_payment_transaction_reversed', 'rent_invoice_payment_changed']
   );
+  assert.equal(calls.some((call) => call.sql.includes('rent-payment-reversal:')), true);
   assert.equal(calls.some((call) => /UPDATE rent_payment_transactions|DELETE FROM rent_payment_transactions/.test(call.sql)), false);
 });
 
@@ -881,4 +882,23 @@ test('khởi động hiển thị dữ liệu trước và chỉ đồng bộ le
   assert.match(appSource, /entry\.legacyPaid && Number\(invoice\.transactionCount\) === 0/);
   assert.match(appSource, /canonicalRentInvoiceDetail\(serverDetail\) !== canonicalRentInvoiceDetail\(entryDetail\)/);
   assert.match(appSource, /RENT_INVOICE_SYNC_PROMISE === activePromise/);
+});
+
+test('runtime append-only không cần quyền UPDATE để ghi nhận hoặc hoàn tác thu tiền', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'rent-payments.js'), 'utf8');
+  const settleSource = source.slice(
+    source.indexOf('async function settleInvoice'),
+    source.indexOf('function transactionJson')
+  );
+  const reverseSource = source.slice(
+    source.indexOf('async function reverseTransaction'),
+    source.indexOf('function legacyEntries')
+  );
+
+  assert.match(settleSource, /pg_advisory_xact_lock\(hashtextextended\(\$1::text \|\| ':' \|\| \$2, 0\)\)/);
+  assert.doesNotMatch(settleSource, /FROM rent_payment_receipts[\s\S]{0,120}FOR UPDATE/);
+  assert.doesNotMatch(settleSource, /FROM rent_payment_transactions t[\s\S]{0,240}FOR UPDATE OF t/);
+
+  assert.match(reverseSource, /pg_advisory_xact_lock\([\s\S]*rent-payment-reversal/);
+  assert.doesNotMatch(reverseSource, /FROM rent_payment_transactions t[\s\S]{0,160}FOR UPDATE OF t/);
 });
