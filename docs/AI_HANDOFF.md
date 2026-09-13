@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI popup sửa sai dữ liệu hoàn thành local; test mục tiêu 14/14 và toàn bộ 489/489 đạt, chưa commit/push |
+| Trạng thái | Lát cắt UX/UI popup sửa sai dữ liệu đã phát hành; test mục tiêu 14/14 và toàn bộ 489/489 đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt popup sửa sai dữ liệu; không đè hoặc tách bỏ trước khi bàn giao |
-| Phần ứng dụng phát hành gần nhất | `2805e93` làm mới form Thêm/Sửa phòng; CI `34728934034` xanh, Production revision `2805e9309c6d` và readiness đã xác minh |
-| Việc code tiếp theo | Commit/push lát cắt popup sửa sai dữ liệu, xác minh Production rồi chọn lát cắt UX/UI tiếp theo |
+| Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
+| Phần ứng dụng phát hành gần nhất | `8a210bc` làm mới popup sửa sai dữ liệu; CI `34729126349` xanh, Production revision `8a210bc0c7b9` và readiness đã xác minh |
+| Việc code tiếp theo | Tiếp tục rà và làm mới lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,13 +95,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI popup sửa sai dữ liệu hoàn thành local: sửa chỉ số cũ, chuyển kỳ
+- Lát cắt UX/UI popup sửa sai dữ liệu đã phát hành: sửa chỉ số cũ, chuyển kỳ
   chỉ số và chuyển kỳ chi phí dùng cùng phân cấp. Nguồn → đích và hậu quả của
   “Chuyển hẳn/Sao chép” được trình bày rõ; cảnh báo ghi đè và ngoại lệ chi phí
   sửa chữa vẫn giữ nguyên. Modal khóa chiều cao và về một cột trên mobile. Không
   đổi thuật toán chuyển, clone ID, xác nhận hay API state. CSS pin tăng
   `145 → 146`, app pin tăng `147 → 148`; test mục tiêu 14/14 và toàn suite ngoài
-  sandbox 489/489 đạt. Chưa commit/push ở mốc ghi chú này.
+  sandbox 489/489 đạt. Commit `8a210bc` đã push; CI `34729126349` thành công,
+  deployment Production `tro-bill-7lo80p33s-dtung.vercel.app` `Ready` và alias
+  chính trả revision `8a210bc0c7b9`, database/schema `ok`, runtime role
+  `restricted`.
 
 - Lát cắt UX/UI form Thêm/Sửa phòng đã phát hành: form chia ba bước thông
   tin phòng, biểu phí theo hiệu lực, nước và dịch vụ. Header/footer cố định, chỉ

@@ -831,8 +831,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
   Báo cáo tài chính đã phát hành tại `9b27b35`, modal Hợp đồng và vòng đời thuê
   tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`, modal Khách trọ tại
-  `fa37bba`, form Thêm/Sửa phòng tại `2805e93`; nhóm popup sửa sai dữ liệu đã
-  hoàn thành local trong lát cắt kế tiếp ngày 13/09/2026.
+  `fa37bba`, form Thêm/Sửa phòng tại `2805e93`, nhóm popup sửa sai dữ liệu tại
+  `8a210bc` ngày 13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
