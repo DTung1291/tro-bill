@@ -169,7 +169,7 @@ function _processCropArea() {
 
 function _meterPhotoDataUrl() {
   const cropCanvas = document.getElementById('ocr-crop-canvas');
-  if (!cropCanvas) return '';
+  if (!cropCanvas || (!_ocrImage && !_cameraActive)) return '';
   // Canvas tái mã hóa ảnh nên không giữ EXIF/vị trí GPS. Chỉ lưu khung chỉ số
   // 448x100 thay vì toàn bộ ảnh gốc để bảo vệ riêng tư và tiết kiệm dung lượng.
   for (const quality of [0.72, 0.55, 0.4]) {
@@ -200,24 +200,58 @@ function openOcrModal(roomId, targetField, onConfirm) {
   }
 }
 
+const OCR_STAGE_ORDER = ['capture', 'adjust', 'review'];
+
+function _setOcrStage(stage) {
+  const card = document.querySelector('#ocr-modal .ocr-modal-inner');
+  if (!card || !OCR_STAGE_ORDER.includes(stage)) return;
+  card.dataset.stage = stage;
+
+  const activeIndex = OCR_STAGE_ORDER.indexOf(stage);
+  card.querySelectorAll('[data-ocr-step]').forEach((step) => {
+    const stepIndex = OCR_STAGE_ORDER.indexOf(step.dataset.ocrStep);
+    step.classList.toggle('is-active', stepIndex === activeIndex);
+    step.classList.toggle('is-complete', stepIndex < activeIndex);
+    if (stepIndex === activeIndex) step.setAttribute('aria-current', 'step');
+    else step.removeAttribute('aria-current');
+  });
+}
+
+function _setOcrStatus(message, tone = '') {
+  const statusEl = document.getElementById('ocr-status');
+  if (!statusEl) return;
+  statusEl.textContent = message;
+  if (tone) statusEl.dataset.tone = tone;
+  else statusEl.removeAttribute('data-tone');
+}
+
+function _syncOcrConfirmation() {
+  const resultInput = document.getElementById('ocr-result-input');
+  const confirmBtn = document.getElementById('ocr-confirm-btn');
+  if (!resultInput || !confirmBtn) return;
+  const hasValidReading = /^\d+$/.test(resultInput.value.trim());
+  confirmBtn.disabled = !hasValidReading;
+  if (hasValidReading) _setOcrStage('review');
+}
+
 function _openOcrModalActual(roomId, targetField, onConfirm) {
   _ocrCallback = onConfirm;
   const modal = document.getElementById('ocr-modal');
   const titleEl = document.getElementById('ocr-modal-title');
   const resultInput = document.getElementById('ocr-result-input');
-  const statusEl = document.getElementById('ocr-status');
   const zoomSlider = document.getElementById('ocr-zoom-slider');
   const invertCheck = document.getElementById('ocr-invert-check');
 
-  titleEl.textContent = targetField === 'elec' ? '📷 Chụp chỉ số Điện' : '📷 Chụp chỉ số Nước';
+  titleEl.textContent = targetField === 'elec' ? 'Chụp chỉ số điện' : 'Chụp chỉ số nước';
   resultInput.value = '';
-  statusEl.textContent = 'Đang khởi động camera...';
+  _setOcrStatus('Đang khởi động camera...');
   document.getElementById('ocr-confirm-btn').disabled = true;
   invertCheck.checked = false;
   zoomSlider.value = 1.0;
 
   _ocrImage = null;
   _cameraActive = true;
+  _setOcrStage('capture');
 
   // Cập nhật trạng thái nút
   _updateButtonUI();
@@ -235,7 +269,6 @@ function closeOcrModal() {
 
 async function _startCamera() {
   const video = document.getElementById('ocr-video');
-  const statusEl = document.getElementById('ocr-status');
   try {
     _ocrStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -243,11 +276,14 @@ async function _startCamera() {
     video.srcObject = _ocrStream;
     video.play();
     _cameraActive = true;
-    statusEl.textContent = 'Đặt chỉ số công tơ vào khung đỏ và bấm "Chụp ảnh".';
+    _updateButtonUI();
+    _setOcrStage('capture');
+    _setOcrStatus('Đặt dãy số công tơ vào khung đỏ rồi bấm “Chụp ảnh”.');
     _cameraLoopId = requestAnimationFrame(_cameraLoop);
   } catch (err) {
     _cameraActive = false;
-    statusEl.textContent = '⚠️ Không truy cập được camera. Hãy chọn ảnh từ thiết bị.';
+    _updateButtonUI();
+    _setOcrStatus('Không truy cập được camera. Hãy chọn ảnh từ thiết bị.', 'error');
     console.warn('Camera stream error:', err);
     // Draw empty canvas overlay to keep layout clean
     _drawCanvas();
@@ -271,16 +307,22 @@ function _stopCamera() {
 function _updateButtonUI() {
   const captureBtn = document.getElementById('ocr-capture-btn');
   const libraryBtn = document.getElementById('ocr-library-btn');
-  const confirmBtn = document.getElementById('ocr-confirm-btn');
 
   if (_cameraActive) {
-    captureBtn.textContent = '📸 Chụp ảnh';
+    captureBtn.textContent = 'Chụp ảnh';
     captureBtn.className = 'btn btn--primary';
-    libraryBtn.textContent = '🖼️ Chọn ảnh';
-  } else {
-    captureBtn.textContent = '🔍 Nhận diện';
+    captureBtn.disabled = false;
+    libraryBtn.textContent = 'Chọn ảnh';
+  } else if (_ocrImage) {
+    captureBtn.textContent = 'Nhận diện chỉ số';
     captureBtn.className = 'btn btn--success';
-    libraryBtn.textContent = '📸 Chụp lại';
+    captureBtn.disabled = false;
+    libraryBtn.textContent = 'Chụp lại';
+  } else {
+    captureBtn.textContent = 'Camera không khả dụng';
+    captureBtn.className = 'btn btn--primary';
+    captureBtn.disabled = true;
+    libraryBtn.textContent = 'Chọn ảnh';
   }
 }
 
@@ -313,12 +355,12 @@ async function recognizeDigits(imageSource) {
 //  OCR ACTIONS
 // ============================================================
 async function _runOcr() {
-  const statusEl = document.getElementById('ocr-status');
   const resultInput = document.getElementById('ocr-result-input');
   const confirmBtn = document.getElementById('ocr-confirm-btn');
   const cropCanvas = document.getElementById('ocr-crop-canvas');
 
-  statusEl.textContent = '⏳ Đang phân tích chữ số...';
+  _setOcrStage('review');
+  _setOcrStatus('Đang phân tích chữ số...');
   resultInput.value = '';
   confirmBtn.disabled = true;
 
@@ -328,13 +370,15 @@ async function _runOcr() {
 
     if (digits && digits.length > 0) {
       resultInput.value = digits;
-      statusEl.textContent = `✅ Quét xong: ${digits}. Hãy kiểm tra lại và sửa nếu cần.`;
-      confirmBtn.disabled = false;
+      _setOcrStatus(`Đã nhận diện ${digits}. Hãy đối chiếu lại với ảnh.`, 'success');
+      _syncOcrConfirmation();
+      resultInput.focus();
+      resultInput.select();
     } else {
-      statusEl.textContent = '❌ Không nhận dạng được số. Hãy căn chỉnh gần/rõ hơn hoặc đổi màu chữ (Invert).';
+      _setOcrStatus('Không nhận dạng được số. Hãy căn ảnh rõ hơn hoặc thử “Chữ sáng trên nền tối”.', 'error');
     }
   } catch (err) {
-    statusEl.textContent = `⚠️ Lỗi: ${err.message}`;
+    _setOcrStatus(`Không thể nhận diện: ${err.message}`, 'error');
     console.error('OCR run error:', err);
   }
 }
@@ -374,7 +418,8 @@ function initOcrModalEvents() {
         document.getElementById('ocr-zoom-slider').value = 1.0;
         _drawCanvas();
         _updateButtonUI();
-        document.getElementById('ocr-status').textContent = 'Kéo để căn chỉnh chỉ số công tơ vào khung đỏ.';
+        _setOcrStage('adjust');
+        _setOcrStatus('Kéo hoặc thu phóng để đưa dãy số vào khung đỏ, sau đó bấm “Nhận diện chỉ số”.');
       };
       _ocrImage.src = tempCanvas.toDataURL('image/jpeg');
     } else {
@@ -393,6 +438,7 @@ function initOcrModalEvents() {
       // Chụp lại: Khởi động lại camera
       _ocrImage = null;
       _updateButtonUI();
+      _setOcrStage('capture');
       _startCamera();
     }
   });
@@ -415,7 +461,8 @@ function initOcrModalEvents() {
         
         _drawCanvas();
         _updateButtonUI();
-        document.getElementById('ocr-status').textContent = 'Kéo và zoom để đưa dãy số công tơ vào khung ngắm đỏ.';
+        _setOcrStage('adjust');
+        _setOcrStatus('Kéo hoặc thu phóng để đưa dãy số vào khung đỏ, sau đó bấm “Nhận diện chỉ số”.');
       };
       _ocrImage.src = event.target.result;
     };
@@ -436,13 +483,22 @@ function initOcrModalEvents() {
     _drawCanvas();
   });
 
+  document.getElementById('ocr-result-input').addEventListener('input', () => {
+    _syncOcrConfirmation();
+    const rawValue = document.getElementById('ocr-result-input').value.trim();
+    if (/^\d+$/.test(rawValue)) {
+      _setOcrStatus('Chỉ số đã được nhập thủ công. Hãy đối chiếu lại với ảnh trước khi dùng.', 'success');
+    }
+  });
+
   // Xác nhận kết quả điền vào form
   document.getElementById('ocr-confirm-btn').addEventListener('click', () => {
-    const val = parseInt(document.getElementById('ocr-result-input').value, 10);
-    if (!isNaN(val) && _ocrCallback) {
+    const rawValue = document.getElementById('ocr-result-input').value.trim();
+    const val = Number(rawValue);
+    if (/^\d+$/.test(rawValue) && Number.isSafeInteger(val) && _ocrCallback) {
       _ocrCallback(val, { photoDataUrl: _meterPhotoDataUrl() });
+      closeOcrModal();
     }
-    closeOcrModal();
   });
 
   // ============================================================

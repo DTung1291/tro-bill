@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=149" />
+  <link rel="stylesheet" href="style.css?v=150" />
 </head>
 
 <body>
@@ -2910,57 +2910,88 @@
   </div>
 
   <!-- MODAL: OCR Camera -->
-  <div class="modal-overlay" id="ocr-modal" hidden>
-    <div class="modal ocr-modal-inner">
+  <div class="modal-overlay" id="ocr-modal" role="dialog" aria-modal="true" aria-labelledby="ocr-modal-title" aria-describedby="ocr-modal-description" hidden>
+    <div class="modal ocr-modal-inner" data-stage="capture">
       <div class="modal-header">
-        <h2 class="modal-title" id="ocr-modal-title">📷 Chụp chỉ số</h2>
-        <button class="modal-close" id="ocr-modal-close">✕</button>
-      </div>
-
-      <!-- Video element (hidden, used as camera stream source) -->
-      <video id="ocr-video" autoplay playsinline muted style="display: none;"></video>
-
-      <!-- Interactive Canvas for video and image rendering -->
-      <div class="ocr-video-wrap" id="ocr-video-wrap">
-        <canvas id="ocr-canvas" width="1280" height="720" class="ocr-canvas"></canvas>
-        <div class="ocr-guide-box"></div>
-        <div class="ocr-guide-hint" id="ocr-guide-hint">Căn chỉnh hoặc kéo/zoom chữ số vào khung đỏ</div>
-      </div>
-
-      <!-- OCR Controls: Zoom Slider and Invert Checkbox -->
-      <div class="ocr-controls-row">
-        <div class="ocr-zoom-container">
-          <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">🔍 Zoom:</span>
-          <input type="range" id="ocr-zoom-slider" min="0.2" max="6" step="0.05" value="1" class="ocr-zoom-slider" />
+        <div>
+          <span class="ocr-modal-kicker">Ghi chỉ số bằng ảnh</span>
+          <h2 class="modal-title" id="ocr-modal-title">Chụp chỉ số</h2>
+          <p id="ocr-modal-description">Chụp hoặc chọn ảnh, căn đúng dãy số rồi kiểm tra kết quả trước khi dùng.</p>
         </div>
-        <label class="checkbox-label" style="display: flex; align-items: center; gap: 4px; font-size: 0.82rem; cursor: pointer; user-select: none;">
-          <input type="checkbox" id="ocr-invert-check" />
-          <span>Chữ sáng nền tối (Invert)</span>
-        </label>
+        <button type="button" class="modal-close" id="ocr-modal-close" aria-label="Đóng">✕</button>
       </div>
 
-      <!-- OCR Cropped & Preprocessed Image Preview -->
-      <div class="ocr-crop-preview-wrap">
-        <span class="ocr-crop-preview-label">Ảnh gửi quét:</span>
-        <canvas id="ocr-crop-canvas" width="448" height="100" class="ocr-crop-canvas"></canvas>
-      </div>
-      <p class="ocr-status">Chỉ khung số đã thu nhỏ được lưu cùng kỳ hóa đơn; ảnh gốc và metadata vị trí không được tải lên.</p>
+      <div class="ocr-modal-body">
+        <ol class="ocr-journey" aria-label="Quy trình đọc chỉ số">
+          <li class="is-active" data-ocr-step="capture"><span>1</span><div><strong>Chọn ảnh</strong><small>Chụp mới hoặc lấy từ máy</small></div></li>
+          <li data-ocr-step="adjust"><span>2</span><div><strong>Căn dãy số</strong><small>Đưa số vào đúng khung</small></div></li>
+          <li data-ocr-step="review"><span>3</span><div><strong>Xác nhận</strong><small>Kiểm tra trước khi lưu</small></div></li>
+        </ol>
 
-      <!-- Kết quả OCR -->
-      <div class="ocr-result-row">
-        <label class="ocr-result-label">Chữ số nhận diện được:</label>
-        <input type="number" id="ocr-result-input" class="ocr-result-input" placeholder="—" />
-        <span class="ocr-result-hint">(Kiểm tra và sửa nếu cần)</span>
-      </div>
-      <p class="ocr-status" id="ocr-status"></p>
+        <section class="ocr-workspace" aria-labelledby="ocr-capture-heading">
+          <div class="ocr-section-heading">
+            <span>Bước 1–2</span>
+            <div>
+              <h3 id="ocr-capture-heading">Chụp và căn dãy số công tơ</h3>
+              <p>Giữ ảnh rõ, đủ sáng và chỉ đặt dãy số cần đọc trong khung đỏ.</p>
+            </div>
+          </div>
 
-      <!-- Buttons -->
+          <video id="ocr-video" autoplay playsinline muted hidden></video>
+
+          <div class="ocr-video-wrap" id="ocr-video-wrap">
+            <canvas id="ocr-canvas" width="1280" height="720" class="ocr-canvas"></canvas>
+            <div class="ocr-guide-box"></div>
+            <div class="ocr-guide-hint" id="ocr-guide-hint">Căn dãy số vào khung đỏ</div>
+          </div>
+
+          <div class="ocr-controls-row">
+            <label class="ocr-zoom-container" for="ocr-zoom-slider">
+              <span>Thu phóng</span>
+              <input type="range" id="ocr-zoom-slider" min="0.2" max="6" step="0.05" value="1" class="ocr-zoom-slider" />
+            </label>
+            <label class="ocr-invert-control">
+              <input type="checkbox" id="ocr-invert-check" />
+              <span>Chữ sáng trên nền tối</span>
+            </label>
+          </div>
+
+          <div class="ocr-crop-preview-wrap">
+            <div>
+              <span class="ocr-crop-preview-label">Vùng số sẽ được đọc</span>
+              <small>Ảnh thu gọn sau khi căn</small>
+            </div>
+            <canvas id="ocr-crop-canvas" width="448" height="100" class="ocr-crop-canvas"></canvas>
+          </div>
+        </section>
+
+        <section class="ocr-review-card" aria-labelledby="ocr-review-heading">
+          <div class="ocr-section-heading">
+            <span>Bước 3</span>
+            <div>
+              <h3 id="ocr-review-heading">Kiểm tra chỉ số</h3>
+              <p>Bạn có thể sửa trực tiếp nếu máy đọc chưa chính xác.</p>
+            </div>
+          </div>
+          <label class="ocr-result-row" for="ocr-result-input">
+            <span class="ocr-result-label">Chỉ số dùng cho kỳ này</span>
+            <input type="number" min="0" inputmode="numeric" id="ocr-result-input" class="ocr-result-input" placeholder="Nhập chỉ số" />
+            <span class="ocr-result-hint">Đối chiếu lại với ảnh trước khi xác nhận.</span>
+          </label>
+          <p class="ocr-status" id="ocr-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <p class="ocr-privacy-note"><span aria-hidden="true">🔒</span><span>Chỉ vùng số đã thu nhỏ được lưu cùng kỳ hóa đơn. Ảnh gốc và dữ liệu vị trí không được tải lên.</span></p>
+      </div>
+
       <div class="ocr-actions">
-        <button class="btn btn--ghost" id="ocr-library-btn">🖼️ Chọn ảnh</button>
-        <input type="file" id="ocr-file-input" accept="image/*" hidden />
-        <button class="btn btn--primary" id="ocr-capture-btn">📸 Chụp ảnh</button>
-        <button class="btn btn--success" id="ocr-confirm-btn" disabled>✓ Dùng số này</button>
-        <button class="btn btn--ghost" id="ocr-cancel-btn">Hủy</button>
+        <button type="button" class="btn btn--ghost ocr-cancel-action" id="ocr-cancel-btn">Hủy</button>
+        <div class="ocr-primary-actions">
+          <button type="button" class="btn btn--ghost" id="ocr-library-btn">Chọn ảnh</button>
+          <input type="file" id="ocr-file-input" accept="image/*" hidden />
+          <button type="button" class="btn btn--primary" id="ocr-capture-btn">Chụp ảnh</button>
+          <button type="button" class="btn btn--success" id="ocr-confirm-btn" disabled>Dùng chỉ số này</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2970,7 +3001,7 @@
 
   <script src="vendor/html5-qrcode.min.js"></script>
   <script src="api.js?v=116"></script>
-  <script src="ocr.js?v=90"></script>
+  <script src="ocr.js?v=91"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
   <script src="invoice-reference.js?v=84"></script>
