@@ -6586,6 +6586,22 @@ function buildBillPreviewContent(room, rec, bill, period) {
   const paidAmount = Math.min(bill.total, payment.paidAmountVnd);
   const currentRemaining = payment.remainingVnd;
   const remaining = payment.totalDueVnd;
+  const dueDate = payment.dueDate || billDueDate(payment.debtAgePeriod || period, payment.debtAgeIssuedAt);
+  const paymentState = remaining === 0
+    ? 'settled'
+    : payment.overdueDays > 0
+      ? 'overdue'
+      : 'pending';
+  const paymentHeading = remaining === 0
+    ? 'Hóa đơn đã thu đủ'
+    : payment.overdueDays > 0
+      ? `Cần thu ${fmt(remaining)}`
+      : `Cần thanh toán ${fmt(remaining)}`;
+  const paymentGuidance = remaining === 0
+    ? 'Giao dịch đã được ghi nhận đầy đủ trong sổ thu tiền.'
+    : payment.overdueDays > 0
+      ? `Đã quá hạn ${fmtNum(payment.overdueDays)} ngày. Nên gửi nhắc thanh toán cho khách.`
+      : `Hạn thanh toán ${dueDate}. Có thể gửi link hoặc mẫu tin nhắn cho khách.`;
   const transferContent = getVietQrDescription(room, period);
   const qrUrl = remaining > 0 ? genVietQrUrl(room, bill, period, remaining) : null;
   const selectedBankAccount = rentBankAccountForRoom(room);
@@ -6630,8 +6646,27 @@ function buildBillPreviewContent(room, rec, bill, period) {
   }
 
   return `
+    <section class="bill-preview-payment-hero bill-preview-payment-hero--${paymentState}" aria-label="Trạng thái thanh toán">
+      <div class="bill-preview-payment-copy">
+        <span class="bill-preview-payment-label">Trạng thái thanh toán</span>
+        <strong>${escapeHtml(paymentHeading)}</strong>
+        <p>${escapeHtml(paymentGuidance)}</p>
+      </div>
+      <div class="bill-preview-payment-age">
+        ${debtAgeBadge(payment)}
+        <small>${escapeHtml(debtAgeDetails(payment))}</small>
+      </div>
+    </section>
+
     <div class="bill-preview-layout">
       <div class="bill-preview-info">
+        <div class="bill-preview-summary" aria-label="Tóm tắt công nợ">
+          <div><span>Tháng này</span><strong>${fmt(bill.total)}</strong></div>
+          <div><span>Đã thu tháng này</span><strong>${fmt(paidAmount)}</strong></div>
+          <div><span>Còn tháng này</span><strong>${fmt(currentRemaining)}</strong></div>
+          <div class="bill-preview-summary-total"><span>Tổng cần trả</span><strong>${fmt(remaining)}</strong></div>
+        </div>
+
         <div class="bill-preview-meta">
           <div class="bill-preview-meta-item">
             <strong>Mã hóa đơn:</strong>
@@ -6639,14 +6674,7 @@ function buildBillPreviewContent(room, rec, bill, period) {
           </div>
           <div class="bill-preview-meta-item">
             <strong>Hạn thanh toán:</strong>
-            <span>${escapeHtml(payment.dueDate || billDueDate(payment.debtAgePeriod || period, payment.debtAgeIssuedAt))}</span>
-          </div>
-          <div class="bill-preview-meta-item">
-            <strong>Tuổi nợ:</strong>
-            <span class="bill-preview-debt-age">
-              ${debtAgeBadge(payment)}
-              <small>${escapeHtml(debtAgeDetails(payment))}</small>
-            </span>
+            <span>${escapeHtml(dueDate)}</span>
           </div>
           <div class="bill-preview-meta-item">
             <strong>Điện sử dụng:</strong>
@@ -6682,12 +6710,6 @@ function buildBillPreviewContent(room, rec, bill, period) {
           ${rec.note ? `<p class="bill-preview-note">Ghi chú: ${escapeHtml(rec.note)}</p>` : ''}
         </section>
 
-        <div class="bill-preview-summary">
-          <div><span>Tháng này</span><strong>${fmt(bill.total)}</strong></div>
-          <div><span>Đã thu tháng này</span><strong>${fmt(paidAmount)}</strong></div>
-          <div><span>Còn tháng này</span><strong>${fmt(currentRemaining)}</strong></div>
-          <div><span>Tổng cần trả</span><strong>${fmt(remaining)}</strong></div>
-        </div>
       </div>
 
       <aside class="bill-preview-qr-panel">
@@ -6707,7 +6729,8 @@ async function openBillPreview(room, rec, bill, period) {
     }
   }
   activeBillPreview = { room, rec, bill, period };
-  document.getElementById('bill-preview-title').textContent = `Hóa đơn ${room.name} – ${period}`;
+  document.getElementById('bill-preview-title').textContent = `Hóa đơn ${room.name}`;
+  document.getElementById('bill-preview-context').textContent = `${periodLabel(period)} · Đối chiếu công nợ, nội dung chuyển khoản và mã VietQR.`;
   document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(room, rec, bill, period);
   document.getElementById('bill-preview-modal').hidden = false;
 }

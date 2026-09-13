@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=146" />
+  <link rel="stylesheet" href="style.css?v=147" />
 </head>
 
 <body>
@@ -2226,18 +2226,29 @@
 
   <!-- MODAL: Bill preview + VietQR -->
   <div class="modal-overlay" id="bill-preview-modal" hidden>
-    <div class="modal bill-preview-modal">
+    <div class="modal bill-preview-modal" role="dialog" aria-modal="true" aria-labelledby="bill-preview-title" aria-describedby="bill-preview-context">
       <div class="modal-header bill-preview-header">
-        <h2 class="modal-title bill-preview-title" id="bill-preview-title">Hóa đơn</h2>
-        <button type="button" class="btn btn--ghost" id="bill-preview-close-header">Đóng</button>
+        <div>
+          <span class="bill-preview-kicker">Kiểm tra và gửi hóa đơn</span>
+          <h2 class="modal-title bill-preview-title" id="bill-preview-title">Hóa đơn</h2>
+          <p class="bill-preview-context" id="bill-preview-context">Đối chiếu công nợ, nội dung chuyển khoản và mã VietQR.</p>
+        </div>
+        <button type="button" class="modal-close" id="bill-preview-close-header" aria-label="Đóng">✕</button>
       </div>
       <div class="bill-preview-content" id="bill-preview-content"></div>
       <div class="bill-preview-footer">
-        <button type="button" class="btn btn--ghost" id="bill-preview-share-link">🔗 Link khách thuê</button>
-        <button type="button" class="btn btn--ghost" id="bill-preview-message-template">💬 Mẫu tin nhắn</button>
-        <button type="button" class="btn btn--ghost" id="bill-preview-electronic-invoice">🧾 Kiểm tra HĐĐT</button>
-        <button type="button" class="btn btn--ghost" id="bill-preview-close-footer">Đóng</button>
-        <button type="button" class="btn btn--primary" id="bill-preview-print">🖨️ In bill</button>
+        <div class="bill-preview-delivery-actions" aria-label="Gửi hóa đơn cho khách thuê">
+          <span>Gửi cho khách</span>
+          <div>
+            <button type="button" class="btn btn--ghost" id="bill-preview-share-link">🔗 Tạo link</button>
+            <button type="button" class="btn btn--ghost" id="bill-preview-message-template">💬 Soạn tin nhắn</button>
+          </div>
+        </div>
+        <div class="bill-preview-primary-actions">
+          <button type="button" class="btn btn--ghost" id="bill-preview-electronic-invoice">🧾 Kiểm tra HĐĐT</button>
+          <button type="button" class="btn btn--ghost" id="bill-preview-close-footer">Đóng</button>
+          <button type="button" class="btn btn--primary" id="bill-preview-print">🖨️ In bill</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2842,7 +2853,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=148"></script>
+  <script src="app.js?v=149"></script>
 </body>
 
 </html>
