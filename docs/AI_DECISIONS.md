@@ -832,7 +832,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   Báo cáo tài chính đã phát hành tại `9b27b35`, modal Hợp đồng và vòng đời thuê
   tại `fb75eca`, Sổ thu tiền và Sổ cọc tại `1123a3c`, modal Khách trọ tại
   `fa37bba`, form Thêm/Sửa phòng tại `2805e93`, nhóm popup sửa sai dữ liệu tại
-  `8a210bc` ngày 13/09/2026.
+  `8a210bc` và popup xem bill/VietQR tại `46db2a5` ngày 13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -950,6 +950,12 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   dung và xếp dọc trên mobile. Không đổi thuật toán chuyển, clone ID, xác nhận
   ghi đè hoặc API state.
 
+  Lát cắt popup xem bill/VietQR ưu tiên trạng thái thanh toán và tổng tiền,
+  đưa tóm tắt lên trước metadata/chi tiết, đồng thời tách nhóm gửi cho khách
+  khỏi thao tác hóa đơn điện tử, đóng và in. Header/footer cố định, chỉ nội dung
+  cuộn; desktop, tablet và mobile dùng bố cục hành động riêng. Không đổi dữ liệu
+  hóa đơn, công thức công nợ, đường gửi/chia sẻ, VietQR, HĐĐT hoặc phân quyền.
+
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 
 - **Trạng thái:** Áp dụng từ 12/09/2026 tại hotfix `218c33c`, push `main` cùng
@@ -983,3 +989,24 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Tách biệt hợp đồng:** `rental_contracts.payment_due_day` vẫn là ngày trong
   tháng đã thỏa thuận trên hợp đồng. Giao diện phải nói rõ đổi hạn vận hành không
   sửa điều khoản hợp đồng hoặc hóa đơn cũ.
+
+## D-052 — Sổ thu tiền append-only dùng advisory lock, không dùng row lock cần quyền UPDATE
+
+- **Trạng thái:** Đã phát hành Production ngày 13/09/2026 tại hotfix
+  `2c2bdc9`.
+- **Sự cố:** `POST /api/rent-payments/settle` trả 500 với PostgreSQL `42501`
+  (`insufficient_privilege`). Runtime role có đủ `SELECT`, `INSERT` và quyền
+  sequence nhưng cố ý không có `UPDATE` trên sổ thu tiền append-only.
+- **Quyết định:** Replay theo idempotency chỉ đọc biên nhận/giao dịch đã có;
+  không dùng `SELECT ... FOR UPDATE` trên `rent_payment_receipts` hoặc
+  `rent_payment_transactions`. Luồng ghi nhận tiếp tục dùng advisory transaction
+  lock theo idempotency key. Luồng hoàn tác khóa theo transaction bằng advisory
+  transaction lock trước khi kiểm tra và ghi bút toán đảo.
+- **Lý do:** PostgreSQL yêu cầu quyền `UPDATE` để khóa dòng bằng `FOR UPDATE`.
+  Cấp thêm quyền này sẽ phá thiết kế append-only và mở rộng blast radius của
+  runtime role. Advisory lock đã đủ tuần tự hóa hai request cùng định danh mà
+  không cho phép sửa bút toán lịch sử.
+- **Hệ quả:** Không migration và không nới quyền database. Mọi thay đổi tương lai
+  ở sổ thu tiền phải giữ INSERT-only, idempotent và dùng advisory lock khi cần
+  loại trừ đồng thời; không tái thêm row lock trên các bảng ledger nếu runtime
+  role không có quyền UPDATE tương ứng.

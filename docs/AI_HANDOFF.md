@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI popup sửa sai dữ liệu đã phát hành; test mục tiêu 14/14 và toàn bộ 489/489 đạt |
+| Trạng thái | Hotfix ghi nhận thu tiền và lát cắt UX/UI popup xem bill đã phát hành; toàn bộ 495/495 test đạt |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
-| Phần ứng dụng phát hành gần nhất | `8a210bc` làm mới popup sửa sai dữ liệu; CI `34729126349` xanh, Production revision `8a210bc0c7b9` và readiness đã xác minh |
-| Việc code tiếp theo | Tiếp tục rà và làm mới lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
+| Phần ứng dụng phát hành gần nhất | `2c2bdc9` sửa lỗi sổ thu tiền append-only; CI `34744275334` xanh, Production revision `2c2bdc998cae` và readiness đã xác minh |
+| Việc code tiếp theo | Người dùng thử lại “Ghi nhận thu tiền”, sau đó tiếp tục lát cắt UX/UI có tần suất sử dụng cao tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,24 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Hotfix “Ghi nhận thu tiền” đã phát hành: log Production xác nhận PostgreSQL
+  `42501 insufficient_privilege` tại `POST /api/rent-payments/settle`. Nguyên
+  nhân là `FOR UPDATE` trên hai ledger append-only trong khi runtime role cố ý
+  không có quyền UPDATE. Bản sửa bỏ row lock ở nhánh replay, giữ advisory lock
+  theo idempotency và thêm advisory lock riêng cho hoàn tác; không migration,
+  không nới quyền database. Test mục tiêu 29/29, toàn suite 495/495, secret scan
+  và diff check sạch. Commit `2c2bdc9` đã push; CI `34744275334` thành công và
+  alias Production trả revision `2c2bdc998cae`, database/schema `ok`, runtime
+  role `restricted`. Việc xác nhận cuối là người dùng thử lại đúng hóa đơn bị
+  lỗi; request lỗi trước đó đã rollback nên không tạo bút toán dở dang.
+
+- Lát cắt UX/UI popup xem bill/VietQR đã phát hành: header có ngữ cảnh hóa đơn,
+  trạng thái thanh toán và tổng tiền được ưu tiên, tóm tắt đứng trước metadata,
+  nhóm gửi cho khách tách khỏi HĐĐT/đóng/in. Modal chỉ cuộn phần nội dung và
+  hành động responsive theo desktop/tablet/mobile. Không đổi API, số tiền,
+  ledger, VietQR, gửi/chia sẻ hoặc phân quyền. CSS pin tăng `146 → 147`, app
+  pin tăng `148 → 149`; commit `46db2a5` đã phát hành cùng đợt hotfix.
 
 - Lát cắt UX/UI popup sửa sai dữ liệu đã phát hành: sửa chỉ số cũ, chuyển kỳ
   chỉ số và chuyển kỳ chi phí dùng cùng phân cấp. Nguồn → đích và hậu quả của
