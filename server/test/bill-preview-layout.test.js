@@ -42,5 +42,5 @@ test('popup hóa đơn xếp hành động rõ ràng trên tablet và mobile', (
 });
 
 test('asset pin tải đúng CSS và JavaScript của lát cắt hóa đơn', () => {
-  assert.match(html, /href="style\.css\?v=148"[\s\S]*src="app\.js\?v=150"/);
+  assert.match(html, /href="style\.css\?v=149"[\s\S]*src="app\.js\?v=151"/);
 });

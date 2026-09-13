@@ -190,8 +190,8 @@ test('UI quản lý, lọc, gắn phòng theo khu và giữ cấu trúc khi impo
   assert.doesNotMatch(app, /contract-property-address'\)\.value = '40 Vũ Hữu/);
   assert.match(api, /request\('POST', '\/api\/properties'/);
   assert.match(api, /request\('PATCH', `\/api\/properties/);
-  assert.match(css, /\.property-modal-body[\s\S]*grid-template-columns/);
-  assert.match(css, /@media \(max-width:[\s\S]*\.property-modal-body \{ grid-template-columns: 1fr/);
+  assert.match(css, /\.property-workspace[\s\S]*grid-template-columns/);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.property-workspace \{ grid-template-columns: minmax\(0, 1fr\)/);
 });
 
 test('dashboard lọc theo khu và chi phí giữ tương thích dữ liệu chung', () => {

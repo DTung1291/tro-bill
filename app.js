@@ -5292,35 +5292,63 @@ function renderPropertyControls() {
   renderRoomPropertyOptions();
 }
 
+function renderPropertyOverview() {
+  const defaultProperty = STATE.properties.find(property => property.isDefault) || null;
+  const totalCount = document.getElementById('property-total-count');
+  const roomTotal = document.getElementById('property-room-total');
+  const defaultName = document.getElementById('property-default-name');
+  const listCount = document.getElementById('property-list-count');
+  if (totalCount) totalCount.textContent = String(STATE.properties.length);
+  if (roomTotal) roomTotal.textContent = String(STATE.rooms.length);
+  if (defaultName) defaultName.textContent = defaultProperty?.name || 'Chưa xác định';
+  if (listCount) listCount.textContent = `${STATE.properties.length} khu`;
+}
+
 function resetPropertyForm() {
   const form = document.getElementById('property-form');
   form.reset();
+  form.dataset.mode = 'create';
   document.getElementById('property-id').value = '';
+  document.getElementById('property-form-mode').textContent = 'Thêm mới';
   document.getElementById('property-form-title').textContent = 'Thêm khu mới';
+  document.getElementById('property-form-help').textContent =
+    'Tạo địa điểm trước, sau đó gắn phòng khi thêm hoặc sửa phòng.';
   document.getElementById('property-form-submit').textContent = 'Thêm khu';
   document.getElementById('property-form-cancel').hidden = true;
+  document.querySelectorAll('.property-card.is-editing').forEach(card => {
+    card.classList.remove('is-editing');
+  });
 }
 
 function renderPropertyList() {
   const list = document.getElementById('property-list');
   list.innerHTML = '';
+  renderPropertyOverview();
   for (const property of STATE.properties) {
     const count = propertyRoomCount(property.id);
-    const item = document.createElement('div');
+    const item = document.createElement('article');
     item.className = 'property-card';
+    item.dataset.propertyId = String(property.id);
+    const hasDetails = property.address || property.note;
     item.innerHTML = `
-      <div>
-        <div class="property-card__name">${escapeHtml(property.name)}</div>
+      <span class="property-card__icon" aria-hidden="true">🏢</span>
+      <div class="property-card__content">
+        <div class="property-card__title-row">
+          <strong class="property-card__name">${escapeHtml(property.name)}</strong>
+          ${property.isDefault ? '<span class="property-default-label">Mặc định</span>' : ''}
+          <span class="property-card__room-count">${count} phòng</span>
+        </div>
         <div class="property-card__meta">
-          ${property.isDefault ? '<span class="property-default-label">Khu mặc định</span> · ' : ''}${count} phòng
-          ${property.address ? `<br>${escapeHtml(property.address)}` : ''}
-          ${property.note ? `<br>${escapeHtml(property.note)}` : ''}
+          ${property.address ? `<span>📍 ${escapeHtml(property.address)}</span>` : ''}
+          ${property.note ? `<span>📝 ${escapeHtml(property.note)}</span>` : ''}
+          ${hasDetails ? '' : '<span>Chưa có địa chỉ hoặc ghi chú.</span>'}
         </div>
       </div>
       <div class="property-card__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-property-edit="${property.id}">Sửa</button>
-        ${property.isDefault ? '' : `<button type="button" class="btn btn--danger btn--sm" data-property-delete="${property.id}" ${count > 0 ? 'disabled title="Hãy chuyển hết phòng trước khi xóa"' : ''}>Xóa</button>`}
+        <button type="button" class="btn btn--ghost btn--sm" data-property-edit="${property.id}" aria-label="Sửa khu ${escapeHtml(property.name)}">Sửa</button>
+        ${property.isDefault ? '' : `<button type="button" class="btn btn--danger btn--sm" data-property-delete="${property.id}" ${count > 0 ? 'disabled' : ''} aria-label="Xóa khu ${escapeHtml(property.name)}">Xóa</button>`}
       </div>
+      ${!property.isDefault && count > 0 ? '<span class="property-card__delete-note">Chuyển hết phòng sang khu khác để có thể xóa.</span>' : ''}
     `;
     list.appendChild(item);
   }
@@ -5332,9 +5360,17 @@ function renderPropertyList() {
       document.getElementById('property-name').value = property.name;
       document.getElementById('property-address').value = property.address;
       document.getElementById('property-note').value = property.note;
+      document.getElementById('property-form').dataset.mode = 'edit';
+      document.getElementById('property-form-mode').textContent = 'Đang chỉnh sửa';
       document.getElementById('property-form-title').textContent = `Sửa ${property.name}`;
+      document.getElementById('property-form-help').textContent =
+        'Thay đổi tên, địa chỉ hoặc ghi chú. Các phòng đang gắn với khu vẫn được giữ nguyên.';
       document.getElementById('property-form-submit').textContent = 'Lưu thay đổi';
       document.getElementById('property-form-cancel').hidden = false;
+      list.querySelectorAll('.property-card.is-editing').forEach(card => {
+        card.classList.remove('is-editing');
+      });
+      button.closest('.property-card')?.classList.add('is-editing');
       document.getElementById('property-name').focus();
     });
   });

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=148" />
+  <link rel="stylesheet" href="style.css?v=149" />
 </head>
 
 <body>
@@ -1698,33 +1698,69 @@
 
   <!-- MODAL: Quản lý khu / tòa nhà -->
   <div class="modal-overlay" id="property-modal" hidden>
-    <div class="modal property-modal" role="dialog" aria-modal="true" aria-labelledby="property-modal-title">
-      <div class="modal-header">
+    <div class="modal property-modal" role="dialog" aria-modal="true" aria-labelledby="property-modal-title" aria-describedby="property-modal-description">
+      <div class="modal-header property-modal-header">
         <div>
+          <span class="property-modal-kicker">Cấu trúc vận hành</span>
           <h2 class="modal-title" id="property-modal-title">Quản lý khu / tòa nhà</h2>
-          <p class="page-sub">Tạo nhiều khu và gắn từng phòng vào đúng khu.</p>
+          <p class="property-modal-description" id="property-modal-description">Tổ chức phòng theo đúng địa điểm để lọc dashboard, chi phí và tài khoản nhận tiền.</p>
         </div>
         <button type="button" class="modal-close" id="property-modal-close" aria-label="Đóng">✕</button>
       </div>
       <div class="property-modal-body">
-        <div class="property-list" id="property-list"></div>
-        <form class="property-form" id="property-form">
-          <input type="hidden" id="property-id" />
-          <h3 id="property-form-title">Thêm khu mới</h3>
-          <label class="form-label">Tên khu *
-            <input class="form-input" id="property-name" type="text" maxlength="200" required placeholder="VD: Khu Nguyễn Văn Linh" />
-          </label>
-          <label class="form-label">Địa chỉ
-            <input class="form-input" id="property-address" type="text" maxlength="1000" placeholder="Số nhà, đường, phường/xã..." />
-          </label>
-          <label class="form-label">Ghi chú
-            <textarea class="form-input" id="property-note" maxlength="500" rows="2"></textarea>
-          </label>
-          <div class="modal-actions">
-            <button type="button" class="btn btn--ghost btn--sm" id="property-form-cancel" hidden>Hủy sửa</button>
-            <button type="submit" class="btn btn--primary btn--sm" id="property-form-submit">Thêm khu</button>
+        <section class="property-overview" aria-label="Tổng quan khu trọ" aria-live="polite">
+          <div class="property-overview-item">
+            <span>Tổng số khu</span>
+            <strong id="property-total-count">0</strong>
           </div>
-        </form>
+          <div class="property-overview-item">
+            <span>Tổng số phòng</span>
+            <strong id="property-room-total">0</strong>
+          </div>
+          <div class="property-overview-item property-overview-item--default">
+            <span>Khu mặc định</span>
+            <strong id="property-default-name">—</strong>
+          </div>
+        </section>
+
+        <div class="property-workspace">
+          <section class="property-directory" aria-labelledby="property-directory-title">
+            <div class="property-section-heading">
+              <div>
+                <span>Danh mục hiện tại</span>
+                <h3 id="property-directory-title">Các khu đang quản lý</h3>
+              </div>
+              <strong class="property-section-count" id="property-list-count">0 khu</strong>
+            </div>
+            <div class="property-list" id="property-list"></div>
+          </section>
+
+          <form class="property-form" id="property-form" data-mode="create">
+            <input type="hidden" id="property-id" />
+            <div class="property-form-heading">
+              <span id="property-form-mode">Thêm mới</span>
+              <h3 id="property-form-title">Thêm khu mới</h3>
+              <p id="property-form-help">Tạo địa điểm trước, sau đó gắn phòng khi thêm hoặc sửa phòng.</p>
+            </div>
+            <label class="property-form-field" for="property-name">
+              <span class="form-label">Tên khu *</span>
+              <input class="form-input" id="property-name" type="text" maxlength="200" required autocomplete="organization" placeholder="VD: Khu Nguyễn Văn Linh" />
+            </label>
+            <label class="property-form-field" for="property-address">
+              <span class="form-label">Địa chỉ</span>
+              <input class="form-input" id="property-address" type="text" maxlength="1000" autocomplete="street-address" placeholder="Số nhà, đường, phường/xã..." />
+            </label>
+            <label class="property-form-field" for="property-note">
+              <span class="form-label">Ghi chú</span>
+              <textarea class="form-input" id="property-note" maxlength="500" rows="3" placeholder="Thông tin nội bộ giúp phân biệt khu"></textarea>
+            </label>
+            <p class="property-form-note">Khu mặc định không thể xóa. Khu đang có phòng chỉ xóa được sau khi chuyển hết phòng sang khu khác.</p>
+            <div class="modal-actions property-form-actions">
+              <button type="button" class="btn btn--ghost" id="property-form-cancel" hidden>Hủy chỉnh sửa</button>
+              <button type="submit" class="btn btn--primary" id="property-form-submit">Thêm khu</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -2945,7 +2981,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=150"></script>
+  <script src="app.js?v=151"></script>
 </body>
 
 </html>
