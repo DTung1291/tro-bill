@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 12/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Chính sách hạn hóa đơn cấu hình được và UX/UI Cài đặt đã phát hành; migration Preview/Production đạt 4/4, 483/483 test đạt |
+| Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Lát cắt UX/UI Báo cáo tài chính hoàn thành local; toàn bộ 484/484 test đạt, chưa commit/push |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
-| Phần ứng dụng phát hành gần nhất | `6bcddd4` chính sách hạn hóa đơn cấu hình được; CI xanh, Production revision `6bcddd475ec9` và readiness đã xác minh |
-| Việc code tiếp theo | Chọn lát cắt UX/UI kế tiếp, giữ nguyên snapshot hạn của hóa đơn lịch sử |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt Báo cáo tài chính; không đè hoặc tách bỏ trước khi bàn giao |
+| Phần ứng dụng phát hành gần nhất | `6bcddd4` chính sách hạn hóa đơn và `cd1520a` tài liệu rollout; CI xanh, Production revision `cd1520aa6bd2` và readiness đã xác minh |
+| Việc code tiếp theo | Người dùng kiểm tra Báo cáo tài chính; nếu đạt thì commit/push trước khi chọn lát cắt UX/UI tiếp theo |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,14 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI Báo cáo tài chính hoàn thành local: tách header, nguồn dữ liệu,
+  bộ lọc phạm vi và kết quả; đưa lợi nhuận tiền mặt thành thẻ chính, nhóm cơ cấu
+  doanh thu/tiền cọc và hiệu suất phòng thành bề mặt riêng. Desktop dùng lưới
+  12 cột; dưới 640px thao tác xếp dọc và dưới 480px mọi bộ lọc/chỉ số về một cột.
+  Không đổi API, công thức, bộ lọc, xuất Excel/PDF hoặc quyền workspace. CSS pin
+  tăng `140 → 141`; test mục tiêu 20/20 và toàn suite ngoài sandbox 484/484 đạt.
+  Chưa commit, push hoặc kiểm tra dữ liệu thật ở mốc ghi chú này.
 
 - Đã hoàn thành chính sách hạn hóa đơn cấu hình được: setting
   `invoiceDueDays` (1–90), snapshot bất biến `rent_invoices.due_date`, summary/

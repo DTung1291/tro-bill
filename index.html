@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=140" />
+  <link rel="stylesheet" href="style.css?v=141" />
 </head>
 
 <body>
@@ -446,11 +446,12 @@
           </div>
         </div>
       </div>
-      <section class="financial-report" aria-labelledby="financial-report-title">
+      <section class="financial-report" aria-labelledby="financial-report-title" aria-describedby="financial-report-subtitle">
         <div class="financial-report-header">
           <div>
+            <span class="financial-report-kicker">Phân tích vận hành</span>
             <h2 class="section-title" id="financial-report-title">Báo cáo tài chính</h2>
-            <p class="financial-report-subtitle">Số liệu từ hóa đơn, sổ thu tiền và chi phí đã lưu trên máy chủ.</p>
+            <p class="financial-report-subtitle" id="financial-report-subtitle">Theo dõi dòng tiền, công nợ và hiệu suất phòng từ dữ liệu đã lưu trên máy chủ.</p>
           </div>
           <div class="financial-report-actions">
             <button class="btn btn--sm btn--ghost" id="financial-report-export-excel" type="button" disabled>📊 Xuất Excel</button>
@@ -458,46 +459,67 @@
             <button class="btn btn--sm btn--ghost" id="financial-report-refresh" type="button">↻ Làm mới</button>
           </div>
         </div>
-        <div class="financial-report-filters" aria-label="Bộ lọc báo cáo tài chính">
-          <label>
-            <span>Khoảng thời gian</span>
-            <select class="form-input" id="financial-report-period-type">
-              <option value="month">Theo tháng</option>
-              <option value="quarter">Theo quý</option>
-              <option value="year">Theo năm</option>
-            </select>
-          </label>
-          <label id="financial-report-month-wrap">
-            <span>Tháng</span>
-            <input class="form-input" type="month" id="financial-report-month" aria-label="Tháng báo cáo tài chính" />
-          </label>
-          <label id="financial-report-year-wrap" hidden>
-            <span>Năm</span>
-            <input class="form-input" type="number" id="financial-report-year" min="2000" max="9999" step="1" inputmode="numeric" />
-          </label>
-          <label id="financial-report-quarter-wrap" hidden>
-            <span>Quý</span>
-            <select class="form-input" id="financial-report-quarter">
-              <option value="1">Quý 1</option>
-              <option value="2">Quý 2</option>
-              <option value="3">Quý 3</option>
-              <option value="4">Quý 4</option>
-            </select>
-          </label>
-          <label>
-            <span>Khu</span>
-            <select class="form-input" id="financial-report-property">
-              <option value="">Tất cả khu</option>
-            </select>
-          </label>
-          <label>
-            <span>Phòng</span>
-            <select class="form-input" id="financial-report-room">
-              <option value="">Tất cả phòng</option>
-            </select>
-          </label>
+        <div class="financial-report-control-panel">
+          <div class="financial-report-control-heading">
+            <div>
+              <strong>Phạm vi báo cáo</strong>
+              <span>Chọn kỳ, khu hoặc phòng cần đối chiếu.</span>
+            </div>
+            <span class="financial-report-source"><span aria-hidden="true">●</span> Dữ liệu máy chủ</span>
+          </div>
+          <div class="financial-report-filters" aria-label="Bộ lọc báo cáo tài chính">
+            <label>
+              <span>Khoảng thời gian</span>
+              <select class="form-input" id="financial-report-period-type">
+                <option value="month">Theo tháng</option>
+                <option value="quarter">Theo quý</option>
+                <option value="year">Theo năm</option>
+              </select>
+            </label>
+            <label id="financial-report-month-wrap">
+              <span>Tháng</span>
+              <input class="form-input" type="month" id="financial-report-month" aria-label="Tháng báo cáo tài chính" />
+            </label>
+            <label id="financial-report-year-wrap" hidden>
+              <span>Năm</span>
+              <input class="form-input" type="number" id="financial-report-year" min="2000" max="9999" step="1" inputmode="numeric" />
+            </label>
+            <label id="financial-report-quarter-wrap" hidden>
+              <span>Quý</span>
+              <select class="form-input" id="financial-report-quarter">
+                <option value="1">Quý 1</option>
+                <option value="2">Quý 2</option>
+                <option value="3">Quý 3</option>
+                <option value="4">Quý 4</option>
+              </select>
+            </label>
+            <label>
+              <span>Khu</span>
+              <select class="form-input" id="financial-report-property">
+                <option value="">Tất cả khu</option>
+              </select>
+            </label>
+            <label>
+              <span>Phòng</span>
+              <select class="form-input" id="financial-report-room">
+                <option value="">Tất cả phòng</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="financial-report-section-head">
+          <div>
+            <strong>Kết quả tài chính</strong>
+            <span>Ưu tiên dòng tiền thực nhận sau chi phí.</span>
+          </div>
+          <span>Đơn vị: VNĐ</span>
         </div>
         <div class="financial-report-grid" id="financial-report-grid" aria-live="polite">
+          <article class="financial-metric financial-metric--profit">
+            <span class="financial-metric-label">Lợi nhuận tiền mặt</span>
+            <strong class="financial-metric-value" id="financial-report-profit">—</strong>
+            <small>Thực thu trừ chi phí thực tế</small>
+          </article>
           <article class="financial-metric financial-metric--revenue">
             <span class="financial-metric-label">Doanh thu hóa đơn</span>
             <strong class="financial-metric-value" id="financial-report-revenue">—</strong>
@@ -518,15 +540,13 @@
             <strong class="financial-metric-value" id="financial-report-expenses">—</strong>
             <small>Khoản đã trả được ghi trong kỳ</small>
           </article>
-          <article class="financial-metric financial-metric--profit">
-            <span class="financial-metric-label">Lợi nhuận tiền mặt</span>
-            <strong class="financial-metric-value" id="financial-report-profit">—</strong>
-            <small>Thực thu trừ chi phí thực tế</small>
-          </article>
         </div>
         <section class="financial-breakdown" aria-labelledby="financial-breakdown-title">
           <div class="financial-breakdown-header">
-            <h3 id="financial-breakdown-title">Cơ cấu doanh thu và tiền cọc</h3>
+            <div>
+              <span class="financial-report-section-kicker">Nguồn hình thành</span>
+              <h3 id="financial-breakdown-title">Cơ cấu doanh thu và tiền cọc</h3>
+            </div>
             <p>Tiền cọc là dòng tiền riêng, không cộng vào doanh thu hóa đơn.</p>
           </div>
           <div class="financial-breakdown-grid">
@@ -602,6 +622,7 @@
         <section class="occupancy-report" aria-labelledby="occupancy-report-title">
           <div class="occupancy-report-header">
             <div>
+              <span class="financial-report-section-kicker">Hiệu suất tài sản</span>
               <h3 id="occupancy-report-title">Lấp đầy và thời gian phòng trống</h3>
               <p id="occupancy-report-note">Tính theo ngày đã quan sát trên danh sách phòng hiện tại.</p>
             </div>

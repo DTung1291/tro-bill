@@ -829,6 +829,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tế/Lịch sử tháng tại `627f2c9`, Cài đặt vận hành tại `aaa5f0f`, Super Admin
   tại `b8745fc`, khung điều hướng ứng dụng tại `2c965b9`, hóa đơn công khai tại
   `9a60a20`; cổng báo sửa đã hoàn thành, kiểm thử và push trong đợt 12/09/2026.
+  Báo cáo tài chính đã hoàn thành local trong lát cắt kế tiếp ngày 13/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -906,6 +907,12 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   giải thích, không tự thay đổi ưu tiên. Sau khi gửi, trạng thái và lịch sử cập
   nhật từ response idempotent hiện có. Token tiếp tục được xóa khỏi fragment,
   không lưu trình duyệt và không mở rộng dữ liệu công khai.
+
+  Lát cắt Báo cáo tài chính ưu tiên lợi nhuận tiền mặt thành chỉ số chính, tách
+  bộ lọc phạm vi khỏi kết quả và chia rõ cơ cấu doanh thu với hiệu suất phòng.
+  Desktop dùng lưới bất đối xứng để đọc nhanh quyết định dòng tiền; mobile thu
+  toàn bộ bộ lọc, chỉ số và thẻ chi tiết về một cột. Công thức, dữ liệu máy chủ,
+  bộ lọc, xuất Excel/PDF và quyền theo workspace không thay đổi.
 
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 
