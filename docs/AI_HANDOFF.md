@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 14/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Hóa đơn một trang, ảnh đồng hồ màu và điều khiển upload/zoom hoàn tất tại `b27ea27`; toàn bộ 518/518 test đạt |
+| Trạng thái | Bản in hóa đơn khôi phục nhịp bố cục cũ, giữ ảnh đồng hồ lớn và cột VietQR không tràn; toàn bộ 518/518 test đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi đẩy lát cắt hóa đơn lên `main` |
-| Phần ứng dụng phát hành gần nhất | `d98f20a` làm mới popup chụp/đọc chỉ số; CI `34759172986` xanh, Production revision `f700449a501a` và readiness đã xác minh |
-| Việc code tiếp theo | Tạm dừng improve UI/UX theo yêu cầu người dùng; chỉ tiếp tục khi có yêu cầu mới |
+| Worktree kỳ vọng | Sạch sau khi đẩy tài liệu phát hành lên `main` |
+| Phần ứng dụng phát hành gần nhất | `5d165c0` khôi phục layout in/PDF hóa đơn cũ và đặt hai ảnh đồng hồ phía dưới; CI `34826020266` xanh, Production revision `5d165c0062d8` và readiness đã xác minh |
+| Việc code tiếp theo | Chờ người dùng smoke test In bill trên Production; không thay đổi popup Xem bill + VietQR |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,22 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt hóa đơn một trang và ảnh đồng hồ hoàn thành local: popup hóa đơn đọc
+- Tinh chỉnh bản in/PDF hóa đơn đã phát hành: tái tạo mẫu tham chiếu cũ
+  với tiêu đề 18 pt, metadata/tuổi nợ ở đầu, chi tiết ở giữa, bốn thẻ tổng tiền
+  ở cuối cột trái và VietQR 66 mm ở cột phải. Khung QR, ô người nhận, màu tổng
+  cần trả và nút Sao chép được giữ đúng phân cấp của mẫu. Hai ảnh đồng hồ nằm
+  dưới cùng, trải toàn chiều rộng trang theo tỷ lệ 16:9; khối trạng thái lớn chỉ
+  ẩn khi in. Hàm in phải bọc nội dung trong `.bill-preview-content`; thiếu wrapper
+  này làm summary lên đầu, chi tiết full-width và VietQR rơi xuống dưới dù CSS
+  đúng. PDF QA đã render đúng một trang A4, không tràn hoặc cắt nội dung.
+  Popup Xem bill + VietQR không thay đổi. Asset pin CSS tăng `156 → 157`, app
+  tăng `153 → 154`; toàn bộ 518/518 test đạt. Commit ứng dụng `5d165c0` đã push;
+  CI `34826020266` thành công, deployment Production
+  `dpl_5RQkqdo3SgnPL2PBVi376DMNr3ek` ở trạng thái `Ready`; alias chính trả HTTP
+  200 với revision `5d165c0062d8`, database/schema `ok`, runtime role
+  `restricted` và đúng pins `style 157 / app 154`.
+
+- Lát cắt hóa đơn một trang và ảnh đồng hồ đã phát hành: popup hóa đơn đọc
   ảnh điện/nước theo đúng `user_id + room_id + period`, hiển thị hai thẻ minh
   chứng và cho thêm/thay ảnh ngay tại hóa đơn. Chế độ minh chứng là trình chỉnh
   ảnh màu 16:9 riêng: không có khung đỏ/preview grayscale của OCR, kéo và zoom
@@ -111,7 +126,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   và VietQR đạt đúng 1/1 trang, đã render PNG và kiểm tra không cắt/chồng nội
   dung. Asset pin tăng style `151 → 156`, API `116 → 117`, OCR `91 → 94`, app
   `152 → 153`; test mục tiêu 18/18 và toàn suite ngoài sandbox 518/518 đạt.
-  Không có migration mới; chưa commit/push/deploy hoặc smoke test dữ liệu thật.
+  Không có migration mới; phần ứng dụng nằm trong commit `b27ea27` và đã có mặt
+  trên Production trong revision kế tiếp `5d165c0062d8`.
 
 - Lát cắt UX/UI Ghi nhận thu tiền và accessibility popup hoàn thành local: popup
   thu tiền tách kiểm tra công nợ khỏi thông tin giao dịch, ưu tiên tổng còn phải
