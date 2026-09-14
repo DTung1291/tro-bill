@@ -6968,6 +6968,13 @@ function buildBillPreviewContent(room, rec, bill, period, meterPhotoState = {}) 
             <strong>Hạn thanh toán:</strong>
             <span>${escapeHtml(dueDate)}</span>
           </div>
+          <div class="bill-preview-meta-item bill-preview-print-debt-age">
+            <strong>Tuổi nợ:</strong>
+            <span class="bill-preview-debt-age">
+              ${debtAgeBadge(payment)}
+              <small>${escapeHtml(debtAgeDetails(payment))}</small>
+            </span>
+          </div>
           <div class="bill-preview-meta-item">
             <strong>Điện sử dụng:</strong>
             <span>${fmtNum(bill.kwh)} kWh</span>
@@ -7528,7 +7535,9 @@ async function printBillPreview() {
   printArea.innerHTML = `
     <article class="single-bill-print">
       <h1>Hóa đơn ${escapeHtml(room.name)} – ${escapeHtml(period)}</h1>
-      ${buildBillPreviewContent(room, rec, bill, period, meterPhotoState)}
+      <div class="bill-preview-content">
+        ${buildBillPreviewContent(room, rec, bill, period, meterPhotoState)}
+      </div>
     </article>`;
   await waitForBillPreviewImages(printArea);
   closeBillPreview();

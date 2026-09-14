@@ -43,10 +43,24 @@ test('hóa đơn tải, upload và hiển thị ảnh đồng hồ điện nư�
 });
 
 test('bản in hóa đơn dùng trang A4 riêng và bố cục compact một trang', () => {
+  assert.match(app, /printArea\.innerHTML\s*=\s*`[\s\S]*?<article class="single-bill-print">[\s\S]*?<div class="bill-preview-content">[\s\S]*?buildBillPreviewContent\(room, rec, bill, period, meterPhotoState\)/);
   assert.match(css, /body:has\(\.single-bill-print\)\s*\{\s*page:\s*singleBill;/);
   assert.match(css, /@page singleBill\s*\{[\s\S]*?size:\s*A4 portrait;[\s\S]*?margin:\s*8mm;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-content\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 66mm;[\s\S]*?column-gap:\s*5mm;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-payment-hero\s*\{\s*display:\s*none;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-layout,[\s\S]*?\.single-bill-print \.bill-preview-info\s*\{\s*display:\s*contents !important;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-summary\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*3;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-meter-photos\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-row:\s*4;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-qr-panel\s*\{[^}]*max-width:\s*66mm;[^}]*overflow:\s*hidden;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-meter-photo-frame\s*\{[^}]*width:\s*100%;[^}]*height:\s*auto;[^}]*aspect-ratio:\s*16 \/ 9;[^}]*max-height:\s*none;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-meter-photo-card\s*\{[^}]*border:\s*0;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-qr-frame\s*\{[^}]*padding:\s*6px;[^}]*border:\s*1px solid #ddd;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-summary-total strong\s*\{\s*color:\s*var\(--primary\);/);
+  assert.match(css, /\.single-bill-print \.bill-preview-transfer-reference \.btn\s*\{[^}]*display:\s*inline-flex;/);
   assert.match(css, /\.single-bill-print \.bill-preview-meter-photos\.is-empty\s*\{\s*display:\s*none;/);
   assert.match(css, /\.single-bill-print \.bill-preview-meter-upload\s*\{\s*display:\s*none;/);
+  assert.match(app, /bill-preview-print-debt-age[\s\S]*?Tuổi nợ:/);
+  assert.match(css, /\.single-bill-print \.bill-preview-print-debt-age\s*\{\s*display:\s*flex;/);
 });
 
 test('popup giữ header và footer trong viewport, chỉ cuộn nội dung', () => {
@@ -63,5 +77,5 @@ test('popup hóa đơn xếp hành động rõ ràng trên tablet và mobile', (
 });
 
 test('asset pin tải đúng CSS và JavaScript của lát cắt hóa đơn', () => {
-  assert.match(html, /href="style\.css\?v=156"[\s\S]*src="api\.js\?v=117"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=153"/);
+  assert.match(html, /href="style\.css\?v=157"[\s\S]*src="api\.js\?v=117"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=154"/);
 });

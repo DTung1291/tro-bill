@@ -4052,6 +4052,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .bill-preview-meta-item strong { font-size: .82rem; color: var(--text); }
 .bill-preview-meta-item span { color: var(--text-muted); overflow-wrap: anywhere; }
+.bill-preview-print-debt-age { display: none; }
 .bill-preview-debt-age {
   display: flex;
   align-items: flex-start;
@@ -7580,47 +7581,72 @@ body.workspace-staff-active .main { padding-top: 112px; }
     color: #111;
     font-size: 8pt;
   }
+  .single-bill-print,
+  .single-bill-print * { box-sizing: border-box; }
   .single-bill-print > h1 {
-    margin: 0 0 7px;
-    padding-bottom: 6px;
+    margin: 0 0 18px;
+    padding-bottom: 12px;
     border-bottom: 2px solid #ddd;
     color: #111;
-    font-size: 14pt;
+    font-size: 18pt;
   }
-  .single-bill-print .bill-preview-content { padding: 0; }
-  .single-bill-print .bill-preview-payment-hero {
-    align-items: center;
-    flex-direction: row;
-    gap: 8px;
-    margin-bottom: 7px;
-    padding: 7px 9px;
-    border-color: #ddd;
-    background: #fff;
+  .single-bill-print .bill-preview-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 66mm;
+    column-gap: 5mm;
+    row-gap: 4mm;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
   }
-  .single-bill-print .bill-preview-payment-label { margin-bottom: 1px; font-size: 6pt; }
-  .single-bill-print .bill-preview-payment-copy > strong { font-size: 11pt; }
-  .single-bill-print .bill-preview-payment-copy > p { margin-top: 2px; font-size: 6.5pt; }
-  .single-bill-print .bill-preview-payment-age { gap: 2px; }
-  .single-bill-print .bill-preview-payment-age small { font-size: 6pt; }
-  .single-bill-print .bill-preview-layout {
-    display: grid !important;
-    grid-template-columns: minmax(0, calc(100% - 64mm)) 56mm !important;
-    gap: 8px;
+  .single-bill-print .bill-preview-payment-hero { display: none; }
+  .single-bill-print .bill-preview-layout,
+  .single-bill-print .bill-preview-info { display: contents !important; }
+  .single-bill-print .bill-preview-meta { grid-column: 1; grid-row: 1; }
+  .single-bill-print .bill-preview-details { grid-column: 1; grid-row: 2; }
+  .single-bill-print .bill-preview-summary { grid-column: 1; grid-row: 3; }
+  .single-bill-print .bill-preview-meter-photos { grid-column: 1 / -1; grid-row: 4; }
+  .single-bill-print .bill-preview-qr-panel {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: start;
+    width: 100%;
+    min-width: 0;
+    max-width: 66mm;
+    overflow: hidden;
   }
-  .single-bill-print .bill-preview-info { grid-column: 1; }
-  .single-bill-print .bill-preview-qr-panel { grid-column: 2; }
-  .single-bill-print .bill-preview-summary { gap: 4px; margin-bottom: 7px; }
-  .single-bill-print .bill-preview-summary > div { gap: 1px; padding: 5px 6px; }
-  .single-bill-print .bill-preview-summary span { font-size: 6pt; }
-  .single-bill-print .bill-preview-summary strong { font-size: 7.5pt; }
-  .single-bill-print .bill-preview-meta { gap: 3px 9px; margin: 6px 0; }
+  .single-bill-print .bill-preview-summary { gap: 10px; margin: 0; }
+  .single-bill-print .bill-preview-summary > div {
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: var(--radius);
+  }
+  .single-bill-print .bill-preview-summary-total {
+    border-color: #ddd !important;
+    background: #fff !important;
+  }
+  .single-bill-print .bill-preview-summary-total strong { color: var(--primary); }
+  .single-bill-print .bill-preview-summary span { font-size: 8pt; }
+  .single-bill-print .bill-preview-summary strong { font-size: 11pt; }
+  .single-bill-print .bill-preview-meta { gap: 8px 16px; margin: 0; }
   .single-bill-print .bill-preview-meta-item,
   .single-bill-print .bill-preview-detail-row,
-  .single-bill-print .bill-preview-qr-amount { font-size: 7pt; }
-  .single-bill-print .bill-preview-meta-item { gap: 1px; }
-  .single-bill-print .bill-preview-meta-item strong { font-size: 6.5pt; }
-  .single-bill-print .bill-preview-transfer-reference code { padding: 3px 5px; font-size: 6.5pt; }
-  .single-bill-print .bill-preview-transfer-reference .btn { display: none; }
+  .single-bill-print .bill-preview-qr-amount { font-size: 9pt; }
+  .single-bill-print .bill-preview-meta-item { gap: 3px; }
+  .single-bill-print .bill-preview-meta-item strong { font-size: 9pt; }
+  .single-bill-print .bill-preview-print-debt-age { display: flex; }
+  .single-bill-print .bill-preview-debt-age { gap: 4px; }
+  .single-bill-print .bill-preview-debt-age small { font-size: 8pt; }
+  .single-bill-print .bill-preview-transfer-reference code { padding: 6px 10px; font-size: 9pt; }
+  .single-bill-print .bill-preview-transfer-reference .btn {
+    display: inline-flex;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    color: #111;
+    background: #fff;
+    font-size: 8pt;
+  }
   .single-bill-print .bill-preview-details,
   .single-bill-print .bill-preview-qr-panel,
   .single-bill-print .bill-preview-summary > div {
@@ -7628,14 +7654,24 @@ body.workspace-staff-active .main { padding-top: 112px; }
     background: #fff;
     color: #111;
   }
-  .single-bill-print .bill-preview-details,
-  .single-bill-print .bill-preview-qr-panel { padding: 7px; }
+  .single-bill-print .bill-preview-details {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: var(--radius);
+  }
+  .single-bill-print .bill-preview-qr-panel {
+    padding: 12px;
+    border-radius: var(--radius);
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
   .single-bill-print .bill-preview-details h3,
-  .single-bill-print .bill-preview-qr-panel h3 { margin-bottom: 4px; font-size: 8pt; }
-  .single-bill-print .bill-preview-detail-row { gap: 6px; padding: 3px 0; border-color: #eee; }
-  .single-bill-print .bill-preview-detail-main { gap: 1px; }
-  .single-bill-print .bill-preview-detail-main span { font-size: 6pt; line-height: 1.25; }
-  .single-bill-print .bill-preview-note { margin-top: 4px; padding: 4px 5px; font-size: 6pt; }
+  .single-bill-print .bill-preview-qr-panel h3 { margin-bottom: 14px; font-size: 12pt; }
+  .single-bill-print .bill-preview-details h3 { padding: 0; border: 0; }
+  .single-bill-print .bill-preview-detail-row { gap: 12px; padding: 7px 0; border-color: #eee; }
+  .single-bill-print .bill-preview-detail-main { gap: 3px; }
+  .single-bill-print .bill-preview-detail-main span { font-size: 8pt; line-height: 1.35; }
+  .single-bill-print .bill-preview-note { margin-top: 8px; padding: 7px 9px; font-size: 8pt; }
   .single-bill-print .bill-preview-meta-item strong,
   .single-bill-print .bill-preview-details h3,
   .single-bill-print .bill-preview-qr-panel h3,
@@ -7643,28 +7679,36 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .single-bill-print .bill-preview-detail-amount,
   .single-bill-print .bill-preview-summary strong,
   .single-bill-print .bill-preview-qr-amount strong { color: #111; }
+  .single-bill-print .bill-preview-summary-total strong { color: var(--primary); }
   .single-bill-print .bill-preview-meta-item span,
   .single-bill-print .bill-preview-detail-main span,
   .single-bill-print .bill-preview-summary span,
   .single-bill-print .bill-preview-qr-amount { color: #555; }
   .single-bill-print .bill-preview-direct-settlement {
-    gap: 1px;
-    margin-top: 4px;
-    padding: 4px 5px;
-    border-color: #ddd;
-    background: #fff;
-    font-size: 6pt;
+    gap: 3px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(34, 197, 94, .25);
+    border-radius: var(--radius-sm);
+    background: rgba(34, 197, 94, .08);
+    font-size: 8pt;
   }
   .single-bill-print .bill-preview-direct-settlement strong { color: #166534; }
   .single-bill-print .bill-preview-direct-settlement span { color: #555; }
-  .single-bill-print .bill-preview-qr-frame { padding: 3px; border-color: #ddd; }
-  .single-bill-print .bill-preview-qr-frame img { max-width: 42mm; }
-  .single-bill-print .bill-preview-qr-amount { margin-top: 4px; }
+  .single-bill-print .bill-preview-qr-frame {
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: var(--radius);
+  }
+  .single-bill-print .bill-preview-qr-frame img { width: 100%; max-width: 58mm; }
+  .single-bill-print .bill-preview-qr-amount { margin-top: 12px; }
   .single-bill-print .bill-preview-qr-empty { min-height: 52mm; padding: 8px; }
   .single-bill-print .bill-preview-meter-photos {
-    margin-top: 6px;
-    padding: 6px 7px;
-    border-color: #ddd;
+    margin: 0;
+    padding: 3mm 0 0;
+    border: 0;
+    border-top: 1px solid #ddd;
+    border-radius: 0;
     background: #fff;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -7677,8 +7721,18 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .single-bill-print .bill-preview-meter-photo-card.is-empty,
   .single-bill-print .bill-preview-meter-upload { display: none; }
   .single-bill-print .bill-preview-meter-grid { gap: 5px; }
-  .single-bill-print .bill-preview-meter-photo-card { border-color: #ddd; background: #fff; }
-  .single-bill-print .bill-preview-meter-photo-frame { max-height: 17mm; background: #fff; }
+  .single-bill-print .bill-preview-meter-photo-card {
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+  }
+  .single-bill-print .bill-preview-meter-photo-frame {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    max-height: none;
+    background: #fff;
+  }
   .single-bill-print .bill-preview-meter-photo-card figcaption { padding: 3px 4px; }
   .single-bill-print .bill-preview-meter-photo-card figcaption strong { color: #111; font-size: 6.5pt; }
   .single-bill-print .bill-preview-meter-photo-card figcaption small { color: #555; font-size: 5.5pt; }
