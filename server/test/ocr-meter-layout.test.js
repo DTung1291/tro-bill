@@ -21,8 +21,24 @@ test('popup OCR có ngữ nghĩa dialog và quy trình ba bước', () => {
 
 test('vùng chụp, kết quả và quyền riêng tư được phân cấp rõ', () => {
   assert.match(html, /class="ocr-workspace"[\s\S]*id="ocr-video-wrap"[\s\S]*id="ocr-crop-canvas"/);
+  assert.match(html, /id="ocr-source-camera-btn"[\s\S]*id="ocr-source-upload-btn"/);
   assert.match(html, /class="ocr-review-card"[\s\S]*id="ocr-result-input"[\s\S]*id="ocr-status" role="status" aria-live="polite"/);
-  assert.match(html, /Chỉ vùng số đã thu nhỏ được lưu[\s\S]*Ảnh gốc và dữ liệu vị trí không được tải lên/);
+  assert.match(html, /Ảnh màu trong khung xem được tái mã hóa[\s\S]*Ảnh gốc và dữ liệu vị trí không được tải lên/);
+});
+
+test('ảnh có thể được thay riêng và zoom tự do bằng nhiều cách', () => {
+  assert.match(html, /id="ocr-zoom-out"[\s\S]*id="ocr-zoom-slider" min="0\.1" max="10" step="0\.05"[\s\S]*id="ocr-zoom-in"[\s\S]*id="ocr-zoom-reset"/);
+  assert.match(html, /id="ocr-zoom-value"[\s\S]*id="ocr-zoom-help"/);
+  assert.match(ocr, /const OCR_ZOOM_MIN = 0\.1;[\s\S]*const OCR_ZOOM_MAX = 10;/);
+  assert.match(ocr, /ocr-source-upload-btn'\)\.addEventListener\('click', \(\) => fileInput\.click\(\)\)/);
+  assert.match(ocr, /ocr-source-camera-btn'\)\.addEventListener\('click', _restartOcrCamera\)/);
+  assert.match(ocr, /ocr-zoom-out'\)\.addEventListener[\s\S]*ocr-zoom-in'\)\.addEventListener[\s\S]*ocr-zoom-reset'\)\.addEventListener/);
+  assert.match(ocr, /canvas\.addEventListener\('wheel'[\s\S]*_setOcrZoom[\s\S]*canvas\.addEventListener\('touchmove'[\s\S]*_setOcrZoom/);
+  assert.match(ocr, /file\.size > 20 \* 1024 \* 1024/);
+  assert.match(ocr, /if \(!_ocrPhotoOnly\) \{[\s\S]*_processCropArea\(\)/);
+  assert.match(ocr, /\[960, 540\][\s\S]*\[480, 270\][\s\S]*exportCtx\.drawImage\(_ocrImage/);
+  assert.match(css, /\.ocr-modal-inner\[data-mode="photo"\] \.ocr-guide-box,[\s\S]*\.ocr-modal-inner\[data-mode="photo"\] \.ocr-crop-preview-wrap,[\s\S]*display:\s*none;/);
+  assert.match(ocr, /Toàn bộ khung màu đang thấy sẽ được lưu/);
 });
 
 test('popup khóa chiều cao, chỉ cuộn thân và hành động an toàn trên mobile', () => {
@@ -44,10 +60,10 @@ test('nhập chỉ số thủ công mở xác nhận và chỉ chấp nhận s�
   assert.match(ocr, /function _syncOcrConfirmation\(\)[\s\S]*\^\\d\+\$[\s\S]*confirmBtn\.disabled = !hasValidReading/);
   assert.match(ocr, /ocr-result-input'\)\.addEventListener\('input'[\s\S]*_syncOcrConfirmation\(\)/);
   assert.match(ocr, /Number\.isSafeInteger\(val\)/);
-  assert.match(ocr, /if \(!cropCanvas \|\| \(!_ocrImage && !_cameraActive\)\) return ''/);
+  assert.match(ocr, /if \(!sourceCanvas \|\| !_ocrImage \|\| _cameraActive\) return ''/);
 });
 
 test('camera lỗi vẫn cho chọn ảnh và asset pin được tăng', () => {
   assert.match(ocr, /Camera không khả dụng[\s\S]*captureBtn\.disabled = true[\s\S]*libraryBtn\.textContent = 'Chọn ảnh'/);
-  assert.match(html, /href="style\.css\?v=151"[\s\S]*src="ocr\.js\?v=91"[\s\S]*src="app\.js\?v=152"/);
+  assert.match(html, /href="style\.css\?v=156"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=153"/);
 });

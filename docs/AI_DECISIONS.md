@@ -1027,3 +1027,23 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   ở sổ thu tiền phải giữ INSERT-only, idempotent và dùng advisory lock khi cần
   loại trừ đồng thời; không tái thêm row lock trên các bảng ledger nếu runtime
   role không có quyền UPDATE tương ứng.
+
+## D-053 — Ảnh đồng hồ là minh chứng theo kỳ, không phải cách sửa chỉ số hóa đơn
+
+- **Trạng thái:** Áp dụng từ 14/09/2026.
+- **Quyết định:** Ảnh điện/nước trên hóa đơn được đọc và ghi theo khóa
+  `user_id + room_id + period + meter_type`. Thao tác thêm/thay ảnh trong popup
+  hóa đơn chỉ cập nhật minh chứng ảnh, không thay chỉ số, tổng tiền hoặc snapshot
+  hóa đơn đã phát hành.
+- **Riêng tư:** Ảnh minh chứng dùng toàn bộ viewport màu 16:9 do người dùng đã
+  căn, thử lần lượt kích thước 960×540 đến 480×270 và tái mã hóa JPEG tối đa
+  96 KB; không tải ảnh gốc, EXIF hoặc dữ liệu vị trí lên server. API đọc phải
+  xác minh phòng thuộc workspace và trả `Cache-Control: no-store`.
+- **Căn ảnh:** Camera và tải tệp là hai nguồn độc lập; người dùng được thay ảnh
+  mà không phải mở lại camera và zoom 10%–1000% bằng thanh trượt, nút, con lăn
+  hoặc pinch. “Vừa khung” khôi phục cả zoom lẫn vị trí; tệp nguồn trên 20 MB bị
+  từ chối phía client, còn dữ liệu gửi server chỉ là viewport màu tối đa 96 KB.
+- **In/PDF:** Chỉ bản in một hóa đơn phòng dùng bố cục A4 portrait compact một
+  trang và ẩn thao tác upload. Hợp đồng, biên bản bàn giao, quyết toán và các tài
+  liệu dài vẫn được phép chảy qua nhiều trang; không áp quy tắc một trang toàn
+  cục để tránh cắt nội dung.

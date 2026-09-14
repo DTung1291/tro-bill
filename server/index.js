@@ -290,6 +290,11 @@ app.post(
   wrap(rentMeterPhotos.upsertMeterPhoto)
 );
 app.get(
+  '/api/rent-meter-photos',
+  requireAuth,
+  wrap(rentMeterPhotos.listMeterPhotos)
+);
+app.get(
   '/api/rent-payment-channels',
   requireAuth,
   wrap(rentPaymentChannels.listChannels)

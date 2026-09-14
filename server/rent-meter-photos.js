@@ -65,6 +65,50 @@ function photoJson(row) {
   };
 }
 
+function photoListInput(query = {}) {
+  const roomId = String(query.roomId || '').trim();
+  const period = String(query.period || '').trim();
+  if (!roomId || roomId.length > 200 || !PERIOD_PATTERN.test(period)) {
+    throw new RentMeterPhotoError(400, 'INVALID_METER_PHOTO_QUERY', 'Phòng hoặc kỳ hóa đơn không hợp lệ');
+  }
+  return { roomId, period };
+}
+
+async function listMeterPhotos(req, res) {
+  let input;
+  try {
+    input = photoListInput(req.query);
+  } catch (error) {
+    if (sendPhotoError(res, error)) return res;
+    throw error;
+  }
+  const room = await db.query(
+    'SELECT 1 FROM rooms WHERE user_id=$1 AND id=$2',
+    [req.userId, input.roomId]
+  );
+  if (!room.rows[0]) {
+    return res.status(404).json({ error: 'Không tìm thấy phòng', code: 'ROOM_NOT_FOUND' });
+  }
+  const { rows } = await db.query(
+    `SELECT room_id, period, meter_type, byte_size, sha256, updated_at,
+            encode(image_data, 'base64') AS image_base64
+     FROM rent_meter_photos
+     WHERE user_id=$1 AND room_id=$2 AND period=$3
+     ORDER BY meter_type`,
+    [req.userId, input.roomId, input.period]
+  );
+  const photos = {};
+  for (const row of rows) {
+    if (!METER_TYPES.has(row.meter_type) || !/^[A-Za-z0-9+/]+={0,2}$/.test(row.image_base64 || '')) continue;
+    photos[row.meter_type] = {
+      ...photoJson(row),
+      dataUrl: `data:image/jpeg;base64,${row.image_base64}`
+    };
+  }
+  res.set('Cache-Control', 'no-store');
+  return res.json({ photos });
+}
+
 async function upsertMeterPhoto(req, res) {
   let input;
   try {
@@ -107,6 +151,8 @@ module.exports = {
   MAX_PHOTO_BYTES,
   METER_TYPES,
   RentMeterPhotoError,
+  listMeterPhotos,
+  photoListInput,
   photoInput,
   photoJson,
   upsertMeterPhoto

@@ -5,7 +5,7 @@
  * Phiên bản tương tác: Cho phép người dùng kéo, zoom và đổi màu (invert) ảnh trước khi quét
  *
  * API công khai:
- *   openOcrModal(roomId, targetField, onConfirm)
+ *   openOcrModal(roomId, targetField, onConfirm, options)
  *     roomId      — ID phòng (để hiển thị thông tin)
  *     targetField — 'elec' | 'water'
  *     onConfirm   — callback(number, { photoDataUrl }) khi người dùng xác nhận
@@ -63,6 +63,7 @@ async function ensureTesseract() {
 // ============================================================
 let _ocrStream = null;          // Stream camera
 let _ocrCallback = null;        // Callback trả kết quả
+let _ocrPhotoOnly = false;      // Chỉ lưu ảnh, không thay chỉ số hóa đơn
 let _cameraActive = false;      // Trạng thái camera đang chạy live
 let _cameraLoopId = null;       // ID requestAnimationFrame cho camera loop
 
@@ -73,6 +74,47 @@ let _zoom = 1.0;                // Hệ số thu phóng
 let _isDragging = false;        // Đang drag để di chuyển ảnh
 let _startX = 0;                // Tọa độ click/touch bắt đầu X
 let _startY = 0;                // Tọa độ click/touch bắt đầu Y
+let _fitZoom = 1.0;             // Mức zoom vừa khung của ảnh hiện tại
+
+const OCR_ZOOM_MIN = 0.1;
+const OCR_ZOOM_MAX = 10;
+
+function _clampOcrZoom(value) {
+  const zoom = Number(value);
+  if (!Number.isFinite(zoom)) return 1;
+  return Math.max(OCR_ZOOM_MIN, Math.min(OCR_ZOOM_MAX, zoom));
+}
+
+function _syncOcrZoomControls() {
+  const enabled = !!_ocrImage && !_cameraActive;
+  const slider = document.getElementById('ocr-zoom-slider');
+  const output = document.getElementById('ocr-zoom-value');
+  const zoomOut = document.getElementById('ocr-zoom-out');
+  const zoomIn = document.getElementById('ocr-zoom-in');
+  const zoomReset = document.getElementById('ocr-zoom-reset');
+  if (slider) {
+    slider.value = _clampOcrZoom(_zoom).toFixed(2);
+    slider.disabled = !enabled;
+  }
+  if (output) output.textContent = `${Math.round(_clampOcrZoom(_zoom) * 100)}%`;
+  if (zoomOut) zoomOut.disabled = !enabled || _zoom <= OCR_ZOOM_MIN;
+  if (zoomIn) zoomIn.disabled = !enabled || _zoom >= OCR_ZOOM_MAX;
+  if (zoomReset) zoomReset.disabled = !enabled;
+}
+
+function _setOcrZoom(value) {
+  if (!_ocrImage || _cameraActive) return;
+  _zoom = _clampOcrZoom(value);
+  _syncOcrZoomControls();
+  _drawCanvas();
+}
+
+function _resetOcrImageView() {
+  if (!_ocrImage || _cameraActive) return;
+  _panX = 0;
+  _panY = 0;
+  _setOcrZoom(_fitZoom);
+}
 
 // Kích thước vùng crop (guide box) trên Canvas 1280x720
 // Thu hẹp chiều cao từ 200 xuống 110 và rộng từ 896 xuống 768 để loại bỏ nhãn (10000, 1000...) và chữ tiêu đề.
@@ -110,24 +152,20 @@ function _drawCanvas() {
     ctx.restore();
   }
 
-  // 3. Thực hiện copy vùng crop và xử lý ảnh (Grayscale + Contrast + Invert)
-  _processCropArea();
+  if (!_ocrPhotoOnly) {
+    // OCR chỉ đọc dải số đã xử lý; ảnh minh chứng dùng toàn bộ khung màu riêng.
+    _processCropArea();
 
-  // 4. Vẽ overlay tối bên ngoài vùng ngắm đỏ trên màn hình chính
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-  // Top
-  ctx.fillRect(0, 0, canvas.width, CROP_Y);
-  // Bottom
-  ctx.fillRect(0, CROP_Y + CROP_H, canvas.width, CROP_Y);
-  // Left
-  ctx.fillRect(0, CROP_Y, CROP_X, CROP_H);
-  // Right
-  ctx.fillRect(CROP_X + CROP_W, CROP_Y, CROP_X, CROP_H);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, CROP_Y);
+    ctx.fillRect(0, CROP_Y + CROP_H, canvas.width, CROP_Y);
+    ctx.fillRect(0, CROP_Y, CROP_X, CROP_H);
+    ctx.fillRect(CROP_X + CROP_W, CROP_Y, CROP_X, CROP_H);
 
-  // 5. Vẽ viền đỏ cho khung ngắm
-  ctx.strokeStyle = '#ff3b3b';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(CROP_X, CROP_Y, CROP_W, CROP_H);
+    ctx.strokeStyle = '#ff3b3b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(CROP_X, CROP_Y, CROP_W, CROP_H);
+  }
 }
 
 /**
@@ -168,14 +206,31 @@ function _processCropArea() {
 }
 
 function _meterPhotoDataUrl() {
-  const cropCanvas = document.getElementById('ocr-crop-canvas');
-  if (!cropCanvas || (!_ocrImage && !_cameraActive)) return '';
-  // Canvas tái mã hóa ảnh nên không giữ EXIF/vị trí GPS. Chỉ lưu khung chỉ số
-  // 448x100 thay vì toàn bộ ảnh gốc để bảo vệ riêng tư và tiết kiệm dung lượng.
-  for (const quality of [0.72, 0.55, 0.4]) {
-    const dataUrl = cropCanvas.toDataURL('image/jpeg', quality);
-    const base64Length = dataUrl.split(',')[1]?.length || 0;
-    if (Math.ceil(base64Length * 3 / 4) <= 96 * 1024) return dataUrl;
+  const sourceCanvas = document.getElementById('ocr-canvas');
+  if (!sourceCanvas || !_ocrImage || _cameraActive) return '';
+
+  // Dựng lại toàn bộ viewport màu, không kèm overlay/khung OCR và không giữ EXIF/GPS.
+  for (const [width, height] of [[960, 540], [800, 450], [640, 360], [480, 270]]) {
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = width;
+    exportCanvas.height = height;
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) continue;
+    exportCtx.fillStyle = '#000';
+    exportCtx.fillRect(0, 0, width, height);
+    exportCtx.save();
+    exportCtx.scale(width / sourceCanvas.width, height / sourceCanvas.height);
+    exportCtx.translate(sourceCanvas.width / 2 + _panX, sourceCanvas.height / 2 + _panY);
+    exportCtx.scale(_zoom, _zoom);
+    exportCtx.translate(-_ocrImage.width / 2, -_ocrImage.height / 2);
+    exportCtx.drawImage(_ocrImage, 0, 0);
+    exportCtx.restore();
+
+    for (const quality of [0.82, 0.68, 0.55, 0.42]) {
+      const dataUrl = exportCanvas.toDataURL('image/jpeg', quality);
+      const base64Length = dataUrl.split(',')[1]?.length || 0;
+      if (Math.ceil(base64Length * 3 / 4) <= 96 * 1024) return dataUrl;
+    }
   }
   return '';
 }
@@ -190,13 +245,13 @@ function _cameraLoop() {
 // ============================================================
 //  OCR MODAL FLOWS
 // ============================================================
-function openOcrModal(roomId, targetField, onConfirm) {
+function openOcrModal(roomId, targetField, onConfirm, options = {}) {
   if (typeof checkPremiumFeature === 'function') {
     checkPremiumFeature('Quét chỉ số bằng Camera (OCR)', () => {
-      _openOcrModalActual(roomId, targetField, onConfirm);
+      _openOcrModalActual(roomId, targetField, onConfirm, options);
     });
   } else {
-    _openOcrModalActual(roomId, targetField, onConfirm);
+    _openOcrModalActual(roomId, targetField, onConfirm, options);
   }
 }
 
@@ -229,20 +284,58 @@ function _syncOcrConfirmation() {
   const resultInput = document.getElementById('ocr-result-input');
   const confirmBtn = document.getElementById('ocr-confirm-btn');
   if (!resultInput || !confirmBtn) return;
+  if (_ocrPhotoOnly) {
+    const hasPhoto = !!_ocrImage && !_cameraActive;
+    confirmBtn.disabled = !hasPhoto;
+    if (hasPhoto) _setOcrStage('review');
+    return;
+  }
   const hasValidReading = /^\d+$/.test(resultInput.value.trim());
   confirmBtn.disabled = !hasValidReading;
   if (hasValidReading) _setOcrStage('review');
 }
 
-function _openOcrModalActual(roomId, targetField, onConfirm) {
+function _openOcrModalActual(roomId, targetField, onConfirm, options = {}) {
   _ocrCallback = onConfirm;
+  _ocrPhotoOnly = options.photoOnly === true;
   const modal = document.getElementById('ocr-modal');
+  const card = modal?.querySelector('.ocr-modal-inner');
   const titleEl = document.getElementById('ocr-modal-title');
+  const kicker = document.getElementById('ocr-modal-kicker');
+  const journey = document.getElementById('ocr-journey');
+  const descriptionEl = document.getElementById('ocr-modal-description');
+  const reviewHeading = document.getElementById('ocr-review-heading');
+  const reviewDescription = document.getElementById('ocr-review-description');
+  const confirmBtn = document.getElementById('ocr-confirm-btn');
   const resultInput = document.getElementById('ocr-result-input');
   const zoomSlider = document.getElementById('ocr-zoom-slider');
   const invertCheck = document.getElementById('ocr-invert-check');
+  const captureHeading = document.getElementById('ocr-capture-heading');
+  const captureDescription = document.getElementById('ocr-capture-description');
+  const adjustStepTitle = document.getElementById('ocr-adjust-step-title');
+  const adjustStepDescription = document.getElementById('ocr-adjust-step-description');
+  const guideHint = document.getElementById('ocr-guide-hint');
 
-  titleEl.textContent = targetField === 'elec' ? 'Chụp chỉ số điện' : 'Chụp chỉ số nước';
+  const meterLabel = targetField === 'elec' ? 'điện' : 'nước';
+  kicker.textContent = _ocrPhotoOnly ? 'Ảnh minh chứng hóa đơn' : 'Ghi chỉ số bằng ảnh';
+  journey.setAttribute('aria-label', _ocrPhotoOnly ? 'Quy trình chỉnh ảnh minh chứng' : 'Quy trình đọc chỉ số');
+  titleEl.textContent = _ocrPhotoOnly ? `Thêm ảnh đồng hồ ${meterLabel}` : `Chụp chỉ số ${meterLabel}`;
+  descriptionEl.textContent = _ocrPhotoOnly
+    ? 'Chụp hoặc tải ảnh màu, kéo và zoom tùy ý rồi lưu làm minh chứng cho hóa đơn.'
+    : 'Chụp hoặc chọn ảnh, căn đúng dãy số rồi kiểm tra kết quả trước khi dùng.';
+  reviewHeading.textContent = _ocrPhotoOnly ? 'Xác nhận ảnh' : 'Kiểm tra chỉ số';
+  reviewDescription.textContent = _ocrPhotoOnly
+    ? 'Kiểm tra lần cuối toàn bộ khung ảnh màu trước khi lưu.'
+    : 'Bạn có thể sửa trực tiếp nếu máy đọc chưa chính xác.';
+  captureHeading.textContent = _ocrPhotoOnly ? 'Chọn và căn ảnh minh chứng' : 'Chụp và căn dãy số công tơ';
+  captureDescription.textContent = _ocrPhotoOnly
+    ? 'Kéo và zoom ảnh theo ý muốn. Toàn bộ khung màu đang thấy sẽ được lưu.'
+    : 'Giữ ảnh rõ, đủ sáng và chỉ đặt dãy số cần đọc trong khung đỏ.';
+  adjustStepTitle.textContent = _ocrPhotoOnly ? 'Căn ảnh' : 'Căn dãy số';
+  adjustStepDescription.textContent = _ocrPhotoOnly ? 'Kéo và zoom tùy ý' : 'Đưa số vào đúng khung';
+  guideHint.textContent = _ocrPhotoOnly ? 'Toàn bộ khung màu này sẽ được lưu' : 'Căn dãy số vào khung đỏ';
+  confirmBtn.textContent = _ocrPhotoOnly ? 'Lưu ảnh' : 'Dùng chỉ số này';
+  if (card) card.dataset.mode = _ocrPhotoOnly ? 'photo' : 'reading';
   resultInput.value = '';
   _setOcrStatus('Đang khởi động camera...');
   document.getElementById('ocr-confirm-btn').disabled = true;
@@ -250,7 +343,12 @@ function _openOcrModalActual(roomId, targetField, onConfirm) {
   zoomSlider.value = 1.0;
 
   _ocrImage = null;
+  _panX = 0;
+  _panY = 0;
+  _zoom = 1;
+  _fitZoom = 1;
   _cameraActive = true;
+  _syncOcrZoomControls();
   _setOcrStage('capture');
 
   // Cập nhật trạng thái nút
@@ -264,7 +362,9 @@ function closeOcrModal() {
   _stopCamera();
   document.getElementById('ocr-modal').hidden = true;
   _ocrCallback = null;
+  _ocrPhotoOnly = false;
   _ocrImage = null;
+  _syncOcrZoomControls();
 }
 
 async function _startCamera() {
@@ -278,7 +378,9 @@ async function _startCamera() {
     _cameraActive = true;
     _updateButtonUI();
     _setOcrStage('capture');
-    _setOcrStatus('Đặt dãy số công tơ vào khung đỏ rồi bấm “Chụp ảnh”.');
+    _setOcrStatus(_ocrPhotoOnly
+      ? 'Đặt toàn bộ đồng hồ trong khung rồi bấm “Chụp ảnh”.'
+      : 'Đặt dãy số công tơ vào khung đỏ rồi bấm “Chụp ảnh”.');
     _cameraLoopId = requestAnimationFrame(_cameraLoop);
   } catch (err) {
     _cameraActive = false;
@@ -314,16 +416,56 @@ function _updateButtonUI() {
     captureBtn.disabled = false;
     libraryBtn.textContent = 'Chọn ảnh';
   } else if (_ocrImage) {
-    captureBtn.textContent = 'Nhận diện chỉ số';
+    captureBtn.textContent = _ocrPhotoOnly ? 'Dùng khung ảnh này' : 'Nhận diện chỉ số';
     captureBtn.className = 'btn btn--success';
     captureBtn.disabled = false;
-    libraryBtn.textContent = 'Chụp lại';
+    libraryBtn.textContent = 'Chọn ảnh khác';
   } else {
     captureBtn.textContent = 'Camera không khả dụng';
     captureBtn.className = 'btn btn--primary';
     captureBtn.disabled = true;
     libraryBtn.textContent = 'Chọn ảnh';
   }
+  _syncOcrZoomControls();
+}
+
+function _loadOcrImage(source) {
+  const canvas = document.getElementById('ocr-canvas');
+  if (!canvas || !source) return;
+  const image = new Image();
+  image.onload = () => {
+    _ocrImage = image;
+    _panX = 0;
+    _panY = 0;
+    const fitScale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    _fitZoom = _clampOcrZoom(fitScale);
+    _zoom = _fitZoom;
+    _drawCanvas();
+    _updateButtonUI();
+    _setOcrStage('adjust');
+    _setOcrStatus(_ocrPhotoOnly
+      ? 'Kéo hoặc zoom ảnh tùy ý; toàn bộ khung màu đang thấy sẽ được lưu.'
+      : 'Kéo hoặc thu phóng để đưa dãy số vào khung đỏ, sau đó bấm “Nhận diện chỉ số”.');
+  };
+  image.onerror = () => {
+    _ocrImage = null;
+    _updateButtonUI();
+    _setOcrStatus('Không đọc được tệp ảnh. Hãy chọn ảnh JPG, PNG hoặc WebP hợp lệ.', 'error');
+  };
+  image.src = source;
+}
+
+function _restartOcrCamera() {
+  _stopCamera();
+  _ocrImage = null;
+  _panX = 0;
+  _panY = 0;
+  _zoom = 1;
+  _fitZoom = 1;
+  _updateButtonUI();
+  _setOcrStage('capture');
+  _setOcrStatus('Đang khởi động camera...');
+  _startCamera();
 }
 
 // ============================================================
@@ -409,62 +551,43 @@ function initOcrModalEvents() {
       // Lấy frame hiện tại trước khi stop camera
       tempCtx.drawImage(canvas, 0, 0);
 
-      _ocrImage = new Image();
-      _ocrImage.onload = () => {
-        _panX = 0;
-        _panY = 0;
-        // Zoom mặc định cho vừa màn hình
-        _zoom = 1.0;
-        document.getElementById('ocr-zoom-slider').value = 1.0;
-        _drawCanvas();
-        _updateButtonUI();
-        _setOcrStage('adjust');
-        _setOcrStatus('Kéo hoặc thu phóng để đưa dãy số vào khung đỏ, sau đó bấm “Nhận diện chỉ số”.');
-      };
-      _ocrImage.src = tempCanvas.toDataURL('image/jpeg');
+      _loadOcrImage(tempCanvas.toDataURL('image/jpeg'));
     } else {
-      // 2. Chạy OCR nhận diện
-      _runOcr();
+      // 2. Chạy OCR hoặc xác nhận vùng ảnh dùng làm minh chứng.
+          if (_ocrPhotoOnly) {
+            _setOcrStage('review');
+            _setOcrStatus('Ảnh màu đã sẵn sàng. Kiểm tra toàn bộ khung bên trên rồi bấm “Lưu ảnh”.', 'success');
+        _syncOcrConfirmation();
+      } else {
+        _runOcr();
+      }
     }
   });
 
-  // Chọn ảnh từ thư viện / Chụp lại camera
+  // Chọn hoặc thay ảnh từ thiết bị; camera có nút nguồn riêng trong vùng làm việc.
   const fileInput = document.getElementById('ocr-file-input');
-  document.getElementById('ocr-library-btn').addEventListener('click', () => {
-    if (_cameraActive) {
-      // Mở thư viện chọn ảnh
-      fileInput.click();
-    } else {
-      // Chụp lại: Khởi động lại camera
-      _ocrImage = null;
-      _updateButtonUI();
-      _setOcrStage('capture');
-      _startCamera();
-    }
-  });
+  document.getElementById('ocr-library-btn').addEventListener('click', () => fileInput.click());
+  document.getElementById('ocr-source-upload-btn').addEventListener('click', () => fileInput.click());
+  document.getElementById('ocr-source-camera-btn').addEventListener('click', _restartOcrCamera);
 
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      _setOcrStatus('Tệp đã chọn không phải hình ảnh.', 'error');
+      fileInput.value = '';
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      _setOcrStatus('Ảnh vượt quá 20 MB. Hãy chọn ảnh nhỏ hơn.', 'error');
+      fileInput.value = '';
+      return;
+    }
 
     _stopCamera();
     const reader = new FileReader();
     reader.onload = (event) => {
-      _ocrImage = new Image();
-      _ocrImage.onload = () => {
-        _panX = 0;
-        _panY = 0;
-        // Tính toán tỷ lệ zoom để ảnh vừa khít khung nhìn
-        const fitScale = Math.min(canvas.width / _ocrImage.width, canvas.height / _ocrImage.height);
-        _zoom = Math.max(0.2, Math.min(6.0, fitScale * 1.2)); // Phóng lớn hơn tí cho dễ nhìn
-        document.getElementById('ocr-zoom-slider').value = _zoom.toFixed(2);
-        
-        _drawCanvas();
-        _updateButtonUI();
-        _setOcrStage('adjust');
-        _setOcrStatus('Kéo hoặc thu phóng để đưa dãy số vào khung đỏ, sau đó bấm “Nhận diện chỉ số”.');
-      };
-      _ocrImage.src = event.target.result;
+      _loadOcrImage(event.target.result);
     };
     reader.readAsDataURL(file);
     fileInput.value = '';
@@ -472,11 +595,15 @@ function initOcrModalEvents() {
 
   // Thay đổi thanh Zoom
   document.getElementById('ocr-zoom-slider').addEventListener('input', (e) => {
-    if (_ocrImage) {
-      _zoom = parseFloat(e.target.value);
-      _drawCanvas();
-    }
+    _setOcrZoom(e.target.value);
   });
+  document.getElementById('ocr-zoom-out').addEventListener('click', () => {
+    _setOcrZoom(_zoom / 1.15);
+  });
+  document.getElementById('ocr-zoom-in').addEventListener('click', () => {
+    _setOcrZoom(_zoom * 1.15);
+  });
+  document.getElementById('ocr-zoom-reset').addEventListener('click', _resetOcrImageView);
 
   // Thay đổi Checkbox Invert
   document.getElementById('ocr-invert-check').addEventListener('change', () => {
@@ -495,8 +622,14 @@ function initOcrModalEvents() {
   document.getElementById('ocr-confirm-btn').addEventListener('click', () => {
     const rawValue = document.getElementById('ocr-result-input').value.trim();
     const val = Number(rawValue);
-    if (/^\d+$/.test(rawValue) && Number.isSafeInteger(val) && _ocrCallback) {
-      _ocrCallback(val, { photoDataUrl: _meterPhotoDataUrl() });
+    const photoDataUrl = _meterPhotoDataUrl();
+    if (_ocrPhotoOnly && photoDataUrl && _ocrCallback) {
+      _ocrCallback(null, { photoDataUrl });
+      closeOcrModal();
+    } else if (_ocrPhotoOnly && !photoDataUrl) {
+      _setOcrStatus('Không thể tối ưu ảnh trong giới hạn lưu trữ. Hãy thử thu nhỏ hoặc chọn ảnh khác.', 'error');
+    } else if (/^\d+$/.test(rawValue) && Number.isSafeInteger(val) && _ocrCallback) {
+      _ocrCallback(val, { photoDataUrl });
       closeOcrModal();
     }
   });
@@ -546,13 +679,7 @@ function initOcrModalEvents() {
   canvas.addEventListener('wheel', (e) => {
     if (!_ocrImage) return;
     e.preventDefault();
-    const zoomSlider = document.getElementById('ocr-zoom-slider');
-    const zoomStep = 0.1;
-    let newZoom = _zoom + (e.deltaY < 0 ? zoomStep : -zoomStep);
-    newZoom = Math.max(0.2, Math.min(6.0, newZoom));
-    _zoom = newZoom;
-    if (zoomSlider) zoomSlider.value = newZoom;
-    _drawCanvas();
+    _setOcrZoom(_zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
   }, { passive: false });
 
   // Touch Pinch-to-zoom & Pan
@@ -582,11 +709,7 @@ function initOcrModalEvents() {
       if (e.cancelable) e.preventDefault();
       const currentDist = getTouchDistance(e.touches);
       const scale = currentDist / _initialTouchDistance;
-      let newZoom = Math.max(0.2, Math.min(6.0, _initialTouchZoom * scale));
-      _zoom = newZoom;
-      const zoomSlider = document.getElementById('ocr-zoom-slider');
-      if (zoomSlider) zoomSlider.value = newZoom;
-      _drawCanvas();
+      _setOcrZoom(_initialTouchZoom * scale);
     } else if (e.touches.length === 1 && _isDragging) {
       drag(e);
     }

@@ -10,6 +10,8 @@ const path = require('node:path');
 const db = require('../db');
 const {
   MAX_PHOTO_BYTES,
+  listMeterPhotos,
+  photoListInput,
   photoInput,
   upsertMeterPhoto
 } = require('../rent-meter-photos');
@@ -105,6 +107,47 @@ test('upload khóa ownership theo user và upsert đúng một ảnh mỗi loạ
   assert.equal(response.record.headers['Cache-Control'], 'no-store');
 });
 
+test('đọc ảnh đồng hồ khóa theo chủ phòng và kỳ hóa đơn', async (t) => {
+  assert.deepEqual(photoListInput({ roomId: 'room-1', period: '2026-08' }), {
+    roomId: 'room-1',
+    period: '2026-08'
+  });
+  assert.throws(
+    () => photoListInput({ roomId: 'room-1', period: '08-2026' }),
+    (error) => error.code === 'INVALID_METER_PHOTO_QUERY'
+  );
+
+  const originalQuery = db.query;
+  const calls = [];
+  db.query = async (sql, params) => {
+    calls.push({ sql, params });
+    if (sql.includes('SELECT 1 FROM rooms')) return { rows: [{ '?column?': 1 }] };
+    return { rows: [{
+      room_id: 'room-1',
+      period: '2026-08',
+      meter_type: 'water',
+      byte_size: 120,
+      sha256: 'b'.repeat(64),
+      updated_at: '2026-08-25T00:00:00.000Z',
+      image_base64: '/9j/2Q=='
+    }] };
+  };
+  t.after(() => { db.query = originalQuery; });
+
+  const response = responseRecorder();
+  await listMeterPhotos({
+    userId: 7,
+    query: { roomId: 'room-1', period: '2026-08' }
+  }, response.res);
+
+  assert.equal(response.record.statusCode, 200);
+  assert.equal(response.record.body.photos.water.dataUrl, 'data:image/jpeg;base64,/9j/2Q==');
+  assert.deepEqual(calls[0].params, [7, 'room-1']);
+  assert.deepEqual(calls[1].params, [7, 'room-1', '2026-08']);
+  assert.match(calls[1].sql, /WHERE user_id=\$1 AND room_id=\$2 AND period=\$3/);
+  assert.equal(response.record.headers['Cache-Control'], 'no-store');
+});
+
 test('schema, migration, OCR và trang khách thuê bảo vệ dung lượng và không lưu ảnh gốc', () => {
   const root = path.join(__dirname, '..', '..');
   const schema = fs.readFileSync(path.join(root, 'server', 'schema.sql'), 'utf8');
@@ -129,14 +172,18 @@ test('schema, migration, OCR và trang khách thuê bảo vệ dung lượng và
   }
   assert.match(migration, /^BEGIN;/);
   assert.match(migration, /COMMIT;[\s\S]*runtime_photo_update_ready/);
-  assert.match(serverSource, /'\/api\/rent-meter-photos'/);
+  assert.match(serverSource, /app\.get\([\s\S]*?'\/api\/rent-meter-photos'[\s\S]*?listMeterPhotos/);
+  assert.match(serverSource, /app\.post\([\s\S]*?'\/api\/rent-meter-photos'[\s\S]*?upsertMeterPhoto/);
+  assert.match(apiSource, /function getRentMeterPhotos/);
   assert.match(apiSource, /function upsertRentMeterPhoto/);
   assert.match(appSource, /saveMeterPhoto\('electricity', capture\)/);
   assert.match(appSource, /saveMeterPhoto\('water', capture\)/);
   assert.match(ocrSource, /function _meterPhotoDataUrl/);
+  assert.match(ocrSource, /exportCtx\.drawImage\(_ocrImage/);
   assert.match(ocrSource, /toDataURL\('image\/jpeg'/);
-  assert.match(ocrSource, /_ocrCallback\(val, \{ photoDataUrl:/);
-  assert.match(htmlSource, /ocr\.js\?v=91/);
+  assert.match(ocrSource, /_ocrCallback\(val, \{ photoDataUrl \}\)/);
+  assert.match(ocrSource, /_ocrCallback\(null, \{ photoDataUrl \}\)/);
+  assert.match(htmlSource, /ocr\.js\?v=94/);
   assert.match(publicHtml, /id="invoice-meter-photos"/);
   assert.match(publicHtml, /invoice-public\.css\?v=8[\s\S]*invoice-public\.js\?v=8/);
   assert.match(publicJs, /function renderMeterPhotos/);

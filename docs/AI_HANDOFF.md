@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 14/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI ghi nhận thu tiền và accessibility popup hoàn tất tại `f0e5b7b`; toàn bộ 514/514 test đạt |
+| Trạng thái | Hóa đơn một trang, ảnh đồng hồ và điều khiển upload/zoom hoàn tất local; toàn bộ 518/518 test đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt hóa đơn; chưa commit/push theo yêu cầu hiện tại |
 | Phần ứng dụng phát hành gần nhất | `d98f20a` làm mới popup chụp/đọc chỉ số; CI `34759172986` xanh, Production revision `f700449a501a` và readiness đã xác minh |
-| Việc code tiếp theo | Sau khi push, theo dõi CI/deployment rồi smoke test popup Ghi nhận thu tiền trên desktop/mobile và thao tác Escape/Tab |
+| Việc code tiếp theo | Người dùng kiểm tra popup Xem bill + VietQR và luồng tải/thay ảnh, zoom trên desktop/mobile; sau đó commit/push nếu xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,24 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt hóa đơn một trang và ảnh đồng hồ hoàn thành local: popup hóa đơn đọc
+  ảnh điện/nước theo đúng `user_id + room_id + period`, hiển thị hai thẻ minh
+  chứng và cho thêm/thay ảnh ngay tại hóa đơn. Chế độ minh chứng là trình chỉnh
+  ảnh màu 16:9 riêng: không có khung đỏ/preview grayscale của OCR, kéo và zoom
+  quyết định toàn bộ viewport được lưu. Ảnh được tái mã hóa JPEG tối đa 96 KB,
+  bỏ EXIF/vị trí và không thay chỉ số hoặc snapshot hóa đơn. Bản in riêng dùng A4 portrait 8 mm, hai cột compact,
+  hàng tóm tắt chạy toàn chiều rộng; ẩn nút upload và chỉ hiện khối ảnh khi có
+  ảnh. Khung ảnh màn hình được giới hạn 150–240 px và VietQR có khoảng cách riêng
+  giữa `bill-preview-info` và `bill-preview-qr-panel`, tránh hai panel dính nhau.
+  Màn hình căn ảnh tách nút Camera/Tải ảnh, cho thay ảnh mà không buộc mở lại
+  camera và hỗ trợ zoom 10%–1000% bằng thanh trượt, nút ±, vừa khung, con lăn và
+  pinch; tệp nguồn bị chặn trên 20 MB trước khi đọc. Hợp đồng/biên bản nhiều trang
+  không bị tác động. PDF kiểm thử worst-case có 10 dòng, nợ cũ, ghi chú, hai ảnh
+  và VietQR đạt đúng 1/1 trang, đã render PNG và kiểm tra không cắt/chồng nội
+  dung. Asset pin tăng style `151 → 156`, API `116 → 117`, OCR `91 → 94`, app
+  `152 → 153`; test mục tiêu 18/18 và toàn suite ngoài sandbox 518/518 đạt.
+  Không có migration mới; chưa commit/push/deploy hoặc smoke test dữ liệu thật.
 
 - Lát cắt UX/UI Ghi nhận thu tiền và accessibility popup hoàn thành local: popup
   thu tiền tách kiểm tra công nợ khỏi thông tin giao dịch, ưu tiên tổng còn phải

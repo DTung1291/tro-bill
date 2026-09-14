@@ -4029,6 +4029,13 @@ body.workspace-staff-active .main { padding-top: 112px; }
   gap: 22px;
   align-items: start;
 }
+#bill-preview-modal .bill-preview-layout {
+  display: grid;
+  column-gap: 24px;
+  row-gap: 24px;
+}
+#bill-preview-modal .bill-preview-info,
+#bill-preview-modal .bill-preview-qr-panel { min-width: 0; margin: 0; }
 .bill-preview-info { min-width: 0; }
 .bill-preview-meta {
   display: grid;
@@ -4123,11 +4130,82 @@ body.workspace-staff-active .main { padding-top: 112px; }
   line-height: 1.45;
 }
 .bill-preview-note--warning { color: #b45309; background: rgba(245, 158, 11, .14); }
+.bill-preview-meter-photos {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+}
+.bill-preview-meter-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.bill-preview-meter-heading h3 { margin: 0; color: var(--text); font-size: 1rem; }
+.bill-preview-meter-heading p {
+  margin: 3px 0 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.bill-preview-meter-status {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: .76rem;
+}
+.bill-preview-meter-status--error { color: var(--red); }
+.bill-preview-meter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.bill-preview-meter-photo-card {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.bill-preview-meter-photo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(150px, 22vw, 240px);
+  overflow: hidden;
+  background: var(--bg);
+}
+.bill-preview-meter-photo-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+.bill-preview-meter-photo-frame > span { font-size: 1.5rem; opacity: .65; }
+.bill-preview-meter-photo-card figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+}
+.bill-preview-meter-photo-card figcaption > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bill-preview-meter-photo-card figcaption strong { color: var(--text); font-size: .8rem; }
+.bill-preview-meter-photo-card figcaption small { color: var(--text-muted); font-size: .65rem; }
+.bill-preview-meter-upload { flex: 0 0 auto; }
 .bill-preview-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin: 0;
+  margin: 0 0 18px;
 }
 .bill-preview-summary > div {
   display: flex;
@@ -5409,8 +5487,15 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .bill-preview-content { padding: 16px; }
   .bill-preview-payment-hero { align-items: flex-start; flex-direction: column; gap: 12px; }
   .bill-preview-payment-age { align-items: flex-start; text-align: left; }
-  .bill-preview-layout { grid-template-columns: 1fr; gap: 16px; }
-  .bill-preview-qr-panel { order: 2; }
+  #bill-preview-modal .bill-preview-layout {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: 20px;
+  }
+  #bill-preview-modal .bill-preview-qr-panel {
+    order: 2;
+    margin-top: 0;
+  }
   .bill-preview-footer { align-items: stretch; flex-direction: column; padding: 14px 16px; }
   .bill-preview-delivery-actions > div,
   .bill-preview-primary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5470,6 +5555,8 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .bill-preview-meta { grid-template-columns: 1fr; gap: 10px; }
   .bill-preview-meta-item--wide { grid-column: auto; }
   .bill-preview-details { padding: 14px; }
+  .bill-preview-meter-photos { padding: 14px; }
+  .bill-preview-meter-grid { grid-template-columns: minmax(0, 1fr); }
   .bill-preview-detail-row { gap: 10px; }
   .bill-preview-summary { grid-template-columns: 1fr; }
   .bill-preview-summary > div { flex-direction: row; justify-content: space-between; align-items: center; }
@@ -7395,6 +7482,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
   body:has(.print-area--rental-handover) { page: rentalHandover; }
   body:has(.print-area--rental-final-settlement) { page: rentalFinalSettlement; }
   body:has(.financial-report-print) { page: financialReport; }
+  body:has(.single-bill-print) { page: singleBill; }
 
   .print-area .rental-contract-document {
     display: block;
@@ -7487,22 +7575,52 @@ body.workspace-staff-active .main { padding-top: 112px; }
     text-align: center;
   }
 
+  .single-bill-print {
+    width: 100%;
+    color: #111;
+    font-size: 8pt;
+  }
   .single-bill-print > h1 {
-    margin-bottom: 18px;
-    padding-bottom: 12px;
+    margin: 0 0 7px;
+    padding-bottom: 6px;
     border-bottom: 2px solid #ddd;
     color: #111;
-    font-size: 18pt;
+    font-size: 14pt;
   }
   .single-bill-print .bill-preview-content { padding: 0; }
-  .single-bill-print .bill-preview-layout {
-    grid-template-columns: minmax(0, 1.25fr) minmax(230px, .75fr);
-    gap: 16px;
+  .single-bill-print .bill-preview-payment-hero {
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    margin-bottom: 7px;
+    padding: 7px 9px;
+    border-color: #ddd;
+    background: #fff;
   }
-  .single-bill-print .bill-preview-meta { gap: 8px 16px; margin-bottom: 14px; }
+  .single-bill-print .bill-preview-payment-label { margin-bottom: 1px; font-size: 6pt; }
+  .single-bill-print .bill-preview-payment-copy > strong { font-size: 11pt; }
+  .single-bill-print .bill-preview-payment-copy > p { margin-top: 2px; font-size: 6.5pt; }
+  .single-bill-print .bill-preview-payment-age { gap: 2px; }
+  .single-bill-print .bill-preview-payment-age small { font-size: 6pt; }
+  .single-bill-print .bill-preview-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, calc(100% - 64mm)) 56mm !important;
+    gap: 8px;
+  }
+  .single-bill-print .bill-preview-info { grid-column: 1; }
+  .single-bill-print .bill-preview-qr-panel { grid-column: 2; }
+  .single-bill-print .bill-preview-summary { gap: 4px; margin-bottom: 7px; }
+  .single-bill-print .bill-preview-summary > div { gap: 1px; padding: 5px 6px; }
+  .single-bill-print .bill-preview-summary span { font-size: 6pt; }
+  .single-bill-print .bill-preview-summary strong { font-size: 7.5pt; }
+  .single-bill-print .bill-preview-meta { gap: 3px 9px; margin: 6px 0; }
   .single-bill-print .bill-preview-meta-item,
   .single-bill-print .bill-preview-detail-row,
-  .single-bill-print .bill-preview-qr-amount { font-size: 9pt; }
+  .single-bill-print .bill-preview-qr-amount { font-size: 7pt; }
+  .single-bill-print .bill-preview-meta-item { gap: 1px; }
+  .single-bill-print .bill-preview-meta-item strong { font-size: 6.5pt; }
+  .single-bill-print .bill-preview-transfer-reference code { padding: 3px 5px; font-size: 6.5pt; }
+  .single-bill-print .bill-preview-transfer-reference .btn { display: none; }
   .single-bill-print .bill-preview-details,
   .single-bill-print .bill-preview-qr-panel,
   .single-bill-print .bill-preview-summary > div {
@@ -7511,8 +7629,13 @@ body.workspace-staff-active .main { padding-top: 112px; }
     color: #111;
   }
   .single-bill-print .bill-preview-details,
-  .single-bill-print .bill-preview-qr-panel { padding: 12px; }
-  .single-bill-print .bill-preview-detail-row { padding: 7px 0; border-color: #eee; }
+  .single-bill-print .bill-preview-qr-panel { padding: 7px; }
+  .single-bill-print .bill-preview-details h3,
+  .single-bill-print .bill-preview-qr-panel h3 { margin-bottom: 4px; font-size: 8pt; }
+  .single-bill-print .bill-preview-detail-row { gap: 6px; padding: 3px 0; border-color: #eee; }
+  .single-bill-print .bill-preview-detail-main { gap: 1px; }
+  .single-bill-print .bill-preview-detail-main span { font-size: 6pt; line-height: 1.25; }
+  .single-bill-print .bill-preview-note { margin-top: 4px; padding: 4px 5px; font-size: 6pt; }
   .single-bill-print .bill-preview-meta-item strong,
   .single-bill-print .bill-preview-details h3,
   .single-bill-print .bill-preview-qr-panel h3,
@@ -7525,13 +7648,40 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .single-bill-print .bill-preview-summary span,
   .single-bill-print .bill-preview-qr-amount { color: #555; }
   .single-bill-print .bill-preview-direct-settlement {
+    gap: 1px;
+    margin-top: 4px;
+    padding: 4px 5px;
     border-color: #ddd;
     background: #fff;
+    font-size: 6pt;
   }
   .single-bill-print .bill-preview-direct-settlement strong { color: #166534; }
   .single-bill-print .bill-preview-direct-settlement span { color: #555; }
-  .single-bill-print .bill-preview-qr-frame { padding: 6px; border-color: #ddd; }
-  .single-bill-print .bill-preview-qr-frame img { max-width: 260px; }
+  .single-bill-print .bill-preview-qr-frame { padding: 3px; border-color: #ddd; }
+  .single-bill-print .bill-preview-qr-frame img { max-width: 42mm; }
+  .single-bill-print .bill-preview-qr-amount { margin-top: 4px; }
+  .single-bill-print .bill-preview-qr-empty { min-height: 52mm; padding: 8px; }
+  .single-bill-print .bill-preview-meter-photos {
+    margin-top: 6px;
+    padding: 6px 7px;
+    border-color: #ddd;
+    background: #fff;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .single-bill-print .bill-preview-meter-photos.is-empty { display: none; }
+  .single-bill-print .bill-preview-meter-heading { margin-bottom: 4px; }
+  .single-bill-print .bill-preview-meter-heading h3 { color: #111; font-size: 8pt; }
+  .single-bill-print .bill-preview-meter-heading p,
+  .single-bill-print .bill-preview-meter-status,
+  .single-bill-print .bill-preview-meter-photo-card.is-empty,
+  .single-bill-print .bill-preview-meter-upload { display: none; }
+  .single-bill-print .bill-preview-meter-grid { gap: 5px; }
+  .single-bill-print .bill-preview-meter-photo-card { border-color: #ddd; background: #fff; }
+  .single-bill-print .bill-preview-meter-photo-frame { max-height: 17mm; background: #fff; }
+  .single-bill-print .bill-preview-meter-photo-card figcaption { padding: 3px 4px; }
+  .single-bill-print .bill-preview-meter-photo-card figcaption strong { color: #111; font-size: 6.5pt; }
+  .single-bill-print .bill-preview-meter-photo-card figcaption small { color: #555; font-size: 5.5pt; }
 
   .financial-report-print {
     color: #111;
@@ -7626,6 +7776,11 @@ body.workspace-staff-active .main { padding-top: 112px; }
     margin: 16mm 14mm;
   }
 
+  @page singleBill {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
   @page rentalContract {
     size: Letter portrait;
     margin: .5in;
@@ -7645,6 +7800,16 @@ body.workspace-staff-active .main { padding-top: 112px; }
     size: A4 landscape;
     margin: 12mm;
   }
+}
+
+.ocr-modal-inner[data-mode="photo"] .ocr-result-row,
+.ocr-modal-inner[data-mode="photo"] .ocr-guide-box,
+.ocr-modal-inner[data-mode="photo"] .ocr-crop-preview-wrap,
+.ocr-modal-inner[data-mode="photo"] .ocr-invert-control { display: none; }
+.ocr-modal-inner[data-mode="photo"] .ocr-controls-row { grid-template-columns: minmax(0, 1fr); }
+.ocr-modal-inner[data-mode="photo"] .ocr-video-wrap {
+  border-color: rgba(108, 99, 255, .5);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, .08);
 }
 
 /* ===========================
@@ -7806,6 +7971,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
   text-transform: uppercase;
 }
 .ocr-section-heading > div { min-width: 0; }
+.ocr-section-heading > .ocr-source-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  margin-left: auto;
+}
 .ocr-section-heading h3 {
   margin: 0;
   color: var(--text);
@@ -7882,25 +8053,53 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .ocr-controls-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 12px;
   margin-bottom: 10px;
 }
 
+.ocr-zoom-panel { min-width: 0; }
+.ocr-zoom-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+}
 .ocr-zoom-container {
   display: grid;
-  grid-template-columns: auto minmax(120px, 1fr);
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   color: var(--text-muted);
   font-size: .72rem;
   font-weight: 700;
 }
+.ocr-zoom-container > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ocr-zoom-container output {
+  min-width: 48px;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 
 .ocr-zoom-slider {
-  flex: 1;
+  width: 100%;
+  min-width: 0;
   cursor: pointer;
+}
+.ocr-zoom-slider:disabled { cursor: not-allowed; opacity: .5; }
+.ocr-zoom-step { width: 34px; padding-inline: 0; font-size: 1rem; }
+.ocr-zoom-reset { white-space: nowrap; }
+.ocr-zoom-panel > small {
+  display: block;
+  margin: 5px 41px 0;
+  color: var(--text-muted);
+  font-size: .63rem;
+  line-height: 1.35;
 }
 .ocr-invert-control {
   display: flex;
@@ -8059,8 +8258,17 @@ body.workspace-staff-active .main { padding-top: 112px; }
   }
   .ocr-journey li > span { margin-bottom: 6px; }
   .ocr-journey small { display: none; }
+  .ocr-section-heading { flex-wrap: wrap; }
+  .ocr-section-heading > .ocr-source-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .ocr-source-actions .btn { flex: 1; }
   .ocr-controls-row,
   .ocr-crop-preview-wrap { grid-template-columns: minmax(0, 1fr); }
+  .ocr-zoom-toolbar { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .ocr-zoom-reset { grid-column: 1 / -1; }
+  .ocr-zoom-panel > small { margin-inline: 0; }
   .ocr-result-row {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;

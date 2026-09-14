@@ -2090,7 +2090,8 @@ function renderRentPaymentViews() {
       room,
       rec,
       bill,
-      period
+      period,
+      activeBillPreview.meterPhotoState
     );
   }
 }
@@ -6827,7 +6828,52 @@ function billPreviewDetailRows(room, rec, bill, period) {
   `).join('');
 }
 
-function buildBillPreviewContent(room, rec, bill, period) {
+function billPreviewMeterPhotosMarkup(meterPhotoState = {}) {
+  const status = meterPhotoState.status || 'idle';
+  const photos = meterPhotoState.photos || {};
+  const items = [
+    ['electricity', 'Điện', 'Ảnh đồng hồ điện'],
+    ['water', 'Nước', 'Ảnh đồng hồ nước']
+  ];
+  const cards = items.map(([type, label, alt]) => {
+    const dataUrl = String(photos[type]?.dataUrl || '');
+    const hasPhoto = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(dataUrl);
+    return `
+      <figure class="bill-preview-meter-photo-card ${hasPhoto ? 'has-photo' : 'is-empty'}">
+        <div class="bill-preview-meter-photo-frame">
+          ${hasPhoto
+            ? `<img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(alt)}" />`
+            : `<span aria-hidden="true">${type === 'electricity' ? '⚡' : '💧'}</span>`}
+        </div>
+        <figcaption>
+          <span><strong>${label}</strong><small>${hasPhoto ? 'Đã lưu cùng kỳ hóa đơn' : 'Chưa có ảnh minh chứng'}</small></span>
+          <button type="button" class="btn btn--ghost btn--sm bill-preview-meter-upload"
+            data-meter-photo-upload="${type}" ${status === 'loading' ? 'disabled' : ''}>
+            ${hasPhoto ? 'Thay ảnh' : 'Thêm ảnh'}
+          </button>
+        </figcaption>
+      </figure>`;
+  }).join('');
+  const hasAnyPhoto = items.some(([type]) => photos[type]?.dataUrl);
+  const statusMessage = status === 'loading'
+    ? '<p class="bill-preview-meter-status" role="status">Đang tải ảnh đồng hồ…</p>'
+    : status === 'error'
+      ? '<p class="bill-preview-meter-status bill-preview-meter-status--error">Chưa tải được ảnh đã lưu. Bạn vẫn có thể thêm hoặc thay ảnh.</p>'
+      : '';
+  return `
+    <section class="bill-preview-meter-photos ${hasAnyPhoto ? 'has-photo' : 'is-empty'}" aria-labelledby="bill-preview-meter-title">
+      <div class="bill-preview-meter-heading">
+        <div>
+          <h3 id="bill-preview-meter-title">Ảnh đồng hồ</h3>
+          <p>Ảnh đã căn vùng số, không chứa EXIF hoặc vị trí.</p>
+        </div>
+      </div>
+      ${statusMessage}
+      <div class="bill-preview-meter-grid">${cards}</div>
+    </section>`;
+}
+
+function buildBillPreviewContent(room, rec, bill, period, meterPhotoState = {}) {
   const payment = rentInvoicePaymentState(room.id, period, bill.total, rec.paid);
   const paidAmount = Math.min(bill.total, payment.paidAmountVnd);
   const currentRemaining = payment.remainingVnd;
@@ -6904,15 +6950,15 @@ function buildBillPreviewContent(room, rec, bill, period) {
       </div>
     </section>
 
+    <div class="bill-preview-summary" aria-label="Tóm tắt công nợ">
+      <div><span>Tháng này</span><strong>${fmt(bill.total)}</strong></div>
+      <div><span>Đã thu tháng này</span><strong>${fmt(paidAmount)}</strong></div>
+      <div><span>Còn tháng này</span><strong>${fmt(currentRemaining)}</strong></div>
+      <div class="bill-preview-summary-total"><span>Tổng cần trả</span><strong>${fmt(remaining)}</strong></div>
+    </div>
+
     <div class="bill-preview-layout">
       <div class="bill-preview-info">
-        <div class="bill-preview-summary" aria-label="Tóm tắt công nợ">
-          <div><span>Tháng này</span><strong>${fmt(bill.total)}</strong></div>
-          <div><span>Đã thu tháng này</span><strong>${fmt(paidAmount)}</strong></div>
-          <div><span>Còn tháng này</span><strong>${fmt(currentRemaining)}</strong></div>
-          <div class="bill-preview-summary-total"><span>Tổng cần trả</span><strong>${fmt(remaining)}</strong></div>
-        </div>
-
         <div class="bill-preview-meta">
           <div class="bill-preview-meta-item">
             <strong>Mã hóa đơn:</strong>
@@ -6956,6 +7002,8 @@ function buildBillPreviewContent(room, rec, bill, period) {
           ${rec.note ? `<p class="bill-preview-note">Ghi chú: ${escapeHtml(rec.note)}</p>` : ''}
         </section>
 
+        ${billPreviewMeterPhotosMarkup(meterPhotoState)}
+
       </div>
 
       <aside class="bill-preview-qr-panel">
@@ -6974,11 +7022,85 @@ async function openBillPreview(room, rec, bill, period) {
       console.warn('Không tạo được mã chuyển khoản riêng:', error.message);
     }
   }
-  activeBillPreview = { room, rec, bill, period };
+  const preview = {
+    room,
+    rec,
+    bill,
+    period,
+    meterPhotoState: { status: 'loading', photos: {} }
+  };
+  activeBillPreview = preview;
   document.getElementById('bill-preview-title').textContent = `Hóa đơn ${room.name}`;
   document.getElementById('bill-preview-context').textContent = `${periodLabel(period)} · Đối chiếu công nợ, nội dung chuyển khoản và mã VietQR.`;
-  document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(room, rec, bill, period);
+  document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(
+    room,
+    rec,
+    bill,
+    period,
+    preview.meterPhotoState
+  );
   document.getElementById('bill-preview-modal').hidden = false;
+  const printButton = document.getElementById('bill-preview-print');
+  if (printButton) printButton.disabled = true;
+  try {
+    const result = await API.getRentMeterPhotos(room.id, period);
+    if (activeBillPreview !== preview) return;
+    preview.meterPhotoState = {
+      status: 'ready',
+      photos: result.photos && typeof result.photos === 'object' ? result.photos : {}
+    };
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    if (activeBillPreview !== preview) return;
+    preview.meterPhotoState = { status: 'error', photos: {} };
+  } finally {
+    if (activeBillPreview === preview) {
+      document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(
+        room,
+        rec,
+        bill,
+        period,
+        preview.meterPhotoState
+      );
+      if (printButton) printButton.disabled = false;
+    }
+  }
+}
+
+function uploadBillMeterPhoto(meterType) {
+  if (!activeBillPreview || !['electricity', 'water'].includes(meterType)) return;
+  const preview = activeBillPreview;
+  const targetField = meterType === 'electricity' ? 'elec' : 'water';
+  openOcrModal(preview.room.id, targetField, async (_reading, capture) => {
+    const dataUrl = String(capture?.photoDataUrl || '');
+    if (!dataUrl || activeBillPreview !== preview) return;
+    try {
+      await API.upsertRentMeterPhoto({
+        roomId: preview.room.id,
+        period: preview.period,
+        meterType,
+        dataUrl
+      });
+      preview.meterPhotoState = {
+        status: 'ready',
+        photos: {
+          ...(preview.meterPhotoState?.photos || {}),
+          [meterType]: { dataUrl }
+        }
+      };
+      document.getElementById('bill-preview-content').innerHTML = buildBillPreviewContent(
+        preview.room,
+        preview.rec,
+        preview.bill,
+        preview.period,
+        preview.meterPhotoState
+      );
+      showToast(`Đã lưu ảnh đồng hồ ${meterType === 'electricity' ? 'điện' : 'nước'} ✓`, 'success');
+    } catch (error) {
+      if (error.code === 401) return handleAuthExpired();
+      showToast(error.message || 'Không lưu được ảnh đồng hồ', 'error', 4000);
+    }
+  }, { photoOnly: true });
 }
 
 function closeBillPreview() {
@@ -7401,12 +7523,12 @@ async function waitForBillPreviewImages(container) {
 
 async function printBillPreview() {
   if (!activeBillPreview) return;
-  const { room, rec, bill, period } = activeBillPreview;
+  const { room, rec, bill, period, meterPhotoState } = activeBillPreview;
   const printArea = document.getElementById('print-area');
   printArea.innerHTML = `
     <article class="single-bill-print">
       <h1>Hóa đơn ${escapeHtml(room.name)} – ${escapeHtml(period)}</h1>
-      ${buildBillPreviewContent(room, rec, bill, period)}
+      ${buildBillPreviewContent(room, rec, bill, period, meterPhotoState)}
     </article>`;
   await waitForBillPreviewImages(printArea);
   closeBillPreview();
@@ -7845,6 +7967,13 @@ document.getElementById('invoice-share-modal')?.addEventListener('click', event 
   if (event.target === event.currentTarget) closeInvoiceShareModal();
 });
 document.getElementById('bill-preview-modal').addEventListener('click', event => {
+  const meterPhotoButton = event.target instanceof Element
+    ? event.target.closest('[data-meter-photo-upload]')
+    : null;
+  if (meterPhotoButton) {
+    uploadBillMeterPhoto(meterPhotoButton.dataset.meterPhotoUpload || '');
+    return;
+  }
   const copyReferenceButton = event.target instanceof Element
     ? event.target.closest('[data-copy-transfer-reference]')
     : null;

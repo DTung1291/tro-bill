@@ -23,9 +23,30 @@ test('popup hóa đơn có ngữ nghĩa dialog và phân nhóm hành động the
 test('nội dung ưu tiên trạng thái và tổng công nợ trước chi tiết khoản thu', () => {
   assert.match(app, /const paymentState = remaining === 0[\s\S]*'settled'[\s\S]*payment\.overdueDays > 0[\s\S]*'overdue'/);
   assert.match(app, /class="bill-preview-payment-hero bill-preview-payment-hero--\$\{paymentState\}"/);
-  assert.match(app, /class="bill-preview-summary" aria-label="Tóm tắt công nợ"[\s\S]*class="bill-preview-meta"[\s\S]*class="bill-preview-details"/);
+  assert.match(app, /class="bill-preview-summary" aria-label="Tóm tắt công nợ"[\s\S]*class="bill-preview-layout"[\s\S]*class="bill-preview-meta"[\s\S]*class="bill-preview-details"/);
   assert.match(app, /class="bill-preview-summary-total"><span>Tổng cần trả/);
   assert.match(app, /document\.getElementById\('bill-preview-context'\)\.textContent = `\$\{periodLabel\(period\)\}/);
+});
+
+test('hóa đơn tải, upload và hiển thị ảnh đồng hồ điện nước theo đúng phòng và kỳ', () => {
+  assert.match(app, /function billPreviewMeterPhotosMarkup/);
+  assert.match(app, /data-meter-photo-upload="\$\{type\}"/);
+  assert.match(app, /API\.getRentMeterPhotos\(room\.id, period\)/);
+  assert.match(app, /API\.upsertRentMeterPhoto\(\{[\s\S]*?roomId: preview\.room\.id,[\s\S]*?period: preview\.period,[\s\S]*?meterType/);
+  assert.match(app, /\{ photoOnly: true \}/);
+  assert.match(css, /\.bill-preview-meter-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(css, /\.bill-preview-meter-photo-frame\s*\{[\s\S]*?height:\s*clamp\(150px, 22vw, 240px\);/);
+  assert.match(css, /#bill-preview-modal \.bill-preview-layout\s*\{[^}]*column-gap:\s*24px;[^}]*row-gap:\s*24px;/);
+  assert.match(css, /#bill-preview-modal \.bill-preview-info,[\s\S]*?#bill-preview-modal \.bill-preview-qr-panel\s*\{[^}]*margin:\s*0;/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?#bill-preview-modal \.bill-preview-layout\s*\{[^}]*row-gap:\s*20px;/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?#bill-preview-modal \.bill-preview-qr-panel\s*\{[^}]*margin-top:\s*0;/);
+});
+
+test('bản in hóa đơn dùng trang A4 riêng và bố cục compact một trang', () => {
+  assert.match(css, /body:has\(\.single-bill-print\)\s*\{\s*page:\s*singleBill;/);
+  assert.match(css, /@page singleBill\s*\{[\s\S]*?size:\s*A4 portrait;[\s\S]*?margin:\s*8mm;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-meter-photos\.is-empty\s*\{\s*display:\s*none;/);
+  assert.match(css, /\.single-bill-print \.bill-preview-meter-upload\s*\{\s*display:\s*none;/);
 });
 
 test('popup giữ header và footer trong viewport, chỉ cuộn nội dung', () => {
@@ -42,5 +63,5 @@ test('popup hóa đơn xếp hành động rõ ràng trên tablet và mobile', (
 });
 
 test('asset pin tải đúng CSS và JavaScript của lát cắt hóa đơn', () => {
-  assert.match(html, /href="style\.css\?v=151"[\s\S]*src="app\.js\?v=152"/);
+  assert.match(html, /href="style\.css\?v=156"[\s\S]*src="api\.js\?v=117"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=153"/);
 });
