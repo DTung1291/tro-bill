@@ -46,5 +46,5 @@ test('modal khách trọ tách danh sách, hồ sơ, bảo vệ CCCD và respons
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.tenant-meta-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=150"[\s\S]*src="app\.js\?v=151"/);
+  assert.match(html, /href="style\.css\?v=151"[\s\S]*src="app\.js\?v=152"/);
 });

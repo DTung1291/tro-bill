@@ -233,13 +233,30 @@
   const modal = $('#admin-modal');
   const modalBody = $('#admin-modal-body');
   const modalTitle = $('#admin-modal-title');
+  const modalCard = modal.querySelector('.admin-modal-card');
+  let adminModalReturnFocus = null;
+
+  function adminModalFocusableElements() {
+    return Array.from(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => !element.hidden && element.getClientRects().length > 0);
+  }
 
   function openAdminModal(title, initialHtml = '') {
+    if (modal.hidden && document.activeElement instanceof HTMLElement) {
+      adminModalReturnFocus = document.activeElement;
+    }
     modalTitle.textContent = title;
     modalBody.innerHTML = initialHtml;
     modal.hidden = false;
     document.documentElement.classList.add('modal-open');
     document.body.classList.add('modal-open');
+    requestAnimationFrame(() => {
+      if (!modal.hidden && !modal.contains(document.activeElement)) {
+        const target = adminModalFocusableElements()[0] || modalCard;
+        target.focus({ preventScroll: true });
+      }
+    });
   }
 
   async function viewUser(u) {
@@ -1146,11 +1163,42 @@
     modalBody.textContent = '';
     document.documentElement.classList.remove('modal-open');
     document.body.classList.remove('modal-open');
+    const returnTarget = adminModalReturnFocus;
+    adminModalReturnFocus = null;
+    requestAnimationFrame(() => {
+      if (returnTarget?.isConnected && returnTarget.getClientRects().length > 0) {
+        returnTarget.focus({ preventScroll: true });
+      }
+    });
   }
   $('#admin-modal-close').addEventListener('click', closeUserModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeUserModal(); });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !modal.hidden) closeUserModal();
+    if (modal.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeUserModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = adminModalFocusableElements();
+    if (focusable.length === 0) {
+      event.preventDefault();
+      modalCard.focus({ preventScroll: true });
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!modal.contains(document.activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus({ preventScroll: true });
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
   });
   $('#admin-logout').addEventListener('click', gotoLogin);
 

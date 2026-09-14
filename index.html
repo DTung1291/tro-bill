@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=150" />
+  <link rel="stylesheet" href="style.css?v=151" />
 </head>
 
 <body>
@@ -2245,16 +2245,16 @@
 
   <!-- MODAL: Confirm Action -->
   <div class="modal-overlay" id="confirm-modal" hidden>
-    <div class="modal modal--confirm">
+    <div class="modal modal--confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-body">
       <div class="modal-header">
         <h2 class="modal-title" id="confirm-modal-title">Xác nhận</h2>
-        <button class="modal-close" id="confirm-modal-close">✕</button>
+        <button type="button" class="modal-close" id="confirm-modal-close" aria-label="Đóng">✕</button>
       </div>
       <div class="confirm-modal-content">
         <p class="confirm-modal-message" id="confirm-modal-body"></p>
         <div class="modal-actions">
           <button type="button" class="btn btn--ghost" id="confirm-modal-cancel">Hủy</button>
-          <button type="button" class="btn btn--primary" id="confirm-modal-ok" style="background:var(--red);border-color:var(--red)">Xóa</button>
+          <button type="button" class="btn btn--danger" id="confirm-modal-ok">Xóa</button>
         </div>
       </div>
     </div>
@@ -2508,28 +2508,66 @@
 
   <!-- MODAL: Record full or partial rent payment -->
   <div class="modal-overlay" id="rent-payment-entry-modal" hidden>
-    <div class="modal rent-payment-entry-modal">
+    <div class="modal rent-payment-entry-modal" role="dialog" aria-modal="true" aria-labelledby="rent-payment-entry-title" aria-describedby="rent-payment-entry-context">
       <div class="modal-header">
-        <h2 class="modal-title" id="rent-payment-entry-title">Ghi nhận thu tiền</h2>
+        <div>
+          <span class="finance-ledger-modal-kicker">Thu tiền hóa đơn</span>
+          <h2 class="modal-title" id="rent-payment-entry-title">Ghi nhận thu tiền</h2>
+          <p class="rent-payment-entry-context" id="rent-payment-entry-context">Kiểm tra công nợ trước khi tạo giao dịch.</p>
+        </div>
         <button type="button" class="modal-close" id="rent-payment-entry-close" aria-label="Đóng">✕</button>
       </div>
       <form id="rent-payment-entry-form" class="rent-payment-entry-form">
-        <div class="rent-payment-summary-grid" id="rent-payment-entry-summary"></div>
-        <label class="form-label" for="rent-payment-entry-amount">Số tiền đã nhận</label>
-        <input type="number" class="form-input" id="rent-payment-entry-amount" min="1" step="1" inputmode="numeric" required />
-        <p class="rent-payment-entry-hint" id="rent-payment-entry-hint"></p>
-        <label class="form-label" for="rent-payment-entry-method">Phương thức thanh toán</label>
-        <select class="form-input" id="rent-payment-entry-method" required>
-          <option value="bank_transfer">Chuyển khoản</option>
-          <option value="cash">Tiền mặt</option>
-          <option value="other">Khác</option>
-        </select>
-        <label class="form-label" for="rent-payment-entry-note">Ghi chú (không bắt buộc)</label>
-        <textarea class="form-input" id="rent-payment-entry-note" maxlength="500" rows="3" placeholder="Ví dụ: Khách chuyển khoản đợt 1"></textarea>
-        <p class="rent-payment-entry-error" id="rent-payment-entry-error" hidden></p>
-        <div class="modal-actions">
-          <button type="button" class="btn btn--ghost" id="rent-payment-entry-cancel">Hủy</button>
-          <button type="submit" class="btn btn--primary" id="rent-payment-entry-submit">Ghi nhận giao dịch</button>
+        <div class="rent-payment-entry-body">
+          <section class="rent-payment-entry-overview" aria-labelledby="rent-payment-entry-overview-title">
+            <div class="rent-payment-entry-section-heading">
+              <div>
+                <span>Bước 1</span>
+                <h3 id="rent-payment-entry-overview-title">Kiểm tra số tiền cần thu</h3>
+              </div>
+              <span class="rent-payment-entry-status">Chưa ghi nhận</span>
+            </div>
+            <div class="rent-payment-summary-grid" id="rent-payment-entry-summary"></div>
+          </section>
+
+          <section class="rent-payment-entry-details" aria-labelledby="rent-payment-entry-details-title">
+            <div class="rent-payment-entry-section-heading">
+              <div>
+                <span>Bước 2</span>
+                <h3 id="rent-payment-entry-details-title">Nhập thông tin giao dịch</h3>
+              </div>
+            </div>
+            <div class="rent-payment-entry-field rent-payment-entry-field--amount">
+              <label class="form-label" for="rent-payment-entry-amount">Số tiền đã nhận</label>
+              <div class="rent-payment-entry-amount-control">
+                <input type="number" class="form-input" id="rent-payment-entry-amount" min="1" step="1" inputmode="numeric" aria-describedby="rent-payment-entry-hint rent-payment-entry-error" required />
+                <span aria-hidden="true">đ</span>
+              </div>
+              <p class="rent-payment-entry-hint" id="rent-payment-entry-hint"></p>
+            </div>
+            <div class="rent-payment-entry-fields">
+              <div class="rent-payment-entry-field">
+                <label class="form-label" for="rent-payment-entry-method">Phương thức thanh toán</label>
+                <select class="form-input" id="rent-payment-entry-method" required>
+                  <option value="bank_transfer">Chuyển khoản</option>
+                  <option value="cash">Tiền mặt</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div class="rent-payment-entry-field">
+                <label class="form-label" for="rent-payment-entry-note">Ghi chú (không bắt buộc)</label>
+                <textarea class="form-input" id="rent-payment-entry-note" maxlength="500" rows="3" placeholder="Ví dụ: Khách chuyển khoản đợt 1"></textarea>
+              </div>
+            </div>
+            <p class="rent-payment-entry-error" id="rent-payment-entry-error" role="alert" tabindex="-1" hidden></p>
+          </section>
+        </div>
+        <div class="modal-actions rent-payment-entry-actions">
+          <p>Giao dịch sẽ được thêm vào sổ đối soát và không sửa trực tiếp sau khi lưu.</p>
+          <div>
+            <button type="button" class="btn btn--ghost" id="rent-payment-entry-cancel">Hủy</button>
+            <button type="submit" class="btn btn--primary" id="rent-payment-entry-submit">Ghi nhận giao dịch</button>
+          </div>
         </div>
       </form>
     </div>
@@ -3012,7 +3050,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=151"></script>
+  <script src="app.js?v=152"></script>
 </body>
 
 </html>

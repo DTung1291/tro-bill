@@ -4871,19 +4871,165 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 
 /* Append-only rent payment ledger */
-.modal.rent-payment-entry-modal { max-width: 540px; }
-.rent-payment-entry-form {
+#rent-payment-entry-modal { padding: 24px 16px; }
+.modal.rent-payment-entry-modal {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 20px 22px;
+  width: min(94vw, 680px);
+  max-width: 680px;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
 }
-.rent-payment-entry-form .rent-payment-summary-grid { margin-bottom: 4px; }
-.rent-payment-entry-form textarea { resize: vertical; min-height: 76px; }
-.rent-payment-entry-hint {
-  margin: -4px 0 2px;
+.rent-payment-entry-modal > .modal-header {
+  align-items: flex-start;
+  flex: 0 0 auto;
+  gap: 16px;
+  padding: 20px 22px 18px;
+}
+.rent-payment-entry-modal > .modal-header > div { min-width: 0; }
+.rent-payment-entry-context {
+  margin: 5px 0 0;
   color: var(--text-muted);
   font-size: .76rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.rent-payment-entry-form {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rent-payment-entry-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rent-payment-entry-overview,
+.rent-payment-entry-details {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg3);
+}
+.rent-payment-entry-overview {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--primary) 5%, var(--bg2));
+}
+.rent-payment-entry-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.rent-payment-entry-section-heading > div { min-width: 0; }
+.rent-payment-entry-section-heading > div > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--primary);
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.rent-payment-entry-section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: .9rem;
+  line-height: 1.35;
+}
+.rent-payment-entry-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid rgba(245,158,11,.28);
+  border-radius: 999px;
+  background: rgba(245,158,11,.1);
+  color: #a35b00;
+  font-size: .68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.rent-payment-entry-form .rent-payment-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.rent-payment-entry-form .rent-payment-summary-grid > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+}
+.rent-payment-entry-form .rent-payment-summary-grid > div > span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+.rent-payment-entry-form .rent-payment-summary-grid > div > strong {
+  color: var(--text);
+  font-size: .92rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.rent-payment-entry-form .rent-payment-summary-grid > .rent-payment-entry-balance {
+  grid-column: 1 / -1;
+  padding: 15px;
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: color-mix(in srgb, var(--primary) 9%, var(--bg2));
+}
+.rent-payment-entry-form .rent-payment-summary-grid > .rent-payment-entry-balance > strong {
+  color: var(--primary);
+  font-size: 1.35rem;
+}
+.rent-payment-entry-fields {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 12px;
+}
+.rent-payment-entry-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+.rent-payment-entry-field--amount { margin-bottom: 14px; }
+.rent-payment-entry-amount-control { position: relative; }
+.rent-payment-entry-amount-control .form-input {
+  width: 100%;
+  padding-right: 42px;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.rent-payment-entry-amount-control > span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--text-muted);
+  font-weight: 700;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.rent-payment-entry-form textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+.rent-payment-entry-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .74rem;
   line-height: 1.45;
 }
 .rent-payment-entry-error {
@@ -4894,6 +5040,36 @@ body.workspace-staff-active .main { padding-top: 112px; }
   color: var(--red);
   font-size: .8rem;
   line-height: 1.45;
+}
+.rent-payment-entry-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+.rent-payment-entry-actions > p {
+  max-width: 330px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.4;
+}
+.rent-payment-entry-actions > div {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+.rent-payment-entry-form[aria-busy="true"] .rent-payment-entry-body {
+  opacity: .72;
+  pointer-events: none;
+}
+.rent-payment-entry-amount-control .form-input[aria-invalid="true"] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(239,68,68,.1);
 }
 .modal.rent-payment-modal {
   display: flex;
@@ -5260,15 +5436,26 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .invoice-share-body { padding: 16px; }
   .bill-message-actions,
   .invoice-share-actions { padding: 12px 16px; }
-  #rent-payment-modal { padding: 8px; }
+  #rent-payment-modal,
+  #rent-payment-entry-modal { padding: 8px; }
   .modal.rent-payment-modal { max-height: calc(100dvh - 16px); }
+  .modal.rent-payment-entry-modal { max-height: calc(100dvh - 16px); }
   .rent-payment-modal-body { padding: 16px; }
   .rent-payment-modal-body .rent-payment-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rent-payment-modal-body .rent-payment-summary-grid > div { grid-column: auto; }
   .rent-payment-modal-body .rent-payment-summary-primary,
   .rent-payment-modal-body .rent-payment-summary-transfer { grid-column: span 2; }
   .rent-payment-modal-body .rent-payment-summary-primary { grid-row: auto; }
-  .rent-payment-entry-form { padding: 16px; }
+  .rent-payment-entry-modal > .modal-header { padding: 17px 16px 15px; }
+  .rent-payment-entry-body { padding: 16px; }
+  .rent-payment-entry-fields { grid-template-columns: minmax(0, 1fr); }
+  .rent-payment-entry-actions {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+  .rent-payment-entry-actions > p { max-width: none; }
+  .rent-payment-entry-actions > div { justify-content: flex-end; }
   #deposit-modal { padding: 8px; }
   .modal.deposit-modal { max-height: calc(100dvh - 16px); }
   .deposit-modal-body { padding: 16px; }
@@ -5293,6 +5480,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
   #bill-preview-electronic-invoice { grid-column: auto; }
   .bill-preview-footer .btn { width: 100%; }
   .bill-message-body { padding: 16px; }
+  .rent-payment-entry-overview,
+  .rent-payment-entry-details { padding: 13px; }
+  .rent-payment-entry-form .rent-payment-summary-grid { grid-template-columns: minmax(0, 1fr); }
+  .rent-payment-entry-form .rent-payment-summary-grid > .rent-payment-entry-balance { grid-column: auto; }
+  .rent-payment-entry-actions > div { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .rent-payment-entry-actions .btn { justify-content: center; width: 100%; }
   .delivery-flow { gap: 6px; }
   .delivery-flow__item {
     align-items: flex-start;

@@ -274,17 +274,17 @@
   </div>
 
   <!-- Modal xem dữ liệu của 1 user -->
-  <div id="admin-modal" class="admin-modal" hidden>
-    <div class="admin-modal-card">
+  <div id="admin-modal" class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-modal-title" hidden>
+    <div class="admin-modal-card" tabindex="-1">
       <div class="admin-modal-head">
         <h2 id="admin-modal-title">Dữ liệu người dùng</h2>
-        <button id="admin-modal-close" class="admin-btn-ghost">Đóng</button>
+        <button type="button" id="admin-modal-close" class="admin-btn-ghost" aria-label="Đóng hộp thoại">Đóng</button>
       </div>
       <div id="admin-modal-body" class="admin-modal-body"></div>
     </div>
   </div>
 
   <script src="api.js?v=80"></script>
-  <script src="admin.js?v=80"></script>
+  <script src="admin.js?v=81"></script>
 </body>
 </html>

@@ -2098,8 +2098,18 @@ function renderRentPaymentViews() {
 function closeRentPaymentEntry() {
   const modal = document.getElementById('rent-payment-entry-modal');
   const form = document.getElementById('rent-payment-entry-form');
+  const amount = document.getElementById('rent-payment-entry-amount');
+  const error = document.getElementById('rent-payment-entry-error');
   if (modal) modal.hidden = true;
-  if (form) form.reset();
+  if (form) {
+    form.reset();
+    form.removeAttribute('aria-busy');
+  }
+  amount?.removeAttribute('aria-invalid');
+  if (error) {
+    error.hidden = true;
+    error.textContent = '';
+  }
   ACTIVE_RENT_PAYMENT_ENTRY = null;
 }
 
@@ -2118,22 +2128,27 @@ function openRentPaymentEntry({ roomId, roomName, period, total }) {
   };
   const modal = document.getElementById('rent-payment-entry-modal');
   const title = document.getElementById('rent-payment-entry-title');
+  const context = document.getElementById('rent-payment-entry-context');
+  const status = modal?.querySelector('.rent-payment-entry-status');
   const summary = document.getElementById('rent-payment-entry-summary');
   const amount = document.getElementById('rent-payment-entry-amount');
   const method = document.getElementById('rent-payment-entry-method');
   const note = document.getElementById('rent-payment-entry-note');
   const hint = document.getElementById('rent-payment-entry-hint');
   const error = document.getElementById('rent-payment-entry-error');
-  if (!modal || !title || !summary || !amount || !method || !note || !hint || !error) return;
+  if (!modal || !title || !context || !summary || !amount || !method || !note || !hint || !error) return;
 
-  title.textContent = `Ghi nhận thu tiền ${roomName} – ${period}`;
+  title.textContent = 'Ghi nhận thu tiền';
+  context.textContent = `${roomName} · ${periodLabel(period)} · Kiểm tra trước khi thêm vào sổ đối soát.`;
+  if (status) status.textContent = payment.priorDebtVnd > 0 ? 'Có nợ cũ' : 'Chưa ghi nhận';
   summary.innerHTML = `
-    <div><span>Tổng hóa đơn tháng này</span><strong>${fmt(total)}</strong></div>
-    <div><span>Đã thu tháng này</span><strong>${fmt(payment.paidAmountVnd)}</strong></div>
-    <div><span>Nợ cũ chuyển sang</span><strong>${fmt(payment.priorDebtVnd)}</strong></div>
-    <div><span>Tổng còn phải thu</span><strong>${fmt(payment.totalDueVnd)}</strong></div>`;
+    <div class="rent-payment-entry-balance"><span>Tổng còn phải thu lúc này</span><strong>${fmt(payment.totalDueVnd)}</strong></div>
+    <div><span>Hóa đơn kỳ này</span><strong>${fmt(total)}</strong></div>
+    <div><span>Đã thu kỳ này</span><strong>${fmt(payment.paidAmountVnd)}</strong></div>
+    <div><span>Nợ cũ chuyển sang</span><strong>${fmt(payment.priorDebtVnd)}</strong></div>`;
   amount.max = String(payment.totalDueVnd);
   amount.value = String(payment.totalDueVnd);
+  amount.removeAttribute('aria-invalid');
   method.value = 'bank_transfer';
   note.value = '';
   hint.textContent = payment.priorDebtVnd > 0
@@ -2157,13 +2172,19 @@ async function submitRentPaymentEntry(event) {
   const noteInput = document.getElementById('rent-payment-entry-note');
   const error = document.getElementById('rent-payment-entry-error');
   const submit = document.getElementById('rent-payment-entry-submit');
+  const form = document.getElementById('rent-payment-entry-form');
   const amountVnd = Number(amountInput?.value);
   if (!Number.isSafeInteger(amountVnd) || amountVnd <= 0 || amountVnd > entry.payment.totalDueVnd) {
     error.textContent = `Số tiền phải từ 1 đến ${fmt(entry.payment.totalDueVnd)}.`;
     error.hidden = false;
+    amountInput?.setAttribute('aria-invalid', 'true');
+    amountInput?.focus();
     return;
   }
+  amountInput?.removeAttribute('aria-invalid');
   submit.disabled = true;
+  submit.textContent = 'Đang ghi nhận…';
+  form?.setAttribute('aria-busy', 'true');
   error.hidden = true;
   try {
     const result = await API.settleRentInvoice({
@@ -2195,8 +2216,11 @@ async function submitRentPaymentEntry(event) {
     if (requestError.code === 401) return handleAuthExpired();
     error.textContent = requestError.message || 'Không ghi nhận được giao dịch';
     error.hidden = false;
+    requestAnimationFrame(() => error.focus());
   } finally {
     submit.disabled = false;
+    submit.textContent = 'Ghi nhận giao dịch';
+    form?.removeAttribute('aria-busy');
   }
 }
 
@@ -2654,10 +2678,201 @@ function syncModalScrollLock() {
   modalScrollLocked = false;
 }
 
-const modalScrollObserver = new MutationObserver(syncModalScrollLock);
-document.querySelectorAll('.modal-overlay').forEach(modal => {
-  modalScrollObserver.observe(modal, { attributes: true, attributeFilter: ['hidden'] });
+const MODAL_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[contenteditable="true"]',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',');
+const modalReturnFocus = new WeakMap();
+const modalOpenState = new WeakMap();
+const registeredModalOverlays = new WeakSet();
+
+function modalDialogElement(overlay) {
+  if (overlay.matches('[role="dialog"], [role="alertdialog"]')) return overlay;
+  return overlay.querySelector('.modal[role="dialog"], .modal[role="alertdialog"], .modal') || overlay;
+}
+
+function prepareModalAccessibility(overlay) {
+  if (!(overlay instanceof HTMLElement)) return;
+  const dialog = modalDialogElement(overlay);
+  if (!dialog.hasAttribute('role')) dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+
+  if (!dialog.hasAttribute('aria-labelledby') && !dialog.hasAttribute('aria-label')) {
+    const title = dialog.querySelector('.modal-title, h1, h2, h3');
+    if (title) {
+      if (!title.id) title.id = `${overlay.id || 'modal'}-a11y-title`;
+      dialog.setAttribute('aria-labelledby', title.id);
+    } else {
+      dialog.setAttribute('aria-label', 'Hộp thoại');
+    }
+  }
+
+  overlay.querySelectorAll('.modal-close').forEach(button => {
+    if (button.tagName === 'BUTTON' && !button.hasAttribute('type')) button.setAttribute('type', 'button');
+    if (!button.hasAttribute('aria-label')) button.setAttribute('aria-label', 'Đóng hộp thoại');
+  });
+}
+
+function isAvailableModalControl(element) {
+  if (!(element instanceof HTMLElement) || element.hasAttribute('disabled')) return false;
+  if (element.hidden || element.getAttribute('aria-hidden') === 'true') return false;
+  return element.getClientRects().length > 0;
+}
+
+function modalFocusableElements(overlay) {
+  return Array.from(overlay.querySelectorAll(MODAL_FOCUSABLE_SELECTOR))
+    .filter(isAvailableModalControl);
+}
+
+function topOpenModalOverlay() {
+  let topModal = null;
+  let topZIndex = -Infinity;
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    if (overlay.hidden) return;
+    const parsedZIndex = Number.parseInt(window.getComputedStyle(overlay).zIndex, 10);
+    const zIndex = Number.isFinite(parsedZIndex) ? parsedZIndex : 0;
+    if (zIndex >= topZIndex) {
+      topModal = overlay;
+      topZIndex = zIndex;
+    }
+  });
+  return topModal;
+}
+
+function focusModalOverlay(overlay) {
+  if (!overlay || overlay.hidden || topOpenModalOverlay() !== overlay) return;
+  if (overlay.contains(document.activeElement)) return;
+  const preferred = overlay.querySelector('[autofocus]');
+  const target = isAvailableModalControl(preferred)
+    ? preferred
+    : (modalFocusableElements(overlay)[0] || modalDialogElement(overlay));
+  target.focus({ preventScroll: true });
+}
+
+function restoreFocusAfterModal(overlay) {
+  const returnTarget = modalReturnFocus.get(overlay);
+  modalReturnFocus.delete(overlay);
+  requestAnimationFrame(() => {
+    const remainingModal = topOpenModalOverlay();
+    if (remainingModal) {
+      if (returnTarget?.isConnected && remainingModal.contains(returnTarget) && isAvailableModalControl(returnTarget)) {
+        returnTarget.focus({ preventScroll: true });
+      } else {
+        focusModalOverlay(remainingModal);
+      }
+      return;
+    }
+    if (returnTarget?.isConnected && isAvailableModalControl(returnTarget)) {
+      returnTarget.focus({ preventScroll: true });
+    }
+  });
+}
+
+function syncModalAccessibilityState(overlay) {
+  prepareModalAccessibility(overlay);
+  const isOpen = !overlay.hidden && overlay.isConnected;
+  const wasOpen = modalOpenState.get(overlay) === true;
+  if (isOpen === wasOpen) return;
+  modalOpenState.set(overlay, isOpen);
+  if (isOpen) {
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && !overlay.contains(activeElement)) {
+      modalReturnFocus.set(overlay, activeElement);
+    }
+    requestAnimationFrame(() => focusModalOverlay(overlay));
+  } else {
+    restoreFocusAfterModal(overlay);
+  }
+}
+
+function registerModalOverlay(overlay) {
+  if (!(overlay instanceof HTMLElement) || registeredModalOverlays.has(overlay)) return;
+  registeredModalOverlays.add(overlay);
+  modalOpenState.set(overlay, false);
+  syncModalAccessibilityState(overlay);
+}
+
+function modalOverlaysWithin(node) {
+  if (!(node instanceof Element)) return [];
+  const overlays = [];
+  if (node.matches('.modal-overlay')) overlays.push(node);
+  overlays.push(...node.querySelectorAll('.modal-overlay'));
+  return overlays;
+}
+
+const modalObserver = new MutationObserver(records => {
+  const changedOverlays = new Set();
+  records.forEach(record => {
+    if (record.type === 'attributes' && record.target.matches('.modal-overlay')) {
+      changedOverlays.add(record.target);
+      return;
+    }
+    record.addedNodes.forEach(node => {
+      modalOverlaysWithin(node).forEach(overlay => registerModalOverlay(overlay));
+    });
+    record.removedNodes.forEach(node => {
+      modalOverlaysWithin(node).forEach(overlay => {
+        if (modalOpenState.get(overlay) === true) {
+          modalOpenState.set(overlay, false);
+          restoreFocusAfterModal(overlay);
+        }
+      });
+    });
+  });
+  changedOverlays.forEach(overlay => syncModalAccessibilityState(overlay));
+  syncModalScrollLock();
 });
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => registerModalOverlay(overlay));
+modalObserver.observe(document.body, {
+  attributes: true,
+  attributeFilter: ['hidden'],
+  childList: true,
+  subtree: true
+});
+
+document.addEventListener('keydown', event => {
+  const overlay = topOpenModalOverlay();
+  if (!overlay) return;
+
+  if (event.key === 'Escape' && !event.defaultPrevented) {
+    const closeButton = overlay.querySelector(
+      '.modal-close:not([disabled]), [data-modal-close]:not([disabled]), button[id$="-close"]:not([disabled]), button[id$="-close-header"]:not([disabled])'
+    );
+    if (closeButton) {
+      event.preventDefault();
+      closeButton.click();
+    }
+    return;
+  }
+
+  if (event.key !== 'Tab') return;
+  const focusable = modalFocusableElements(overlay);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    modalDialogElement(overlay).focus({ preventScroll: true });
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!overlay.contains(document.activeElement)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus({ preventScroll: true });
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus({ preventScroll: true });
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus({ preventScroll: true });
+  }
+}, true);
+
 syncModalScrollLock();
 
 // Custom confirm dialog (replaces window.confirm which Chrome blocks on file://)
@@ -2672,13 +2887,8 @@ function showConfirm(message, onOk, onCancel = null, okText = 'Xóa') {
   bodyEl.textContent = message;
   okBtn.textContent = okText;
   
-  if (okText === 'Xóa') {
-    okBtn.style.background = 'var(--red)';
-    okBtn.style.borderColor = 'var(--red)';
-  } else {
-    okBtn.style.background = 'var(--primary)';
-    okBtn.style.borderColor = 'var(--primary)';
-  }
+  okBtn.classList.toggle('btn--danger', okText === 'Xóa');
+  okBtn.classList.toggle('btn--primary', okText !== 'Xóa');
 
   overlay.hidden = false;
 
@@ -7651,6 +7861,14 @@ document.getElementById('bill-preview-modal').addEventListener('click', event =>
 document.getElementById('rent-payment-entry-form')?.addEventListener('submit', submitRentPaymentEntry);
 document.getElementById('rent-payment-entry-close')?.addEventListener('click', closeRentPaymentEntry);
 document.getElementById('rent-payment-entry-cancel')?.addEventListener('click', closeRentPaymentEntry);
+document.getElementById('rent-payment-entry-amount')?.addEventListener('input', event => {
+  event.currentTarget.removeAttribute('aria-invalid');
+  const error = document.getElementById('rent-payment-entry-error');
+  if (error) {
+    error.hidden = true;
+    error.textContent = '';
+  }
+});
 document.getElementById('rent-payment-entry-modal')?.addEventListener('click', event => {
   if (event.target === event.currentTarget) closeRentPaymentEntry();
 });
