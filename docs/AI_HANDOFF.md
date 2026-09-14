@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 14/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Hóa đơn một trang, ảnh đồng hồ và điều khiển upload/zoom hoàn tất local; toàn bộ 518/518 test đạt |
+| Trạng thái | Hóa đơn một trang, ảnh đồng hồ màu và điều khiển upload/zoom hoàn tất tại `b27ea27`; toàn bộ 518/518 test đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt hóa đơn; chưa commit/push theo yêu cầu hiện tại |
+| Worktree kỳ vọng | Sạch sau khi đẩy lát cắt hóa đơn lên `main` |
 | Phần ứng dụng phát hành gần nhất | `d98f20a` làm mới popup chụp/đọc chỉ số; CI `34759172986` xanh, Production revision `f700449a501a` và readiness đã xác minh |
-| Việc code tiếp theo | Người dùng kiểm tra popup Xem bill + VietQR và luồng tải/thay ảnh, zoom trên desktop/mobile; sau đó commit/push nếu xác nhận |
+| Việc code tiếp theo | Tạm dừng improve UI/UX theo yêu cầu người dùng; chỉ tiếp tục khi có yêu cầu mới |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
