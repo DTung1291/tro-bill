@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 13/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Lát cắt UX/UI chụp/đọc chỉ số đã phát hành; test mục tiêu 9/9 và toàn bộ 511/511 đạt |
+| Cập nhật lần cuối | 14/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Lát cắt UX/UI ghi nhận thu tiền và accessibility popup hoàn tất tại `f0e5b7b`; toàn bộ 514/514 test đạt |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu bàn giao |
 | Phần ứng dụng phát hành gần nhất | `d98f20a` làm mới popup chụp/đọc chỉ số; CI `34759172986` xanh, Production revision `f700449a501a` và readiness đã xác minh |
-| Việc code tiếp theo | Tạm dừng theo yêu cầu; sau khi người dùng duyệt popup OCR mới, rà và chọn đúng một lát cắt UX/UI tiếp theo |
+| Việc code tiếp theo | Sau khi push, theo dõi CI/deployment rồi smoke test popup Ghi nhận thu tiền trên desktop/mobile và thao tác Escape/Tab |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,18 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI Ghi nhận thu tiền và accessibility popup hoàn thành local: popup
+  thu tiền tách kiểm tra công nợ khỏi thông tin giao dịch, ưu tiên tổng còn phải
+  thu, giữ header/footer trong viewport và chỉ cuộn phần thân; trạng thái gửi,
+  lỗi nhập và lỗi máy chủ được thông báo rõ. Lớp popup dùng chung bổ sung
+  `dialog`/`alertdialog`, nhãn truy cập, Escape, focus trap, trả focus về điểm mở
+  và nhận cả popup được tạo động; popup Super Admin có cùng hành vi. Không đổi
+  API, công thức công nợ, phân bổ nợ cũ, ledger append-only hoặc idempotency.
+  CSS pin tăng `150 → 151`, app pin tăng `151 → 152`, admin pin tăng `80 → 81`;
+  test mục tiêu 3/3 và toàn suite ngoài sandbox 514/514 đạt. Commit ứng dụng
+  `f0e5b7b`; không có migration và chưa xác minh CI/deployment hoặc kiểm tra trực
+  quan bằng dữ liệu thật.
 
 - Lát cắt UX/UI chụp/đọc chỉ số đã phát hành: popup đi theo ba bước
   chọn ảnh, căn dãy số và xác nhận; header/footer cố định, chỉ phần thân cuộn,
