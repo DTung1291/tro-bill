@@ -199,6 +199,12 @@ app.get(
   wrap(financialReports.getMonthlyFinancialReport)
 );
 app.get(
+  '/api/dashboard/trend',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('overview')),
+  wrap(financialReports.getDashboardTrend)
+);
+app.get(
   '/api/financial-reports/summary',
   requireAuth,
   wrap(accountAccess.requireWorkspace('overview')),

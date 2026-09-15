@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=157" />
+  <link rel="stylesheet" href="style.css?v=158" />
 </head>
 
 <body>
@@ -225,6 +225,61 @@
             <div class="card-value"><span id="rooms-entered">0</span>/<span id="rooms-total">0</span></div>
             <div class="card-sub">phòng đã hoàn thành</div>
           </div>
+        </div>
+      </section>
+
+      <section class="dashboard-trend" aria-labelledby="dashboard-trend-title">
+        <div class="dashboard-section-heading dashboard-trend-heading">
+          <div>
+            <span class="dashboard-section-kicker">So sánh nhiều kỳ</span>
+            <h2 id="dashboard-trend-title">Xu hướng tài chính</h2>
+            <p id="dashboard-trend-scope">Tổng hợp theo khu và tháng đang chọn.</p>
+          </div>
+          <div class="dashboard-trend-range" role="group" aria-label="Khoảng thời gian biểu đồ">
+            <button class="dashboard-trend-range-button is-active" type="button"
+              data-dashboard-trend-months="6" aria-pressed="true">6 tháng</button>
+            <button class="dashboard-trend-range-button" type="button"
+              data-dashboard-trend-months="12" aria-pressed="false">12 tháng</button>
+          </div>
+        </div>
+
+        <div class="dashboard-trend-insights" aria-label="Tóm tắt xu hướng phải thu">
+          <article class="dashboard-trend-insight">
+            <span>Phải thu so với tháng trước</span>
+            <strong id="dashboard-trend-change">—</strong>
+            <small id="dashboard-trend-change-note">Đang tổng hợp…</small>
+          </article>
+          <article class="dashboard-trend-insight">
+            <span>Phải thu trung bình</span>
+            <strong id="dashboard-trend-average">—</strong>
+            <small id="dashboard-trend-average-note">Theo hóa đơn phát hành</small>
+          </article>
+          <article class="dashboard-trend-insight">
+            <span>Tháng có phải thu cao nhất</span>
+            <strong id="dashboard-trend-best">—</strong>
+            <small id="dashboard-trend-best-note">Chưa có dữ liệu</small>
+          </article>
+        </div>
+
+        <div class="dashboard-trend-legend" aria-label="Chú thích biểu đồ">
+          <span><i class="dashboard-trend-swatch dashboard-trend-swatch--revenue"></i>Phải thu</span>
+          <span><i class="dashboard-trend-swatch dashboard-trend-swatch--collected"></i>Đã thu</span>
+          <span><i class="dashboard-trend-swatch dashboard-trend-swatch--expenses"></i>Chi phí</span>
+        </div>
+        <div class="dashboard-trend-chart-shell" id="dashboard-trend-chart-shell">
+          <div class="dashboard-trend-chart" id="dashboard-trend-chart"
+            role="group" aria-labelledby="dashboard-trend-title dashboard-trend-status"></div>
+          <div class="dashboard-trend-empty" id="dashboard-trend-empty" hidden>
+            Chưa có hóa đơn, khoản thu hoặc chi phí trong khoảng này.
+          </div>
+        </div>
+        <div class="dashboard-trend-footer">
+          <p class="dashboard-trend-status" id="dashboard-trend-status" aria-live="polite">
+            Đang tổng hợp xu hướng…
+          </p>
+          <button class="btn btn--sm btn--ghost" id="dashboard-trend-retry" type="button" hidden>
+            Thử lại
+          </button>
         </div>
       </section>
 
@@ -3050,7 +3105,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=117"></script>
+  <script src="api.js?v=118"></script>
   <script src="ocr.js?v=94"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -3062,7 +3117,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=154"></script>
+  <script src="app.js?v=155"></script>
 </body>
 
 </html>

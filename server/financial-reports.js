@@ -7,6 +7,7 @@ const QUARTER_PATTERN = /^([0-9]{4})-Q([1-4])$/;
 const YEAR_PATTERN = /^[2-9][0-9]{3}$/;
 const REPORT_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const PERIOD_TYPES = new Set(['month', 'quarter', 'year']);
+const DASHBOARD_TREND_MONTH_OPTIONS = new Set([6, 12]);
 
 class FinancialReportError extends Error {
   constructor(statusCode, code, message) {
@@ -77,6 +78,22 @@ function reportFilters(query = {}) {
     propertyId: optionalPropertyId(query.propertyId),
     roomId: optionalRoomId(query.roomId)
   };
+}
+
+function dashboardTrendRange(query = {}) {
+  const toPeriod = reportPeriod(query.endPeriod || query.period);
+  const monthCount = Number(query.months || 6);
+  if (!DASHBOARD_TREND_MONTH_OPTIONS.has(monthCount)) {
+    throw new FinancialReportError(
+      400,
+      'INVALID_DASHBOARD_TREND_MONTHS',
+      'Khoảng so sánh chỉ hỗ trợ 6 hoặc 12 tháng'
+    );
+  }
+  const [year, month] = toPeriod.split('-').map(Number);
+  const fromDate = new Date(Date.UTC(year, month - monthCount, 1));
+  const fromPeriod = `${fromDate.getUTCFullYear()}-${String(fromDate.getUTCMonth() + 1).padStart(2, '0')}`;
+  return { fromPeriod, toPeriod, monthCount };
 }
 
 function amount(value) {
@@ -244,6 +261,121 @@ function annualRevenueEvidenceJson(rows = [], range, reportRevenueVnd = 0) {
     reconciliationDifferenceVnd: monthlyRevenueVnd - amount(reportRevenueVnd),
     legalClassificationRequired: true
   };
+}
+
+function dashboardTrendJson(rows = [], range, filters = {}) {
+  const months = rows.map(row => {
+    const revenueVnd = amount(row.revenue_vnd);
+    const collectedVnd = amount(row.collected_vnd);
+    const expensesVnd = amount(row.expenses_vnd);
+    return {
+      period: String(row.period || ''),
+      revenueVnd,
+      collectedVnd,
+      expensesVnd,
+      profitVnd: collectedVnd - expensesVnd
+    };
+  });
+  return {
+    ...range,
+    filters: {
+      propertyId: filters.propertyId ?? null,
+      expenseMode: filters.propertyId ? 'property_only' : 'all'
+    },
+    timeZone: REPORT_TIME_ZONE,
+    basis: {
+      revenue: 'issued_invoice_total',
+      collected: 'payment_cashflow',
+      expenses: 'paid_expenses',
+      profit: 'collected_minus_expenses'
+    },
+    months,
+    generatedAt: rows[0]?.generated_at instanceof Date
+      ? rows[0].generated_at.toISOString()
+      : String(rows[0]?.generated_at || '')
+  };
+}
+
+function dashboardTrendSql() {
+  return `
+    WITH months AS (
+      SELECT to_char(month_start, 'YYYY-MM') AS period
+      FROM generate_series(
+        to_date($2 || '-01', 'YYYY-MM-DD'),
+        to_date($3 || '-01', 'YYYY-MM-DD'),
+        INTERVAL '1 month'
+      ) AS month_start
+    ),
+    bounds AS (
+      SELECT to_date($2 || '-01', 'YYYY-MM-DD')::timestamp
+               AT TIME ZONE '${REPORT_TIME_ZONE}' AS starts_at,
+             (to_date($3 || '-01', 'YYYY-MM-DD') + INTERVAL '1 month')::timestamp
+               AT TIME ZONE '${REPORT_TIME_ZONE}' AS ends_at
+    ),
+    invoice_monthly AS (
+      SELECT invoice.period,
+             COALESCE(SUM(COALESCE(invoice.final_total_vnd, invoice.issued_total_vnd)), 0)
+               AS revenue_vnd
+      FROM rent_invoices invoice
+      LEFT JOIN rooms room
+        ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+      WHERE invoice.user_id=$1
+        AND invoice.period BETWEEN $2 AND $3
+        AND ($4::bigint IS NULL OR room.property_id=$4)
+        AND ($5::bigint[] IS NULL OR room.property_id=ANY($5::bigint[]))
+      GROUP BY invoice.period
+    ),
+    collection_monthly AS (
+      SELECT to_char(
+               transaction.occurred_at AT TIME ZONE '${REPORT_TIME_ZONE}',
+               'YYYY-MM'
+             ) AS period,
+             COALESCE(SUM(transaction.amount_vnd), 0) AS collected_vnd
+      FROM rent_payment_transactions transaction
+      JOIN rent_invoices invoice
+        ON invoice.user_id=transaction.user_id AND invoice.id=transaction.invoice_id
+      LEFT JOIN rooms room
+        ON room.user_id=invoice.user_id AND room.id=invoice.room_id
+      CROSS JOIN bounds
+      WHERE transaction.user_id=$1
+        AND transaction.entry_type IN ('payment', 'reversal')
+        AND transaction.payment_method<>'deposit'
+        AND transaction.occurred_at >= bounds.starts_at
+        AND transaction.occurred_at < bounds.ends_at
+        AND ($4::bigint IS NULL OR room.property_id=$4)
+        AND ($5::bigint[] IS NULL OR room.property_id=ANY($5::bigint[]))
+      GROUP BY 1
+    ),
+    expense_monthly AS (
+      SELECT expense.period,
+             COALESCE(SUM(expense.amount), 0) AS expenses_vnd
+      FROM expense_entries expense
+      WHERE expense.user_id=$1
+        AND expense.period BETWEEN $2 AND $3
+        AND ($4::bigint IS NULL OR expense.property_id=$4)
+        AND ($5::bigint[] IS NULL OR (
+          expense.property_id=ANY($5::bigint[])
+          OR (
+            expense.property_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM properties unassigned_property
+              WHERE unassigned_property.user_id=$1
+                AND NOT (unassigned_property.id=ANY($5::bigint[]))
+            )
+          )
+        ))
+      GROUP BY expense.period
+    )
+    SELECT months.period,
+           COALESCE(invoice_monthly.revenue_vnd, 0) AS revenue_vnd,
+           COALESCE(collection_monthly.collected_vnd, 0) AS collected_vnd,
+           COALESCE(expense_monthly.expenses_vnd, 0) AS expenses_vnd,
+           now() AS generated_at
+    FROM months
+    LEFT JOIN invoice_monthly ON invoice_monthly.period=months.period
+    LEFT JOIN collection_monthly ON collection_monthly.period=months.period
+    LEFT JOIN expense_monthly ON expense_monthly.period=months.period
+    ORDER BY months.period`;
 }
 
 function reportSql() {
@@ -844,13 +976,51 @@ async function getMonthlyFinancialReport(req, res, dependencies = {}) {
   return getFinancialReport(req, res, dependencies);
 }
 
+async function getDashboardTrend(req, res, dependencies = {}) {
+  let range;
+  let filters;
+  try {
+    range = dashboardTrendRange(req.query);
+    filters = { propertyId: optionalPropertyId(req.query?.propertyId), roomId: null };
+  } catch (error) {
+    if (sendFinancialReportError(res, error)) return res;
+    throw error;
+  }
+
+  const query = dependencies.query || db.query;
+  const allowedPropertyIds = req.workspace?.isOwner === false
+    ? [...new Set((req.workspace.propertyIds || []).map(Number).filter(Number.isSafeInteger))]
+    : null;
+  try {
+    await validateReportFilters(query, req.userId, filters, allowedPropertyIds);
+  } catch (error) {
+    if (sendFinancialReportError(res, error)) return res;
+    throw error;
+  }
+
+  const result = await query(dashboardTrendSql(), [
+    req.userId,
+    range.fromPeriod,
+    range.toPeriod,
+    filters.propertyId,
+    allowedPropertyIds
+  ]);
+  res.set('Cache-Control', 'no-store');
+  return res.json({ trend: dashboardTrendJson(result.rows || [], range, filters) });
+}
+
 module.exports = {
+  DASHBOARD_TREND_MONTH_OPTIONS,
   FinancialReportError,
   PERIOD_PATTERN,
   REPORT_TIME_ZONE,
   annualRevenueEvidenceJson,
   annualRevenueEvidenceSql,
+  dashboardTrendJson,
+  dashboardTrendRange,
+  dashboardTrendSql,
   financialReportJson,
+  getDashboardTrend,
   getFinancialReport,
   getMonthlyFinancialReport,
   occupancyReportJson,

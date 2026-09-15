@@ -1047,3 +1047,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   trang và ẩn thao tác upload. Hợp đồng, biên bản bàn giao, quyết toán và các tài
   liệu dài vẫn được phép chảy qua nhiều trang; không áp quy tắc một trang toàn
   cục để tránh cắt nội dung.
+
+## D-054 — Xu hướng dashboard giữ nguyên định nghĩa sổ tài chính
+
+- **Trạng thái:** Áp dụng từ 15/09/2026.
+- **Quyết định:** Dashboard so sánh 6 hoặc 12 tháng kết thúc tại tháng đang chọn.
+  Mỗi tháng hiển thị riêng doanh thu phải thu, dòng tiền đã thu và chi phí đã
+  trả; lợi nhuận dùng cho tóm tắt bằng đã thu trừ chi phí. Doanh thu không được
+  thay bằng số tiền thu trong tháng và tiền cọc không được cộng vào dòng tiền
+  thu hóa đơn.
+- **Nguồn chuẩn:** Công thức, múi giờ `Asia/Ho_Chi_Minh`, scope workspace/staff
+  và cách xử lý chi phí chung phải giữ đúng D-026 và D-027. Bộ lọc khu chỉ nhận
+  chi phí gắn trực tiếp với khu; không tự phân bổ chi phí chung để làm đẹp biểu
+  đồ.
+- **Hiệu năng và giao diện:** Client gọi một endpoint tổng hợp cho cả khoảng,
+  không gọi lặp từng tháng. Truy vấn luôn sinh đủ tháng không có dữ liệu và lọc
+  thời gian giao dịch bằng timestamp bounds để dùng được index. Biểu đồ SVG
+  không thêm thư viện phụ thuộc; mobile chỉ cuộn ngang bên trong khung biểu đồ,
+  đồng thời phải có bảng ẩn tương đương cho trình đọc màn hình.

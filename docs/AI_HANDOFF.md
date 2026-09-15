@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 14/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Bản in hóa đơn khôi phục nhịp bố cục cũ, giữ ảnh đồng hồ lớn và cột VietQR không tràn; toàn bộ 518/518 test đạt |
+| Cập nhật lần cuối | 15/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao local: dashboard có xu hướng tài chính 6/12 tháng, lọc theo khu; toàn bộ 522/522 test đạt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi đẩy tài liệu phát hành lên `main` |
+| Worktree kỳ vọng | Có thay đổi local của lát cắt xu hướng dashboard, chưa commit/push để người dùng kiểm tra trước |
 | Phần ứng dụng phát hành gần nhất | `5d165c0` khôi phục layout in/PDF hóa đơn cũ và đặt hai ảnh đồng hồ phía dưới; CI `34826020266` xanh, Production revision `5d165c0062d8` và readiness đã xác minh |
-| Việc code tiếp theo | Chờ người dùng smoke test In bill trên Production; không thay đổi popup Xem bill + VietQR |
+| Việc code tiếp theo | Người dùng kiểm tra biểu đồ Tổng quan local; nếu xác nhận thì commit/push, sau đó xác minh CI và Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,21 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Xu hướng tài chính dashboard hoàn thành local: thêm một API tổng hợp 6/12
+  tháng kết thúc tại kỳ đang chọn, trả đủ từng tháng và tách phải thu, đã thu,
+  chi phí cùng dòng tiền ròng. Truy vấn giữ đúng định nghĩa D-026/D-027, timezone
+  Việt Nam, loại tiền cọc, lọc khu và scope staff; timestamp bounds tránh bọc cột
+  thời gian bằng hàm trong điều kiện lọc. UI có ba thẻ so sánh, biểu đồ SVG không
+  thêm dependency, bảng ẩn cho trình đọc màn hình, cache theo workspace/kỳ/khu,
+  trạng thái tải/rỗng/lỗi và retry. Desktop đã xem bằng dữ liệu local thật;
+  mobile 390×844 không tràn trang, khung chart cuộn nội bộ, chế độ 12 tháng tự
+  cuộn tới tháng mới nhất và đổi khu thành công; console không có lỗi. Asset pin
+  tăng `style 157 → 158`, `api 117 → 118`, `app 154 → 155`; test mục tiêu 18/18
+  và toàn bộ 522/522 đạt ngoài sandbox. Không có migration. Chưa commit, push,
+  deploy hoặc kiểm tra Production. Server `localhost:3000` đã được restart bằng
+  mã mới; route xu hướng trả 401/no-store khi chưa đăng nhập. Bước an toàn tiếp
+  theo duy nhất là người dùng kiểm tra local rồi xác nhận commit/push.
 
 - Tinh chỉnh bản in/PDF hóa đơn đã phát hành: tái tạo mẫu tham chiếu cũ
   với tiêu đề 18 pt, metadata/tuổi nợ ở đầu, chi tiết ở giữa, bốn thẻ tổng tiền

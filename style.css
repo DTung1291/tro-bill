@@ -402,6 +402,176 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .card-sub { margin-top: 5px; color: var(--text-muted); font-size: .75rem; line-height: 1.4; }
 
 /* ===========================
+   DASHBOARD TREND
+   =========================== */
+.dashboard-trend {
+  margin-bottom: 28px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--bg2);
+  box-shadow: var(--shadow);
+}
+.dashboard-trend-heading { align-items: center; }
+.dashboard-trend-range {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+}
+.dashboard-trend-range-button {
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 750;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+.dashboard-trend-range-button:hover { color: var(--text); }
+.dashboard-trend-range-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.dashboard-trend-range-button.is-active {
+  background: var(--bg2);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+}
+.dashboard-trend-insights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.dashboard-trend-insight {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+}
+.dashboard-trend-insight span,
+.dashboard-trend-insight small {
+  display: block;
+  color: var(--text-muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+.dashboard-trend-insight strong {
+  display: block;
+  margin: 4px 0 2px;
+  color: var(--text);
+  font-size: 1.08rem;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.dashboard-trend-insight.is-positive strong { color: var(--green); }
+.dashboard-trend-insight.is-negative strong { color: var(--red); }
+.dashboard-trend-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 650;
+}
+.dashboard-trend-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dashboard-trend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.dashboard-trend-swatch--revenue { background: var(--primary); }
+.dashboard-trend-swatch--collected { background: var(--green); }
+.dashboard-trend-swatch--expenses {
+  border-radius: 999px;
+  background: var(--electric);
+}
+.dashboard-trend-chart-shell {
+  position: relative;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 3%, transparent), transparent 60%),
+    var(--bg2);
+  scrollbar-gutter: stable;
+}
+.dashboard-trend-chart { min-height: 280px; }
+.dashboard-trend-chart svg {
+  display: block;
+  width: 100%;
+  min-width: var(--dashboard-trend-chart-width, 680px);
+  height: 280px;
+  color: var(--text-muted);
+}
+.dashboard-trend-grid-line { stroke: var(--border); stroke-width: 1; }
+.dashboard-trend-zero-line { stroke: color-mix(in srgb, var(--text-muted) 60%, transparent); stroke-width: 1.2; }
+.dashboard-trend-axis-label,
+.dashboard-trend-month-label {
+  fill: currentColor;
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+}
+.dashboard-trend-month-label { font-weight: 650; }
+.dashboard-trend-month-selected {
+  fill: color-mix(in srgb, var(--primary) 9%, transparent);
+  stroke: color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.dashboard-trend-bar-revenue { fill: var(--primary); }
+.dashboard-trend-bar-collected { fill: var(--green); }
+.dashboard-trend-expense-line {
+  fill: none;
+  stroke: var(--electric);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+.dashboard-trend-expense-dot {
+  fill: var(--bg2);
+  stroke: var(--electric);
+  stroke-width: 2.5;
+}
+.dashboard-trend-empty {
+  position: absolute;
+  inset: 46px 20px 42px 58px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
+}
+.dashboard-trend-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.dashboard-trend-status {
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.45;
+}
+.dashboard-trend-status.is-error { color: var(--red); }
+.dashboard-trend.is-loading .dashboard-trend-chart { opacity: .48; }
+.dashboard-trend.is-loading .dashboard-trend-insight strong { color: var(--text-muted); }
+
+/* ===========================
    SECTION HEADER
    =========================== */
 .section-header {
@@ -7414,6 +7584,8 @@ body.workspace-staff-active .main { padding-top: 112px; }
 
   .cards-grid { grid-template-columns: 1fr 1fr; }
   .card--primary { grid-row: auto; }
+  .dashboard-trend-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-trend-insight:last-child { grid-column: 1 / -1; }
   .expense-layout { grid-template-columns: 1fr; }
   .form-row--2col, .form-row--3col { grid-template-columns: 1fr; }
   .rate-effective-panel { grid-template-columns: 1fr; align-items: stretch; }
@@ -8982,10 +9154,18 @@ body.workspace-staff-active .main { padding-top: 112px; }
   .occupancy-metric--maintenance { grid-column: auto; }
   .financial-metric--profit { min-height: 0; }
   .dashboard-finance,
+  .dashboard-trend,
   .dashboard-room-section { padding: 16px; }
   .dashboard-section-heading,
+  .dashboard-trend-heading,
   .dashboard-room-heading { align-items: stretch; flex-direction: column; }
   .dashboard-section-heading p { align-self: flex-start; }
+  .dashboard-trend-range { align-self: stretch; }
+  .dashboard-trend-range-button { flex: 1; }
+  .dashboard-trend-insights { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-trend-insight:last-child { grid-column: auto; }
+  .dashboard-trend-footer { align-items: stretch; flex-direction: column; }
+  .dashboard-trend-footer .btn { width: 100%; justify-content: center; }
   .dashboard-room-heading .btn { width: 100%; justify-content: center; }
   .cards-grid { grid-template-columns: minmax(0, 1fr); }
   .card--primary { grid-column: auto; grid-row: auto; }

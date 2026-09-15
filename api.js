@@ -327,6 +327,15 @@ const API = (() => {
     );
   }
 
+  function getDashboardTrend(endPeriod, months = 6, propertyId = '') {
+    const query = new URLSearchParams({
+      endPeriod: String(endPeriod || ''),
+      months: String(months)
+    });
+    if (propertyId) query.set('propertyId', String(propertyId));
+    return request('GET', `/api/dashboard/trend?${query.toString()}`);
+  }
+
   function getFinancialReport(filters = {}) {
     const query = new URLSearchParams({
       periodType: filters.periodType || 'month',
@@ -862,6 +871,7 @@ const API = (() => {
     cancelSubscriptionRefundRequest,
     getRentPaymentSummaries,
     getMonthlyFinancialReport,
+    getDashboardTrend,
     getFinancialReport,
     settleRentInvoice,
     syncRentInvoices,

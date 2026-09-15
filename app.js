@@ -124,6 +124,11 @@ let FINANCIAL_REPORT_FILTER = {
   propertyId: '',
   roomId: ''
 };
+let DASHBOARD_TREND_CACHE = new Map();
+let DASHBOARD_TREND_REQUEST_SEQUENCE = 0;
+let DASHBOARD_TREND_LOADING_KEY = '';
+let DASHBOARD_TREND_ERROR = null;
+let DASHBOARD_TREND_MONTH_COUNT = 6;
 let ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
 let ACTIVE_RENT_PAYMENT_ENTRY = null;
 let ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -254,6 +259,7 @@ function setRentInvoiceSummaries(invoices) {
       invoice
     ])
   );
+  invalidateDashboardTrend();
 }
 
 function priorDebtFromLoadedInvoices(roomId, period) {
@@ -1508,6 +1514,7 @@ async function flushState(options = {}) {
       return { skipped: true };
     }
     await API.putState(snapshot);
+    invalidateDashboardTrend();
     return { skipped: false };
   })();
   _saveInFlight = currentSave;
@@ -1566,6 +1573,11 @@ function clearSensitiveStateFromMemory() {
     propertyId: '',
     roomId: ''
   };
+  DASHBOARD_TREND_CACHE = new Map();
+  DASHBOARD_TREND_REQUEST_SEQUENCE += 1;
+  DASHBOARD_TREND_LOADING_KEY = '';
+  DASHBOARD_TREND_ERROR = null;
+  DASHBOARD_TREND_MONTH_COUNT = 6;
   ACTIVE_RENT_PAYMENT_INVOICE_ID = null;
   ACTIVE_RENT_PAYMENT_ENTRY = null;
   ACTIVE_DEPOSIT_TENANT_ID = null;
@@ -2082,6 +2094,9 @@ function debtAgeMessageLine(payment) {
 
 function renderRentPaymentViews() {
   renderDashboard();
+  if (activePage === 'dashboard' && hasWorkspaceOperation('overview')) {
+    void loadDashboardTrend({ force: true });
+  }
   renderReport();
   renderHistory();
   if (activeBillPreview && !document.getElementById('bill-preview-modal')?.hidden) {
@@ -3356,6 +3371,313 @@ function getExpenseMeta(category) {
   return EXPENSE_CATEGORIES[category] || EXPENSE_CATEGORIES.other;
 }
 
+function invalidateDashboardTrend() {
+  DASHBOARD_TREND_CACHE.clear();
+  DASHBOARD_TREND_REQUEST_SEQUENCE += 1;
+  DASHBOARD_TREND_LOADING_KEY = '';
+  DASHBOARD_TREND_ERROR = null;
+}
+
+function dashboardTrendQuery() {
+  return {
+    endPeriod: STATE.currentPeriod || '',
+    months: DASHBOARD_TREND_MONTH_COUNT,
+    propertyId: ACTIVE_DASHBOARD_PROPERTY_FILTER === 'all'
+      ? ''
+      : ACTIVE_DASHBOARD_PROPERTY_FILTER
+  };
+}
+
+function dashboardTrendCacheKey(query = dashboardTrendQuery()) {
+  return [
+    API.getWorkspaceAccountId() || '',
+    query.endPeriod,
+    query.months,
+    query.propertyId || ''
+  ].join('|');
+}
+
+function dashboardTrendPeriods(endPeriod, monthCount) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(endPeriod || ''))) return [];
+  const { year, month } = parsePeriod(endPeriod);
+  return Array.from({ length: monthCount }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - monthCount + index, 1));
+    return periodKey(date.getUTCFullYear(), date.getUTCMonth() + 1);
+  });
+}
+
+function dashboardTrendShortPeriod(period) {
+  const { year, month } = parsePeriod(period);
+  return `${month}/${String(year).slice(-2)}`;
+}
+
+function dashboardTrendNiceCeiling(value) {
+  const positive = Math.abs(Number(value) || 0);
+  if (positive <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(positive));
+  const normalized = positive / magnitude;
+  const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return factor * magnitude;
+}
+
+function dashboardTrendChartHtml(months, endPeriod) {
+  const safeMonths = (Array.isArray(months) ? months : [])
+    .filter(month => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(month?.period || '')))
+    .map(month => ({
+      period: String(month.period),
+      revenueVnd: Number(month.revenueVnd) || 0,
+      collectedVnd: Number(month.collectedVnd) || 0,
+      expensesVnd: Number(month.expensesVnd) || 0,
+      profitVnd: Number(month.profitVnd) || 0
+    }));
+  const count = Math.max(1, safeMonths.length);
+  const width = Math.max(680, count * 68 + 72);
+  const height = 280;
+  const plot = { left: 62, right: 18, top: 18, bottom: 226 };
+  const plotWidth = width - plot.left - plot.right;
+  const plotHeight = plot.bottom - plot.top;
+  const values = safeMonths.flatMap(month => [
+    month.revenueVnd,
+    month.collectedVnd,
+    month.expensesVnd
+  ]);
+  const rawMax = Math.max(0, ...values);
+  const rawMin = Math.min(0, ...values);
+  const maxValue = dashboardTrendNiceCeiling(rawMax);
+  const minValue = rawMin < 0 ? -dashboardTrendNiceCeiling(rawMin) : 0;
+  const valueRange = Math.max(1, maxValue - minValue);
+  const y = value => plot.top + ((maxValue - value) / valueRange) * plotHeight;
+  const zeroY = y(0);
+  const slotWidth = plotWidth / count;
+  const barWidth = Math.max(6, Math.min(16, (slotWidth - 18) / 2));
+  const barGap = 4;
+  const grid = Array.from({ length: 5 }, (_, index) => {
+    const value = maxValue - (valueRange * index / 4);
+    const lineY = plot.top + plotHeight * index / 4;
+    return `<line class="dashboard-trend-grid-line" x1="${plot.left}" y1="${lineY}"
+      x2="${width - plot.right}" y2="${lineY}"></line>
+      <text class="dashboard-trend-axis-label" x="${plot.left - 8}" y="${lineY + 3}"
+        text-anchor="end">${escapeHtml(fmtShorthand(Math.round(value)))}</text>`;
+  }).join('');
+  const expensePoints = safeMonths.map((month, index) => {
+    const center = plot.left + slotWidth * (index + .5);
+    return `${center},${y(month.expensesVnd)}`;
+  }).join(' ');
+  const monthGroups = safeMonths.map((month, index) => {
+    const center = plot.left + slotWidth * (index + .5);
+    const revenueY = y(month.revenueVnd);
+    const collectedY = y(month.collectedVnd);
+    const revenueHeight = Math.abs(zeroY - revenueY);
+    const collectedHeight = Math.abs(zeroY - collectedY);
+    const selected = month.period === endPeriod;
+    const title = `${periodLabel(month.period)} · Phải thu ${fmt(month.revenueVnd)}`
+      + ` · Đã thu ${fmt(month.collectedVnd)} · Chi phí ${fmt(month.expensesVnd)}`
+      + ` · Dòng tiền ròng ${fmt(month.profitVnd)}`;
+    return `<g>
+      <title>${escapeHtml(title)}</title>
+      ${selected ? `<rect class="dashboard-trend-month-selected"
+        x="${center - slotWidth / 2 + 3}" y="${plot.top - 6}"
+        width="${Math.max(1, slotWidth - 6)}" height="${plotHeight + 32}" rx="8"></rect>` : ''}
+      <rect class="dashboard-trend-bar-revenue"
+        x="${center - barGap / 2 - barWidth}" y="${Math.min(zeroY, revenueY)}"
+        width="${barWidth}" height="${revenueHeight}" rx="3"></rect>
+      <rect class="dashboard-trend-bar-collected"
+        x="${center + barGap / 2}" y="${Math.min(zeroY, collectedY)}"
+        width="${barWidth}" height="${collectedHeight}" rx="3"></rect>
+      <text class="dashboard-trend-month-label" x="${center}" y="${plot.bottom + 20}"
+        text-anchor="middle">${escapeHtml(dashboardTrendShortPeriod(month.period))}</text>
+    </g>`;
+  }).join('');
+  const expenseDots = safeMonths.map((month, index) => {
+    const center = plot.left + slotWidth * (index + .5);
+    return `<circle class="dashboard-trend-expense-dot" cx="${center}"
+      cy="${y(month.expensesVnd)}" r="3.5"><title>${escapeHtml(
+        `${periodLabel(month.period)} · Chi phí ${fmt(month.expensesVnd)}`
+      )}</title></circle>`;
+  }).join('');
+  const tableRows = safeMonths.map(month => `<tr>
+    <th scope="row">${escapeHtml(periodLabel(month.period))}</th>
+    <td>${fmt(month.revenueVnd)}</td><td>${fmt(month.collectedVnd)}</td>
+    <td>${fmt(month.expensesVnd)}</td><td>${fmt(month.profitVnd)}</td>
+  </tr>`).join('');
+  return {
+    width,
+    html: `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
+      ${grid}
+      <line class="dashboard-trend-zero-line" x1="${plot.left}" y1="${zeroY}"
+        x2="${width - plot.right}" y2="${zeroY}"></line>
+      ${monthGroups}
+      ${safeMonths.length > 1
+        ? `<polyline class="dashboard-trend-expense-line" points="${expensePoints}"></polyline>`
+        : ''}
+      ${expenseDots}
+    </svg>
+    <table class="sr-only">
+      <caption>So sánh tài chính theo tháng</caption>
+      <thead><tr><th>Tháng</th><th>Phải thu</th><th>Đã thu</th><th>Chi phí</th><th>Dòng tiền ròng</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>`
+  };
+}
+
+function renderDashboardTrend() {
+  const panel = document.querySelector('.dashboard-trend');
+  const chart = document.getElementById('dashboard-trend-chart');
+  const status = document.getElementById('dashboard-trend-status');
+  if (!panel || !chart || !status) return;
+  panel.hidden = !hasWorkspaceOperation('overview');
+  if (panel.hidden) return;
+
+  const query = dashboardTrendQuery();
+  const cacheKey = dashboardTrendCacheKey(query);
+  const trend = DASHBOARD_TREND_CACHE.get(cacheKey) || null;
+  const loading = !trend && DASHBOARD_TREND_LOADING_KEY === cacheKey;
+  const error = !trend && DASHBOARD_TREND_ERROR?.key === cacheKey
+    ? DASHBOARD_TREND_ERROR.message
+    : '';
+  panel.classList.toggle('is-loading', loading);
+  status.classList.toggle('is-error', !!error);
+  document.querySelectorAll('[data-dashboard-trend-months]').forEach(button => {
+    const active = Number(button.dataset.dashboardTrendMonths) === DASHBOARD_TREND_MONTH_COUNT;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+
+  const placeholder = dashboardTrendPeriods(query.endPeriod, query.months).map(period => ({
+    period,
+    revenueVnd: 0,
+    collectedVnd: 0,
+    expensesVnd: 0,
+    profitVnd: 0
+  }));
+  const months = trend?.months || placeholder;
+  const chartResult = dashboardTrendChartHtml(months, query.endPeriod);
+  chart.style.setProperty('--dashboard-trend-chart-width', `${chartResult.width}px`);
+  chart.innerHTML = chartResult.html;
+
+  const current = months[months.length - 1] || null;
+  const previous = months[months.length - 2] || null;
+  const currentRevenue = Number(current?.revenueVnd) || 0;
+  const previousRevenue = Number(previous?.revenueVnd) || 0;
+  const difference = currentRevenue - previousRevenue;
+  const changeElement = document.getElementById('dashboard-trend-change');
+  const changeNote = document.getElementById('dashboard-trend-change-note');
+  const changeCard = changeElement?.closest('.dashboard-trend-insight');
+  changeCard?.classList.remove('is-positive', 'is-negative');
+  if (!trend) {
+    if (changeElement) changeElement.textContent = '—';
+    if (changeNote) changeNote.textContent = error ? 'Không có dữ liệu so sánh' : 'Đang tổng hợp…';
+  } else if (previousRevenue === 0 && currentRevenue > 0) {
+    if (changeElement) changeElement.textContent = 'Mới phát sinh';
+    if (changeNote) changeNote.textContent = `Tăng ${fmt(difference)}`;
+    changeCard?.classList.add('is-positive');
+  } else {
+    const percentageChange = previousRevenue === 0 ? 0 : (difference / previousRevenue) * 100;
+    if (changeElement) {
+      changeElement.textContent = `${percentageChange > 0 ? '+' : ''}${percentageChange.toLocaleString('vi-VN', {
+        maximumFractionDigits: 1
+      })}%`;
+    }
+    if (changeNote) changeNote.textContent = `${difference >= 0 ? 'Tăng' : 'Giảm'} ${fmt(Math.abs(difference))}`;
+    if (difference > 0) changeCard?.classList.add('is-positive');
+    if (difference < 0) changeCard?.classList.add('is-negative');
+  }
+
+  const totalRevenue = months.reduce((sum, month) => sum + (Number(month.revenueVnd) || 0), 0);
+  const averageRevenue = months.length ? Math.round(totalRevenue / months.length) : 0;
+  const bestMonth = months.reduce((best, month) => (
+    !best || Number(month.revenueVnd) > Number(best.revenueVnd) ? month : best
+  ), null);
+  document.getElementById('dashboard-trend-average').textContent = trend ? fmt(averageRevenue) : '—';
+  document.getElementById('dashboard-trend-average-note').textContent =
+    `Bình quân ${query.months} tháng theo hóa đơn`;
+  document.getElementById('dashboard-trend-best').textContent = trend && Number(bestMonth?.revenueVnd) > 0
+    ? fmt(bestMonth.revenueVnd)
+    : '—';
+  document.getElementById('dashboard-trend-best-note').textContent = trend && Number(bestMonth?.revenueVnd) > 0
+    ? periodLabel(bestMonth.period)
+    : 'Chưa có doanh thu phát sinh';
+
+  const selectedProperty = STATE.properties.find(
+    property => String(property.id) === String(query.propertyId)
+  );
+  document.getElementById('dashboard-trend-scope').textContent = selectedProperty
+    ? `${query.months} tháng gần nhất · ${selectedProperty.name}`
+    : `${query.months} tháng gần nhất · tất cả khu`;
+  const empty = trend && months.every(month => (
+    Number(month.revenueVnd) === 0
+    && Number(month.collectedVnd) === 0
+    && Number(month.expensesVnd) === 0
+  ));
+  document.getElementById('dashboard-trend-empty').hidden = !empty;
+  document.getElementById('dashboard-trend-retry').hidden = !error;
+  if (error) {
+    status.textContent = error;
+  } else if (!trend) {
+    status.textContent = `Đang tổng hợp ${query.months} tháng đến ${periodLabel(query.endPeriod)}…`;
+  } else {
+    const generatedAt = trend.generatedAt ? subscriptionDateTime(trend.generatedAt) : '';
+    status.textContent = 'Phải thu theo hóa đơn phát hành · Đã thu theo dòng tiền · Chi phí theo khoản đã trả'
+      + (generatedAt ? ` · cập nhật ${generatedAt}` : '');
+  }
+
+  const shell = document.getElementById('dashboard-trend-chart-shell');
+  if (trend && shell?.dataset.trendKey !== cacheKey) {
+    shell.dataset.trendKey = cacheKey;
+    requestAnimationFrame(() => { shell.scrollLeft = shell.scrollWidth; });
+  }
+}
+
+async function loadDashboardTrend(options = {}) {
+  if (!hasWorkspaceOperation('overview') || !API.isLoggedIn()) return null;
+  const query = dashboardTrendQuery();
+  if (!query.endPeriod) return null;
+  const cacheKey = dashboardTrendCacheKey(query);
+  if (!options.force && DASHBOARD_TREND_CACHE.has(cacheKey)) {
+    renderDashboardTrend();
+    return DASHBOARD_TREND_CACHE.get(cacheKey);
+  }
+  if (!options.force && DASHBOARD_TREND_LOADING_KEY === cacheKey) return null;
+
+  const requestSequence = ++DASHBOARD_TREND_REQUEST_SEQUENCE;
+  const expectedGeneration = _sessionGeneration;
+  const expectedAccountContext = API.getAccountContext();
+  const expectedWorkspaceId = API.getWorkspaceAccountId();
+  DASHBOARD_TREND_LOADING_KEY = cacheKey;
+  DASHBOARD_TREND_ERROR = null;
+  if (options.force) DASHBOARD_TREND_CACHE.delete(cacheKey);
+  renderDashboardTrend();
+  try {
+    const result = await API.getDashboardTrend(query.endPeriod, query.months, query.propertyId);
+    if (requestSequence !== DASHBOARD_TREND_REQUEST_SEQUENCE
+        || expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()
+        || expectedWorkspaceId !== API.getWorkspaceAccountId()) return null;
+    if (result.trend?.toPeriod !== query.endPeriod
+        || Number(result.trend?.monthCount) !== Number(query.months)) {
+      throw new Error('Khoảng xu hướng trả về không khớp');
+    }
+    DASHBOARD_TREND_CACHE.set(cacheKey, result.trend);
+    return result.trend;
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    if (requestSequence === DASHBOARD_TREND_REQUEST_SEQUENCE) {
+      DASHBOARD_TREND_ERROR = {
+        key: cacheKey,
+        message: error.message || 'Không tải được xu hướng tài chính'
+      };
+    }
+    return null;
+  } finally {
+    if (requestSequence === DASHBOARD_TREND_REQUEST_SEQUENCE) {
+      DASHBOARD_TREND_LOADING_KEY = '';
+      if (activePage === 'dashboard' && dashboardTrendCacheKey() === cacheKey) {
+        renderDashboardTrend();
+      }
+    }
+  }
+}
+
 // ============================================================
 //  NAVIGATION
 // ============================================================
@@ -3567,6 +3889,9 @@ function navigate(page) {
   if (tabEl)   tabEl.classList.add('active');
   if (btabEl)  btabEl.classList.add('active');
   renderPage(page);
+  if (page === 'dashboard' && hasWorkspaceOperation('overview')) {
+    void loadDashboardTrend();
+  }
   if (isOwnerWorkspace() && (page === 'report' || page === 'history')) {
     ensureRentInvoicesSynced().then(() => {
       if (activePage === page) {
@@ -3786,6 +4111,7 @@ function renderDashboard() {
   document.getElementById('total-profit-note').textContent = selectedProperty
     ? `Tiền đã thu - chi phí của ${selectedProperty.name}`
     : 'Tiền đã thu - toàn bộ chi phí thực tế';
+  renderDashboardTrend();
 }
 
 // ============================================================
@@ -9341,6 +9667,9 @@ function shiftPeriod(delta) {
     FINANCIAL_REPORT_FILTER.month = STATE.currentPeriod;
   }
   renderPage(activePage);
+  if (activePage === 'dashboard' && hasWorkspaceOperation('overview')) {
+    void loadDashboardTrend();
+  }
   if (activePage === 'report' && hasWorkspaceOperation('overview')) {
     loadFinancialReport();
   }
@@ -9351,6 +9680,19 @@ document.getElementById('next-month').addEventListener('click', () => shiftPerio
 document.getElementById('dashboard-property-filter').addEventListener('change', event => {
   ACTIVE_DASHBOARD_PROPERTY_FILTER = event.target.value;
   renderDashboard();
+  void loadDashboardTrend();
+});
+document.querySelectorAll('[data-dashboard-trend-months]').forEach(button => {
+  button.addEventListener('click', () => {
+    const monthCount = Number(button.dataset.dashboardTrendMonths);
+    if (![6, 12].includes(monthCount) || monthCount === DASHBOARD_TREND_MONTH_COUNT) return;
+    DASHBOARD_TREND_MONTH_COUNT = monthCount;
+    renderDashboardTrend();
+    void loadDashboardTrend();
+  });
+});
+document.getElementById('dashboard-trend-retry')?.addEventListener('click', () => {
+  void loadDashboardTrend({ force: true });
 });
 document.getElementById('billing-prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('billing-next-month').addEventListener('click', () => shiftPeriod(+1));

@@ -10,7 +10,11 @@ const path = require('node:path');
 const {
   annualRevenueEvidenceJson,
   annualRevenueEvidenceSql,
+  dashboardTrendJson,
+  dashboardTrendRange,
+  dashboardTrendSql,
   financialReportJson,
+  getDashboardTrend,
   getFinancialReport,
   getMonthlyFinancialReport,
   occupancyReportJson,
@@ -92,6 +96,19 @@ function annualRevenueRows() {
       property_address: '40 Vũ Hữu', revenue_vnd: '6000000', rent_vnd: '4000000',
       electricity_vnd: '500000', water_vnd: '250000', services_vnd: '400000',
       adjustment_net_vnd: '50000', uncategorized_vnd: '800000', invoice_count: 2
+    }
+  ];
+}
+
+function dashboardTrendRows() {
+  return [
+    {
+      period: '2026-04', revenue_vnd: '4000000', collected_vnd: '3500000',
+      expenses_vnd: '800000', generated_at: new Date('2026-09-15T02:00:00.000Z')
+    },
+    {
+      period: '2026-05', revenue_vnd: '5000000', collected_vnd: '5250000',
+      expenses_vnd: '1000000', generated_at: new Date('2026-09-15T02:00:00.000Z')
     }
   ];
 }
@@ -188,6 +205,26 @@ test('chuẩn hóa chứng từ đối chiếu doanh thu năm theo tháng và đ
   assert.equal(annualRevenueEvidenceJson(annualRevenueRows(), reportRange({
     periodType: 'month', period: '2026-01'
   }), 4000000), null);
+});
+
+test('chuẩn hóa xu hướng dashboard và giữ riêng doanh thu, dòng tiền, chi phí', () => {
+  const range = dashboardTrendRange({ endPeriod: '2026-09', months: '6' });
+  assert.deepEqual(range, {
+    fromPeriod: '2026-04',
+    toPeriod: '2026-09',
+    monthCount: 6
+  });
+  const trend = dashboardTrendJson(dashboardTrendRows(), range, { propertyId: 12 });
+  assert.equal(trend.filters.propertyId, 12);
+  assert.equal(trend.filters.expenseMode, 'property_only');
+  assert.equal(trend.basis.revenue, 'issued_invoice_total');
+  assert.equal(trend.months[0].profitVnd, 2700000);
+  assert.equal(trend.months[1].profitVnd, 4250000);
+  assert.equal(trend.generatedAt, '2026-09-15T02:00:00.000Z');
+  assert.throws(
+    () => dashboardTrendRange({ endPeriod: '2026-09', months: '9' }),
+    error => error.code === 'INVALID_DASHBOARD_TREND_MONTHS'
+  );
 });
 
 test('tổng hợp tỷ lệ lấp đầy theo ngày-phòng và chuỗi phòng trống', () => {
@@ -298,6 +335,72 @@ test('SQL đối chiếu doanh thu năm đủ 12 tháng, cơ cấu và khu hiệ
   assert.match(sql, /invoice_total_vnd - rent_vnd - electricity_vnd - water_vnd/);
   assert.match(sql, /'month'::text AS row_kind/);
   assert.match(sql, /'location'::text/);
+});
+
+test('SQL xu hướng dashboard tổng hợp một lần và giữ phạm vi khu của staff', () => {
+  const sql = dashboardTrendSql();
+  assert.match(sql, /generate_series/);
+  assert.match(sql, /bounds AS/);
+  assert.match(sql, /invoice\.period BETWEEN \$2 AND \$3/);
+  assert.match(sql, /COALESCE\(invoice\.final_total_vnd, invoice\.issued_total_vnd\)/);
+  assert.match(sql, /transaction\.entry_type IN \('payment', 'reversal'\)/);
+  assert.match(sql, /transaction\.payment_method<>'deposit'/);
+  assert.match(sql, /transaction\.occurred_at AT TIME ZONE 'Asia\/Ho_Chi_Minh'/);
+  assert.match(sql, /transaction\.occurred_at >= bounds\.starts_at/);
+  assert.match(sql, /transaction\.occurred_at < bounds\.ends_at/);
+  assert.match(sql, /expense\.period BETWEEN \$2 AND \$3/);
+  assert.match(sql, /room\.property_id=ANY\(\$5::bigint\[\]\)/);
+  assert.match(sql, /expense\.property_id=ANY\(\$5::bigint\[\]\)/);
+  assert.match(sql, /unassigned_property\.id=ANY\(\$5::bigint\[\]\)/);
+});
+
+test('API xu hướng dashboard xác thực khu và tổng hợp khoảng tháng trong một query', async () => {
+  const calls = [];
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    if (/SELECT id FROM properties/.test(sql)) return { rows: [{ id: 12 }] };
+    return { rows: dashboardTrendRows() };
+  };
+  const response = responseRecorder();
+  await getDashboardTrend({
+    userId: 7,
+    query: { endPeriod: '2026-09', months: '6', propertyId: '12' },
+    workspace: { isOwner: true, propertyIds: null }
+  }, response.res, { query });
+
+  assert.deepEqual(calls[0].params, [7, 12]);
+  assert.deepEqual(calls[1].params, [7, '2026-04', '2026-09', 12, null]);
+  assert.equal(response.record.headers['cache-control'], 'no-store');
+  assert.equal(response.record.body.trend.monthCount, 6);
+  assert.equal(response.record.body.trend.months[1].collectedVnd, 5250000);
+});
+
+test('API xu hướng dashboard từ chối khoảng sai và khu ngoài phạm vi staff', async () => {
+  let queryCount = 0;
+  const query = async () => {
+    queryCount += 1;
+    return { rows: [] };
+  };
+
+  const invalidRange = responseRecorder();
+  await getDashboardTrend({
+    userId: 7,
+    query: { endPeriod: '2026-09', months: '9' },
+    workspace: { isOwner: true, propertyIds: null }
+  }, invalidRange.res, { query });
+  assert.equal(queryCount, 0);
+  assert.equal(invalidRange.record.statusCode, 400);
+  assert.equal(invalidRange.record.body.code, 'INVALID_DASHBOARD_TREND_MONTHS');
+
+  const forbiddenProperty = responseRecorder();
+  await getDashboardTrend({
+    userId: 7,
+    query: { endPeriod: '2026-09', months: '6', propertyId: '99' },
+    workspace: { isOwner: false, propertyIds: [12, 13] }
+  }, forbiddenProperty.res, { query });
+  assert.equal(queryCount, 0);
+  assert.equal(forbiddenProperty.record.statusCode, 403);
+  assert.equal(forbiddenProperty.record.body.code, 'REPORT_PROPERTY_FORBIDDEN');
 });
 
 test('API chủ sở hữu tổng hợp theo quý và lọc khu đã xác thực', async () => {
@@ -450,7 +553,7 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(cssSource, /\.occupancy-report-grid\s*\{/);
   assert.match(cssSource, /\.occupancy-room-row\s*\{/);
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(indexSource, /style\.css\?v=157/);
-  assert.match(indexSource, /api\.js\?v=117/);
-  assert.match(indexSource, /app\.js\?v=154/);
+  assert.match(indexSource, /style\.css\?v=158/);
+  assert.match(indexSource, /api\.js\?v=118/);
+  assert.match(indexSource, /app\.js\?v=155/);
 });

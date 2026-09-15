@@ -459,6 +459,10 @@ scan sạch.
   Production revision `ea8cfa2af7ed` ready với database/schema `ok`, runtime
   role `restricted`, asset pins `style 116 / api 109 / app 120`; endpoint mới
   trả 401 khi chưa đăng nhập và runtime error scan sau deploy không có lỗi.
+  Dashboard bổ sung biểu đồ so sánh 6/12 tháng kết thúc tại kỳ đang chọn, gồm
+  phải thu, đã thu và chi phí; ba tóm tắt cho biết thay đổi so với tháng trước,
+  doanh thu bình quân và tháng cao nhất. Biểu đồ dùng cùng bộ lọc khu, scope
+  staff và định nghĩa ledger của báo cáo, gọi một API tổng hợp cho cả khoảng.
 - [x] Lọc theo tháng, quý, năm, khu và phòng.
   Bộ lọc dùng cùng định nghĩa năm chỉ số của báo cáo tài chính, hỗ trợ tháng,
   quý, năm và kết hợp khu/phòng. Khu chỉ tính chi phí gắn trực tiếp; phòng chỉ

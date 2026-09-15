@@ -119,6 +119,7 @@ bắt đầu thuê, hệ thống luôn thu đủ tháng như trước.
 | GET    | `/api/me`            | Thông tin user (cần đăng nhập) |
 | GET    | `/api/state`         | Lấy toàn bộ state              |
 | PUT    | `/api/state`         | Lưu toàn bộ state              |
+| GET    | `/api/dashboard/trend?endPeriod=YYYY-MM&months=6\|12&propertyId=...` | Xu hướng phải thu, đã thu và chi phí theo tháng |
 | GET    | `/api/privacy/status` | Phiên bản chính sách và thời hạn lưu |
 | POST   | `/api/privacy/accept` | Ghi nhận đồng ý chính sách hiện tại |
 | POST   | `/api/privacy/tenants/:tenantId/reveal-cccd` | Xem CCCD của khách thuộc tài khoản + audit |
