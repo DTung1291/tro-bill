@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 15/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao local: dashboard có xu hướng tài chính 6/12 tháng, lọc theo khu; toàn bộ 522/522 test đạt |
+| Trạng thái | Xu hướng tài chính dashboard 6/12 tháng đã phát hành Production; CI, readiness và asset pins đã xác minh |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của lát cắt xu hướng dashboard, chưa commit/push để người dùng kiểm tra trước |
-| Phần ứng dụng phát hành gần nhất | `5d165c0` khôi phục layout in/PDF hóa đơn cũ và đặt hai ảnh đồng hồ phía dưới; CI `34826020266` xanh, Production revision `5d165c0062d8` và readiness đã xác minh |
-| Việc code tiếp theo | Người dùng kiểm tra biểu đồ Tổng quan local; nếu xác nhận thì commit/push, sau đó xác minh CI và Production |
+| Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
+| Phần ứng dụng phát hành gần nhất | `726b6cb` thêm xu hướng tài chính dashboard; CI `34928138089` xanh, deployment `dpl_FmfbacRebPUKFPwEbZrkE1ueDtiA` Ready và Production revision `726b6cbbb9ae` đã xác minh |
+| Việc code tiếp theo | Người dùng smoke test biểu đồ 6/12 tháng và bộ lọc khu trên Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,7 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Xu hướng tài chính dashboard hoàn thành local: thêm một API tổng hợp 6/12
+- Xu hướng tài chính dashboard đã phát hành Production: thêm một API tổng hợp 6/12
   tháng kết thúc tại kỳ đang chọn, trả đủ từng tháng và tách phải thu, đã thu,
   chi phí cùng dòng tiền ròng. Truy vấn giữ đúng định nghĩa D-026/D-027, timezone
   Việt Nam, loại tiền cọc, lọc khu và scope staff; timestamp bounds tránh bọc cột
@@ -105,10 +105,14 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   mobile 390×844 không tràn trang, khung chart cuộn nội bộ, chế độ 12 tháng tự
   cuộn tới tháng mới nhất và đổi khu thành công; console không có lỗi. Asset pin
   tăng `style 157 → 158`, `api 117 → 118`, `app 154 → 155`; test mục tiêu 18/18
-  và toàn bộ 522/522 đạt ngoài sandbox. Không có migration. Chưa commit, push,
-  deploy hoặc kiểm tra Production. Server `localhost:3000` đã được restart bằng
-  mã mới; route xu hướng trả 401/no-store khi chưa đăng nhập. Bước an toàn tiếp
-  theo duy nhất là người dùng kiểm tra local rồi xác nhận commit/push.
+  và toàn bộ 522/522 đạt ngoài sandbox. Không có migration. Commit ứng dụng
+  `726b6cb` đã push `main`; CI `34928138089` thành công. Deployment Production
+  `dpl_FmfbacRebPUKFPwEbZrkE1ueDtiA` Ready, alias chính trả revision
+  `726b6cbbb9ae`, database/schema `ok`, runtime role `restricted` và đúng pins
+  `style 158 / api 118 / app 155`; endpoint chưa đăng nhập trả 401/no-store và
+  runtime error scan sau deploy sạch. Trình duyệt Production chưa có phiên đăng
+  nhập nên bước an toàn tiếp theo duy nhất là người dùng smoke test biểu đồ bằng
+  tài khoản thật trên Production.
 
 - Tinh chỉnh bản in/PDF hóa đơn đã phát hành: tái tạo mẫu tham chiếu cũ
   với tiêu đề 18 pt, metadata/tuổi nợ ở đầu, chi tiết ở giữa, bốn thẻ tổng tiền
