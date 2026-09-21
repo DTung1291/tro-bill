@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=160" />
+  <link rel="stylesheet" href="style.css?v=161" />
 </head>
 
 <body>
@@ -1422,31 +1422,42 @@
 
   <!-- MODAL: Donate VietQR -->
   <div class="modal-overlay" id="donate-modal" hidden>
-    <div class="modal" style="max-width: 380px;">
-      <div class="modal-header">
-        <h2 class="modal-title">☕ Ủng hộ TrọBill</h2>
-        <button class="modal-close" id="donate-modal-close">✕</button>
-      </div>
-      <div style="padding: 16px; text-align: center;">
-        <p style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-muted);">
-          Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử
-        </p>
-        <img id="donate-qr-img"
-          src=""
-          alt="QR Code ủng hộ TrọBill"
-          style="width: 220px; height: 220px; border-radius: 12px; border: 3px solid var(--border); display: block; margin: 0 auto 16px;" />
-        <div style="background: var(--bg2); border-radius: 10px; padding: 12px; text-align: left; font-size: 0.85rem; line-height: 1.8;">
-          <div><strong>Ngân hàng:</strong> <span id="donate-bank-display"></span></div>
-          <div><strong>Chủ TK:</strong> <span id="donate-owner-display"></span></div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <strong>Số TK:</strong>
-            <span id="donate-account-num"></span>
-            <button class="btn btn--sm btn--ghost" id="btn-copy-donate-account" style="padding: 2px 8px; font-size: 0.75rem;">📋 Copy</button>
-          </div>
-          <div><strong>Số tiền:</strong> <span id="donate-amount-display" style="color: var(--accent); font-weight: 700;"></span></div>
-          <div><strong>Nội dung:</strong> <span id="donate-message-display" style="color: var(--text-muted);"></span></div>
+    <div class="modal auxiliary-modal donate-payment-modal" role="dialog" aria-modal="true" aria-labelledby="donate-modal-title" aria-describedby="donate-modal-description">
+      <div class="modal-header auxiliary-modal-header">
+        <div>
+          <span class="auxiliary-modal-kicker">Ủng hộ tự nguyện</span>
+          <h2 class="modal-title" id="donate-modal-title">Tiếp sức cho TrọBill</h2>
+          <p class="auxiliary-modal-subtitle" id="donate-modal-description">Quét VietQR và kiểm tra lại thông tin trước khi chuyển khoản.</p>
         </div>
-        <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">💜 Cảm ơn bạn rất nhiều!</p>
+        <button type="button" class="modal-close" id="donate-modal-close" aria-label="Đóng">✕</button>
+      </div>
+      <div class="auxiliary-modal-body donate-payment-body">
+        <section class="donate-qr-panel" aria-label="Mã VietQR ủng hộ">
+          <span class="donate-qr-badge">VietQR</span>
+          <img id="donate-qr-img" src="" alt="Mã VietQR ủng hộ TrọBill" referrerpolicy="no-referrer" />
+          <p>Quét bằng ứng dụng ngân hàng</p>
+        </section>
+        <section class="donate-transfer-panel" aria-labelledby="donate-transfer-title">
+          <div class="auxiliary-section-heading">
+            <span>Thông tin chuyển khoản</span>
+            <h3 id="donate-transfer-title">Đối chiếu trước khi gửi</h3>
+          </div>
+          <dl class="donate-transfer-details">
+            <div><dt>Ngân hàng</dt><dd id="donate-bank-display"></dd></div>
+            <div><dt>Chủ tài khoản</dt><dd id="donate-owner-display"></dd></div>
+            <div class="donate-account-row">
+              <dt>Số tài khoản</dt>
+              <dd id="donate-account-num"></dd>
+              <button type="button" class="btn btn--sm btn--ghost" id="btn-copy-donate-account">Sao chép</button>
+            </div>
+            <div class="donate-amount-row"><dt>Số tiền</dt><dd id="donate-amount-display"></dd></div>
+            <div><dt>Nội dung</dt><dd id="donate-message-display"></dd></div>
+          </dl>
+          <p class="donate-thank-note"><span aria-hidden="true">💜</span><span>Cảm ơn bạn đã đồng hành cùng TrọBill.</span></p>
+        </section>
+      </div>
+      <div class="modal-actions auxiliary-modal-actions">
+        <button type="button" class="btn btn--ghost" id="donate-modal-close-footer">Đóng</button>
       </div>
     </div>
   </div>
@@ -1501,32 +1512,46 @@
 
   <!-- MODAL: Yêu cầu hoàn tiền / đối soát chuyển nhầm -->
   <div class="modal-overlay" id="subscription-refund-modal" hidden>
-    <div class="modal subscription-refund-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-refund-title">
-      <div class="modal-header">
+    <div class="modal auxiliary-modal subscription-refund-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-refund-title" aria-describedby="subscription-refund-subtitle">
+      <div class="modal-header auxiliary-modal-header">
         <div>
+          <span class="auxiliary-modal-kicker">Đối soát giao dịch</span>
           <h2 class="modal-title" id="subscription-refund-title">Yêu cầu hỗ trợ thanh toán</h2>
-          <p class="subscription-order-reference" id="subscription-refund-payment"></p>
+          <p class="auxiliary-modal-subtitle" id="subscription-refund-subtitle">Gửi thông tin để bộ phận phụ trách kiểm tra giao dịch thực nhận.</p>
         </div>
         <button type="button" class="modal-close" id="subscription-refund-close" aria-label="Đóng">✕</button>
       </div>
-      <form class="modal-form subscription-refund-form" id="subscription-refund-form">
-        <label class="form-label">Loại yêu cầu
-          <select class="form-input" id="subscription-refund-type" required>
-            <option value="refund">Hoàn tiền payment đã xác nhận</option>
-            <option value="mistaken_transfer">Đã chuyển nhưng chưa xác nhận / chuyển nhầm</option>
-          </select>
-        </label>
-        <label class="form-label">Số tiền cần kiểm tra (VND)
-          <input class="form-input" type="number" id="subscription-refund-amount" min="1" step="1" required />
-        </label>
-        <label class="form-label">Mô tả cụ thể
-          <textarea class="form-input subscription-refund-reason" id="subscription-refund-reason" minlength="10" maxlength="500" rows="4" placeholder="Ví dụ: Tôi chuyển hai lần cho cùng một mã đơn…" required></textarea>
-        </label>
-        <p class="subscription-refund-notice">
-          Gửi yêu cầu không tự đánh dấu payment là “Đã thanh toán”. Super Admin phải đối chiếu tiền thực nhận trước khi xác nhận; yêu cầu hoàn tiền chỉ hoàn tất sau khi có mã giao dịch hoàn.
-          <a href="/refund-policy.html" target="_blank" rel="noopener">Xem điều kiện và quy trình xử lý</a>.
-        </p>
-        <div class="modal-actions subscription-refund-actions">
+      <form class="subscription-refund-form" id="subscription-refund-form">
+        <div class="auxiliary-modal-body subscription-refund-body">
+          <ol class="auxiliary-flow" aria-label="Quy trình xử lý yêu cầu">
+            <li><span>1</span><div><strong>Gửi yêu cầu</strong><small>Cung cấp đúng giao dịch</small></div></li>
+            <li><span>2</span><div><strong>Đối soát</strong><small>Kiểm tra tiền thực nhận</small></div></li>
+            <li><span>3</span><div><strong>Nhận kết quả</strong><small>Theo dõi trong lịch sử</small></div></li>
+          </ol>
+          <div class="subscription-refund-payment-card">
+            <span>Giao dịch đang yêu cầu hỗ trợ</span>
+            <strong id="subscription-refund-payment"></strong>
+          </div>
+          <div class="subscription-refund-fields">
+            <label class="form-label">Loại yêu cầu
+              <select class="form-input" id="subscription-refund-type" required>
+                <option value="refund">Hoàn tiền giao dịch đã xác nhận</option>
+                <option value="mistaken_transfer">Đã chuyển nhưng chưa xác nhận / chuyển nhầm</option>
+              </select>
+            </label>
+            <label class="form-label">Số tiền cần kiểm tra (VND)
+              <input class="form-input" type="number" id="subscription-refund-amount" min="1" step="1" inputmode="numeric" required />
+            </label>
+          </div>
+          <label class="form-label">Mô tả cụ thể
+            <textarea class="form-input subscription-refund-reason" id="subscription-refund-reason" minlength="10" maxlength="500" rows="4" placeholder="Ví dụ: Tôi chuyển hai lần cho cùng một mã đơn…" required></textarea>
+          </label>
+          <p class="subscription-refund-notice">
+            <strong>Yêu cầu không tự xác nhận thanh toán.</strong> Giao dịch chỉ được cập nhật sau khi đối chiếu tiền thực nhận; hoàn tiền chỉ hoàn tất khi có mã giao dịch hoàn.
+            <a href="/refund-policy.html" target="_blank" rel="noopener">Xem điều kiện và quy trình xử lý</a>.
+          </p>
+        </div>
+        <div class="modal-actions auxiliary-modal-actions subscription-refund-actions">
           <button type="button" class="btn btn--ghost" id="subscription-refund-close-footer">Đóng</button>
           <button type="submit" class="btn btn--primary" id="subscription-refund-submit">Gửi yêu cầu</button>
         </div>
@@ -1536,16 +1561,21 @@
 
   <!-- MODAL: Biên nhận thanh toán subscription -->
   <div class="modal-overlay" id="subscription-receipt-modal" hidden>
-    <div class="modal subscription-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-receipt-title">
-      <div class="modal-header">
+    <div class="modal auxiliary-modal subscription-receipt-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-receipt-title" aria-describedby="subscription-receipt-subtitle">
+      <div class="modal-header auxiliary-modal-header">
         <div>
+          <span class="auxiliary-modal-kicker">Giao dịch đã xác nhận</span>
           <h2 class="modal-title" id="subscription-receipt-title">Biên nhận thanh toán</h2>
-          <p class="subscription-order-reference" id="subscription-receipt-code"></p>
+          <p class="auxiliary-modal-subtitle" id="subscription-receipt-subtitle">Chứng từ đối chiếu cho khoản thanh toán gói dịch vụ.</p>
         </div>
-        <button type="button" class="modal-close" id="subscription-receipt-close" aria-label="Đóng">✕</button>
+        <div class="subscription-receipt-header-actions">
+          <span class="subscription-receipt-status"><span aria-hidden="true">✓</span> Đã thanh toán</span>
+          <button type="button" class="modal-close" id="subscription-receipt-close" aria-label="Đóng">✕</button>
+        </div>
       </div>
-      <div class="subscription-receipt-content" id="subscription-receipt-content"></div>
-      <div class="modal-actions subscription-receipt-actions">
+      <div class="subscription-receipt-reference"><span>Mã biên nhận</span><strong id="subscription-receipt-code"></strong></div>
+      <div class="auxiliary-modal-body subscription-receipt-content" id="subscription-receipt-content"></div>
+      <div class="modal-actions auxiliary-modal-actions subscription-receipt-actions">
         <button type="button" class="btn btn--ghost" id="subscription-receipt-close-footer">Đóng</button>
         <button type="button" class="btn btn--primary" id="subscription-receipt-print">In biên nhận</button>
       </div>
@@ -3073,21 +3103,34 @@
 
   <!-- MODAL: Export/Delete account requires current password -->
   <div class="modal-overlay" id="privacy-action-modal" hidden>
-    <div class="modal" style="max-width: 460px;">
-      <div class="modal-header">
-        <h2 class="modal-title" id="privacy-action-title">Xác nhận</h2>
-        <button class="modal-close" id="privacy-action-close">✕</button>
+    <div class="modal auxiliary-modal privacy-action-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-action-title" aria-describedby="privacy-action-description">
+      <div class="modal-header auxiliary-modal-header">
+        <div>
+          <span class="auxiliary-modal-kicker">Dữ liệu và quyền riêng tư</span>
+          <h2 class="modal-title" id="privacy-action-title">Xác nhận</h2>
+          <p class="auxiliary-modal-subtitle">Xác minh lại danh tính trước khi thực hiện thao tác nhạy cảm.</p>
+        </div>
+        <button type="button" class="modal-close" id="privacy-action-close" aria-label="Đóng">✕</button>
       </div>
       <form id="privacy-action-form" class="privacy-action-form">
-        <p id="privacy-action-description"></p>
-        <label class="form-label">Mật khẩu hiện tại
-          <input class="form-input" type="password" id="privacy-action-password" autocomplete="current-password" required />
-        </label>
-        <label class="form-label" id="privacy-delete-confirm-label" hidden>Nhập <strong>XOA TAI KHOAN</strong> để xác nhận
-          <input class="form-input" type="text" id="privacy-delete-confirmation" autocomplete="off" />
-        </label>
-        <p class="privacy-action-error" id="privacy-action-error" hidden></p>
-        <div class="modal-actions">
+        <div class="auxiliary-modal-body privacy-action-body">
+          <div class="privacy-action-summary">
+            <span class="privacy-action-icon" aria-hidden="true">🔐</span>
+            <div>
+              <strong>Thao tác được bảo vệ</strong>
+              <p id="privacy-action-description"></p>
+            </div>
+          </div>
+          <label class="form-label">Mật khẩu hiện tại
+            <input class="form-input" type="password" id="privacy-action-password" autocomplete="current-password" required />
+          </label>
+          <label class="form-label privacy-delete-confirm" id="privacy-delete-confirm-label" hidden>Nhập <strong>XOA TAI KHOAN</strong> để xác nhận
+            <input class="form-input" type="text" id="privacy-delete-confirmation" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          </label>
+          <p class="privacy-action-error" id="privacy-action-error" role="alert" tabindex="-1" hidden></p>
+          <p class="privacy-action-audit-note"><span aria-hidden="true">🛡️</span><span>Thao tác bảo mật được ghi nhận trong nhật ký nhưng không lưu mật khẩu của bạn.</span></p>
+        </div>
+        <div class="modal-actions auxiliary-modal-actions privacy-action-actions">
           <button type="button" class="btn btn--ghost" id="privacy-action-cancel">Hủy</button>
           <button type="submit" class="btn btn--primary" id="privacy-action-submit">Tiếp tục</button>
         </div>
@@ -3210,7 +3253,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=157"></script>
+  <script src="app.js?v=158"></script>
 </body>
 
 </html>

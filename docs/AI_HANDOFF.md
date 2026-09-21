@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | UX/UI Cổng sửa chữa phía chủ trọ hoàn thành local; chờ người dùng kiểm tra trước khi commit/push |
+| Trạng thái | Sẵn sàng bàn giao — UX/UI bốn popup phụ đã được người dùng xác nhận để push `main` |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
-| Phần ứng dụng phát hành gần nhất | Commit `9661661` cải thiện Trả/Chuyển phòng và Quyết toán đã push `main`; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Người dùng kiểm tra Cổng sửa chữa phía chủ trọ tại local; chỉ commit/push lát cắt mới khi được xác nhận |
+| Phần ứng dụng phát hành gần nhất | HEAD `main` chứa lát cắt UX/UI bốn popup phụ; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Smoke test bốn popup phụ trên Production sau khi deployment mới sẵn sàng |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,24 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI Cổng sửa chữa phía chủ trọ hoàn thành local ngày 21/09/2026:
+- Lát cắt UX/UI bốn popup phụ được người dùng xác nhận push `main` ngày 21/09/2026: Ủng hộ
+  TroBill, Yêu cầu hỗ trợ thanh toán, Biên nhận thanh toán gói và Xuất/Xóa dữ
+  liệu dùng chung header/body/footer; header/footer nằm trong viewport và chỉ
+  thân popup cuộn. Popup ủng hộ ưu tiên VietQR cùng thông tin đối chiếu; popup
+  hỗ trợ giải thích ba bước và khóa nút khi đang gửi; biên nhận ưu tiên trạng
+  thái cùng số tiền; popup quyền riêng tư phân biệt rõ thao tác xóa nguy hiểm,
+  thông báo lỗi có thể được trình đọc màn hình nhận biết. Không đổi API, webhook,
+  quy trình hoàn tiền, password check, audit hoặc quyền dữ liệu. Asset pin tăng
+  `style 160 → 161`, `app 157 → 158`; thêm test layout. Test mục tiêu 31/31 và
+  toàn bộ 531/531 đạt ngoài sandbox; `node --check`, secret scan và diff check
+  sạch. Đã kiểm tra trực quan bốn popup trên desktop 1701×763: không tràn trang,
+  đúng chiều rộng riêng và thông tin tài khoản không xuống dòng; responsive
+  mobile được khóa bằng CSS và test tĩnh nhưng chưa chụp ảnh browser trong phiên
+  này do trình duyệt từ chối URL fixture nội tuyến. Không có migration. Bước an
+  toàn tiếp theo duy nhất là smoke test bốn popup trên Production sau khi
+  deployment mới sẵn sàng.
+
+- Lát cắt UX/UI Cổng sửa chữa phía chủ trọ đã push `main` tại `e91ee27` ngày 21/09/2026:
   modal hiển thị tổng số việc đang mở, chưa phân công, ưu tiên cao và tổng chi
   phí đã ghi; tách cổng khách thuê khỏi hàng đợi xử lý, thêm bộ lọc Tất cả/Cần
   xử lý/Đang làm/Đã kết thúc. Thẻ yêu cầu ưu tiên loại sự cố, mức độ, trạng thái,
@@ -106,8 +123,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   và diff check sạch. Đã kiểm tra bằng dữ liệu local thật ở desktop 1440×900 và
   mobile 390×844: modal không tràn ngang, khóa scroll nền, header/footer nằm
   trong viewport, bộ lọc hoạt động và console không có lỗi; chỉ điều hướng/lọc,
-  không ghi dữ liệu. Không có migration. Bước an toàn tiếp theo duy nhất là
-  người dùng smoke test local trước khi commit/push.
+  không ghi dữ liệu. Không có migration. CI/deployment của commit này chưa được
+  xác minh trong phiên hiện tại.
 
 - Lát cắt UX/UI Trả phòng và Quyết toán đã push `main` tại `9661661` ngày
   21/09/2026: ba

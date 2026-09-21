@@ -75,6 +75,9 @@ Trạng thái ngày 24/08/2026:
 - Dữ liệu chính bị xóa ngay khi xóa tài khoản; backup mã hóa tối đa 30 ngày và
   audit tối giản tối đa 365 ngày. Chính sách/điều khoản hiện là bản pilot, phải
   được rà soát pháp lý và bổ sung thông tin pháp nhân trước khi mở bán đại trà.
+- UX/UI ngày 21/09/2026 làm rõ phạm vi xuất/xóa, cảnh báo thao tác nguy hiểm và
+  trạng thái lỗi có thể được trình đọc màn hình nhận biết; xác minh mật khẩu,
+  cụm xác nhận, audit, retention và API quyền riêng tư không thay đổi.
 - Migration đã chạy trên Neon Production và staging. Cả hai môi trường dùng
   runtime role `tro_bill_app` chỉ có quyền CRUD, không có quyền tạo schema.
 
@@ -156,6 +159,9 @@ Trạng thái ngày 24/08/2026:
   kiểm tra tiền thực nhận. Mã giao dịch dùng chung khóa idempotency với webhook;
   xác nhận, cập nhật gói và audit nằm trong cùng transaction. Người dùng có nút
   báo đã chuyển để yêu cầu kiểm tra nhưng không thể tự đổi trạng thái payment.
+  UX/UI ngày 21/09/2026 trình bày tiến trình gửi yêu cầu → đối soát → nhận kết
+  quả, khóa gửi lặp khi request đang chạy và làm mới biên nhận theo trạng thái,
+  số tiền; không đổi workflow hoàn tiền, webhook hoặc quyền Super Admin.
 - [ ] Nếu bán trong ứng dụng Android trên Google Play, hoàn thiện Play Billing và xác minh giao dịch phía server.
 
 ### Trang quản trị doanh thu

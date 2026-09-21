@@ -834,7 +834,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   `fa37bba`, form Thêm/Sửa phòng tại `2805e93`, nhóm popup sửa sai dữ liệu tại
   `8a210bc` và popup xem bill/VietQR tại `46db2a5` ngày 13/09/2026.
   Luồng soạn/gửi tin nhắn và quản lý link hóa đơn đã phát hành tại `414b3e2`
-  cùng ngày; popup Quản lý khu/tòa nhà tại `457a4d0`.
+  cùng ngày; popup Quản lý khu/tòa nhà tại `457a4d0`; Cổng sửa chữa phía chủ
+  trọ tại `e91ee27`. Nhóm popup phụ Ủng hộ TroBill, hỗ trợ thanh toán, biên nhận
+  gói và quyền riêng tư được người dùng xác nhận push `main` ngày 21/09/2026.
 - **Quyết định:** Chuẩn hóa giao diện theo thứ tự luồng tạo doanh thu, bắt đầu từ
   đăng nhập/đăng ký, sau đó mới tới bảng giá và gia hạn/thanh toán. Giữ nguyên
   HTML/CSS/JavaScript hiện tại và nghiệp vụ đã kiểm thử; mỗi lát cắt phải độc lập,
@@ -981,6 +983,13 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   API, vòng đời hữu hạn, assignment theo khu, event/audit append-only, quyền
   owner/staff hoặc cách ghi `expense_entries`.
 
+  Lát cắt popup phụ dùng chung cấu trúc header/body/footer để hành động luôn nằm
+  trong viewport và chỉ phần nội dung cuộn. Ủng hộ TroBill ưu tiên QR và thông
+  tin đối chiếu; hỗ trợ thanh toán giải thích tiến trình xử lý; biên nhận ưu tiên
+  trạng thái cùng số tiền; xuất/xóa dữ liệu phân biệt rõ hành động nguy hiểm và
+  đưa lỗi vào vùng truy cập được. Không đổi webhook, quy trình hoàn tiền, xác
+  minh mật khẩu, audit, retention hoặc quyền dữ liệu.
+
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 
 - **Trạng thái:** Áp dụng từ 12/09/2026 tại hotfix `218c33c`, push `main` cùng
@@ -1076,8 +1085,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-055 — Trả phòng là một hành trình có điều kiện, không phải ba popup rời rạc
 
-- **Trạng thái:** Áp dụng local từ 21/09/2026; chờ người dùng smoke test trước
-  khi commit/push.
+- **Trạng thái:** Đã push `main` tại `9661661` ngày 21/09/2026; CI/deployment
+  chưa được xác minh trong phiên ghi nhận này.
 - **Quyết định:** Chuyển phòng và trả phòng đều phải kiểm tra biên bản
   `check_out` bằng API trước khi bật nút xác nhận. Nếu thiếu, giao diện dẫn sang
   lập biên bản; sau khi khóa biên bản, CTA tiếp tục quay đúng nhánh chuyển phòng

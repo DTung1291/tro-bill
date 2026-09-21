@@ -54,14 +54,17 @@ test('mã biên nhận ổn định theo payment ID', () => {
   assert.equal(receiptCode(51), 'TB-RCPT-00000051');
 });
 
-test('popup biên nhận căn đều footer và hai nút thao tác', () => {
+test('popup biên nhận ưu tiên trạng thái, số tiền và giữ footer trong viewport', () => {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const styles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 
-  assert.match(html, /class="modal-actions subscription-receipt-actions"/);
-  assert.match(styles, /\.subscription-receipt-actions\s*\{[\s\S]*?padding:\s*0 18px 18px;/);
-  assert.match(styles, /\.subscription-receipt-actions > \.btn\s*\{[\s\S]*?min-width:\s*128px;/);
-  assert.match(styles, /@media \(max-width: 560px\)[\s\S]*?\.subscription-receipt-actions > \.btn\s*\{\s*flex:\s*1 1 0;\s*min-width:\s*0;/);
+  assert.match(html, /class="subscription-receipt-status"[\s\S]*Đã thanh toán/);
+  assert.match(html, /class="subscription-receipt-reference"[\s\S]*id="subscription-receipt-code"/);
+  assert.match(html, /class="modal-actions auxiliary-modal-actions subscription-receipt-actions"/);
+  assert.match(app, /brand\.className = 'subscription-receipt-hero'[\s\S]*heading\.textContent = fmt\(receipt\.amountVnd\)/);
+  assert.match(styles, /\.subscription-receipt-hero\s*\{[^}]*border:[^}]*background:/s);
+  assert.match(styles, /\.auxiliary-modal-actions\s*\{[^}]*flex:\s*0 0 auto;[^}]*border-top:/s);
 });
 
 test('lịch sử payment chỉ kèm yêu cầu hoàn tiền mới nhất, không lộ dữ liệu admin', async (t) => {

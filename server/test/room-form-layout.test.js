@@ -38,5 +38,5 @@ test('form phòng chia ba bước, giữ biểu phí theo hiệu lực và respo
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.room-form-actions\s*\{[^}]*flex-direction:\s*column-reverse/
   );
-  assert.match(html, /href="style\.css\?v=160"[\s\S]*src="app\.js\?v=157"/);
+  assert.match(html, /href="style\.css\?v=161"[\s\S]*src="app\.js\?v=158"/);
 });

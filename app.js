@@ -1213,11 +1213,14 @@ async function submitSubscriptionRefund(event) {
   event.preventDefault();
   const payment = ACTIVE_SUBSCRIPTION_REFUND_PAYMENT;
   if (!payment) return;
+  const form = event.currentTarget;
   const submitButton = document.getElementById('subscription-refund-submit');
   const requestType = document.getElementById('subscription-refund-type').value;
   const requestedAmountVnd = Number(document.getElementById('subscription-refund-amount').value);
   const reason = document.getElementById('subscription-refund-reason').value.trim();
   submitButton.disabled = true;
+  submitButton.textContent = 'Đang gửi…';
+  form.setAttribute('aria-busy', 'true');
   try {
     await API.createSubscriptionRefundRequest(payment.id, {
       requestType,
@@ -1232,6 +1235,8 @@ async function submitSubscriptionRefund(event) {
     showToast(error.message || 'Không gửi được yêu cầu', 'error', 4000);
   } finally {
     submitButton.disabled = false;
+    submitButton.textContent = 'Gửi yêu cầu';
+    form.removeAttribute('aria-busy');
   }
 }
 
@@ -1301,12 +1306,14 @@ function openSubscriptionReceipt(receipt) {
   content.textContent = '';
 
   const brand = document.createElement('div');
-  brand.className = 'subscription-receipt-brand';
+  brand.className = 'subscription-receipt-hero';
+  const label = document.createElement('span');
+  label.textContent = 'Số tiền đã thanh toán';
   const heading = document.createElement('strong');
-  heading.textContent = '🏠 TrọBill';
-  const note = document.createElement('span');
-  note.textContent = 'Biên nhận thanh toán gói dịch vụ';
-  brand.append(heading, note);
+  heading.textContent = fmt(receipt.amountVnd);
+  const note = document.createElement('small');
+  note.textContent = `${receipt.plan?.name || 'Gói dịch vụ'} · ${receipt.billingCycle === 'yearly' ? '12 tháng' : '1 tháng'}`;
+  brand.append(label, heading, note);
 
   const rows = document.createElement('div');
   rows.className = 'subscription-receipt-rows';
@@ -10728,7 +10735,9 @@ async function loadPrivacyAudit() {
 }
 
 function closePrivacyActionModal() {
-  document.getElementById('privacy-action-modal').hidden = true;
+  const modal = document.getElementById('privacy-action-modal');
+  modal.hidden = true;
+  modal.removeAttribute('data-mode');
   document.getElementById('privacy-action-form').reset();
   document.getElementById('privacy-action-error').hidden = true;
   privacyActionMode = '';
@@ -10737,6 +10746,8 @@ function closePrivacyActionModal() {
 function openPrivacyActionModal(mode) {
   privacyActionMode = mode;
   const deleting = mode === 'delete';
+  const modal = document.getElementById('privacy-action-modal');
+  modal.dataset.mode = mode;
   document.getElementById('privacy-action-title').textContent = deleting
     ? 'Xóa tài khoản và toàn bộ dữ liệu'
     : 'Xuất toàn bộ dữ liệu tài khoản';
@@ -10750,7 +10761,7 @@ function openPrivacyActionModal(mode) {
   const submit = document.getElementById('privacy-action-submit');
   submit.textContent = deleting ? 'Xóa vĩnh viễn' : 'Xuất dữ liệu';
   submit.className = deleting ? 'btn btn--danger' : 'btn btn--primary';
-  document.getElementById('privacy-action-modal').hidden = false;
+  modal.hidden = false;
   setTimeout(() => document.getElementById('privacy-action-password').focus(), 0);
 }
 
@@ -10804,6 +10815,7 @@ function initPrivacyEvents() {
     } catch (error) {
       errorEl.textContent = error.message || 'Không thực hiện được yêu cầu';
       errorEl.hidden = false;
+      errorEl.focus();
     } finally {
       submit.disabled = false;
     }
@@ -10885,17 +10897,18 @@ function openDonateModal(amount) {
   modal.hidden = false;
 }
 
-// Đóng Modal Donate
-const donateModalClose = document.getElementById('donate-modal-close');
-if (donateModalClose) {
-  donateModalClose.addEventListener('click', () => {
-    document.getElementById('donate-modal').hidden = true;
-  });
+function closeDonateModal() {
+  const modal = document.getElementById('donate-modal');
+  const qrImg = document.getElementById('donate-qr-img');
+  if (modal) modal.hidden = true;
+  if (qrImg) qrImg.removeAttribute('src');
 }
+
+// Đóng Modal Donate
+document.getElementById('donate-modal-close')?.addEventListener('click', closeDonateModal);
+document.getElementById('donate-modal-close-footer')?.addEventListener('click', closeDonateModal);
 document.getElementById('donate-modal')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('donate-modal')) {
-    document.getElementById('donate-modal').hidden = true;
-  }
+  if (e.target === e.currentTarget) closeDonateModal();
 });
 
 // Nút copy số TK donate
