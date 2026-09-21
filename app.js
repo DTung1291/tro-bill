@@ -11473,6 +11473,8 @@ function seedDemoData() {
 // ============================================================
 let activeTenantRoomId = null;
 let _cccdScanner = null;
+let _cccdScanSession = 0;
+let _cccdScanSuccessTimer = null;
 
 function depositEntryTypeLabel(entryType) {
   const labels = {
@@ -12393,62 +12395,130 @@ function deleteTenant(roomId, tenantId) {
   );
 }
 
-function startCccdScanner() {
+function setCccdScanState(state, title, message) {
   const scanModal = document.getElementById('tenant-scan-modal');
+  const card = scanModal?.querySelector('.tenant-scan-modal-card');
+  if (!scanModal || !card) return;
+
+  const defaults = {
+    requesting: ['◌', 'Đang chuẩn bị camera', 'Trình duyệt có thể hỏi quyền sử dụng camera.'],
+    scanning: ['⌁', 'Đang tìm mã QR', 'Giữ thẻ ổn định và căn mã QR vào giữa khung.'],
+    processing: ['…', 'Đang đọc ảnh', 'TrọBill đang tìm mã QR trong ảnh đã chọn.'],
+    success: ['✓', 'Đã đọc mã QR', 'Thông tin đã được điền vào hồ sơ để bạn kiểm tra lại.'],
+    error: ['!', 'Không thể quét mã QR', 'Bạn có thể thử lại, chọn ảnh rõ hơn hoặc nhập thủ công.']
+  };
+  const fallback = defaults[state] || defaults.requesting;
+  card.dataset.scanState = state;
+  document.getElementById('tenant-scan-status-icon').textContent = fallback[0];
+  document.getElementById('tenant-scan-status-title').textContent = title || fallback[1];
+  document.getElementById('tenant-scan-status-message').textContent = message || fallback[2];
+
+  const progress = state === 'success' ? 3 : (state === 'scanning' || state === 'processing' ? 2 : 1);
+  card.querySelectorAll('[data-scan-step]').forEach((step, index) => {
+    const stepNumber = index + 1;
+    step.classList.toggle('is-complete', stepNumber < progress || state === 'success');
+    step.classList.toggle('is-active', stepNumber === progress && state !== 'success');
+  });
+  document.getElementById('tenant-scan-retry-btn').hidden = state !== 'error';
+}
+
+async function disposeCccdScanner(scanner) {
+  if (!scanner) return;
+  try {
+    if (scanner.isScanning) await scanner.stop();
+  } catch (_) {
+    // The camera may already be stopped by the browser or the QR library.
+  }
+  try {
+    await Promise.resolve(scanner.clear());
+  } catch (_) {
+    // Clearing an already-disposed scanner is safe to ignore.
+  }
+}
+
+async function releaseCccdScanner() {
+  const scanner = _cccdScanner;
+  _cccdScanner = null;
+  await disposeCccdScanner(scanner);
+}
+
+function finishSuccessfulCccdScan(session) {
+  clearTimeout(_cccdScanSuccessTimer);
+  _cccdScanSuccessTimer = setTimeout(() => {
+    if (session !== _cccdScanSession) return;
+    document.getElementById('tenant-scan-modal').hidden = true;
+  }, 700);
+}
+
+async function startCccdScanner() {
+  const scanModal = document.getElementById('tenant-scan-modal');
+  const session = ++_cccdScanSession;
+  clearTimeout(_cccdScanSuccessTimer);
   scanModal.hidden = false;
-  
+  setCccdScanState('requesting');
+  await releaseCccdScanner();
+  if (session !== _cccdScanSession) return;
+
   if (typeof Html5Qrcode === 'undefined') {
-    showToast('Thư viện quét QR chưa được tải. Thử lại sau.', 'error');
+    setCccdScanState('error', 'Trình quét chưa sẵn sàng', 'Hãy tải lại trang hoặc chọn nhập thông tin thủ công.');
     return;
   }
-  
-  _cccdScanner = new Html5Qrcode("cccd-qr-reader");
-  
+
+  const scanner = new Html5Qrcode("cccd-qr-reader");
+  _cccdScanner = scanner;
   const config = {
     fps: 10,
     qrbox: { width: 250, height: 250 }
   };
-  
-  _cccdScanner.start(
-    { facingMode: "environment" },
-    config,
-    (qrCodeMessage) => {
-      handleCccdQrResult(qrCodeMessage);
-      stopCccdScanner();
-    },
-    (errorMessage) => {
-      // Keep searching silently
+  let scanResolved = false;
+
+  try {
+    await scanner.start(
+      { facingMode: "environment" },
+      config,
+      (qrCodeMessage) => {
+        if (session !== _cccdScanSession || scanResolved) return;
+        scanResolved = true;
+        if (!handleCccdQrResult(qrCodeMessage)) {
+          void releaseCccdScanner();
+          setCccdScanState('error', 'Mã QR chưa đúng định dạng CCCD', 'Thử căn lại mã trên CCCD, chọn ảnh khác hoặc nhập thủ công.');
+          return;
+        }
+        setCccdScanState('success');
+        void releaseCccdScanner();
+        finishSuccessfulCccdScan(session);
+      },
+      () => {
+        // Missing a frame is expected while the camera keeps scanning.
+      }
+    );
+    if (session !== _cccdScanSession) {
+      await disposeCccdScanner(scanner);
+      return;
     }
-  ).catch(err => {
-    console.error("Camera error:", err);
-    showToast("Không mở được camera. Thử chọn ảnh có sẵn.", "error");
-    stopCccdScanner();
-  });
+    setCccdScanState('scanning');
+  } catch (_) {
+    if (session !== _cccdScanSession) {
+      await disposeCccdScanner(scanner);
+      return;
+    }
+    await releaseCccdScanner();
+    setCccdScanState('error', 'Không mở được camera', 'Kiểm tra quyền camera, thử lại hoặc chọn ảnh CCCD có sẵn.');
+  }
 }
 
-function stopCccdScanner() {
+async function stopCccdScanner() {
+  ++_cccdScanSession;
+  clearTimeout(_cccdScanSuccessTimer);
   const scanModal = document.getElementById('tenant-scan-modal');
   scanModal.hidden = true;
-  
-  if (_cccdScanner) {
-    if (_cccdScanner.isScanning) {
-      _cccdScanner.stop().then(() => {
-        _cccdScanner = null;
-      }).catch(err => {
-        console.error("Stop error:", err);
-        _cccdScanner = null;
-      });
-    } else {
-      _cccdScanner = null;
-    }
-  }
+  await releaseCccdScanner();
 }
 
 function handleCccdQrResult(qrText) {
   const data = parseCccdQr(qrText);
   if (!data) {
-    showToast("Mã QR không đúng định dạng CCCD Việt Nam.", "error");
-    return;
+    return false;
   }
   
   document.getElementById('tenant-fullname').value = data.fullName;
@@ -12465,6 +12535,40 @@ function handleCccdQrResult(qrText) {
   }
   
   showToast("Đã điền thông tin từ CCCD ✓", "success");
+  return true;
+}
+
+async function scanCccdFile(file) {
+  const scanModal = document.getElementById('tenant-scan-modal');
+  const session = ++_cccdScanSession;
+  clearTimeout(_cccdScanSuccessTimer);
+  scanModal.hidden = false;
+  setCccdScanState('processing');
+  await releaseCccdScanner();
+  if (session !== _cccdScanSession) return;
+
+  if (typeof Html5Qrcode === 'undefined') {
+    setCccdScanState('error', 'Trình quét chưa sẵn sàng', 'Hãy tải lại trang hoặc nhập thông tin thủ công.');
+    return;
+  }
+
+  try {
+    const scanner = new Html5Qrcode("cccd-qr-reader");
+    _cccdScanner = scanner;
+    const qrCodeMessage = await scanner.scanFile(file, true);
+    if (session !== _cccdScanSession) return;
+    await releaseCccdScanner();
+    if (!handleCccdQrResult(qrCodeMessage)) {
+      setCccdScanState('error', 'Ảnh không chứa QR CCCD hợp lệ', 'Chọn ảnh rõ hơn, thấy trọn mã QR hoặc nhập thông tin thủ công.');
+      return;
+    }
+    setCccdScanState('success');
+    finishSuccessfulCccdScan(session);
+  } catch (_) {
+    if (session !== _cccdScanSession) return;
+    await releaseCccdScanner();
+    setCccdScanState('error', 'Không tìm thấy mã QR trong ảnh', 'Chọn ảnh rõ hơn, thấy trọn mã QR hoặc nhập thông tin thủ công.');
+  }
 }
 
 function parseCccdQr(qrText) {
@@ -12520,6 +12624,7 @@ function initTenantsEvents() {
   
   document.getElementById('tenant-scan-close').addEventListener('click', stopCccdScanner);
   document.getElementById('tenant-scan-cancel-btn').addEventListener('click', stopCccdScanner);
+  document.getElementById('tenant-scan-retry-btn').addEventListener('click', startCccdScanner);
   
   document.getElementById('tenant-scan-btn').addEventListener('click', () => {
     startCccdScanner();
@@ -12550,27 +12655,15 @@ function initTenantsEvents() {
     tenantUploadBtn.addEventListener('click', () => {
       tenantQrFile.click();
     });
+    document.getElementById('tenant-scan-upload-btn').addEventListener('click', () => {
+      tenantQrFile.click();
+    });
     
-    tenantQrFile.addEventListener('change', (e) => {
+    tenantQrFile.addEventListener('change', async (e) => {
       if (e.target.files.length === 0) return;
       const file = e.target.files[0];
-      
-      if (typeof Html5Qrcode === 'undefined') {
-        showToast('Thư viện quét QR chưa sẵn sàng.', 'error');
-        return;
-      }
-      
-      const reader = new Html5Qrcode("cccd-qr-reader");
-      showToast("Đang quét ảnh...", "info");
-      
-      reader.scanFile(file, true)
-        .then(qrCodeMessage => {
-          handleCccdQrResult(qrCodeMessage);
-        })
-        .catch(err => {
-          console.error("File scan error:", err);
-          showToast("Không tìm thấy mã QR CCCD hợp lệ trong ảnh.", "error");
-        });
+      e.target.value = '';
+      await scanCccdFile(file);
     });
   }
   

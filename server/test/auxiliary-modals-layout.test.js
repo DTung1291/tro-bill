@@ -61,5 +61,5 @@ test('popup phụ thu về một cột và nút toàn chiều rộng trên mobil
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.auxiliary-flow\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.donate-payment-body\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.auxiliary-modal-actions \.btn\s*\{[^}]*width:\s*100%;/s);
-  assert.match(html, /href="style\.css\?v=163"[\s\S]*src="app\.js\?v=160"/);
+  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="app\.js\?v=161"/);
 });

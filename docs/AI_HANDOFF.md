@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | UX Hồ sơ hóa đơn điện tử đã được người dùng cho phép chuyển tiếp; đang chuẩn bị cải thiện Quét QR CCCD |
+| Trạng thái | Sẵn sàng bàn giao — UX Quét QR CCCD hoàn tất và đã được người dùng yêu cầu phát hành |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Có thay đổi local của UX Hồ sơ hóa đơn điện tử và cập nhật asset pin/test, sắp được chốt thành commit riêng |
+| Worktree kỳ vọng | Sạch sau khi commit và push lát cắt UX Quét QR CCCD |
 | Phần ứng dụng phát hành gần nhất | Commit `ad14f98` trên `main` chứa UX thông báo hóa đơn/Zalo; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Chốt UX Hồ sơ hóa đơn điện tử thành commit local riêng, sau đó cải thiện popup Quét QR CCCD; chưa push nếu chưa được yêu cầu |
+| Việc code tiếp theo | Xác minh CI/deployment của commit Quét QR CCCD trên `main`, rồi tiếp tục mốc UX/UI kế tiếp khi người dùng yêu cầu |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,8 +95,23 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- UX Quét QR CCCD hoàn thành ngày 21/09/2026 và được người dùng yêu cầu phát hành
+  cùng commit chứa tài liệu này: popup có
+  ba bước chọn nguồn, căn mã và kiểm tra hồ sơ; trạng thái camera/đọc ảnh/thành
+  công/lỗi dùng vùng `aria-live`. Lỗi quyền camera không còn tự đóng popup mà
+  cho thử lại, chọn ảnh hoặc nhập thủ công. Camera được giải phóng khi đóng;
+  phiên quét cũ không thể cập nhật trạng thái của phiên mới. Khung camera, nội
+  dung và footer không chồng lớp, thân popup cuộn độc lập ở viewport thấp; đã
+  kiểm tra local desktop 1440×603 và mobile 390×844, không tràn ngang, camera
+  không còn track hoạt động sau khi đóng. Không thay đổi schema/API hoặc lưu ảnh
+  CCCD; asset pin tăng `style 163 → 164`, `app 160 → 161`. Test mục tiêu 1/1 và
+  toàn bộ 532/532 đạt (lượt sandbox đầu bị chặn mở cổng localhost, lượt chạy
+  ngoài sandbox sạch); syntax check và diff check đạt. Browser local đã kiểm tra
+  desktop 1440×603 và mobile 390×844, không tràn ngang/chồng lớp; camera không
+  còn track hoạt động sau khi đóng.
+
 - UX Hồ sơ hóa đơn điện tử được người dùng cho phép chuyển tiếp ngày 21/09/2026,
-  chuẩn bị commit local riêng và chưa push:
+  đã commit local riêng ở `abc5f81` và chưa push:
   card hiển thị ba mốc tiến độ từ dữ liệu đã lưu, phân biệt phân loại hồ sơ, danh
   tính người bán và kết nối provider. Form được tách thành ba fieldset cùng mô tả
   ngắn, giữ nguyên tất cả ID/API và luồng xác nhận hiện có; trạng thái kết nối chỉ

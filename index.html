@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=163" />
+  <link rel="stylesheet" href="style.css?v=164" />
 </head>
 
 <body>
@@ -3069,7 +3069,7 @@
               <span>Ảnh chỉ được dùng trên thiết bị để đọc mã QR.</span>
             </div>
             <div class="tenant-identity-actions">
-              <button type="button" class="btn btn--success btn--sm" id="tenant-scan-btn">📸 Quét QR</button>
+              <button type="button" class="btn btn--success btn--sm" id="tenant-scan-btn">📸 Quét bằng camera</button>
               <button type="button" class="btn btn--ghost btn--sm" id="tenant-upload-btn">🖼️ Chọn ảnh</button>
               <input type="file" id="tenant-qr-file" accept="image/*" hidden />
             </div>
@@ -3143,20 +3143,53 @@
 
   <!-- MODAL: CCCD QR Scanner Camera -->
   <div class="modal-overlay" id="tenant-scan-modal" hidden>
-    <div class="modal tenant-scan-modal-card">
+    <div class="modal tenant-scan-modal-card" role="dialog" aria-modal="true" aria-labelledby="tenant-scan-title" aria-describedby="tenant-scan-description">
       <div class="modal-header">
         <div>
           <span class="tenants-modal-kicker">Điền hồ sơ nhanh</span>
-          <h2 class="modal-title">Quét QR Căn cước công dân</h2>
+          <h2 class="modal-title" id="tenant-scan-title">Quét QR Căn cước công dân</h2>
+          <p class="tenant-scan-subtitle" id="tenant-scan-description">Đưa mã QR trên thẻ vào khung để tự điền thông tin khách thuê.</p>
         </div>
-        <button type="button" class="modal-close" id="tenant-scan-close" aria-label="Đóng">✕</button>
+        <button type="button" class="modal-close" id="tenant-scan-close" aria-label="Đóng trình quét QR">✕</button>
       </div>
       <div class="tenant-scan-body">
-        <div id="cccd-qr-reader"></div>
-        <div class="tenant-scan-hint">
-          Căn chỉnh mã QR ở góc phải phía trên của CCCD vào khung quét.
+        <ol class="tenant-scan-steps" aria-label="Các bước quét CCCD">
+          <li class="tenant-scan-step is-active" data-scan-step="permission"><span>1</span><small>Chọn nguồn</small></li>
+          <li class="tenant-scan-step" data-scan-step="scan"><span>2</span><small>Căn mã QR</small></li>
+          <li class="tenant-scan-step" data-scan-step="review"><span>3</span><small>Kiểm tra hồ sơ</small></li>
+        </ol>
+
+        <div class="tenant-scan-stage">
+          <div id="cccd-qr-reader" aria-label="Khung hình camera quét mã QR"></div>
+          <div class="tenant-scan-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="tenant-scan-stage-placeholder" aria-hidden="true">
+            <span>▦</span>
+            <small>Camera sẽ hiển thị tại đây</small>
+          </div>
         </div>
-        <button type="button" class="btn btn--ghost tenant-scan-cancel" id="tenant-scan-cancel-btn">Dừng quét</button>
+
+        <div class="tenant-scan-status" id="tenant-scan-status" role="status" aria-live="polite">
+          <span class="tenant-scan-status-icon" id="tenant-scan-status-icon" aria-hidden="true">◌</span>
+          <div>
+            <strong id="tenant-scan-status-title">Đang chuẩn bị camera</strong>
+            <p id="tenant-scan-status-message">Trình duyệt có thể hỏi quyền sử dụng camera.</p>
+          </div>
+        </div>
+
+        <div class="tenant-scan-guidance">
+          <strong>Cách quét rõ và nhanh</strong>
+          <ul>
+            <li>Đặt mặt sau CCCD đủ sáng, tránh lóa.</li>
+            <li>Căn mã QR ở góc trên của thẻ vào giữa khung.</li>
+          </ul>
+        </div>
+
+        <p class="tenant-scan-privacy"><span aria-hidden="true">🛡️</span><span>Camera chỉ đọc mã QR trên thiết bị. TrọBill không chụp, tải lên hoặc lưu ảnh CCCD.</span></p>
+      </div>
+      <div class="tenant-scan-actions">
+        <button type="button" class="btn btn--ghost" id="tenant-scan-cancel-btn">Nhập thủ công</button>
+        <button type="button" class="btn btn--ghost" id="tenant-scan-upload-btn">🖼️ Chọn ảnh</button>
+        <button type="button" class="btn btn--primary" id="tenant-scan-retry-btn" hidden>Thử lại camera</button>
       </div>
     </div>
   </div>
@@ -3313,7 +3346,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=160"></script>
+  <script src="app.js?v=161"></script>
 </body>
 
 </html>

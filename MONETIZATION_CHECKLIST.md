@@ -78,6 +78,11 @@ Trạng thái ngày 24/08/2026:
 - UX/UI ngày 21/09/2026 làm rõ phạm vi xuất/xóa, cảnh báo thao tác nguy hiểm và
   trạng thái lỗi có thể được trình đọc màn hình nhận biết; xác minh mật khẩu,
   cụm xác nhận, audit, retention và API quyền riêng tư không thay đổi.
+- UX/UI Quét QR CCCD ngày 21/09/2026 hiển thị rõ ba bước chọn nguồn, căn mã và
+  kiểm tra hồ sơ; phân biệt trạng thái đang xin quyền, đang quét, đọc ảnh, thành
+  công và lỗi. Khi camera không dùng được, popup vẫn mở để thử lại, chọn ảnh
+  hoặc nhập thủ công; camera được dừng khi đóng. Ảnh và video chỉ được xử lý
+  cục bộ trên thiết bị, không tải lên hoặc lưu lại.
 - Migration đã chạy trên Neon Production và staging. Cả hai môi trường dùng
   runtime role `tro_bill_app` chỉ có quyền CRUD, không có quyền tạo schema.
 
