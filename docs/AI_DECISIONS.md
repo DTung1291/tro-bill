@@ -1065,3 +1065,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   thời gian giao dịch bằng timestamp bounds để dùng được index. Biểu đồ SVG
   không thêm thư viện phụ thuộc; mobile chỉ cuộn ngang bên trong khung biểu đồ,
   đồng thời phải có bảng ẩn tương đương cho trình đọc màn hình.
+
+## D-055 — Trả phòng là một hành trình có điều kiện, không phải ba popup rời rạc
+
+- **Trạng thái:** Áp dụng local từ 21/09/2026; chờ người dùng smoke test trước
+  khi commit/push.
+- **Quyết định:** Chuyển phòng và trả phòng đều phải kiểm tra biên bản
+  `check_out` bằng API trước khi bật nút xác nhận. Nếu thiếu, giao diện dẫn sang
+  lập biên bản; sau khi khóa biên bản, CTA tiếp tục quay đúng nhánh chuyển phòng
+  hoặc trả phòng. Nhánh trả phòng tiếp tục tự mở quyết toán cuối sau khi máy chủ
+  kết thúc hợp đồng thành công.
+- **Trình bày:** Biên bản → kết thúc hợp đồng/phòng cũ → quyết toán hoặc hợp đồng
+  mới được biểu diễn bằng cùng một tiến trình ba bước. Quyết toán ưu tiên sáu số
+  đối chiếu, sau đó mới cho phân bổ cọc; kết quả còn phải thu và tổng hoàn khách
+  được cập nhật trực tiếp khi thay số cọc bù nợ.
+- **Bất biến:** Đây chỉ là lớp điều hướng và trình bày. API lifecycle, transaction
+  chuyển/trả phòng, cách tính đủ ngày, đối chiếu chỉ số, ledger thu tiền/cọc,
+  idempotency và snapshot quyết toán bất biến không thay đổi. Client không được
+  tự coi biên bản đã đủ nếu API chưa trả bản `check_out` thuộc đúng hợp đồng.

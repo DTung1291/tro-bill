@@ -4246,9 +4246,12 @@ let activeRentalContractDocumentData = null;
 let activeRentalHandoverContractId = null;
 let activeRentalHandover = null;
 let rentalHandovers = [];
+let rentalHandoverContinuationType = null;
 let rentalReservations = [];
 let rentalLifecycleEvents = [];
 let activeRentalLifecycleContract = null;
+let rentalLifecycleCheckoutReady = false;
+let rentalLifecycleHandoverRequest = 0;
 let activeRentalFinalSettlementContract = null;
 let activeRentalFinalSettlementPreview = null;
 let activeRentalFinalSettlement = null;
@@ -5203,6 +5206,8 @@ function updateRentalHandoverDate() {
     input.removeAttribute('max');
     input.value = contract.endsOn || vietnamCalendarDate();
   }
+  const journey = document.getElementById('rental-handover-closeout-journey');
+  if (journey) journey.hidden = type !== 'check_out';
 }
 
 function closeRentalHandoverModal() {
@@ -5216,6 +5221,7 @@ function closeRentalHandoverModal() {
   activeRentalHandoverContractId = null;
   activeRentalHandover = null;
   rentalHandovers = [];
+  rentalHandoverContinuationType = null;
 }
 
 async function openRentalHandoverModal(contract) {
@@ -5326,6 +5332,14 @@ function openRentalHandoverPreview(handover) {
   document.getElementById('rental-handover-paper').innerHTML = RentalHandoverTemplate.build(handover);
   document.getElementById('rental-handover-editor').hidden = true;
   document.getElementById('rental-handover-preview').hidden = false;
+  const contract = rentalContracts.find(item => Number(item.id) === activeRentalHandoverContractId);
+  const continueButton = document.getElementById('rental-handover-continue-checkout');
+  continueButton.hidden = !(
+    handover?.handoverType === 'check_out' && contract?.status === 'active'
+  );
+  continueButton.textContent = rentalHandoverContinuationType === 'transfer'
+    ? 'Tiếp tục chuyển phòng →'
+    : 'Tiếp tục trả phòng →';
 }
 
 function closeRentalHandoverPreview() {
@@ -5333,6 +5347,15 @@ function closeRentalHandoverPreview() {
   document.getElementById('rental-handover-paper').replaceChildren();
   document.getElementById('rental-handover-preview').hidden = true;
   document.getElementById('rental-handover-editor').hidden = false;
+  document.getElementById('rental-handover-continue-checkout').hidden = true;
+}
+
+function continueCheckoutAfterHandover() {
+  const contract = rentalContracts.find(item => Number(item.id) === activeRentalHandoverContractId);
+  if (!contract || activeRentalHandover?.handoverType !== 'check_out') return;
+  const type = rentalHandoverContinuationType || 'checkout';
+  closeRentalHandoverModal();
+  openRentalLifecycleModal(contract, type);
 }
 
 function printRentalHandover() {
@@ -5359,9 +5382,99 @@ function updateRentalLifecycleForm() {
   });
   document.getElementById('rental-lifecycle-target-room').required = isTransfer;
   document.getElementById('rental-lifecycle-rent').required = isTransfer;
-  document.getElementById('rental-lifecycle-submit').textContent = isTransfer
-    ? 'Xác nhận chuyển phòng'
-    : 'Xác nhận trả phòng';
+  const submit = document.getElementById('rental-lifecycle-submit');
+  submit.textContent = isTransfer ? 'Xác nhận chuyển phòng' : 'Xác nhận trả phòng & tiếp tục';
+  submit.disabled = !rentalLifecycleCheckoutReady;
+  const journey = document.getElementById('rental-lifecycle-journey');
+  const steps = journey.querySelectorAll('li');
+  steps[0].querySelector('strong').textContent = isTransfer ? 'Biên bản chuyển phòng' : 'Biên bản trả phòng';
+  steps[1].querySelector('strong').textContent = isTransfer ? 'Kết thúc phòng cũ' : 'Kết thúc hợp đồng';
+  steps[1].querySelector('small').textContent = isTransfer ? 'Xác nhận phòng và ngày chuyển' : 'Xác nhận ngày trả phòng';
+  steps[2].querySelector('strong').textContent = isTransfer ? 'Hợp đồng phòng mới' : 'Quyết toán';
+  steps[2].querySelector('small').textContent = isTransfer ? 'Tạo trong cùng giao dịch' : 'Đối trừ cọc và công nợ';
+  document.getElementById('rental-lifecycle-kicker').textContent = isTransfer
+    ? 'Vòng đời hợp đồng'
+    : 'Bước 2 · Trả phòng';
+  document.getElementById('rental-lifecycle-guidance-title').textContent = isTransfer
+    ? 'Chuyển phòng an toàn'
+    : 'Ngày trả phòng quyết định tiền thuê thực tế';
+  document.getElementById('rental-lifecycle-guidance-detail').textContent = isTransfer
+    ? 'Hợp đồng cũ sẽ kết thúc và hợp đồng mới được tạo trong cùng một giao dịch.'
+    : 'Sau khi xác nhận, hệ thống chốt hóa đơn đến hết ngày này rồi chuyển thẳng sang bước đối trừ công nợ và tiền cọc.';
+  document.getElementById('rental-lifecycle-step-label').textContent = isTransfer
+    ? 'Thông tin chuyển phòng'
+    : 'Bước 2 · Kết thúc hợp đồng';
+  document.getElementById('rental-lifecycle-form-title').textContent = isTransfer
+    ? 'Kiểm tra hợp đồng mới trước khi xác nhận'
+    : 'Xác nhận ngày và lý do trả phòng';
+  document.getElementById('rental-lifecycle-form-help').textContent = isTransfer
+    ? 'Giá và tiền cọc dưới đây sẽ được chụp vào hợp đồng phòng mới.'
+    : 'Biên bản trả phòng phải được khóa trước khi hợp đồng có thể kết thúc.';
+}
+
+function renderRentalLifecyclePrerequisite(state, handover = null) {
+  const panel = document.getElementById('rental-lifecycle-prerequisite');
+  const icon = document.getElementById('rental-lifecycle-prerequisite-icon');
+  const title = document.getElementById('rental-lifecycle-prerequisite-title');
+  const detail = document.getElementById('rental-lifecycle-prerequisite-detail');
+  const action = document.getElementById('rental-lifecycle-open-handover');
+  panel.hidden = false;
+  panel.dataset.state = state;
+  panel.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+  action.hidden = state === 'ready' || state === 'loading';
+  if (state === 'ready') {
+    icon.textContent = '✓';
+    title.textContent = 'Biên bản trả phòng đã được khóa';
+    detail.textContent = `${handover?.code || 'Biên bản'} · ${dateLabel(handover?.occurredOn) || handover?.occurredOn || ''}. Có thể tiếp tục kết thúc hợp đồng.`;
+  } else if (state === 'missing') {
+    icon.textContent = '!';
+    title.textContent = 'Chưa có biên bản trả phòng';
+    detail.textContent = 'Hãy chốt chỉ số điện nước, tài sản và chìa khóa trước khi kết thúc hợp đồng.';
+    action.textContent = 'Lập biên bản trả phòng';
+  } else if (state === 'error') {
+    icon.textContent = '×';
+    title.textContent = 'Chưa kiểm tra được biên bản';
+    detail.textContent = 'Không thể xác minh điều kiện trả phòng. Bạn có thể mở hồ sơ bàn giao để kiểm tra lại.';
+    action.textContent = 'Mở hồ sơ bàn giao';
+  } else {
+    icon.textContent = '…';
+    title.textContent = 'Đang kiểm tra biên bản trả phòng';
+    detail.textContent = 'Hệ thống đang kiểm tra chỉ số, tài sản và số dư cọc đã được khóa.';
+  }
+}
+
+async function refreshRentalLifecycleReadiness(contract) {
+  const request = ++rentalLifecycleHandoverRequest;
+  rentalLifecycleCheckoutReady = false;
+  renderRentalLifecyclePrerequisite('loading');
+  updateRentalLifecycleForm();
+  try {
+    const result = await API.getRentalHandovers(contract.id);
+    if (request !== rentalLifecycleHandoverRequest
+        || Number(activeRentalLifecycleContract?.id) !== Number(contract.id)
+        || !['transfer', 'checkout'].includes(document.getElementById('rental-lifecycle-type').value)) return;
+    const handover = (Array.isArray(result.handovers) ? result.handovers : [])
+      .find(item => item.handoverType === 'check_out');
+    rentalLifecycleCheckoutReady = !!handover;
+    renderRentalLifecyclePrerequisite(handover ? 'ready' : 'missing', handover);
+    updateRentalLifecycleForm();
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    if (request !== rentalLifecycleHandoverRequest) return;
+    rentalLifecycleCheckoutReady = false;
+    renderRentalLifecyclePrerequisite('error');
+    updateRentalLifecycleForm();
+  }
+}
+
+function handleRentalLifecycleTypeChange() {
+  rentalLifecycleCheckoutReady = false;
+  updateRentalLifecycleForm();
+  if (activeRentalLifecycleContract) {
+    void refreshRentalLifecycleReadiness(activeRentalLifecycleContract);
+  } else {
+    rentalLifecycleHandoverRequest += 1;
+  }
 }
 
 function updateRentalLifecycleTargetRate() {
@@ -5394,12 +5507,16 @@ function openRentalLifecycleModal(contract, type = 'transfer') {
     target.appendChild(option);
   }
   document.getElementById('rental-lifecycle-error').hidden = true;
+  rentalLifecycleCheckoutReady = false;
   updateRentalLifecycleForm();
   updateRentalLifecycleTargetRate();
   document.getElementById('rental-lifecycle-modal').hidden = false;
+  void refreshRentalLifecycleReadiness(contract);
 }
 
 function closeRentalLifecycleModal() {
+  rentalLifecycleHandoverRequest += 1;
+  rentalLifecycleCheckoutReady = false;
   activeRentalLifecycleContract = null;
   document.getElementById('rental-lifecycle-modal').hidden = true;
 }
@@ -5454,6 +5571,7 @@ function renderRentalFinalSettlementResult(settlement) {
   document.getElementById('rental-final-settlement-loading').hidden = true;
   document.getElementById('rental-final-settlement-form').hidden = true;
   document.getElementById('rental-final-settlement-result').hidden = false;
+  document.getElementById('rental-final-settlement-journey').dataset.stage = 'complete';
   document.getElementById('rental-final-settlement-contract').textContent =
     `${settlement.code} · ${periodLabel(settlement.period)}`;
   document.getElementById('rental-final-settlement-paper').innerHTML =
@@ -5475,9 +5593,13 @@ function updateRentalFinalSettlementBalance() {
   const totalRefund = valid
     ? balance - applied + (Number(preview.rentOverpaymentVnd) || 0)
     : Number(preview.rentOverpaymentVnd) || 0;
-  document.getElementById('rental-final-settlement-balance').textContent = valid
-    ? `Sau đối trừ: còn phải thu ${fmt(remaining)} · tổng hoàn khách ${fmt(totalRefund)}.`
-    : `Tiền cọc bù công nợ phải từ 0 đến ${fmt(Math.min(balance, outstanding))}.`;
+  const summary = document.getElementById('rental-final-settlement-balance');
+  summary.classList.toggle('is-invalid', !valid);
+  summary.innerHTML = valid
+    ? `<span><small>Còn phải thu sau đối trừ</small><strong>${fmt(remaining)}</strong></span>
+       <span><small>Tổng hoàn khách</small><strong>${fmt(totalRefund)}</strong></span>`
+    : `<span><small>Cần kiểm tra</small><strong>Tiền cọc bù nợ phải từ 0 đến ${fmt(Math.min(balance, outstanding))}</strong></span>`;
+  document.getElementById('rental-final-settlement-submit').disabled = !valid;
 }
 
 function renderRentalFinalSettlementPreview(preview) {
@@ -5486,15 +5608,16 @@ function renderRentalFinalSettlementPreview(preview) {
   document.getElementById('rental-final-settlement-loading').hidden = true;
   document.getElementById('rental-final-settlement-result').hidden = true;
   document.getElementById('rental-final-settlement-form').hidden = false;
+  document.getElementById('rental-final-settlement-journey').dataset.stage = 'review';
   document.getElementById('rental-final-settlement-contract').textContent =
     `${preview.contract.code} · ${preview.contract.roomName} · ${preview.contract.tenantName}`;
   document.getElementById('rental-final-settlement-summary').innerHTML = `
-    <div><span>Tiền phòng thực tế</span><strong>${fmt(preview.invoice.finalRentVnd)} · ${preview.invoice.chargedDays}/${preview.invoice.daysInMonth} ngày</strong></div>
-    <div><span>Hóa đơn sau chốt</span><strong>${fmt(preview.invoice.finalTotalVnd)}</strong></div>
-    <div><span>Công nợ trước bù cọc</span><strong>${fmt(preview.outstandingBeforeDepositVnd)}</strong></div>
-    <div><span>Đã thu trong kỳ thuê</span><strong>${fmt(preview.paidBeforeVnd)}</strong></div>
-    <div><span>Số dư cọc</span><strong>${fmt(preview.deposit.balanceVnd)}</strong></div>
-    <div><span>Tiền phòng đã trả dư</span><strong>${fmt(preview.rentOverpaymentVnd)}</strong></div>`;
+    <div><span>Tiền phòng thực tế</span><strong>${fmt(preview.invoice.finalRentVnd)}</strong><small>${preview.invoice.chargedDays}/${preview.invoice.daysInMonth} ngày tính tiền</small></div>
+    <div><span>Hóa đơn sau chốt</span><strong>${fmt(preview.invoice.finalTotalVnd)}</strong><small>Đã khóa theo ngày trả phòng</small></div>
+    <div class="is-due"><span>Công nợ trước bù cọc</span><strong>${fmt(preview.outstandingBeforeDepositVnd)}</strong><small>Cần thu hoặc bù từ cọc</small></div>
+    <div><span>Đã thu trong kỳ thuê</span><strong>${fmt(preview.paidBeforeVnd)}</strong><small>Theo sổ giao dịch tiền thuê</small></div>
+    <div class="is-deposit"><span>Số dư cọc</span><strong>${fmt(preview.deposit.balanceVnd)}</strong><small>Có thể bù nợ hoặc hoàn khách</small></div>
+    <div><span>Tiền phòng đã trả dư</span><strong>${fmt(preview.rentOverpaymentVnd)}</strong><small>Cộng vào tổng hoàn khách</small></div>`;
   const applied = document.getElementById('rental-final-settlement-applied');
   applied.max = String(Math.min(
     Number(preview.deposit.balanceVnd) || 0,
@@ -5520,6 +5643,7 @@ async function openRentalFinalSettlement(contract) {
   loading.hidden = false;
   document.getElementById('rental-final-settlement-form').hidden = true;
   document.getElementById('rental-final-settlement-result').hidden = true;
+  document.getElementById('rental-final-settlement-journey').dataset.stage = 'review';
   modal.hidden = false;
   try {
     await ensureRentInvoicesSynced();
@@ -6458,7 +6582,10 @@ document.getElementById('rental-contract-list').addEventListener('click', event 
     const handoverContract = rentalContracts.find(
       item => Number(item.id) === Number(handoverCard?.dataset.contractId)
     );
-    if (handoverContract) void openRentalHandoverModal(handoverContract);
+    if (handoverContract) {
+      rentalHandoverContinuationType = null;
+      void openRentalHandoverModal(handoverContract);
+    }
     return;
   }
   const lifecycleButton = event.target?.closest?.('[data-contract-lifecycle]');
@@ -6556,9 +6683,16 @@ document.getElementById('tenant-maintenance-expense-modal').addEventListener('cl
 document.getElementById('rental-lifecycle-form').addEventListener('submit', event => {
   void submitRentalLifecycle(event);
 });
-document.getElementById('rental-lifecycle-type').addEventListener('change', updateRentalLifecycleForm);
+document.getElementById('rental-lifecycle-type').addEventListener('change', handleRentalLifecycleTypeChange);
 document.getElementById('rental-lifecycle-target-room').addEventListener('change', updateRentalLifecycleTargetRate);
 document.getElementById('rental-lifecycle-date').addEventListener('change', updateRentalLifecycleTargetRate);
+document.getElementById('rental-lifecycle-open-handover').addEventListener('click', () => {
+  const contract = activeRentalLifecycleContract;
+  if (!contract) return;
+  rentalHandoverContinuationType = document.getElementById('rental-lifecycle-type').value;
+  closeRentalLifecycleModal();
+  void openRentalHandoverModal(contract);
+});
 document.getElementById('rental-lifecycle-close').addEventListener('click', closeRentalLifecycleModal);
 document.getElementById('rental-lifecycle-cancel').addEventListener('click', closeRentalLifecycleModal);
 document.getElementById('rental-lifecycle-modal').addEventListener('click', event => {
@@ -6597,6 +6731,7 @@ document.getElementById('rental-handover-close').addEventListener('click', close
 document.getElementById('rental-handover-close-footer').addEventListener('click', closeRentalHandoverModal);
 document.getElementById('rental-handover-back').addEventListener('click', closeRentalHandoverPreview);
 document.getElementById('rental-handover-print').addEventListener('click', printRentalHandover);
+document.getElementById('rental-handover-continue-checkout').addEventListener('click', continueCheckoutAfterHandover);
 document.getElementById('rental-handover-list').addEventListener('click', event => {
   const button = event.target?.closest?.('[data-handover-preview]');
   if (!button) return;

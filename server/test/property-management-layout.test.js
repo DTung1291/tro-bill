@@ -49,5 +49,5 @@ test('tablet và mobile thu bố cục an toàn, asset pin được tăng', () =
   assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.property-workspace\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
   assert.match(css, /@media \(max-width:\s*480px\)[\s\S]*?\.property-card\s*\{\s*grid-template-columns:\s*auto minmax\(0, 1fr\);/);
   assert.match(css, /@media \(max-width:\s*480px\)[\s\S]*?\.property-form-actions\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
-  assert.match(html, /href="style\.css\?v=158"[\s\S]*src="app\.js\?v=155"/);
+  assert.match(html, /href="style\.css\?v=159"[\s\S]*src="app\.js\?v=156"/);
 });

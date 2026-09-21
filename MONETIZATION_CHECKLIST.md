@@ -301,6 +301,13 @@ Trạng thái đến ngày 30/08/2026:
   Migration `20260830_rental_final_settlements.sql` đạt đủ 5 kiểm tra schema,
   ownership, snapshot bất biến và quyền append-only trên Neon `staging-privacy`
   lẫn production; toàn bộ 303/303 test tự động thành công.
+- UX/UI ngày 21/09/2026 nối Biên bản → Trả/Chuyển phòng → Quyết toán thành một
+  tiến trình ba bước. Cả chuyển phòng và trả phòng đều kiểm tra biên bản
+  `check_out` trước khi bật xác nhận; thiếu biên bản thì dẫn sang đúng form, sau
+  khi khóa có thể tiếp tục đúng nghiệp vụ. Quyết toán phân cấp lại công nợ, số dư
+  cọc, khoản bù và tổng hoàn nhưng giữ nguyên API/ledger/công thức. Desktop
+  1440×900 và mobile 390×844 không tràn ngang, khóa scroll nền; toàn bộ 524/524
+  test đạt với dữ liệu browser giả không ghi máy chủ.
 - Trạng thái phòng (trống/giữ chỗ/đang thuê/đang sửa) được server suy ra tự động
   từ khách hiện có hoặc hợp đồng hiệu lực, lượt giữ chỗ hoạt động và đợt sửa
   chữa hoạt động. Bảng

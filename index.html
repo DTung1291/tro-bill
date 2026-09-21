@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=158" />
+  <link rel="stylesheet" href="style.css?v=159" />
 </head>
 
 <body>
@@ -2053,14 +2053,36 @@
     <div class="modal rental-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="rental-lifecycle-title">
       <div class="modal-header">
         <div>
+          <span class="closeout-kicker" id="rental-lifecycle-kicker">Vòng đời hợp đồng</span>
           <h2 class="modal-title" id="rental-lifecycle-title">Xử lý vòng đời thuê</h2>
           <p class="rental-contract-room" id="rental-lifecycle-contract"></p>
         </div>
         <button type="button" class="modal-close" id="rental-lifecycle-close" aria-label="Đóng">✕</button>
       </div>
       <form class="rental-lifecycle-form" id="rental-lifecycle-form">
-        <div class="rental-contract-document-notice">
-          Cần xác nhận <strong>biên bản trả phòng</strong> trước. Chuyển phòng sẽ kết thúc hợp đồng cũ, chuyển khách và tạo hợp đồng mới trong cùng một transaction.
+        <ol class="closeout-journey" id="rental-lifecycle-journey" aria-label="Tiến trình xử lý hợp đồng">
+          <li class="is-complete"><span>1</span><div><strong>Biên bản trả phòng</strong><small>Chốt chỉ số và tài sản</small></div></li>
+          <li class="is-current" aria-current="step"><span>2</span><div><strong>Kết thúc hợp đồng</strong><small>Xác nhận ngày trả phòng</small></div></li>
+          <li><span>3</span><div><strong>Quyết toán</strong><small>Đối trừ cọc và công nợ</small></div></li>
+        </ol>
+        <div class="rental-lifecycle-prerequisite" id="rental-lifecycle-prerequisite" role="status" hidden>
+          <span class="rental-lifecycle-prerequisite-icon" id="rental-lifecycle-prerequisite-icon" aria-hidden="true">…</span>
+          <div>
+            <strong id="rental-lifecycle-prerequisite-title">Đang kiểm tra biên bản trả phòng</strong>
+            <p id="rental-lifecycle-prerequisite-detail">Hệ thống đang kiểm tra chỉ số, tài sản và số dư cọc đã được khóa.</p>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" id="rental-lifecycle-open-handover" hidden>Lập biên bản</button>
+        </div>
+        <div class="rental-lifecycle-guidance" id="rental-lifecycle-guidance">
+          <strong id="rental-lifecycle-guidance-title">Chuyển phòng an toàn</strong>
+          <span id="rental-lifecycle-guidance-detail">Hợp đồng cũ sẽ kết thúc và hợp đồng mới được tạo trong cùng một giao dịch.</span>
+        </div>
+        <div class="rental-lifecycle-section-head">
+          <div>
+            <span id="rental-lifecycle-step-label">Thông tin chuyển phòng</span>
+            <h3 id="rental-lifecycle-form-title">Kiểm tra trước khi xác nhận</h3>
+          </div>
+          <p id="rental-lifecycle-form-help">Các thay đổi chỉ được ghi sau khi máy chủ xử lý thành công.</p>
         </div>
         <div class="rental-lifecycle-grid">
           <label class="form-label">Nghiệp vụ
@@ -2102,18 +2124,35 @@
     <div class="modal rental-final-settlement-modal" role="dialog" aria-modal="true" aria-labelledby="rental-final-settlement-title">
       <div class="modal-header">
         <div>
+          <span class="closeout-kicker">Bước cuối · Trả phòng</span>
           <h2 class="modal-title" id="rental-final-settlement-title">Quyết toán trả phòng</h2>
           <p class="rental-contract-room" id="rental-final-settlement-contract"></p>
         </div>
         <button type="button" class="modal-close" id="rental-final-settlement-close" aria-label="Đóng">✕</button>
       </div>
       <div class="rental-final-settlement-body">
+        <ol class="closeout-journey" id="rental-final-settlement-journey" aria-label="Tiến trình trả phòng">
+          <li class="is-complete"><span>1</span><div><strong>Biên bản trả phòng</strong><small>Đã khóa</small></div></li>
+          <li class="is-complete"><span>2</span><div><strong>Kết thúc hợp đồng</strong><small>Đã ghi nhận</small></div></li>
+          <li class="is-current" aria-current="step"><span>3</span><div><strong>Quyết toán</strong><small>Đối trừ cọc và công nợ</small></div></li>
+        </ol>
         <p class="rental-contract-empty" id="rental-final-settlement-loading">Đang đối chiếu hóa đơn, công nợ và tiền cọc…</p>
         <form id="rental-final-settlement-form" hidden>
-          <div class="rental-contract-document-notice">
-            Tiền phòng được tính đến hết <strong>ngày trả phòng</strong> (có tính ngày đó). Sau khi xác nhận, hóa đơn và biên quyết toán không thể sửa.
+          <div class="rental-final-settlement-lead">
+            <div>
+              <span>Hệ thống đã chốt thời gian thuê</span>
+              <strong>Tiền phòng tính đến hết ngày trả phòng, bao gồm cả ngày đó.</strong>
+            </div>
+            <p>Kiểm tra số tiền dưới đây trước khi tạo bản ghi quyết toán bất biến.</p>
           </div>
           <div class="rental-final-settlement-summary" id="rental-final-settlement-summary"></div>
+          <div class="rental-final-settlement-section-head">
+            <div>
+              <span>Phân bổ tiền cọc</span>
+              <h3>Chọn số cọc bù nợ và khoản hoàn khách</h3>
+            </div>
+            <p>Số hoàn lại được tính tự động để tổng phân bổ luôn khớp số dư cọc.</p>
+          </div>
           <div class="rental-final-settlement-grid">
             <label class="form-label">Cọc bù vào công nợ (đ)
               <input class="form-input" id="rental-final-settlement-applied" type="number" min="0" step="1" required />
@@ -2133,11 +2172,11 @@
               <textarea class="form-input" id="rental-final-settlement-reason" minlength="10" maxlength="500" rows="3" required>Hai bên đã đối chiếu hóa đơn, công nợ và tiền cọc khi trả phòng.</textarea>
             </label>
           </div>
-          <p class="rental-final-settlement-balance" id="rental-final-settlement-balance"></p>
+          <div class="rental-final-settlement-balance" id="rental-final-settlement-balance" aria-live="polite"></div>
           <p class="rental-contract-document-error" id="rental-final-settlement-error" hidden></p>
           <div class="rental-contract-document-actions">
             <button type="button" class="btn btn--ghost" id="rental-final-settlement-cancel">Hủy</button>
-            <button type="submit" class="btn btn--primary" id="rental-final-settlement-submit">Chốt quyết toán</button>
+            <button type="submit" class="btn btn--primary" id="rental-final-settlement-submit">Xác nhận &amp; khóa quyết toán</button>
           </div>
         </form>
         <section class="rental-final-settlement-result" id="rental-final-settlement-result" hidden>
@@ -2228,12 +2267,18 @@
     <div class="modal rental-handover-modal" role="dialog" aria-modal="true" aria-labelledby="rental-handover-title">
       <div class="modal-header">
         <div>
+          <span class="closeout-kicker">Đối chiếu hiện trạng</span>
           <h2 class="modal-title" id="rental-handover-title">Biên bản bàn giao tài sản</h2>
           <p class="rental-contract-room" id="rental-handover-contract-code"></p>
         </div>
         <button type="button" class="modal-close" id="rental-handover-close" aria-label="Đóng">✕</button>
       </div>
       <div class="rental-handover-body" id="rental-handover-editor">
+        <ol class="closeout-journey" id="rental-handover-closeout-journey" aria-label="Tiến trình trả phòng" hidden>
+          <li class="is-current" aria-current="step"><span>1</span><div><strong>Biên bản trả phòng</strong><small>Chốt chỉ số và tài sản</small></div></li>
+          <li><span>2</span><div><strong>Kết thúc hợp đồng</strong><small>Xác nhận ngày trả phòng</small></div></li>
+          <li><span>3</span><div><strong>Quyết toán</strong><small>Đối trừ cọc và công nợ</small></div></li>
+        </ol>
         <div class="rental-contract-document-notice">
           <strong>Bản ghi bất biến:</strong> sau khi bấm “Xác nhận &amp; khóa”, nội dung biên bản và số dư cọc chụp từ sổ giao dịch sẽ không thể sửa hoặc xóa. Hãy kiểm tra kỹ trước khi lưu.
         </div>
@@ -2288,7 +2333,10 @@
       <div class="rental-handover-preview" id="rental-handover-preview" hidden>
         <div class="rental-contract-document-preview-toolbar">
           <button type="button" class="btn btn--ghost" id="rental-handover-back">Quay lại</button>
-          <button type="button" class="btn btn--primary" id="rental-handover-print">In / Lưu PDF</button>
+          <div class="rental-handover-preview-actions">
+            <button type="button" class="btn btn--ghost" id="rental-handover-print">In / Lưu PDF</button>
+            <button type="button" class="btn btn--primary" id="rental-handover-continue-checkout" hidden>Tiếp tục trả phòng →</button>
+          </div>
         </div>
         <div class="rental-handover-paper" id="rental-handover-paper"></div>
       </div>
@@ -3117,7 +3165,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=155"></script>
+  <script src="app.js?v=156"></script>
 </body>
 
 </html>

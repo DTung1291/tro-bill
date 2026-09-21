@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 15/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Xu hướng tài chính dashboard 6/12 tháng đã phát hành Production; CI, readiness và asset pins đã xác minh |
+| Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | UX/UI Trả phòng, Chuyển phòng và Quyết toán hoàn thành local; chờ người dùng kiểm tra trước khi commit/push |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
 | Phần ứng dụng phát hành gần nhất | `726b6cb` thêm xu hướng tài chính dashboard; CI `34928138089` xanh, deployment `dpl_FmfbacRebPUKFPwEbZrkE1ueDtiA` Ready và Production revision `726b6cbbb9ae` đã xác minh |
-| Việc code tiếp theo | Người dùng smoke test biểu đồ 6/12 tháng và bộ lọc khu trên Production |
+| Việc code tiếp theo | Người dùng kiểm tra luồng Biên bản → Trả/Chuyển phòng → Quyết toán tại local; chỉ commit/push khi được xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,22 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Lát cắt UX/UI Trả phòng và Quyết toán hoàn thành local ngày 21/09/2026: ba
+  popup biên bản bàn giao, xử lý vòng đời và quyết toán dùng chung tiến trình ba
+  bước. Trước khi chuyển hoặc trả phòng, client đọc biên bản `check_out` hiện có;
+  nếu thiếu thì khóa CTA và dẫn thẳng sang lập biên bản, nếu đủ mới cho xác nhận.
+  Sau khi khóa biên bản có CTA tiếp tục đúng nhánh chuyển/trả; trả phòng thành
+  công tiếp tục mở bản xem trước quyết toán như logic cũ. Bản quyết toán ưu tiên
+  công nợ, số dư cọc, số đã thu và kết quả còn phải thu/tổng hoàn khách; không
+  đổi API, transaction, cách tính ngày, ledger append-only hoặc snapshot bất
+  biến. Asset pin tăng `style 158 → 159`, `app 155 → 156`; thêm test layout và
+  cập nhật các test pin. Test mục tiêu 24/24 và toàn bộ 524/524 đạt; secret scan
+  và diff check sạch. Browser local dùng dữ liệu giả chỉ trong
+  trang (không ghi server) đã kiểm tra desktop 1440×900 và mobile 390×844: không
+  tràn ngang, khóa scroll nền, CTA cuối không dính/không bị che, console không có
+  page error. Không có migration. Bước an toàn tiếp theo duy nhất là người dùng
+  smoke test bằng hợp đồng thật trên local trước khi commit/push.
 
 - Xu hướng tài chính dashboard đã phát hành Production: thêm một API tổng hợp 6/12
   tháng kết thúc tại kỳ đang chọn, trả đủ từng tháng và tách phải thu, đã thu,
