@@ -6613,16 +6613,69 @@ body.workspace-staff-active .main { padding-top: 112px; }
 
 #tenant-maintenance-modal { z-index: 1260; }
 .modal.tenant-maintenance-modal {
-  width: min(820px, calc(100vw - 32px));
+  display: flex;
+  width: min(1120px, calc(100vw - 32px));
+  max-width: 1120px;
   max-height: calc(100dvh - 32px);
+  flex-direction: column;
+  overflow: hidden;
+}
+.tenant-maintenance-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--primary);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
 }
 .tenant-maintenance-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  gap: 14px;
   min-height: 0;
-  padding: 18px 20px;
+  padding: 16px 18px 20px;
+  background: var(--bg3);
   overflow-y: auto;
+}
+.tenant-maintenance-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.tenant-maintenance-overview article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  border-radius: 12px;
+  background: var(--bg2);
+}
+.tenant-maintenance-overview article.is-urgent { border-top-color: var(--red); }
+.tenant-maintenance-overview article.is-expense { border-top-color: var(--green); }
+.tenant-maintenance-overview span {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.tenant-maintenance-overview strong {
+  font-size: 1.12rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.tenant-maintenance-overview small {
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+.tenant-maintenance-workspace {
+  display: grid;
+  grid-template-columns: minmax(250px, .72fr) minmax(0, 1.7fr);
+  gap: 14px;
+  align-items: start;
 }
 #tenant-maintenance-expense-modal { z-index: 1400; }
 .modal.tenant-maintenance-expense-modal {
@@ -6643,18 +6696,93 @@ body.workspace-staff-active .main { padding-top: 112px; }
   gap: 12px;
 }
 .tenant-maintenance-section {
-  padding: 16px;
+  min-width: 0;
+  padding: 15px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg2);
 }
-.tenant-maintenance-create-row {
+.tenant-maintenance-portal-panel {
+  position: sticky;
+  top: 0;
+}
+.tenant-maintenance-section-heading {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
+  gap: 10px;
+}
+.tenant-maintenance-section-heading > div { min-width: 0; }
+.tenant-maintenance-section-heading h3 {
+  margin: 0;
+  font-size: .96rem;
+}
+.tenant-maintenance-section-heading p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .72rem;
+  line-height: 1.45;
+}
+.tenant-maintenance-section-step {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(79, 110, 247, .12);
+  color: var(--primary);
+  font-size: .66rem;
+  font-weight: 850;
+}
+.tenant-maintenance-portal-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  margin-top: 13px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--bg3);
+  color: var(--text-muted);
+  font-size: .72rem;
+}
+.tenant-maintenance-portal-state > span {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--border);
+  font-weight: 850;
+}
+.tenant-maintenance-portal-state div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tenant-maintenance-portal-state strong { color: var(--text); }
+.tenant-maintenance-portal-state small { overflow-wrap: anywhere; }
+.tenant-maintenance-portal-state[data-state="active"] {
+  border-color: rgba(16, 185, 129, .35);
+  background: rgba(16, 185, 129, .07);
+}
+.tenant-maintenance-portal-state[data-state="active"] > span {
+  background: rgba(16, 185, 129, .16);
+  color: var(--green);
+}
+.tenant-maintenance-portal-state[data-state="inactive"] > span {
+  background: rgba(245, 158, 11, .14);
+  color: #b45309;
+}
+.tenant-maintenance-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-top: 14px;
 }
-.tenant-maintenance-create-row .form-label { width: min(220px, 100%); }
+.tenant-maintenance-create-row .form-label { width: 100%; }
+.tenant-maintenance-create-row .btn { width: 100%; justify-content: center; }
 .tenant-maintenance-link-result {
   margin-top: 14px;
   padding: 13px;
@@ -6664,21 +6792,89 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .tenant-maintenance-link-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 1fr;
   gap: 8px;
   margin-top: 6px;
 }
+.tenant-maintenance-link-actions input { grid-column: 1 / -1; }
 .tenant-maintenance-link-actions input {
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: .76rem;
 }
+.tenant-maintenance-portal-history {
+  margin-top: 13px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+}
+.tenant-maintenance-portal-history summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 750;
+}
+.tenant-maintenance-security-note {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
+.tenant-maintenance-portal-list { margin-top: 10px; }
 .tenant-maintenance-portal-list,
 .tenant-maintenance-request-list {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  margin-top: 13px;
+}
+.tenant-maintenance-queue { min-height: 260px; }
+.tenant-maintenance-queue-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tenant-maintenance-filters {
+  display: flex;
+  gap: 5px;
+  margin: 14px 0 12px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg3);
+  overflow-x: auto;
+}
+.tenant-maintenance-filters button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.tenant-maintenance-filters button span {
+  min-width: 20px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: .64rem;
+}
+.tenant-maintenance-filters button[aria-pressed="true"] {
+  background: var(--bg2);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .12);
+  color: var(--primary);
+}
+.tenant-maintenance-filters button[aria-pressed="true"] span {
+  background: rgba(79, 110, 247, .14);
 }
 .tenant-maintenance-empty {
   margin: 0;
@@ -6740,18 +6936,47 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-.tenant-maintenance-request-item { display: block; }
+.tenant-maintenance-request-item {
+  display: block;
+  padding: 15px;
+  border-left: 3px solid var(--border);
+  background: var(--bg2);
+}
+.tenant-maintenance-request-item--new { border-left-color: var(--primary); }
+.tenant-maintenance-request-item--acknowledged { border-left-color: #8b5cf6; }
+.tenant-maintenance-request-item--in_progress { border-left-color: #f59e0b; }
+.tenant-maintenance-request-item--resolved { border-left-color: var(--green); }
 .tenant-maintenance-request-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 14px;
+}
+.tenant-maintenance-request-head > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.tenant-maintenance-request-head strong {
+  color: var(--text);
+  font-size: .94rem;
+}
+.tenant-maintenance-request-head time {
+  color: var(--text-muted);
+  font-size: .68rem;
+}
+.tenant-maintenance-request-code {
+  color: var(--primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .02em;
 }
 .tenant-maintenance-request-badges {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
-  margin-top: 8px;
 }
 .tenant-maintenance-badge {
   padding: 4px 7px;
@@ -6764,9 +6989,39 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .tenant-maintenance-badge--emergency,
 .tenant-maintenance-badge--high { background: rgba(239, 68, 68, .12); color: var(--red); }
 .tenant-maintenance-badge--new { background: rgba(79, 110, 247, .14); color: var(--primary); }
+.tenant-maintenance-badge--acknowledged { background: rgba(139, 92, 246, .12); color: #7c3aed; }
+.tenant-maintenance-badge--in_progress { background: rgba(245, 158, 11, .13); color: #b45309; }
+.tenant-maintenance-badge--resolved { background: rgba(16, 185, 129, .12); color: var(--green); }
+.tenant-maintenance-description {
+  margin-top: 12px !important;
+  color: var(--text) !important;
+  font-size: .82rem !important;
+  line-height: 1.55 !important;
+}
 .tenant-maintenance-contact {
-  padding-top: 7px;
-  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 11px 0 0;
+}
+.tenant-maintenance-contact div {
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: var(--bg3);
+}
+.tenant-maintenance-contact dt {
+  color: var(--text-muted);
+  font-size: .62rem;
+  font-weight: 750;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.tenant-maintenance-contact dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: .74rem;
+  overflow-wrap: anywhere;
 }
 .tenant-maintenance-workflow {
   display: grid;
@@ -6775,7 +7030,76 @@ body.workspace-staff-active .main { padding-top: 112px; }
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
-.tenant-maintenance-assignment-label { max-width: 360px; }
+.tenant-maintenance-status-path {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tenant-maintenance-status-path li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+.tenant-maintenance-status-path li > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg3);
+  font-size: .6rem;
+  font-weight: 800;
+}
+.tenant-maintenance-status-path li small {
+  font-size: .62rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.tenant-maintenance-status-path li.is-complete,
+.tenant-maintenance-status-path li.is-current { color: var(--primary); }
+.tenant-maintenance-status-path li.is-complete > span {
+  border-color: rgba(16, 185, 129, .35);
+  background: rgba(16, 185, 129, .12);
+  color: var(--green);
+}
+.tenant-maintenance-status-path li.is-current > span {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.tenant-maintenance-cancelled-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 !important;
+  color: var(--red) !important;
+  font-weight: 750;
+}
+.tenant-maintenance-cancelled-state span {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, .12);
+}
+.tenant-maintenance-owner-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, .72fr) minmax(0, 1.5fr);
+  gap: 10px;
+  align-items: end;
+  padding: 11px;
+  border-radius: 10px;
+  background: var(--bg3);
+}
+.tenant-maintenance-assignment-label { max-width: none; }
 .tenant-maintenance-assignee,
 .tenant-maintenance-terminal,
 .tenant-maintenance-room-reference {
@@ -6787,11 +7111,13 @@ body.workspace-staff-active .main { padding-top: 112px; }
   display: grid;
   gap: 8px;
 }
+.tenant-maintenance-status-note { text-transform: none; }
 .tenant-maintenance-status-controls > div {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
+.tenant-maintenance-status-controls > div .btn { flex: 1 1 135px; justify-content: center; }
 .tenant-maintenance-events {
   padding: 9px 11px;
   border: 1px solid var(--border);
@@ -6820,6 +7146,11 @@ body.workspace-staff-active .main { padding-top: 112px; }
   opacity: .8;
 }
 .tenant-maintenance-events li p { margin: 3px 0 0; }
+.tenant-maintenance-footer-note {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: .7rem;
+}
 .room-tenant-maintenance-section { margin-top: 16px; }
 
 #rental-contract-document-modal { z-index: 1250; }
@@ -7586,6 +7917,9 @@ body.workspace-staff-active .main { padding-top: 112px; }
     max-height: calc(100dvh - 16px);
   }
   .tenant-maintenance-body { padding: 14px; }
+  .tenant-maintenance-workspace { grid-template-columns: minmax(0, 1fr); }
+  .tenant-maintenance-portal-panel { position: static; }
+  .tenant-maintenance-owner-controls { grid-template-columns: minmax(0, 1fr); }
   #tenant-maintenance-expense-modal { padding: 8px; }
   .modal.tenant-maintenance-expense-modal {
     width: 100%;
@@ -7611,6 +7945,24 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 
 @media (max-width: 480px) {
+  .tenant-maintenance-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tenant-maintenance-overview article { padding: 10px; }
+  .tenant-maintenance-queue-head,
+  .tenant-maintenance-request-head { align-items: stretch; flex-direction: column; }
+  .tenant-maintenance-request-badges { justify-content: flex-start; }
+  .tenant-maintenance-contact { grid-template-columns: minmax(0, 1fr); }
+  .tenant-maintenance-status-path { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tenant-maintenance-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-right: 0;
+    margin-left: 0;
+    overflow: visible;
+  }
+  .tenant-maintenance-filters button { width: 100%; }
+  .tenant-maintenance-queue-head > .btn { width: 100%; justify-content: center; }
+  .tenant-maintenance-footer-note { display: none; }
+  .tenant-maintenance-modal .rental-contract-footer .btn { width: 100%; justify-content: center; }
   .closeout-journey { grid-template-columns: minmax(0, 1fr); }
   .closeout-journey li {
     align-items: center;

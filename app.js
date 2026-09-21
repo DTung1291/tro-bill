@@ -1613,6 +1613,7 @@ function clearSensitiveStateFromMemory() {
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
   tenantMaintenanceAssignees = [];
+  tenantMaintenanceRequestFilter = 'all';
   ROOM_TENANT_MAINTENANCE_REQUESTS = [];
   ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
   ROOM_TENANT_MAINTENANCE_ACCESS = { isOwner: false, actorUserId: null };
@@ -4259,6 +4260,7 @@ let activeTenantMaintenanceContract = null;
 let tenantMaintenancePortals = [];
 let tenantMaintenanceRequests = [];
 let tenantMaintenanceAssignees = [];
+let tenantMaintenanceRequestFilter = 'all';
 let activeTenantMaintenancePublicUrl = '';
 let ROOM_TENANT_MAINTENANCE_REQUESTS = [];
 let ROOM_TENANT_MAINTENANCE_ASSIGNEES = [];
@@ -4589,6 +4591,12 @@ function tenantMaintenanceDateTime(value) {
 
 function renderTenantMaintenancePortals() {
   const list = document.getElementById('tenant-maintenance-portal-list');
+  const state = document.getElementById('tenant-maintenance-portal-state');
+  const activePortal = tenantMaintenancePortals.find(portal => portal.status === 'active');
+  state.dataset.state = activePortal ? 'active' : 'inactive';
+  state.innerHTML = activePortal
+    ? `<span aria-hidden="true">✓</span><div><strong>Cổng đang hoạt động</strong><small>Đuôi ${escapeHtml(activePortal.tokenLast4 || '—')} · hết hạn ${escapeHtml(tenantMaintenanceDateTime(activePortal.expiresAt))}</small></div>`
+    : '<span aria-hidden="true">!</span><div><strong>Chưa có liên kết đang dùng</strong><small>Tạo liên kết mới để khách có thể gửi yêu cầu.</small></div>';
   if (!tenantMaintenancePortals.length) {
     list.innerHTML = '<p class="tenant-maintenance-empty">Chưa có liên kết nào được tạo.</p>';
     return;
@@ -4621,6 +4629,22 @@ function tenantMaintenanceStatusActionLabel(status) {
     resolved: '✓ Hoàn tất',
     cancelled: 'Hủy yêu cầu'
   })[status] || status;
+}
+
+function tenantMaintenanceStatusPath(status) {
+  if (status === 'cancelled') {
+    return '<p class="tenant-maintenance-cancelled-state"><span aria-hidden="true">×</span> Yêu cầu đã hủy</p>';
+  }
+  const stages = [
+    ['new', 'Mới gửi'],
+    ['acknowledged', 'Tiếp nhận'],
+    ['in_progress', 'Đang sửa'],
+    ['resolved', 'Hoàn tất']
+  ];
+  const activeIndex = Math.max(0, stages.findIndex(([value]) => value === status));
+  return `<ol class="tenant-maintenance-status-path" aria-label="Tiến độ xử lý">
+    ${stages.map(([value, label], index) => `<li class="${index < activeIndex ? 'is-complete' : ''}${index === activeIndex ? ' is-current' : ''}" ${index === activeIndex ? 'aria-current="step"' : ''}><span>${index < activeIndex ? '✓' : index + 1}</span><small>${escapeHtml(label)}</small></li>`).join('')}
+  </ol>`;
 }
 
 function renderTenantMaintenanceEvents(events = []) {
@@ -4658,8 +4682,10 @@ function renderTenantMaintenanceWorkflow(request, assignees, owner) {
   const nextStatuses = tenantMaintenanceNextStatuses(request.status, owner);
   const statusControls = nextStatuses.length ? `
     <div class="tenant-maintenance-status-controls">
-      <input class="form-input" type="text" maxlength="500" data-maintenance-status-note placeholder="Ghi chú xử lý; bắt buộc khi hoàn tất/hủy" />
-      <div>${nextStatuses.map(status => `<button type="button" class="btn ${status === 'cancelled' ? 'btn--danger' : 'btn--ghost'} btn--sm" data-maintenance-status="${escapeHtml(status)}" data-maintenance-request-id="${Number(request.id)}">${escapeHtml(tenantMaintenanceStatusActionLabel(status))}</button>`).join('')}</div>
+      <label class="form-label tenant-maintenance-status-note">Ghi chú cập nhật
+        <input class="form-input" type="text" maxlength="500" data-maintenance-status-note placeholder="Bắt buộc khi hoàn tất hoặc hủy" />
+      </label>
+      <div>${nextStatuses.map((status, index) => `<button type="button" class="btn ${status === 'cancelled' ? 'btn--danger' : index === 0 ? 'btn--primary' : 'btn--ghost'} btn--sm" data-maintenance-status="${escapeHtml(status)}" data-maintenance-request-id="${Number(request.id)}">${escapeHtml(tenantMaintenanceStatusActionLabel(status))}</button>`).join('')}</div>
     </div>` : '<p class="tenant-maintenance-terminal">Yêu cầu đã kết thúc.</p>';
   const expenses = owner && Array.isArray(request.expenses) ? request.expenses : [];
   const expenseTotal = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
@@ -4671,7 +4697,7 @@ function renderTenantMaintenanceWorkflow(request, assignees, owner) {
       </div>
       <button type="button" class="btn btn--primary btn--sm" data-maintenance-expense="${Number(request.id)}">+ Ghi chi phí</button>
     </div>` : '';
-  return `<div class="tenant-maintenance-workflow">${assignment}${statusControls}${expenseControls}${renderTenantMaintenanceEvents(request.events)}</div>`;
+  return `<div class="tenant-maintenance-workflow">${tenantMaintenanceStatusPath(request.status)}<div class="tenant-maintenance-owner-controls">${assignment}${statusControls}</div>${expenseControls}${renderTenantMaintenanceEvents(request.events)}</div>`;
 }
 
 function findVisibleTenantMaintenanceRequest(requestId) {
@@ -4759,30 +4785,78 @@ async function submitTenantMaintenanceExpense(event) {
 
 function tenantMaintenanceRequestCard(request, assignees, owner, { showRoom = false } = {}) {
   return `
-    <article class="tenant-maintenance-request-item" data-maintenance-request-card="${Number(request.id)}">
+    <article class="tenant-maintenance-request-item tenant-maintenance-request-item--${escapeHtml(request.status)}" data-maintenance-request-card="${Number(request.id)}">
       <div class="tenant-maintenance-request-head">
-        <strong>${escapeHtml(request.code)}</strong>
-        <span>${escapeHtml(tenantMaintenanceDateTime(request.submittedAt))}</span>
+        <div>
+          <span class="tenant-maintenance-request-code">${escapeHtml(request.code)}</span>
+          <strong>${escapeHtml(tenantMaintenanceCategoryLabel(request.category))}</strong>
+          <time>${escapeHtml(tenantMaintenanceDateTime(request.submittedAt))}</time>
+        </div>
+        <div class="tenant-maintenance-request-badges">
+          <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.urgency)}">${escapeHtml(tenantMaintenanceUrgencyLabel(request.urgency))}</span>
+          <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.status)}">${escapeHtml(tenantMaintenanceStatusLabel(request.status))}</span>
+        </div>
       </div>
       ${showRoom ? `<p class="tenant-maintenance-room-reference">${escapeHtml(request.roomName || '')}</p>` : ''}
-      <div class="tenant-maintenance-request-badges">
-        <span class="tenant-maintenance-badge">${escapeHtml(tenantMaintenanceCategoryLabel(request.category))}</span>
-        <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.urgency)}">${escapeHtml(tenantMaintenanceUrgencyLabel(request.urgency))}</span>
-        <span class="tenant-maintenance-badge tenant-maintenance-badge--${escapeHtml(request.status)}">${escapeHtml(tenantMaintenanceStatusLabel(request.status))}</span>
-      </div>
-      <p>${escapeHtml(request.description)}</p>
-      ${(request.contactPhone || request.availableTime) ? `<p class="tenant-maintenance-contact">${request.contactPhone ? `Liên hệ: ${escapeHtml(request.contactPhone)}` : ''}${request.contactPhone && request.availableTime ? ' · ' : ''}${request.availableTime ? `Có thể kiểm tra: ${escapeHtml(request.availableTime)}` : ''}</p>` : ''}
+      <p class="tenant-maintenance-description">${escapeHtml(request.description)}</p>
+      ${(request.contactPhone || request.availableTime) ? `<dl class="tenant-maintenance-contact">${request.contactPhone ? `<div><dt>Liên hệ</dt><dd>${escapeHtml(request.contactPhone)}</dd></div>` : ''}${request.availableTime ? `<div><dt>Thời gian kiểm tra</dt><dd>${escapeHtml(request.availableTime)}</dd></div>` : ''}</dl>` : ''}
       ${renderTenantMaintenanceWorkflow(request, assignees, owner)}
     </article>`;
 }
 
+function tenantMaintenanceRequestMatchesFilter(request) {
+  if (tenantMaintenanceRequestFilter === 'attention') {
+    return ['new', 'acknowledged'].includes(request.status);
+  }
+  if (tenantMaintenanceRequestFilter === 'in_progress') return request.status === 'in_progress';
+  if (tenantMaintenanceRequestFilter === 'closed') return ['resolved', 'cancelled'].includes(request.status);
+  return true;
+}
+
+function renderTenantMaintenanceOverview() {
+  const openRequests = tenantMaintenanceRequests.filter(request => !['resolved', 'cancelled'].includes(request.status));
+  const attentionCount = tenantMaintenanceRequests.filter(request => ['new', 'acknowledged'].includes(request.status)).length;
+  const progressCount = tenantMaintenanceRequests.filter(request => request.status === 'in_progress').length;
+  const closedCount = tenantMaintenanceRequests.filter(request => ['resolved', 'cancelled'].includes(request.status)).length;
+  const urgentCount = openRequests.filter(request => ['high', 'emergency'].includes(request.urgency)).length;
+  const expenseTotal = tenantMaintenanceRequests.reduce((sum, request) => (
+    sum + (Array.isArray(request.expenses)
+      ? request.expenses.reduce((expenseSum, expense) => expenseSum + (Number(expense.amount) || 0), 0)
+      : 0)
+  ), 0);
+  document.getElementById('tenant-maintenance-open-count').textContent = String(openRequests.length);
+  document.getElementById('tenant-maintenance-unassigned-count').textContent = String(
+    openRequests.filter(request => !request.assignedTo).length
+  );
+  document.getElementById('tenant-maintenance-urgent-count').textContent = String(urgentCount);
+  document.getElementById('tenant-maintenance-expense-total').textContent = fmt(expenseTotal);
+  document.getElementById('tenant-maintenance-filter-all-count').textContent = String(tenantMaintenanceRequests.length);
+  document.getElementById('tenant-maintenance-filter-attention-count').textContent = String(attentionCount);
+  document.getElementById('tenant-maintenance-filter-progress-count').textContent = String(progressCount);
+  document.getElementById('tenant-maintenance-filter-closed-count').textContent = String(closedCount);
+  document.querySelectorAll('[data-maintenance-filter]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.maintenanceFilter === tenantMaintenanceRequestFilter));
+  });
+}
+
 function renderTenantMaintenanceRequests() {
   const list = document.getElementById('tenant-maintenance-request-list');
+  renderTenantMaintenanceOverview();
   if (!tenantMaintenanceRequests.length) {
     list.innerHTML = '<p class="tenant-maintenance-empty">Khách thuê chưa gửi yêu cầu sửa chữa.</p>';
     return;
   }
-  list.innerHTML = tenantMaintenanceRequests
+  const visibleRequests = tenantMaintenanceRequests.filter(tenantMaintenanceRequestMatchesFilter);
+  if (!visibleRequests.length) {
+    const label = tenantMaintenanceRequestFilter === 'attention'
+      ? 'Không có yêu cầu nào đang chờ tiếp nhận.'
+      : tenantMaintenanceRequestFilter === 'in_progress'
+        ? 'Chưa có yêu cầu nào đang được xử lý.'
+        : 'Chưa có yêu cầu nào đã kết thúc.';
+    list.innerHTML = `<p class="tenant-maintenance-empty">${label}</p>`;
+    return;
+  }
+  list.innerHTML = visibleRequests
     .map(request => tenantMaintenanceRequestCard(
       request,
       tenantMaintenanceAssignees,
@@ -4797,6 +4871,8 @@ async function loadTenantMaintenancePortalData() {
   const portalList = document.getElementById('tenant-maintenance-portal-list');
   const requestList = document.getElementById('tenant-maintenance-request-list');
   const errorElement = document.getElementById('tenant-maintenance-error');
+  document.getElementById('tenant-maintenance-portal-state').removeAttribute('data-state');
+  document.getElementById('tenant-maintenance-portal-state').textContent = 'Đang kiểm tra liên kết hiện hành…';
   portalList.innerHTML = '<p class="tenant-maintenance-empty">Đang tải liên kết…</p>';
   requestList.innerHTML = '<p class="tenant-maintenance-empty">Đang tải yêu cầu…</p>';
   errorElement.hidden = true;
@@ -4825,6 +4901,7 @@ function openTenantMaintenanceModal(contract) {
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
   tenantMaintenanceAssignees = [];
+  tenantMaintenanceRequestFilter = 'all';
   activeTenantMaintenancePublicUrl = '';
   document.getElementById('tenant-maintenance-contract').textContent = `${contract.code} · ${contract.roomName || document.getElementById('rental-contract-room').textContent} · ${contract.tenantName}`;
   document.getElementById('tenant-maintenance-link-url').value = '';
@@ -4836,6 +4913,7 @@ function openTenantMaintenanceModal(contract) {
   document.getElementById('tenant-maintenance-create').title = canCreate
     ? ''
     : 'Hợp đồng đã kết thúc: chỉ có thể xem lịch sử';
+  renderTenantMaintenanceOverview();
   document.getElementById('tenant-maintenance-modal').hidden = false;
   void loadTenantMaintenancePortalData();
 }
@@ -4845,6 +4923,7 @@ function closeTenantMaintenanceModal() {
   tenantMaintenancePortals = [];
   tenantMaintenanceRequests = [];
   tenantMaintenanceAssignees = [];
+  tenantMaintenanceRequestFilter = 'all';
   activeTenantMaintenancePublicUrl = '';
   document.getElementById('tenant-maintenance-link-url').value = '';
   document.getElementById('tenant-maintenance-link-result').hidden = true;
@@ -6659,6 +6738,12 @@ document.getElementById('tenant-maintenance-portal-list').addEventListener('clic
 document.getElementById('tenant-maintenance-request-list').addEventListener('change', event => {
   const control = event.target?.closest?.('[data-maintenance-assignment]');
   if (control) void assignTenantMaintenanceFromControl(control);
+});
+document.querySelector('.tenant-maintenance-filters').addEventListener('click', event => {
+  const button = event.target?.closest?.('[data-maintenance-filter]');
+  if (!button) return;
+  tenantMaintenanceRequestFilter = button.dataset.maintenanceFilter || 'all';
+  renderTenantMaintenanceRequests();
 });
 document.getElementById('tenant-maintenance-request-list').addEventListener('click', event => {
   const expenseButton = event.target?.closest?.('[data-maintenance-expense]');

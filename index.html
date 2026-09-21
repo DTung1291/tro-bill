@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=159" />
+  <link rel="stylesheet" href="style.css?v=160" />
 </head>
 
 <body>
@@ -1959,53 +1959,98 @@
     <div class="modal tenant-maintenance-modal" role="dialog" aria-modal="true" aria-labelledby="tenant-maintenance-title">
       <div class="modal-header">
         <div>
-          <h2 class="modal-title" id="tenant-maintenance-title">Cổng yêu cầu sửa chữa</h2>
+          <span class="tenant-maintenance-kicker">Vận hành hỗ trợ</span>
+          <h2 class="modal-title" id="tenant-maintenance-title">Cổng sửa chữa phía chủ trọ</h2>
           <p class="rental-contract-room" id="tenant-maintenance-contract"></p>
         </div>
         <button type="button" class="modal-close" id="tenant-maintenance-close" aria-label="Đóng">✕</button>
       </div>
       <div class="tenant-maintenance-body">
-        <section class="tenant-maintenance-section" aria-labelledby="tenant-maintenance-link-title">
-          <div class="rental-contract-section-head">
-            <div>
-              <h3 id="tenant-maintenance-link-title">Liên kết dành cho khách thuê</h3>
-              <p>Mỗi lần tạo sẽ thu hồi liên kết cũ. Token chỉ hiển thị một lần để bạn gửi cho đúng khách.</p>
+        <div class="tenant-maintenance-overview" aria-label="Tổng quan yêu cầu sửa chữa">
+          <article>
+            <span>Đang mở</span>
+            <strong id="tenant-maintenance-open-count">—</strong>
+            <small>Chưa hoàn tất hoặc hủy</small>
+          </article>
+          <article>
+            <span>Chưa phân công</span>
+            <strong id="tenant-maintenance-unassigned-count">—</strong>
+            <small>Cần chọn người xử lý</small>
+          </article>
+          <article class="is-urgent">
+            <span>Ưu tiên cao</span>
+            <strong id="tenant-maintenance-urgent-count">—</strong>
+            <small>Khẩn cấp hoặc cần xử lý sớm</small>
+          </article>
+          <article class="is-expense">
+            <span>Chi phí đã ghi</span>
+            <strong id="tenant-maintenance-expense-total">—</strong>
+            <small>Đã vào Chi phí thực tế</small>
+          </article>
+        </div>
+
+        <div class="tenant-maintenance-workspace">
+          <section class="tenant-maintenance-section tenant-maintenance-portal-panel" aria-labelledby="tenant-maintenance-link-title">
+            <div class="tenant-maintenance-section-heading">
+              <span class="tenant-maintenance-section-step">01</span>
+              <div>
+                <h3 id="tenant-maintenance-link-title">Cổng khách thuê</h3>
+                <p>Tạo và gửi liên kết để khách báo đúng phòng, không cần tài khoản.</p>
+              </div>
             </div>
-          </div>
-          <div class="tenant-maintenance-create-row">
-            <label class="form-label" for="tenant-maintenance-expiry">Thời hạn liên kết
-              <select class="form-input" id="tenant-maintenance-expiry">
-                <option value="30">30 ngày</option>
-                <option value="90" selected>90 ngày</option>
-                <option value="180">180 ngày</option>
-                <option value="365">365 ngày</option>
-              </select>
-            </label>
-            <button type="button" class="btn btn--primary" id="tenant-maintenance-create">Tạo liên kết</button>
-          </div>
-          <div class="tenant-maintenance-link-result" id="tenant-maintenance-link-result" hidden>
-            <label class="form-label" for="tenant-maintenance-link-url">Liên kết vừa tạo — sao chép ngay</label>
-            <div class="tenant-maintenance-link-actions">
-              <input class="form-input" type="text" id="tenant-maintenance-link-url" readonly autocomplete="off" />
-              <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-copy">Sao chép</button>
-              <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-open">Mở thử</button>
+            <div class="tenant-maintenance-portal-state" id="tenant-maintenance-portal-state" role="status">
+              Đang kiểm tra liên kết hiện hành…
             </div>
-          </div>
-          <p class="rental-contract-document-error" id="tenant-maintenance-error" role="status" hidden></p>
-          <div class="tenant-maintenance-portal-list" id="tenant-maintenance-portal-list" aria-live="polite"></div>
-        </section>
-        <section class="tenant-maintenance-section" aria-labelledby="tenant-maintenance-request-title">
-          <div class="rental-contract-section-head">
-            <div>
-              <h3 id="tenant-maintenance-request-title">Yêu cầu khách đã gửi</h3>
-              <p>Phân công cho nhân viên đúng khu và theo dõi toàn bộ lịch sử tiếp nhận, xử lý, hoàn tất hoặc hủy.</p>
+            <div class="tenant-maintenance-create-row">
+              <label class="form-label" for="tenant-maintenance-expiry">Thời hạn liên kết
+                <select class="form-input" id="tenant-maintenance-expiry">
+                  <option value="30">30 ngày</option>
+                  <option value="90" selected>90 ngày</option>
+                  <option value="180">180 ngày</option>
+                  <option value="365">365 ngày</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn--primary" id="tenant-maintenance-create">Tạo liên kết mới</button>
             </div>
-            <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-refresh">Làm mới</button>
-          </div>
-          <div class="tenant-maintenance-request-list" id="tenant-maintenance-request-list" aria-live="polite"></div>
-        </section>
+            <div class="tenant-maintenance-link-result" id="tenant-maintenance-link-result" hidden>
+              <label class="form-label" for="tenant-maintenance-link-url">Liên kết vừa tạo — sao chép ngay</label>
+              <div class="tenant-maintenance-link-actions">
+                <input class="form-input" type="text" id="tenant-maintenance-link-url" readonly autocomplete="off" />
+                <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-copy">Sao chép</button>
+                <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-open">Mở thử</button>
+              </div>
+            </div>
+            <p class="rental-contract-document-error" id="tenant-maintenance-error" role="status" hidden></p>
+            <details class="tenant-maintenance-portal-history">
+              <summary>Lịch sử liên kết</summary>
+              <div class="tenant-maintenance-portal-list" id="tenant-maintenance-portal-list" aria-live="polite"></div>
+            </details>
+            <p class="tenant-maintenance-security-note">Liên kết mới sẽ thu hồi liên kết cũ. Token chỉ hiển thị một lần để gửi cho đúng khách.</p>
+          </section>
+
+          <section class="tenant-maintenance-section tenant-maintenance-queue" aria-labelledby="tenant-maintenance-request-title">
+            <div class="tenant-maintenance-queue-head">
+              <div class="tenant-maintenance-section-heading">
+                <span class="tenant-maintenance-section-step">02</span>
+                <div>
+                  <h3 id="tenant-maintenance-request-title">Hàng đợi sửa chữa</h3>
+                  <p>Ưu tiên, phân công, cập nhật tiến độ và ghi chi phí trong cùng một hồ sơ.</p>
+                </div>
+              </div>
+              <button type="button" class="btn btn--ghost btn--sm" id="tenant-maintenance-refresh">↻ Làm mới</button>
+            </div>
+            <div class="tenant-maintenance-filters" role="group" aria-label="Lọc yêu cầu sửa chữa">
+              <button type="button" data-maintenance-filter="all" aria-pressed="true">Tất cả <span id="tenant-maintenance-filter-all-count">0</span></button>
+              <button type="button" data-maintenance-filter="attention" aria-pressed="false">Cần xử lý <span id="tenant-maintenance-filter-attention-count">0</span></button>
+              <button type="button" data-maintenance-filter="in_progress" aria-pressed="false">Đang làm <span id="tenant-maintenance-filter-progress-count">0</span></button>
+              <button type="button" data-maintenance-filter="closed" aria-pressed="false">Đã kết thúc <span id="tenant-maintenance-filter-closed-count">0</span></button>
+            </div>
+            <div class="tenant-maintenance-request-list" id="tenant-maintenance-request-list" aria-live="polite"></div>
+          </section>
+        </div>
       </div>
       <div class="rental-contract-footer">
+        <span class="tenant-maintenance-footer-note">Mọi lần phân công và đổi trạng thái đều được lưu vào lịch sử.</span>
         <button type="button" class="btn btn--ghost" id="tenant-maintenance-close-footer">Đóng</button>
       </div>
     </div>
@@ -3165,7 +3210,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=156"></script>
+  <script src="app.js?v=157"></script>
 </body>
 
 </html>

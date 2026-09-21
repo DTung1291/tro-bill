@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | UX/UI Trả phòng, Chuyển phòng và Quyết toán hoàn thành local; chờ người dùng kiểm tra trước khi commit/push |
+| Trạng thái | UX/UI Cổng sửa chữa phía chủ trọ hoàn thành local; chờ người dùng kiểm tra trước khi commit/push |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
-| Phần ứng dụng phát hành gần nhất | `726b6cb` thêm xu hướng tài chính dashboard; CI `34928138089` xanh, deployment `dpl_FmfbacRebPUKFPwEbZrkE1ueDtiA` Ready và Production revision `726b6cbbb9ae` đã xác minh |
-| Việc code tiếp theo | Người dùng kiểm tra luồng Biên bản → Trả/Chuyển phòng → Quyết toán tại local; chỉ commit/push khi được xác nhận |
+| Phần ứng dụng phát hành gần nhất | Commit `9661661` cải thiện Trả/Chuyển phòng và Quyết toán đã push `main`; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Người dùng kiểm tra Cổng sửa chữa phía chủ trọ tại local; chỉ commit/push lát cắt mới khi được xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,7 +95,22 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
-- Lát cắt UX/UI Trả phòng và Quyết toán hoàn thành local ngày 21/09/2026: ba
+- Lát cắt UX/UI Cổng sửa chữa phía chủ trọ hoàn thành local ngày 21/09/2026:
+  modal hiển thị tổng số việc đang mở, chưa phân công, ưu tiên cao và tổng chi
+  phí đã ghi; tách cổng khách thuê khỏi hàng đợi xử lý, thêm bộ lọc Tất cả/Cần
+  xử lý/Đang làm/Đã kết thúc. Thẻ yêu cầu ưu tiên loại sự cố, mức độ, trạng thái,
+  liên hệ, tiến trình bốn bước, phân công, cập nhật trạng thái, chi phí và lịch
+  sử; không đổi token, API, quyền owner/staff, event/audit append-only hoặc sổ
+  `expense_entries`. Asset pin tăng `style 159 → 160`, `app 156 → 157`; thêm test
+  layout. Test mục tiêu 22/22 và toàn bộ 526/526 đạt ngoài sandbox; secret scan
+  và diff check sạch. Đã kiểm tra bằng dữ liệu local thật ở desktop 1440×900 và
+  mobile 390×844: modal không tràn ngang, khóa scroll nền, header/footer nằm
+  trong viewport, bộ lọc hoạt động và console không có lỗi; chỉ điều hướng/lọc,
+  không ghi dữ liệu. Không có migration. Bước an toàn tiếp theo duy nhất là
+  người dùng smoke test local trước khi commit/push.
+
+- Lát cắt UX/UI Trả phòng và Quyết toán đã push `main` tại `9661661` ngày
+  21/09/2026: ba
   popup biên bản bàn giao, xử lý vòng đời và quyết toán dùng chung tiến trình ba
   bước. Trước khi chuyển hoặc trả phòng, client đọc biên bản `check_out` hiện có;
   nếu thiếu thì khóa CTA và dẫn thẳng sang lập biên bản, nếu đủ mới cho xác nhận.
@@ -108,8 +123,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   và diff check sạch. Browser local dùng dữ liệu giả chỉ trong
   trang (không ghi server) đã kiểm tra desktop 1440×900 và mobile 390×844: không
   tràn ngang, khóa scroll nền, CTA cuối không dính/không bị che, console không có
-  page error. Không có migration. Bước an toàn tiếp theo duy nhất là người dùng
-  smoke test bằng hợp đồng thật trên local trước khi commit/push.
+  page error. Không có migration. CI/deployment của commit này chưa được xác minh
+  trong phiên hiện tại.
 
 - Xu hướng tài chính dashboard đã phát hành Production: thêm một API tổng hợp 6/12
   tháng kết thúc tại kỳ đang chọn, trả đủ từng tháng và tách phải thu, đã thu,

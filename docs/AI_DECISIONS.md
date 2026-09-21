@@ -973,6 +973,14 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   mobile gom các thao tác theo lưới đều. Không đổi CRUD khu, ownership, khu mặc
   định, liên kết phòng, lọc dashboard, tài khoản nhận tiền hoặc quy tắc xóa.
 
+  Lát cắt Cổng sửa chữa phía chủ trọ tách phần phát liên kết khách thuê khỏi hàng
+  đợi xử lý, bổ sung số yêu cầu đang mở/chưa phân công/ưu tiên cao, tổng chi phí
+  đã ghi và bộ lọc trạng thái ngay trong modal. Thẻ yêu cầu biểu diễn tiến độ,
+  liên hệ, người xử lý, hành động trạng thái, chi phí và lịch sử theo thứ bậc rõ
+  ràng; desktop dùng hai cột còn tablet/mobile thu về một cột. Không đổi token,
+  API, vòng đời hữu hạn, assignment theo khu, event/audit append-only, quyền
+  owner/staff hoặc cách ghi `expense_entries`.
+
 ## D-050 — Hạn vận hành hóa đơn không được làm mất tuổi nợ hoặc sửa điều khoản hợp đồng
 
 - **Trạng thái:** Áp dụng từ 12/09/2026 tại hotfix `218c33c`, push `main` cùng

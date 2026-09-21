@@ -445,6 +445,11 @@ scan sạch.
   `style 115 / api 108 / app 119`, endpoint mới trả 401 khi chưa đăng nhập và
   log runtime sau deploy không có lỗi.
 
+  UX/UI phía chủ trọ ngày 21/09/2026 gom số việc đang mở, chưa phân công, ưu tiên
+  cao và chi phí đã ghi thành một tổng quan; tách cổng khách thuê khỏi hàng đợi,
+  thêm bộ lọc trạng thái và tiến độ trực quan cho từng yêu cầu. Thay đổi chỉ ở
+  giao diện client, giữ nguyên token, quyền, API, audit và sổ chi phí hiện có.
+
 ### Hoàn thành giai đoạn khi
 
 - [x] Một chủ trọ có thể giao việc cho nhân viên mà không phải cấp toàn quyền tài khoản.
