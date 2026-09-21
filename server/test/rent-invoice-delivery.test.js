@@ -199,9 +199,10 @@ test('schema, API và giao diện hỗ trợ email, Zalo/ứng dụng và link h
   assert.match(appSource, /function sendBillMessageEmail/);
   assert.match(html, /id="tenant-email"/);
   assert.match(html, /id="bill-message-create-link"/);
-  assert.match(html, /id="bill-message-share">📤 Zalo \/ ứng dụng/);
+  assert.match(html, /id="bill-message-share">💬 Chuẩn bị &amp; chia sẻ Zalo/);
+  assert.match(html, /id="bill-message-zalo-web" href="https:\/\/chat\.zalo\.me\/"/);
   assert.match(html, /id="bill-message-email">✉️ Gửi email/);
-  assert.match(html, /không cộng phí theo lượt vào gói subscription/);
+  assert.match(html, /TrọBill không tự gửi hoặc đọc tin nhắn trong nhóm Zalo/);
   assert.match(readme, /SMS và Zalo API trả phí chưa được kích hoạt/);
   assert.match(readme, /add-on theo lượt riêng/);
   assert.match(checklist, /\[x\] Gửi hoặc chia sẻ qua Zalo, email và liên kết hệ thống\./);

@@ -1435,12 +1435,14 @@ function openSubscriptionOrderModal(result) {
 }
 
 async function copySubscriptionOrderValue(value, successMessage) {
-  if (!value) return;
+  if (!value) return false;
   try {
     await navigator.clipboard.writeText(value);
     showToast(successMessage, 'success');
+    return true;
   } catch (_) {
     showToast('Không sao chép được. Vui lòng sao chép thủ công.', 'error');
+    return false;
   }
 }
 
@@ -2647,22 +2649,24 @@ function triggerHaptic(type = 'light') {
   }
 }
 
-function shareBillNative(title, text, fallbackCopyFn) {
-  if (typeof AndroidApp !== 'undefined' && AndroidApp.share) {
-    triggerHaptic('light');
-    AndroidApp.share(title, text);
-  } else if (navigator.share) {
-    triggerHaptic('light');
-    navigator.share({
-      title: title,
-      text: text
-    }).catch(err => {
-      console.warn('Native share failed', err);
-      fallbackCopyFn();
-    });
-  } else {
-    fallbackCopyFn();
+async function shareBillNative(title, text, fallbackCopyFn) {
+  try {
+    if (typeof AndroidApp !== 'undefined' && AndroidApp.share) {
+      triggerHaptic('light');
+      AndroidApp.share(title, text);
+      return 'shared';
+    }
+    if (navigator.share) {
+      triggerHaptic('light');
+      await navigator.share({ title, text });
+      return 'shared';
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') return 'cancelled';
+    console.warn('Native share failed', error);
   }
+  const copied = await fallbackCopyFn();
+  return copied === false ? 'copy_failed' : 'copied';
 }
 
 function showToast(msg, type = 'info', duration = 2500) {
@@ -7750,6 +7754,22 @@ function renderBillMessageTemplate() {
   return template;
 }
 
+function updateBillMessageZaloStatus(state = 'ready') {
+  const status = document.getElementById('bill-message-zalo-status');
+  if (!status) return;
+  const content = {
+    ready: ['TrọBill chưa gửi tin. Hãy kiểm tra nội dung trước khi chia sẻ.', ''],
+    preparing: ['Đang tạo link bảo mật và chuẩn bị nội dung…', ''],
+    shared: ['Đã mở bảng chia sẻ. Hãy chọn Zalo, đúng nhóm và bấm gửi.', 'success'],
+    copied: ['Đã sao chép nội dung. Bấm “Mở Zalo Web”, chọn nhóm rồi dán để gửi.', 'success'],
+    cancelled: ['Bạn đã đóng bảng chia sẻ; nội dung chưa được gửi.', 'warning'],
+    copy_failed: ['Không sao chép được. Hãy chọn và sao chép nội dung thủ công.', 'error'],
+    error: ['Không chuẩn bị được nội dung Zalo. Vui lòng thử lại.', 'error']
+  }[state] || ['', ''];
+  status.textContent = content[0];
+  status.className = `bill-message-zalo-status${content[1] ? ` bill-message-zalo-status--${content[1]}` : ''}`;
+}
+
 function openBillMessageModal() {
   const context = billMessageContext();
   if (!context || !window.BillMessageTemplates) {
@@ -7773,6 +7793,7 @@ function openBillMessageModal() {
   prepareBillMessageScheduleDate();
   renderBillMessageSchedules({ loading: true });
   renderBillMessageTemplate();
+  updateBillMessageZaloStatus();
   closeBillPreview();
   modal.hidden = false;
   syncModalScrollLock();
@@ -7843,18 +7864,24 @@ async function createBillMessageSystemLink(event) {
 async function shareBillMessageTemplate(event) {
   const button = event.currentTarget;
   button.disabled = true;
+  updateBillMessageZaloStatus('preparing');
   try {
     await ensureBillMessageSystemLink();
     const template = renderBillMessageTemplate();
-    if (!template) return;
+    if (!template) {
+      updateBillMessageZaloStatus('error');
+      return;
+    }
     const context = billMessageContext();
-    shareBillNative(
+    const outcome = await shareBillNative(
       `Hóa đơn ${context?.roomName || ''}`.trim(),
       template,
       copyBillMessageTemplate
     );
+    updateBillMessageZaloStatus(outcome);
   } catch (error) {
     if (error.code === 401) return handleAuthExpired();
+    updateBillMessageZaloStatus('error');
     showToast(error.message || 'Không chia sẻ được hóa đơn', 'error', 4000);
   } finally {
     button.disabled = false;
@@ -9314,7 +9341,7 @@ function renderReport() {
         qrPart
       ].filter(Boolean).join('\n');
 
-      shareBillNative(`Hóa đơn ${room.name} ${pLabel}`, lines, () => {
+      void shareBillNative(`Hóa đơn ${room.name} ${pLabel}`, lines, () => {
         copyBillText(room, rec, bill, period);
       });
     });

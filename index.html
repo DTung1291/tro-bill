@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=161" />
+  <link rel="stylesheet" href="style.css?v=162" />
 </head>
 
 <body>
@@ -2553,14 +2553,37 @@
             </div>
             <button type="button" class="btn btn--ghost btn--sm" id="bill-message-create-link">🔗 Thêm link bảo mật</button>
           </div>
-          <label class="form-label" for="bill-message-content">Nội dung khách sẽ nhận</label>
-          <textarea class="form-input bill-message-content" id="bill-message-content" rows="11" readonly></textarea>
-          <div class="bill-message-link-result" id="bill-message-link-result" role="status" hidden>
-            <div>
-              <strong>Link hóa đơn đã sẵn sàng</strong>
-              <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
+          <div class="bill-message-preview-grid">
+            <div class="bill-message-copy-panel">
+              <label class="form-label" for="bill-message-content">Nội dung khách sẽ nhận</label>
+              <textarea class="form-input bill-message-content" id="bill-message-content" rows="11" readonly></textarea>
+              <div class="bill-message-link-result" id="bill-message-link-result" role="status" hidden>
+                <div>
+                  <strong>Link hóa đơn đã sẵn sàng</strong>
+                  <input type="text" class="inline-input" id="bill-message-link-url" readonly autocomplete="off" aria-label="Liên kết hóa đơn bảo mật" />
+                </div>
+                <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
+              </div>
             </div>
-            <button type="button" class="btn btn--ghost btn--sm" id="bill-message-link-copy">Sao chép link</button>
+
+            <article class="bill-message-zalo-panel" aria-labelledby="bill-message-zalo-title">
+              <div class="bill-message-zalo-mark" aria-hidden="true">💬</div>
+              <div class="bill-message-zalo-content">
+                <span class="bill-message-zalo-kicker">Kênh ưu tiên</span>
+                <h4 id="bill-message-zalo-title">Gửi vào nhóm Zalo</h4>
+                <p>TrọBill tạo link hóa đơn bảo mật và chuẩn bị nội dung. Bạn chỉ cần chọn đúng nhóm Zalo rồi gửi.</p>
+                <ol class="bill-message-zalo-steps" aria-label="Ba bước gửi vào nhóm Zalo">
+                  <li><span>1</span>Tạo link</li>
+                  <li><span>2</span>Chia sẻ hoặc sao chép</li>
+                  <li><span>3</span>Chọn nhóm và gửi</li>
+                </ol>
+                <div class="bill-message-zalo-actions">
+                  <button type="button" class="btn btn--primary" id="bill-message-share">💬 Chuẩn bị &amp; chia sẻ Zalo</button>
+                  <a class="btn btn--ghost" id="bill-message-zalo-web" href="https://chat.zalo.me/" target="_blank" rel="noopener noreferrer">Mở Zalo Web</a>
+                </div>
+                <p class="bill-message-zalo-status" id="bill-message-zalo-status" role="status" aria-live="polite"></p>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -2578,14 +2601,13 @@
           <p>Gửi từ khoảng 07:15 vào ngày đã chọn (giờ Việt Nam). Cron miễn phí có thể kích hoạt trễ hơn ít phút.</p>
           <div class="bill-message-schedule-list" id="bill-message-schedule-list" aria-live="polite"></div>
         </section>
-        <aside class="bill-message-note">Zalo / ứng dụng dùng bảng chia sẻ miễn phí trên thiết bị. TrọBill chưa bật SMS hoặc Zalo API trả phí và không cộng phí theo lượt vào gói subscription. Mẫu chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</aside>
+        <aside class="bill-message-note">TrọBill không tự gửi hoặc đọc tin nhắn trong nhóm Zalo. Tích hợp tự động qua Zalo OA/GMF là kết nối riêng, chỉ bật khi có OA/App được duyệt và chủ tài khoản đồng ý chi phí. Mẫu hiện tại chỉ chứa dữ liệu thanh toán cần thiết, không chứa CCCD.</aside>
       </div>
       <div class="modal-actions bill-message-actions">
         <button type="button" class="btn btn--ghost" id="bill-message-close-footer">Đóng</button>
         <div class="bill-message-send-group" aria-label="Chọn cách gửi ngay">
           <span>Gửi ngay</span>
           <div>
-            <button type="button" class="btn btn--ghost" id="bill-message-share">📤 Zalo / ứng dụng</button>
             <button type="button" class="btn btn--ghost" id="bill-message-email">✉️ Gửi email</button>
             <button type="button" class="btn btn--primary" id="bill-message-copy">📋 Sao chép nội dung</button>
           </div>
@@ -3253,7 +3275,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=158"></script>
+  <script src="app.js?v=159"></script>
 </body>
 
 </html>

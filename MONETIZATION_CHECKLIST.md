@@ -230,6 +230,10 @@ Trạng thái ngày 24/08/2026:
   và email dùng quota provider đã cấu hình. SMS/Zalo API trả phí chưa được bật;
   nếu tích hợp sau này phải là add-on theo lượt, hiển thị đơn giá và được chủ tài
   khoản xác nhận trước, không tự động gộp vào giá subscription.
+  UX/UI ngày 21/09/2026 ưu tiên luồng nhóm Zalo ngay cạnh nội dung: tự tạo link
+  hóa đơn bảo mật, mở bảng chia sẻ; nếu trình duyệt không hỗ trợ thì sao chép và
+  cho mở Zalo Web. Giao diện không tự nhận “đã gửi”. Tự động qua OA/GMF là kết
+  nối riêng cần OA/App được duyệt, không dùng bot giả lập tài khoản cá nhân.
 
 ### Hoàn thành giai đoạn khi
 

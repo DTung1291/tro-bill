@@ -81,7 +81,11 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 - **Trạng thái:** Đang áp dụng.
 - **Quyết định:** Email hiện ưu tiên Brevo Free; Web Share dùng cho Zalo/ứng dụng.
-  Cron/delivery giới hạn batch, chống gửi trùng và chỉ retry lỗi tạm thời.
+  Cron/delivery giới hạn batch, chống gửi trùng và chỉ retry lỗi tạm thời. Luồng
+  nhóm Zalo miễn phí tạo link bảo mật, mở Web Share hoặc sao chép rồi mở Zalo
+  Web; không tự xác nhận đã gửi. Tự động gửi nhóm về sau chỉ dùng Zalo OA/GMF
+  chính thức với OA/App được duyệt và credential riêng của từng chủ tài khoản,
+  không tự động hóa tài khoản cá nhân.
 - **Lý do:** Giữ chi phí pilot thấp nhưng không hy sinh tính đúng/idempotency.
 - **Hệ quả:** SMS/Zalo API trả phí sau này là add-on minh bạch, không tự gộp vào
   subscription.

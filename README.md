@@ -304,9 +304,15 @@ subscription được mô tả trong [PAYMENT_WEBHOOK.md](PAYMENT_WEBHOOK.md).
 ## Chính sách chi phí kênh gửi
 
 - Chia sẻ Zalo/ứng dụng hiện dùng Web Share trên thiết bị của người dùng nên
-  TrọBill không phát sinh hoặc thu phí theo lượt.
+  TrọBill không phát sinh hoặc thu phí theo lượt. Popup gửi hóa đơn tự tạo link
+  bảo mật; nếu thiết bị không có Web Share thì sao chép nội dung và cho mở Zalo
+  Web để chủ trọ chọn đúng nhóm rồi dán gửi. TrọBill không tự đánh dấu “đã gửi”
+  vì trình duyệt không nhận được biên nhận phát tin từ Zalo.
 - Email dùng nhà cung cấp được cấu hình phía server và hiện ưu tiên quota miễn
   phí. Phần chi phí này không làm thay đổi giá subscription đã công bố.
 - SMS và Zalo API trả phí chưa được kích hoạt. Nếu tích hợp sau này, chúng phải
   là add-on theo lượt riêng, hiển thị đơn giá và yêu cầu chủ tài khoản xác nhận
   trước; không được tự động gộp vào giá subscription.
+- Tự động gửi vào nhóm chỉ triển khai qua Zalo OA và tính năng Quản lý nhóm
+  (GMF) chính thức, với OA/App đã được duyệt và credential riêng của chủ tài
+  khoản; không dùng cookie, mật khẩu hay bot giả lập tài khoản Zalo cá nhân.

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — bản sửa căn chỉnh Đối soát thanh toán gói đã được người dùng xác nhận để push `main` |
+| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu push UX thông báo hóa đơn/Zalo và tiếp tục Hồ sơ hóa đơn điện tử |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
-| Phần ứng dụng phát hành gần nhất | HEAD `main` chứa bản sửa căn chỉnh Đối soát thanh toán gói; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Smoke test khối Đối soát thanh toán gói trên Production sau khi deployment mới sẵn sàng |
+| Worktree kỳ vọng | Sạch sau commit UX thông báo hóa đơn/Zalo |
+| Phần ứng dụng phát hành gần nhất | Commit `db5ad9a` trên `main` chứa bản sửa căn chỉnh Đối soát thanh toán gói; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Rà checklist và triển khai lát cắt kế tiếp của Hồ sơ hóa đơn điện tử |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,22 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- UX thông báo hóa đơn qua Zalo được người dùng yêu cầu push ngày 21/09/2026:
+  bước kiểm tra nội dung dùng lưới hai cột trên desktop, đặt luồng
+  Zalo cạnh mẫu tin và tự thu về một cột trên mobile. Nút ưu tiên tạo link hóa
+  đơn bảo mật trước rồi dùng Web Share; khi trình duyệt không hỗ trợ hoặc từ
+  chối chia sẻ thì sao chép nội dung làm phương án dự phòng. Có lối mở Zalo Web
+  để chủ trọ tự chọn đúng nhóm. Trạng thái phân biệt rõ đang chuẩn bị, đã mở
+  chia sẻ, đã sao chép, người dùng hủy và lỗi; tuyệt đối không ghi nhận “đã gửi”
+  khi TrọBill không thể xác minh việc gửi. Footer giữ Email/Sao chép là kênh thay
+  thế. TrọBill không tự gửi/đọc tin nhóm; tự động hóa tương lai chỉ qua Zalo
+  OA/App + GMF chính thức, có sự đồng ý của chủ tài khoản và chi phí riêng,
+  không dùng cookie/mật khẩu tài khoản cá nhân. Asset pin tăng `style 161 → 162`,
+  `app 158 → 159`; không có migration. Test mục tiêu 16/16 và toàn bộ 531/531
+  đạt; secret scan, syntax check và diff check sạch. Browser
+  local đã kiểm tra desktop và mobile 390×844: không tràn ngang, CTA Zalo dễ
+  thấy, footer không che thao tác; không kích hoạt gửi dữ liệu thật.
 
 - Bản sửa căn chỉnh Đối soát thanh toán gói được người dùng xác nhận push `main` ngày 21/09/2026:
   toolbar Trạng thái/Làm mới không còn kế thừa `flex: 1 1 420px` từ khối mô tả,
