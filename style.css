@@ -10814,6 +10814,12 @@ body.admin-page {
   flex-wrap: wrap;
 }
 .admin-section-head > div { flex: 1 1 420px; }
+.admin-section-head > .admin-payment-toolbar {
+  flex: 0 0 auto;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.admin-payment-toolbar .admin-filter-label { min-width: 160px; }
 .admin-filter-label {
   display: flex;
   flex-direction: column;
@@ -10961,6 +10967,11 @@ body.admin-page {
   .admin-section-head > .admin-btn-ghost,
   .admin-section-head > .admin-filter-label,
   .admin-section-head > .admin-action-list { width: 100%; }
+  .admin-section-head > .admin-payment-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
   .admin-section-head > .admin-btn-ghost { justify-content: center; }
   .admin-filter-label select { width: 100%; }
   .admin-config-grid { grid-template-columns: minmax(0, 1fr); }
@@ -10975,6 +10986,11 @@ body.admin-page {
   .admin-subscription-reason,
   .admin-subscription-form > p,
   .admin-subscription-form-actions { grid-column: 1; }
+}
+
+@media (max-width: 360px) {
+  .admin-section-head > .admin-payment-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .admin-payment-toolbar .admin-btn-ghost { width: 100%; }
 }
 
 @media (max-width: 800px) {

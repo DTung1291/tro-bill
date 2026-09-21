@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — UX/UI bốn popup phụ đã được người dùng xác nhận để push `main` |
+| Trạng thái | Sẵn sàng bàn giao — bản sửa căn chỉnh Đối soát thanh toán gói đã được người dùng xác nhận để push `main` |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit tài liệu phát hành |
-| Phần ứng dụng phát hành gần nhất | HEAD `main` chứa lát cắt UX/UI bốn popup phụ; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Smoke test bốn popup phụ trên Production sau khi deployment mới sẵn sàng |
+| Phần ứng dụng phát hành gần nhất | HEAD `main` chứa bản sửa căn chỉnh Đối soát thanh toán gói; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Smoke test khối Đối soát thanh toán gói trên Production sau khi deployment mới sẵn sàng |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Bản sửa căn chỉnh Đối soát thanh toán gói được người dùng xác nhận push `main` ngày 21/09/2026:
+  toolbar Trạng thái/Làm mới không còn kế thừa `flex: 1 1 420px` từ khối mô tả,
+  nút được căn đáy với select và toolbar thu về lưới responsive riêng trên màn
+  hình nhỏ. Không đổi API, bộ lọc hoặc nghiệp vụ đối soát. Asset pin Super Admin
+  tăng `style 79 → 80`; test mục tiêu 15/15 và toàn bộ 531/531 đạt ngoài
+  sandbox, diff check sạch. Đã kiểm tra trực quan trang local với dữ liệu thật:
+  toolbar nằm gọn bên phải, nội dung không tràn và hàng rỗng giữ đúng chiều rộng.
+  Không có migration. Bước an toàn tiếp theo duy nhất là smoke test trên
+  Production sau khi deployment mới sẵn sàng.
 
 - Lát cắt UX/UI bốn popup phụ được người dùng xác nhận push `main` ngày 21/09/2026: Ủng hộ
   TroBill, Yêu cầu hỗ trợ thanh toán, Biên nhận thanh toán gói và Xuất/Xóa dữ
