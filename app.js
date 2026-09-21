@@ -10643,6 +10643,53 @@ function syncElectronicInvoiceProviderFields() {
   }
 }
 
+function updateElectronicInvoiceReadiness(profile = emptyElectronicInvoiceProfile()) {
+  const activeRegistration = ['registered_code', 'registered_non_code'].includes(
+    profile.registrationStatus
+  );
+  const classificationComplete = profile.legalEntityType !== 'unknown'
+    && profile.businessActivityType !== 'unknown'
+    && profile.annualRevenueBand !== 'unknown';
+  const taxCodeRequired = activeRegistration
+    || ['household_business', 'enterprise'].includes(profile.legalEntityType);
+  const identityComplete = !!String(profile.sellerLegalName || '').trim()
+    && !!String(profile.businessAddress || '').trim()
+    && (!taxCodeRequired || !!String(profile.taxCode || '').trim());
+  const providerNotRequired = profile.eligibilityStatus === 'not_required';
+  const steps = [
+    {
+      id: 'electronic-invoice-readiness-classification',
+      complete: classificationComplete,
+      pending: 'Cần đủ chủ thể, hoạt động và doanh thu',
+      done: 'Đã lưu thông tin phân loại'
+    },
+    {
+      id: 'electronic-invoice-readiness-identity',
+      complete: identityComplete,
+      pending: taxCodeRequired
+        ? 'Cần tên pháp lý, mã số thuế và địa chỉ'
+        : 'Cần tên người bán và địa chỉ',
+      done: 'Đã lưu danh tính người bán'
+    },
+    {
+      id: 'electronic-invoice-readiness-provider',
+      complete: providerNotRequired || profile.providerConnectionVerified,
+      pending: 'Chưa xác minh kết nối ở máy chủ',
+      done: providerNotRequired ? 'Chưa cần kết nối để phát hành' : 'Kết nối đã được xác minh'
+    }
+  ];
+  steps.forEach((step, index) => {
+    const item = document.getElementById(step.id);
+    if (!item) return;
+    item.classList.toggle('is-complete', step.complete);
+    item.classList.toggle('is-pending', !step.complete);
+    const marker = item.firstElementChild;
+    const description = item.querySelector('small');
+    if (marker) marker.textContent = step.complete ? '✓' : String(index + 1);
+    if (description) description.textContent = step.complete ? step.done : step.pending;
+  });
+}
+
 function renderElectronicInvoiceProfile() {
   const card = document.getElementById('electronic-invoice-profile-card');
   if (!card) return;
@@ -10681,6 +10728,7 @@ function renderElectronicInvoiceProfile() {
   providerNote.textContent = profile.providerConnectionVerified
     ? 'Kết nối nhà cung cấp đã được xác minh.'
     : 'Chưa có kết nối nhà cung cấp được xác minh. Không nhập API key hoặc mật khẩu vào biểu mẫu này.';
+  updateElectronicInvoiceReadiness(profile);
   syncElectronicInvoiceProviderFields();
 }
 

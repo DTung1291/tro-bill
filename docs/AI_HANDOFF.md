@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu push UX thông báo hóa đơn/Zalo và tiếp tục Hồ sơ hóa đơn điện tử |
+| Trạng thái | UX Hồ sơ hóa đơn điện tử đã được người dùng cho phép chuyển tiếp; đang chuẩn bị cải thiện Quét QR CCCD |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit UX thông báo hóa đơn/Zalo |
-| Phần ứng dụng phát hành gần nhất | Commit `db5ad9a` trên `main` chứa bản sửa căn chỉnh Đối soát thanh toán gói; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Rà checklist và triển khai lát cắt kế tiếp của Hồ sơ hóa đơn điện tử |
+| Worktree kỳ vọng | Có thay đổi local của UX Hồ sơ hóa đơn điện tử và cập nhật asset pin/test, sắp được chốt thành commit riêng |
+| Phần ứng dụng phát hành gần nhất | Commit `ad14f98` trên `main` chứa UX thông báo hóa đơn/Zalo; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
+| Việc code tiếp theo | Chốt UX Hồ sơ hóa đơn điện tử thành commit local riêng, sau đó cải thiện popup Quét QR CCCD; chưa push nếu chưa được yêu cầu |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,20 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- UX Hồ sơ hóa đơn điện tử được người dùng cho phép chuyển tiếp ngày 21/09/2026,
+  chuẩn bị commit local riêng và chưa push:
+  card hiển thị ba mốc tiến độ từ dữ liệu đã lưu, phân biệt phân loại hồ sơ, danh
+  tính người bán và kết nối provider. Form được tách thành ba fieldset cùng mô tả
+  ngắn, giữ nguyên tất cả ID/API và luồng xác nhận hiện có; trạng thái kết nối chỉ
+  hoàn tất khi server đã xác minh, hoặc ghi rõ chưa cần kết nối với hồ sơ
+  `not_required`. Khu vực lưu nhắc việc thay đổi hồ sơ sẽ thu hồi xác minh cũ.
+  Không đổi eligibility, quyền owner-only, credential policy, adapter hay quyền
+  phát hành HĐĐT; không có migration. Asset pin tăng `style 162 → 163`,
+  `app 159 → 160`. Test mục tiêu 10/10 và toàn bộ 532/532 đạt; secret scan,
+  syntax check và diff check sạch. Browser local với dữ liệu thật đã
+  kiểm tra desktop và mobile 390×844, không tràn ngang và CTA không bị thanh
+  điều hướng che.
 
 - UX thông báo hóa đơn qua Zalo được người dùng yêu cầu push ngày 21/09/2026:
   bước kiểm tra nội dung dùng lưới hai cột trên desktop, đặt luồng

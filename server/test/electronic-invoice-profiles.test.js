@@ -243,3 +243,25 @@ test('client chỉ hiển thị hồ sơ cho owner, xóa khỏi bộ nhớ khi �
   assert.match(html, /id="electronic-invoice-seller-name"/);
   assert.match(app, /sellerLegalName:[\s\S]*electronic-invoice-seller-name/);
 });
+
+test('giao diện hồ sơ chia ba bước, chỉ rõ mức sẵn sàng và thu về một cột trên mobile', () => {
+  const root = path.join(__dirname, '..', '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+
+  assert.match(
+    html,
+    /class="electronic-invoice-readiness"[\s\S]*Phân loại hồ sơ[\s\S]*Danh tính người bán[\s\S]*Kết nối nhà cung cấp/
+  );
+  assert.match(
+    html,
+    /<fieldset class="electronic-invoice-profile__section[\s\S]*Phân loại nhu cầu sử dụng[\s\S]*Danh tính người bán[\s\S]*Kết nối và thời hạn hồ sơ/
+  );
+  assert.match(html, /role="status" aria-live="polite"/);
+  assert.match(app, /function updateElectronicInvoiceReadiness\([\s\S]*providerNotRequired[\s\S]*providerConnectionVerified/);
+  assert.match(app, /updateElectronicInvoiceReadiness\(profile\);[\s\S]*syncElectronicInvoiceProviderFields\(\);/);
+  assert.match(css, /\.electronic-invoice-readiness\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.electronic-invoice-readiness\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
+  assert.match(html, /href="style\.css\?v=163"[\s\S]*src="app\.js\?v=160"/);
+});

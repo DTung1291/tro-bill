@@ -568,6 +568,12 @@ scan sạch.
   vẫn chưa hoàn tất cho đến khi có sandbox/API contract 2026 và adapter phát
   hành draft idempotent được kiểm thử.
 
+  UX/UI ngày 21/09/2026 chia hồ sơ thành ba bước rõ ràng: phân loại nhu cầu,
+  danh tính người bán, kết nối và thời hạn. Tiến độ chỉ phản ánh dữ liệu đã lưu,
+  tách trạng thái kết nối server khỏi mã tài khoản provider và giữ cảnh báo không
+  nhập API key/mật khẩu. Không đổi eligibility, quyền owner-only hoặc mở quyền
+  phát hành khi chưa có adapter được xác minh.
+
   Tiền kiểm nguồn đã phát hành cùng ngày ở commit `e004fba`: server dựng snapshot
   tối thiểu từ đúng hóa đơn, hợp đồng và hồ sơ owner; tách tiền phòng, điện,
   nước, rác, Wifi, quản lý, giảm giá, phụ thu và phí chậm; đối soát tổng VND và
