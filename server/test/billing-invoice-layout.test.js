@@ -16,13 +16,18 @@ test('luồng nhập chỉ số và hóa đơn có tiến độ, CTA và respons
   );
   assert.match(
     html,
-    /id="page-report"[\s\S]*class="workflow-step">Bước 2\/2[\s\S]*class="invoice-workspace"[\s\S]*id="btn-back-to-billing"[\s\S]*id="report-list"/
+    /id="page-report"[\s\S]*class="workflow-step">Bước 2\/2[\s\S]*class="invoice-workspace"[\s\S]*id="btn-back-to-billing"[\s\S]*id="invoice-list-search"[\s\S]*id="invoice-list-status"[\s\S]*id="invoice-list-result-count"[\s\S]*id="report-list"/
   );
   assert.match(app, /reviewButton\.disabled = done === 0/);
   assert.match(app, /reviewButton\.hidden = !workspacePageAllowed\('report'\)/);
   assert.match(app, /totalOutstanding \+= Math\.max\(0, payment\.totalDueVnd\)/);
   assert.match(app, /summaryEl\.style\.display = 'grid'/);
   assert.match(app, /class="bill-room-name">\$\{escapeHtml\(room\.name\)\}/);
+  assert.match(app, /card\.dataset\.invoiceStatus = paymentStatus/);
+  assert.match(app, /card\.dataset\.invoiceSearch = normalizedInvoiceSearch/);
+  assert.match(app, /class="bill-card-toggle" type="button" aria-expanded="false" aria-controls=/);
+  assert.match(app, /toggle\.setAttribute\('aria-expanded', String\(expanded\)\)/);
+  assert.match(app, /function applyInvoiceListFilters\(\)/);
   assert.match(app, /Ghi chú: \$\{escapeHtml\(rec\.note\)\}/);
   assert.match(app, /getElementById\('btn-review-bills'\)\?\.addEventListener\('click', \(\) => navigate\('report'\)\)/);
   assert.match(
@@ -37,5 +42,9 @@ test('luồng nhập chỉ số và hóa đơn có tiến độ, CTA và respons
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.bill-footer-primary,[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/
   );
-  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="app\.js\?v=161"/);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*680px\)[\s\S]*?\.bill-details\s*\{[^}]*display:\s*none;[^}]*\}[\s\S]*?\.bill-card\.is-expanded \.bill-details\s*\{[^}]*display:\s*block;/
+  );
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=162"/);
 });

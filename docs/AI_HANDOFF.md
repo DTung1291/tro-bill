@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 21/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — UX Quét QR CCCD hoàn tất và đã được người dùng yêu cầu phát hành |
+| Cập nhật lần cuối | 22/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao — lát cắt thu gọn danh sách Hóa đơn trên mobile đã được yêu cầu phát hành |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi commit và push lát cắt UX Quét QR CCCD |
-| Phần ứng dụng phát hành gần nhất | Commit `ad14f98` trên `main` chứa UX thông báo hóa đơn/Zalo; CI/deployment của commit này chưa được xác minh trong phiên hiện tại |
-| Việc code tiếp theo | Xác minh CI/deployment của commit Quét QR CCCD trên `main`, rồi tiếp tục mốc UX/UI kế tiếp khi người dùng yêu cầu |
+| Worktree kỳ vọng | Sạch sau khi commit và push lát cắt UX danh sách Hóa đơn mobile |
+| Phần ứng dụng phát hành gần nhất | Commit chứa tài liệu này trên `main` có UX danh sách Hóa đơn mobile; CI/deployment cần được xác minh ở lượt tiếp theo |
+| Việc code tiếp theo | Tiếp tục mốc UX/UI kế tiếp sau khi người dùng kiểm tra bản đã phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,8 +95,21 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- UX danh sách Hóa đơn mobile hoàn thành ngày 22/09/2026 và được người dùng yêu cầu phát hành:
+  thêm tìm kiếm theo phòng, mã chuyển khoản hoặc ID hóa đơn; lọc theo trạng thái
+  chưa thu/thu một phần/đã thu đủ; vùng `aria-live` báo số kết quả và empty state
+  riêng khi không khớp. Trên mobile, chi tiết công thức mặc định thu gọn và mở
+  bằng nút có `aria-expanded`; các thao tác ghi nhận tiền, xem bill/VietQR, copy
+  và gửi vẫn luôn hiện. Desktop tiếp tục hiển thị toàn bộ chi tiết, không đổi
+  cách tính, dữ liệu thanh toán hay popup bill/VietQR. Browser local đã kiểm tra
+  dữ liệu thật: tìm `302` còn 1/7, từ khóa không khớp hiện 0/7, lọc chưa thu trả
+  đúng 0/7, mobile 390×844 mở/thu gọn đúng và desktop vẫn thấy đủ 7 chi tiết.
+  Asset pin tăng `style 164 → 165`, `app 161 → 162`; test mục tiêu 1/1 và toàn
+  bộ 532/532 đạt (lượt sandbox chỉ lỗi quyền mở cổng localhost, lượt ngoài
+  sandbox sạch), syntax check và diff check đạt.
+
 - UX Quét QR CCCD hoàn thành ngày 21/09/2026 và được người dùng yêu cầu phát hành
-  cùng commit chứa tài liệu này: popup có
+  tại commit `e27e370`: popup có
   ba bước chọn nguồn, căn mã và kiểm tra hồ sơ; trạng thái camera/đọc ảnh/thành
   công/lỗi dùng vùng `aria-live`. Lỗi quyền camera không còn tự đóng popup mà
   cho thử lại, chọn ảnh hoặc nhập thủ công. Camera được giải phóng khi đóng;
@@ -111,7 +124,7 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   còn track hoạt động sau khi đóng.
 
 - UX Hồ sơ hóa đơn điện tử được người dùng cho phép chuyển tiếp ngày 21/09/2026,
-  đã commit local riêng ở `abc5f81` và chưa push:
+  đã commit và push riêng ở `abc5f81`:
   card hiển thị ba mốc tiến độ từ dữ liệu đã lưu, phân biệt phân loại hồ sơ, danh
   tính người bán và kết nối provider. Form được tách thành ba fieldset cùng mô tả
   ngắn, giữ nguyên tất cả ID/API và luồng xác nhận hiện có; trạng thái kết nối chỉ

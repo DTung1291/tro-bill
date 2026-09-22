@@ -43,5 +43,5 @@ test('popup sửa chỉ số và chuyển kỳ giải thích tác động, khôn
     css,
     /@media\s*\(max-width:\s*420px\)[\s\S]*?\.data-correction-actions\s*\{[^}]*flex-direction:\s*column-reverse/
   );
-  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="app\.js\?v=161"/);
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=162"/);
 });

@@ -65,5 +65,5 @@ test('nhập chỉ số thủ công mở xác nhận và chỉ chấp nhận s�
 
 test('camera lỗi vẫn cho chọn ảnh và asset pin được tăng', () => {
   assert.match(ocr, /Camera không khả dụng[\s\S]*captureBtn\.disabled = true[\s\S]*libraryBtn\.textContent = 'Chọn ảnh'/);
-  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=161"/);
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=162"/);
 });

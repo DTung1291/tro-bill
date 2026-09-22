@@ -9046,10 +9046,46 @@ async function loadFinancialReport(options = {}) {
   }
 }
 
+function normalizedInvoiceSearch(value) {
+  return removeVietnameseTones(String(value || '')).trim().toLowerCase();
+}
+
+function applyInvoiceListFilters() {
+  const listEl = document.getElementById('report-list');
+  const searchInput = document.getElementById('invoice-list-search');
+  const statusSelect = document.getElementById('invoice-list-status');
+  const resultCount = document.getElementById('invoice-list-result-count');
+  if (!listEl || !searchInput || !statusSelect || !resultCount) return;
+
+  const cards = [...listEl.querySelectorAll('[data-invoice-card]')];
+  const query = normalizedInvoiceSearch(searchInput.value);
+  const selectedStatus = statusSelect.value;
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const matchesQuery = !query || card.dataset.invoiceSearch.includes(query);
+    const matchesStatus = selectedStatus === 'all' || card.dataset.invoiceStatus === selectedStatus;
+    card.hidden = !(matchesQuery && matchesStatus);
+    if (!card.hidden) visibleCount += 1;
+  });
+
+  let emptyState = listEl.querySelector('[data-invoice-filter-empty]');
+  if (!emptyState) {
+    emptyState = document.createElement('div');
+    emptyState.className = 'invoice-filter-empty';
+    emptyState.dataset.invoiceFilterEmpty = '';
+    emptyState.innerHTML = '<span aria-hidden="true">🔎</span><strong>Không tìm thấy hóa đơn phù hợp</strong><small>Thử đổi từ khóa hoặc trạng thái thu tiền.</small>';
+    listEl.appendChild(emptyState);
+  }
+  emptyState.hidden = visibleCount > 0 || cards.length === 0;
+  resultCount.textContent = `Hiển thị ${visibleCount}/${cards.length} hóa đơn`;
+}
+
 function renderReport() {
   const period = STATE.currentPeriod;
   const listEl = document.getElementById('report-list');
   const summaryEl = document.getElementById('report-summary-bar');
+  const controlsEl = document.getElementById('invoice-list-controls');
   const backToBillingButton = document.getElementById('btn-back-to-billing');
   document.getElementById('report-period-label').textContent = periodLabel(period);
   document.getElementById('report-month-input').value = periodInputValue(period);
@@ -9061,6 +9097,7 @@ function renderReport() {
   const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
   if (billsWithData.length === 0) {
     if (summaryEl) summaryEl.style.display = 'none';
+    if (controlsEl) controlsEl.hidden = true;
     const meterShortcut = isOwnerWorkspace() || hasWorkspaceOperation('meters')
       ? '<br><button class="link-btn" data-goto="billing">Nhập chỉ số ngay →</button>'
       : '';
@@ -9071,6 +9108,7 @@ function renderReport() {
   }
 
   if (summaryEl) summaryEl.style.display = 'grid';
+  if (controlsEl) controlsEl.hidden = false;
 
   let totalRevenue = 0;
   let totalPaid = 0;
@@ -9125,15 +9163,25 @@ function renderReport() {
     const waterOld = room.waterType === 'khối' ? getWaterOld(room, period) : 0;
 
     const billPreviewBtnHtml = `<button class="btn btn--ghost btn--sm bill-preview-trigger" data-bill-preview-room="${room.id}">Xem bill + VietQR</button>`;
+    const transferReference = getVietQrDescription(room, period);
+    const paymentStatus = payment.accountSettled
+      ? 'paid'
+      : payment.paidAmountVnd > 0
+        ? 'partial'
+        : 'outstanding';
+    const detailId = `bill-card-detail-${String(room.id).replace(/[^a-zA-Z0-9_-]/g, '-')}-${period}`;
 
     const card = document.createElement('div');
     card.className = `bill-card${paid ? ' bill-card--settled' : ''}`;
+    card.dataset.invoiceCard = '';
+    card.dataset.invoiceStatus = paymentStatus;
+    card.dataset.invoiceSearch = normalizedInvoiceSearch(`${room.name} ${transferReference} ${payment.invoiceId || ''}`);
     card.innerHTML = `
       <div class="bill-header">
         <div>
           <span class="bill-card-eyebrow">${periodLabel(period)}</span>
           <div class="bill-room-name">${escapeHtml(room.name)}</div>
-          <div class="bill-transfer-reference">${escapeHtml(getVietQrDescription(room, period) || 'Đang tạo mã chuyển khoản...')}</div>
+          <div class="bill-transfer-reference">${escapeHtml(transferReference || 'Đang tạo mã chuyển khoản...')}</div>
         </div>
         <div class="bill-header-payment">
           <span class="bill-total-label">Tổng hóa đơn</span>
@@ -9141,8 +9189,12 @@ function renderReport() {
           ${debtAgeBadge(payment)}
         </div>
       </div>
+      <button class="bill-card-toggle" type="button" aria-expanded="false" aria-controls="${detailId}">
+        <span>Xem chi tiết</span><span class="bill-card-toggle-icon" aria-hidden="true">⌄</span>
+      </button>
       <div class="bill-body">
-        <div class="bill-rows">
+        <div class="bill-details" id="${detailId}">
+          <div class="bill-rows">
           <div class="bill-row">
             <div>
               <div class="bill-row-label">⚡ Chỉ số điện</div>
@@ -9230,13 +9282,14 @@ function renderReport() {
             <div class="bill-row-label">🏷️ Giảm giá</div>
             <div class="bill-row-val" style="color:var(--green)">−${fmt(bill.discountAmt)}</div>
           </div>` : ''}
-        </div>
-        ${utilityOnly ? `<div class="report-bill-note report-bill-note--warning">🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</div>` : ''}
-        ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${escapeHtml(rec.note)}</div>` : ''}
-        <hr class="bill-divider" />
-        <div class="bill-row" style="font-size:1rem;font-weight:800">
-          <div>TỔNG CỘNG</div>
-          <div style="color:var(--primary)">${fmt(bill.total)}</div>
+          </div>
+          ${utilityOnly ? `<div class="report-bill-note report-bill-note--warning">🏁 Tháng này chỉ thu điện, nước. Các khoản cố định đã thu trước.</div>` : ''}
+          ${rec.note ? `<div class="report-bill-note">📝 Ghi chú: ${escapeHtml(rec.note)}</div>` : ''}
+          <hr class="bill-divider" />
+          <div class="bill-row bill-grand-total">
+            <div>TỔNG CỘNG</div>
+            <div>${fmt(bill.total)}</div>
+          </div>
         </div>
         <div class="bill-footer">
           <div class="bill-footer-primary">
@@ -9252,6 +9305,13 @@ function renderReport() {
         </div>
       </div>
     `;
+
+    card.querySelector('.bill-card-toggle')?.addEventListener('click', event => {
+      const toggle = event.currentTarget;
+      const expanded = card.classList.toggle('is-expanded');
+      toggle.setAttribute('aria-expanded', String(expanded));
+      toggle.querySelector('span:first-child').textContent = expanded ? 'Thu gọn' : 'Xem chi tiết';
+    });
 
     card.querySelector(`[data-paid-room]`).addEventListener('click', async e => {
       triggerHaptic('light');
@@ -9348,6 +9408,7 @@ function renderReport() {
 
     listEl.appendChild(card);
   }
+  applyInvoiceListFilters();
 }
 
 
@@ -9958,6 +10019,8 @@ document.getElementById('billing-month-input').addEventListener('change', (e) =>
 });
 document.getElementById('btn-review-bills')?.addEventListener('click', () => navigate('report'));
 document.getElementById('btn-back-to-billing')?.addEventListener('click', () => navigate('billing'));
+document.getElementById('invoice-list-search')?.addEventListener('input', applyInvoiceListFilters);
+document.getElementById('invoice-list-status')?.addEventListener('change', applyInvoiceListFilters);
 document.getElementById('report-prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('report-next-month').addEventListener('click', () => shiftPeriod(+1));
 document.getElementById('report-month-input').addEventListener('change', (e) => {

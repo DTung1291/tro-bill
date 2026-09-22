@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=164" />
+  <link rel="stylesheet" href="style.css?v=165" />
 </head>
 
 <body>
@@ -726,6 +726,22 @@
           </div>
           <button class="btn btn--ghost btn--sm" id="btn-back-to-billing" type="button">← Nhập lại chỉ số</button>
         </header>
+        <div class="invoice-list-controls" id="invoice-list-controls" hidden>
+          <label class="invoice-list-search">
+            <span>Tìm hóa đơn</span>
+            <input class="form-input" id="invoice-list-search" type="search" autocomplete="off" placeholder="Phòng, mã chuyển khoản hoặc ID hóa đơn" />
+          </label>
+          <label class="invoice-list-status">
+            <span>Trạng thái thu tiền</span>
+            <select class="form-input" id="invoice-list-status">
+              <option value="all">Tất cả trạng thái</option>
+              <option value="outstanding">Chưa thu</option>
+              <option value="partial">Thu một phần</option>
+              <option value="paid">Đã thu đủ</option>
+            </select>
+          </label>
+          <p class="invoice-list-result-count" id="invoice-list-result-count" aria-live="polite"></p>
+        </div>
         <div class="report-summary-bar" id="report-summary-bar" style="display:none"></div>
         <div class="report-list" id="report-list">
           <div class="empty-state">
@@ -3346,7 +3362,7 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=161"></script>
+  <script src="app.js?v=162"></script>
 </body>
 
 </html>

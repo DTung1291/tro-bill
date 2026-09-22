@@ -200,6 +200,12 @@ Trạng thái ngày 24/08/2026:
 - [x] Hiển thị tuổi nợ: chưa đến hạn, quá hạn 1–7 ngày, 8–30 ngày và trên 30 ngày.
 - [x] Cho chủ trọ cấu hình hạn của hóa đơn mới; mỗi hóa đơn lưu hạn riêng và không bị đổi theo cấu hình về sau.
 
+  UX/UI ngày 22/09/2026 giữ danh sách hóa đơn trong một trang nhưng giảm độ dài
+  trên mobile: có tìm theo phòng/mã chuyển khoản/ID hóa đơn, lọc theo trạng thái
+  thu tiền và mặc định thu gọn công thức từng card. Các thao tác ghi nhận tiền,
+  xem bill/VietQR, copy và gửi vẫn luôn hiện; desktop vẫn mở đủ chi tiết. Thay đổi
+  này không sửa cách tính tiền, công nợ hoặc dữ liệu giao dịch.
+
 ### VietQR và đối soát
 
 - [x] Mỗi hóa đơn có nội dung chuyển khoản duy nhất, ngắn và dễ nhập.

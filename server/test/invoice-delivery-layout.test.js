@@ -66,5 +66,5 @@ test('hai popup khóa chiều cao, chỉ cuộn thân và thu thao tác về m�
 test('popup ưu tiên focus thao tác đầu, báo trạng thái tải và tăng asset pin', () => {
   assert.match(app, /bill-message-template-type'\)\?\.focus\(\)/);
   assert.match(app, /invoice-share-body'\);[\s\S]*setAttribute\('aria-busy', 'true'\)[\s\S]*removeAttribute\('aria-busy'\)/);
-  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="app\.js\?v=161"/);
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=162"/);
 });

@@ -53,5 +53,5 @@ test('popup trả phòng giữ header trong viewport và thu gọn an toàn trê
     css,
     /\.rental-final-settlement-balance\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s
   );
-  assert.match(html, /href="style\.css\?v=164"[\s\S]*src="app\.js\?v=161"/);
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=162"/);
 });
