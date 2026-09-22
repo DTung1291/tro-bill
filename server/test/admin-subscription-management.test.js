@@ -118,7 +118,7 @@ test('UI quản trị có form lý do, API thao tác và bảng audit gói', () 
   const adminSource = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
   const apiSource = fs.readFileSync(path.join(root, 'api.js'), 'utf8');
   assert.match(html, /id="subscription-change-log-table"/);
-  assert.match(html, /api\.js\?v=80[\s\S]*admin\.js\?v=81/);
+  assert.match(html, /api\.js\?v=80[\s\S]*admin\.js\?v=82/);
   assert.match(adminSource, /id="admin-subscription-reason"/);
   assert.match(adminSource, /API\.admin\.startSubscriptionTrial/);
   assert.match(adminSource, /API\.admin\.changeSubscription/);

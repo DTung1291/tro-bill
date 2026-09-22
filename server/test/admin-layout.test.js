@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '../..');
 
 test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', () => {
   const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 
   assert.match(
@@ -24,7 +25,10 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
     /class="admin-metric admin-metric--account"[\s\S]*class="admin-metric admin-metric--revenue"[\s\S]*class="admin-metric admin-metric--conversion"/
   );
   assert.equal((html.match(/class="admin-modal-head"/g) || []).length, 1);
-  assert.match(html, /href="style\.css\?v=80"[\s\S]*src="api\.js\?v=80"[\s\S]*src="admin\.js\?v=81"/);
+  assert.match(html, /id="plans-admin-section"[\s\S]*Giá tháng[\s\S]*Giá năm[\s\S]*Ưu đãi năm/);
+  assert.match(script, /function annualPlanSavingLabel\(monthlyValue, yearlyValue\)/);
+  assert.match(script, /Giảm \$\{discountPercent\}% · tiết kiệm \$\{fmtVND\(savedAmount\)\}/);
+  assert.match(html, /href="style\.css\?v=80"[\s\S]*src="api\.js\?v=80"[\s\S]*src="admin\.js\?v=82"/);
   assert.match(css, /\.admin-wrap\s*\{[^}]*max-width:\s*1240px/s);
   assert.match(css, /\.admin-nav\s*\{[^}]*position:\s*sticky[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(css, /\.admin-revenue-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s);

@@ -966,6 +966,21 @@
     return input;
   }
 
+  function annualPlanSavingLabel(monthlyValue, yearlyValue) {
+    const monthlyPrice = Number(monthlyValue);
+    const yearlyPrice = Number(yearlyValue);
+    if (!Number.isSafeInteger(monthlyPrice) || monthlyPrice <= 0
+        || !Number.isSafeInteger(yearlyPrice) || yearlyPrice <= 0) {
+      return 'Nhập đủ hai mức giá';
+    }
+    const regularAmount = monthlyPrice * 12;
+    if (yearlyPrice === regularAmount) return 'Không giảm so với 12 tháng';
+    if (yearlyPrice > regularAmount) return `Cao hơn trả tháng ${fmtVND(yearlyPrice - regularAmount)}`;
+    const savedAmount = regularAmount - yearlyPrice;
+    const discountPercent = Math.round((savedAmount / regularAmount) * 100);
+    return `Giảm ${discountPercent}% · tiết kiệm ${fmtVND(savedAmount)}`;
+  }
+
   function renderPlans(plans) {
     plansTbody.textContent = '';
     for (const plan of plans) {
@@ -976,6 +991,7 @@
       if (plan.code === 'free') {
         appendTextCell(row, 'Miễn phí');
         appendTextCell(row, 'Miễn phí');
+        appendTextCell(row, 'Không áp dụng');
         appendTextCell(row, plan.isActive ? 'Có' : 'Không');
         appendTextCell(row, plan.isPublic ? 'Có' : 'Không');
         const locked = appendTextCell(row, 'Gói nền tảng được khóa');
@@ -1003,6 +1019,14 @@
 
       appendInputCell(row, monthly);
       appendInputCell(row, yearly);
+      const savingCell = appendTextCell(row, '');
+      savingCell.className = 'admin-cell-note';
+      const refreshSaving = () => {
+        savingCell.textContent = annualPlanSavingLabel(monthly.value, yearly.value);
+      };
+      monthly.addEventListener('input', refreshSaving);
+      yearly.addEventListener('input', refreshSaving);
+      refreshSaving();
       appendInputCell(row, active);
       appendInputCell(row, publicInput);
       appendInputCell(row, reason);

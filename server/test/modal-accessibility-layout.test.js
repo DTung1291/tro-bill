@@ -70,5 +70,5 @@ test('popup Super Admin có cùng semantics và điều khiển bàn phím', () 
   assert.match(admin, /function adminModalFocusableElements\(\)/);
   assert.match(admin, /if \(event\.key === 'Escape'\)/);
   assert.match(admin, /if \(event\.key !== 'Tab'\) return/);
-  assert.match(html, /src="admin\.js\?v=81"/);
+  assert.match(html, /src="admin\.js\?v=82"/);
 });

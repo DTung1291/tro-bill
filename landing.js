@@ -6,6 +6,7 @@
   const billingSwitch = document.getElementById('billing-switch');
   const year = document.getElementById('current-year');
   const currency = new Intl.NumberFormat('vi-VN');
+  const defaultPricingNote = 'Chỉ các gói đang được kích hoạt và công khai mới xuất hiện tại đây.';
   let plans = [];
   let cycle = 'monthly';
 
@@ -28,6 +29,34 @@
     };
   }
 
+  function annualSavings(plan) {
+    const monthlyPrice = Number(plan.monthlyPriceVnd);
+    const yearlyPrice = Number(plan.yearlyPriceVnd);
+    if (!Number.isSafeInteger(monthlyPrice) || monthlyPrice <= 0
+        || !Number.isSafeInteger(yearlyPrice) || yearlyPrice <= 0) return null;
+    const regularAmount = monthlyPrice * 12;
+    if (yearlyPrice >= regularAmount) return null;
+    const savedAmount = regularAmount - yearlyPrice;
+    return {
+      regularAmount,
+      savedAmount,
+      discountPercent: Math.round((savedAmount / regularAmount) * 100),
+      monthlyEquivalent: Math.round(yearlyPrice / 12)
+    };
+  }
+
+  function updateYearlySwitchLabel() {
+    const yearlyButton = billingSwitch.querySelector('[data-cycle="yearly"]');
+    if (!yearlyButton) return;
+    const discounts = plans.map(annualSavings).filter(Boolean);
+    const highestDiscount = discounts.length > 0
+      ? Math.max(...discounts.map((saving) => saving.discountPercent))
+      : 0;
+    yearlyButton.textContent = highestDiscount > 0
+      ? `Theo năm · giảm đến ${highestDiscount}%`
+      : 'Theo năm';
+  }
+
   function roomLimitText(plan) {
     if (!Number.isFinite(plan.roomLimit) || plan.roomLimit <= 0) return 'Số phòng theo thỏa thuận';
     return `Tối đa ${currency.format(plan.roomLimit)} phòng`;
@@ -41,6 +70,7 @@
   function createPlanCard(plan) {
     const card = element('article', 'plan-card');
     const price = planPrice(plan);
+    const saving = cycle === 'yearly' ? annualSavings(plan) : null;
     const priceRow = element('div', 'plan-price', price.amount);
     const suffix = element('small', '', price.suffix);
     priceRow.append(' ', suffix);
@@ -56,9 +86,24 @@
     action.href = '/index.html';
     action.setAttribute('aria-label', `${action.textContent} với gói ${plan.name}`);
 
+    card.append(element('span', 'plan-name', plan.name));
+    if (saving) {
+      card.classList.add('plan-card--discounted');
+      card.append(element('span', 'plan-saving-badge', `Giảm ${saving.discountPercent}%`));
+    }
+    card.append(priceRow);
+    if (saving) {
+      const savingDetails = element('div', 'plan-saving-details');
+      const regularPrice = element('p', 'plan-regular-price', 'Giá đủ 12 tháng: ');
+      regularPrice.append(element('del', '', `${currency.format(saving.regularAmount)} đ`));
+      savingDetails.append(
+        regularPrice,
+        element('strong', 'plan-saving-copy', `Tiết kiệm ${currency.format(saving.savedAmount)} đ / năm`),
+        element('small', 'plan-monthly-equivalent', `Tương đương ${currency.format(saving.monthlyEquivalent)} đ / tháng`)
+      );
+      card.append(savingDetails);
+    }
     card.append(
-      element('span', 'plan-name', plan.name),
-      priceRow,
       element('p', 'plan-description', plan.description || 'Gói sử dụng TrọBill'),
       features,
       action
@@ -68,6 +113,9 @@
 
   function renderPlans() {
     planGrid.replaceChildren(...plans.map(createPlanCard));
+    pricingNote.textContent = cycle === 'yearly'
+      ? 'Ưu đãi được tính tự động từ giá tháng và giá năm đang cấu hình; số tiền hiển thị là tổng thanh toán cho 12 tháng.'
+      : defaultPricingNote;
   }
 
   function renderError() {
@@ -105,6 +153,7 @@
       if (plans.length === 0) throw new Error('NO_PUBLIC_PLANS');
       const hasPaidPlan = plans.some((plan) => plan.monthlyPriceVnd > 0 && plan.yearlyPriceVnd > 0);
       billingSwitch.hidden = !hasPaidPlan;
+      updateYearlySwitchLabel();
       renderPlans();
     })
     .catch(renderError);

@@ -28,6 +28,10 @@ Mục tiêu: đưa TrọBill từ sản phẩm quản lý nội bộ thành SaaS
   - [ ] Pro: tối đa 50 phòng.
   - [ ] Business: tối đa 100 phòng và có nhân viên.
 - [ ] Xác định giá tháng, giá năm và mức giảm khi trả theo năm.
+  Giao diện thử nghiệm đã cho Super Admin nhập giá tháng và tổng giá năm; landing
+  tự suy ra giá đủ 12 tháng, số tiền tiết kiệm, phần trăm giảm và giá tương đương
+  mỗi tháng. Không lưu thêm phần trăm độc lập để tránh mâu thuẫn với số tiền
+  thực thu. Checkbox vẫn để mở đến khi mức giá được kiểm chứng với khách pilot.
 - [ ] Không cung cấp gói trọn đời trong giai đoạn đầu.
 - [ ] Xác định các chỉ số cần theo dõi:
   - [ ] Tỷ lệ tạo hóa đơn đầu tiên sau khi đăng ký.

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 22/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — lát cắt thu gọn danh sách Hóa đơn trên mobile đã được yêu cầu phát hành |
+| Trạng thái | Sẵn sàng bàn giao — ưu đãi thanh toán năm và ribbon nổi bật đã được yêu cầu phát hành |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi commit và push lát cắt UX danh sách Hóa đơn mobile |
-| Phần ứng dụng phát hành gần nhất | Commit chứa tài liệu này trên `main` có UX danh sách Hóa đơn mobile; CI/deployment cần được xác minh ở lượt tiếp theo |
-| Việc code tiếp theo | Tiếp tục mốc UX/UI kế tiếp sau khi người dùng kiểm tra bản đã phát hành |
+| Worktree kỳ vọng | Sạch sau khi commit và push ưu đãi thanh toán năm |
+| Phần ứng dụng phát hành gần nhất | Commit chứa tài liệu này trên `main` có ưu đãi thanh toán năm và ribbon chéo; CI/deployment cần được xác minh ở lượt tiếp theo |
+| Việc code tiếp theo | Người dùng kiểm tra landing page sau khi deployment Production hoàn tất |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,21 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- UX ưu đãi thanh toán năm hoàn thành local ngày 22/09/2026: Super Admin tiếp
+  tục cấu hình hai nguồn tiền chuẩn là giá tháng và tổng giá năm; giao diện tự
+  xem trước phần trăm cùng số tiền tiết kiệm. Landing ở chế độ năm hiển thị giá
+  12 tháng bị gạch, giá thực trả, số tiền tiết kiệm, giá tương đương mỗi tháng
+  và nhãn phần trăm; gói Free hoặc giá năm không thấp hơn 12 tháng không nhận
+  nhãn khuyến mãi. Không thêm cột schema/API hay trường phần trăm riêng để tránh
+  sai lệch với giá thực thu. Browser local đã xác minh Standard 50.000đ/tháng,
+  500.000đ/năm thành giảm 17%, tiết kiệm 100.000đ và tương đương 41.667đ/tháng;
+  mobile 390×844 không tràn ngang. Nhãn phần trăm đã được đổi thành ribbon đỏ
+  chéo góc trái để tạo điểm nhấn, đồng thời dành khoảng trống riêng để không che
+  tên hoặc giá gói. Asset pin tăng `landing.css/js 1 → 3` và
+  `admin.js 81 → 82`; test mục tiêu 8/8 và toàn bộ 532/532 đạt, secret scan,
+  syntax check và diff check sạch. Người dùng đã yêu cầu commit/push thay đổi
+  này; CI/deployment cần được xác minh riêng sau khi push.
 
 - UX danh sách Hóa đơn mobile hoàn thành ngày 22/09/2026 và được người dùng yêu cầu phát hành:
   thêm tìm kiếm theo phòng, mã chuyển khoản hoặc ID hóa đơn; lọc theo trạng thái

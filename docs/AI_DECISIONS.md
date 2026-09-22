@@ -1104,3 +1104,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   chuyển/trả phòng, cách tính đủ ngày, đối chiếu chỉ số, ledger thu tiền/cọc,
   idempotency và snapshot quyết toán bất biến không thay đổi. Client không được
   tự coi biên bản đã đủ nếu API chưa trả bản `check_out` thuộc đúng hợp đồng.
+
+## D-056 — Ưu đãi năm được suy ra từ giá thực thu
+
+- **Trạng thái:** Áp dụng từ 22/09/2026.
+- **Quyết định:** Super Admin cấu hình giá tháng và tổng số tiền thực thu cho một
+  năm. Hệ thống suy ra giá đủ 12 tháng, số tiền tiết kiệm, phần trăm giảm và giá
+  tương đương mỗi tháng; không lưu thêm một trường phần trăm giảm độc lập.
+- **Hiển thị:** Chỉ gắn nhãn ưu đãi khi giá năm là số dương và thấp hơn giá tháng
+  nhân 12. Gói miễn phí, dữ liệu chưa đủ, giá bằng hoặc cao hơn 12 tháng không
+  được trình bày như khuyến mãi. Phần trăm làm tròn chỉ dùng để truyền thông;
+  giá năm đã cấu hình vẫn là nguồn tiền phải thu.
+- **Hệ quả:** Thay đổi chỉ thuộc frontend/admin preview, không cần schema hay API
+  mới. Mọi luồng tạo đơn, VietQR và đối soát tiếp tục dùng giá năm thực tế từ
+  cấu hình gói, không được tính ngược số tiền từ phần trăm hiển thị.
