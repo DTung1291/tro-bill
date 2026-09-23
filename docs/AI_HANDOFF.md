@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 22/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — ưu đãi thanh toán năm và ribbon nổi bật đã được yêu cầu phát hành |
+| Cập nhật lần cuối | 23/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu push các sửa UX sau review và biểu tượng mắt |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi commit và push ưu đãi thanh toán năm |
-| Phần ứng dụng phát hành gần nhất | Commit chứa tài liệu này trên `main` có ưu đãi thanh toán năm và ribbon chéo; CI/deployment cần được xác minh ở lượt tiếp theo |
-| Việc code tiếp theo | Người dùng kiểm tra landing page sau khi deployment Production hoàn tất |
+| Worktree kỳ vọng | Sạch sau khi commit/push landing, chọn gói, đăng nhập, popup dùng chung, lọc Super Admin và test |
+| Phần ứng dụng phát hành gần nhất | `7c2d8c2` đã push main; phiên hiện tại chưa xác minh deployment Production |
+| Việc code tiếp theo | Xác minh CI/deployment của commit UX mới và smoke test luồng chọn gói sau phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,30 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 23/09/2026 hoàn thành local sáu điểm review UX: liên kết landing mang gói
+  và chu kỳ sang đăng nhập; `plan-selection.js` giữ lựa chọn không nhạy cảm trong
+  sessionStorage tối đa 24 giờ, phục hồi sau reload/xác minh trong cùng tab và
+  chọn sẵn thẻ gói sau khi dữ liệu server đã tải đúng account/workspace. Không
+  tự tạo đơn; giá và quyền mua vẫn do API hiện có xác minh. Gói không còn khả
+  dụng có thông báo; hạ gói giữ nút khóa theo nghiệp vụ cũ.
+  Landing dùng lưới 4/2/1 cột, căn đều thẻ và giữ ribbon; lời hướng dẫn tập trung
+  vào giá thực trả, thêm nút thử lại. Đăng nhập có hiện/ẩn mật khẩu và nhắc gói
+  đang chọn. Super Admin tìm email, lọc gói/trạng thái, đếm kết quả và thu gọn
+  thao tác phụ. `ui-dialog.js/css` thay prompt/confirm còn lại bằng native dialog
+  top-layer, kiểm tra độ dài, password che mặc định, Escape/khôi phục focus/khóa
+  cuộn; hủy xác nhận nếu account context/workspace đổi trong lúc đang mở.
+  Browser đã kiểm tra landing desktop bốn cột/mobile một cột không tràn,
+  đăng nhập mobile, bộ lọc và popup mật khẩu 390×844. Luồng sau đăng nhập và
+  Super Admin dùng fixture cách ly chặn mọi API ghi, không tạo đơn hoặc đổi mật
+  khẩu thật. Không đổi schema/API, không chạy migration/deploy. Pins:
+  landing 4, app 164, admin 83; ui-dialog.css v2, module JS mới dùng v1.
+  Theo phản hồi người dùng, nút hiện/ẩn mật khẩu đã đổi sang SVG mắt/mắt gạch
+  chéo nằm trong ô nhập, vùng bấm 44px, giữ aria-label và aria-pressed; browser
+  xác nhận chuyển đúng password/text và hai icon. Toàn bộ 535/535 test đạt,
+  syntax check, secret scan và git diff --check sạch. Test lựa chọn gói bao gồm
+  khôi phục cùng tab, giá trị không hợp lệ, hết hạn và storage bị chặn. Việc
+  đăng ký/xác minh email qua tab mới chưa được kiểm tra E2E trong phiên này.
 
 - UX ưu đãi thanh toán năm hoàn thành local ngày 22/09/2026: Super Admin tiếp
   tục cấu hình hai nguồn tiền chuẩn là giá tháng và tổng giá năm; giao diện tự

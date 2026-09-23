@@ -403,6 +403,43 @@ function renderSubscriptionSummary() {
   card.classList.toggle('subscription-summary-card--expired', ['expired', 'canceled'].includes(subscription.status));
 }
 
+let requestedPlanSelection = (() => {
+  let storage = null;
+  try { storage = window.sessionStorage; } catch (_) {}
+  return PlanSelection.capture(window.location.search, storage);
+})();
+
+function clearRequestedPlanSelection() {
+  requestedPlanSelection = null;
+  try { PlanSelection.clear(window.sessionStorage); } catch (_) {}
+  const url = new URL(window.location.href);
+  url.searchParams.delete('plan');
+  url.searchParams.delete('cycle');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+}
+
+function resumeRequestedPlanSelection() {
+  if (!requestedPlanSelection || !isOwnerWorkspace()) return;
+  const selection = requestedPlanSelection;
+  if (selection.plan === 'free') { clearRequestedPlanSelection(); return; }
+  navigate('settings');
+  const card = [...document.querySelectorAll('.subscription-plan-card')]
+    .find(item => item.dataset.planCode === selection.plan);
+  if (!card) {
+    showToast('Gói bạn chọn hiện chưa khả dụng. Vui lòng xem các gói bên dưới hoặc tải lại trang.', 'info', 5000);
+    return;
+  }
+  card.querySelector('select').value = selection.cycle;
+  card.classList.add('subscription-plan-card--selected');
+  card.scrollIntoView({ block: 'center' });
+  card.tabIndex = -1;
+  card.focus({ preventScroll: true });
+  showToast(card.querySelector('button').disabled
+    ? 'Gói bạn chọn thấp hơn gói hiện tại. Vui lòng chọn gói phù hợp hoặc liên hệ hỗ trợ.'
+    : 'Đã chọn sẵn gói và chu kỳ. Kiểm tra giá rồi bấm chọn gói để tiếp tục.', 'info', 5000);
+  clearRequestedPlanSelection();
+}
+
 function renderSubscriptionPlans() {
   const list = document.getElementById('subscription-plan-list');
   const empty = document.getElementById('subscription-plans-empty');
@@ -416,6 +453,7 @@ function renderSubscriptionPlans() {
   for (const plan of paidPlans) {
     const card = document.createElement('article');
     card.className = 'subscription-plan-card';
+    card.dataset.planCode = plan.code;
     if (plan.code === currentPlan.code) card.classList.add('subscription-plan-card--current');
 
     const heading = document.createElement('div');
@@ -2327,7 +2365,7 @@ function renderRentPaymentLedgerContent(result) {
 
   body.querySelectorAll('[data-reverse-rent-payment]').forEach(button => {
     button.addEventListener('click', async () => {
-      const reason = window.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', '');
+      const reason = await UiDialog.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', { minLength: 10 });
       if (reason === null) return;
       const normalizedReason = reason.trim();
       if (normalizedReason.length < 10 || normalizedReason.length > 500) {
@@ -2866,6 +2904,7 @@ modalObserver.observe(document.body, {
 });
 
 document.addEventListener('keydown', event => {
+  if (document.querySelector('.ui-dialog[open]')) return;
   const overlay = topOpenModalOverlay();
   if (!overlay) return;
 
@@ -10624,7 +10663,7 @@ if (saveInvoiceReminderBtn) {
 const logoutAllDevicesBtn = document.getElementById('btn-logout-all');
 if (logoutAllDevicesBtn) {
   logoutAllDevicesBtn.addEventListener('click', async () => {
-    if (!confirm('Đăng xuất tài khoản khỏi tất cả điện thoại, máy tính và trình duyệt?')) return;
+    if (!await UiDialog.confirm('Đăng xuất tài khoản khỏi tất cả điện thoại, máy tính và trình duyệt?')) return;
     logoutAllDevicesBtn.disabled = true;
     logoutAllDevicesBtn.textContent = 'Đang đăng xuất...';
     try {
@@ -11617,7 +11656,7 @@ function renderTenantDeposit(result) {
 
   list.querySelectorAll('[data-reverse-deposit]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const reason = window.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', '');
+      const reason = await UiDialog.prompt('Nhập lý do hoàn tác (từ 10 đến 500 ký tự):', { minLength: 10 });
       if (reason === null) return;
       const normalizedReason = reason.trim();
       if (normalizedReason.length < 10 || normalizedReason.length > 500) {
@@ -12122,7 +12161,7 @@ async function refreshRoomAssets() {
 async function archiveRoomAssetFromModal(assetId) {
   const asset = ROOM_ASSETS.find(item => Number(item.id) === Number(assetId));
   if (!asset || asset.status !== 'active') return;
-  const reason = window.prompt(`Lý do ngừng sử dụng “${asset.name}” (3–500 ký tự):`, 'Không còn sử dụng trong phòng');
+  const reason = await UiDialog.prompt(`Lý do ngừng sử dụng “${asset.name}” (3–500 ký tự):`, { minLength: 3, value: 'Không còn sử dụng trong phòng' });
   if (reason === null) return;
   const normalized = reason.trim();
   if (normalized.length < 3 || normalized.length > 500) {
@@ -13018,6 +13057,12 @@ function showAuthScreen(show) {
   const nav = document.getElementById('main-nav');
   const bottomNav = document.getElementById('bottom-nav');
   const logoutBtn = document.getElementById('logout-btn');
+  const planNote = document.getElementById('auth-plan-selection');
+  if (requestedPlanSelection) {
+    const names = { free: 'Free', standard: 'Standard', pro: 'Pro', business: 'Business' };
+    planNote.hidden = false;
+    planNote.textContent = `Bạn đã chọn ${names[requestedPlanSelection.plan]}${requestedPlanSelection.plan === 'free' ? '' : requestedPlanSelection.cycle === 'yearly' ? ' · Theo năm' : ' · Theo tháng'}. Đăng nhập hoặc đăng ký để tiếp tục.`;
+  }
   if (el) {
     el.classList.remove('auth-screen--pending');
     el.setAttribute('aria-busy', 'false');
@@ -13211,7 +13256,9 @@ async function startApp() {
         if (isCurrent()) console.warn('Không làm mới được danh sách workspace:', error.message);
       });
     }
-    void loadDeferredWorkspaceData(workspace, { isCurrent }).catch((error) => {
+    void loadDeferredWorkspaceData(workspace, { isCurrent }).then((loaded) => {
+      if (loaded && isCurrent()) resumeRequestedPlanSelection();
+    }).catch((error) => {
       if (isCurrent()) console.warn('Không tải được dữ liệu bổ sung:', error.message);
     });
     if (ownerWorkspace) {
@@ -13294,6 +13341,13 @@ function initAuthUI() {
   const confirmLabel = document.getElementById('auth-confirm-label');
   const emailEl = document.getElementById('auth-email');
   const passEl = document.getElementById('auth-password');
+  const showPassword = document.getElementById('auth-show-password');
+  showPassword.addEventListener('click', () => {
+    const visible = passEl.type === 'password';
+    passEl.type = visible ? 'text' : 'password';
+    showPassword.setAttribute('aria-pressed', String(visible));
+    showPassword.setAttribute('aria-label', visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  });
   const confirmEl = document.getElementById('auth-confirm-password');
   const policyConsent = document.getElementById('auth-policy-consent');
   const policyCheckbox = document.getElementById('auth-policy-checkbox');
@@ -13311,6 +13365,10 @@ function initAuthUI() {
 
   function setMode(m) {
     mode = m;
+    passEl.type = 'password';
+    passEl.placeholder = m === 'login' ? 'Nhập mật khẩu' : 'Tối thiểu 6 ký tự';
+    showPassword.setAttribute('aria-label', 'Hiện mật khẩu');
+    showPassword.setAttribute('aria-pressed', 'false');
     tabLogin.classList.toggle('active', m === 'login');
     tabReg.classList.toggle('active', m === 'register');
     tabs.hidden = m === 'forgot' || m === 'reset';

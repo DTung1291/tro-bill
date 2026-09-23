@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Super Admin</title>
   <link rel="stylesheet" href="style.css?v=80" />
+  <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
 <body class="admin-page">
   <div class="admin-wrap">
@@ -223,6 +224,12 @@
       <p class="admin-config-note">
         Chủ trọ là Owner của workspace; nhân viên dùng quyền được phân công. Super Admin là quyền nền tảng và không thể cấp từ trang này. Cấp dùng thử, nâng gói hoặc gia hạn thủ công chỉ dành cho trường hợp hỗ trợ đã được xác minh.
       </p>
+      <div class="admin-user-filters">
+        <label>Tìm tài khoản<input type="search" id="admin-user-search" placeholder="Email" /></label>
+        <label>Gói dịch vụ<select id="admin-user-plan"><option value="">Tất cả gói</option><option value="free">Free</option><option value="standard">Standard</option><option value="pro">Pro</option><option value="business">Business</option></select></label>
+        <label>Trạng thái<select id="admin-user-status"><option value="">Tất cả trạng thái</option><option value="active">Hoạt động</option><option value="trialing">Dùng thử</option><option value="expiring_soon">Sắp hết hạn</option><option value="grace_period">Ân hạn</option><option value="expired">Hết hạn</option><option value="canceled">Đã hủy</option></select></label>
+      </div>
+      <p id="admin-user-results" role="status" aria-live="polite"></p>
       <div class="admin-table-wrap">
         <table class="admin-table admin-users-table" id="admin-table" hidden>
           <thead>
@@ -285,6 +292,7 @@
   </div>
 
   <script src="api.js?v=80"></script>
-  <script src="admin.js?v=82"></script>
+  <script src="ui-dialog.js?v=1"></script>
+  <script src="admin.js?v=83"></script>
 </body>
 </html>

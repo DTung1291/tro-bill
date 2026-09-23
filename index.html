@@ -19,6 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=165" />
+  <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
 
 <body>
@@ -53,6 +54,7 @@
           <p class="auth-sub" id="auth-sub">Tính tiền nhà trọ hàng tháng</p>
         </div>
 
+        <p id="auth-plan-selection" class="auth-sub" hidden></p>
         <div class="auth-tabs" id="auth-tabs">
           <button type="button" class="auth-tab active" id="auth-tab-login">Đăng nhập</button>
           <button type="button" class="auth-tab" id="auth-tab-register">Đăng ký</button>
@@ -62,9 +64,15 @@
           <label class="auth-label" id="auth-email-label">Email
             <input type="email" id="auth-email" required autocomplete="username" placeholder="ban@email.com" />
           </label>
-          <label class="auth-label" id="auth-password-label">Mật khẩu
-            <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Tối thiểu 6 ký tự" minlength="6" />
-          </label>
+          <div class="auth-label" id="auth-password-label"><label for="auth-password">Mật khẩu</label>
+            <span class="auth-password-control">
+              <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Nhập mật khẩu" minlength="6" />
+              <button type="button" id="auth-show-password" aria-label="Hiện mật khẩu" aria-controls="auth-password" aria-pressed="false">
+                <svg class="password-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="password-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 3 18 18M10.6 5.1 12 5c6.5 0 10 7 10 7a19 19 0 0 1-3.1 3.9M6.1 6.1A22 22 0 0 0 2 12s3.5 7 10 7c1.8 0 3.5-.5 5-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+              </button>
+            </span>
+          </div>
           <label class="auth-label" id="auth-confirm-label" hidden>Nhập lại mật khẩu mới
             <input type="password" id="auth-confirm-password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" minlength="6" />
           </label>
@@ -3362,7 +3370,9 @@
   <script src="contract-template.js?v=2"></script>
   <script src="handover-template.js?v=1"></script>
   <script src="financial-report-export.js?v=2"></script>
-  <script src="app.js?v=162"></script>
+  <script src="ui-dialog.js?v=1"></script>
+  <script src="plan-selection.js?v=1"></script>
+  <script src="app.js?v=164"></script>
 </body>
 
 </html>

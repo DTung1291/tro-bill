@@ -11,6 +11,22 @@
   const table = $('#admin-table');
   const msgEl = $('#admin-msg');
   let adminPlans = [];
+  let allUsers = [];
+  function filterUsers() {
+    const query = $('#admin-user-search').value.trim().toLocaleLowerCase('vi');
+    const plan = $('#admin-user-plan').value;
+    const status = $('#admin-user-status').value;
+    const users = allUsers.filter(user => String(user.email || '').toLocaleLowerCase('vi').includes(query)
+      && (!plan || user.subscription?.planCode === plan)
+      && (!status || user.subscription?.status === status));
+    renderUsers(users);
+    $('#admin-user-results').textContent = users.length
+      ? `Hiển thị ${users.length}/${allUsers.length} tài khoản`
+      : 'Không có tài khoản phù hợp. Hãy đổi từ khóa hoặc bộ lọc.';
+  }
+  ['#admin-user-search', '#admin-user-plan', '#admin-user-status'].forEach(selector => {
+    $(selector).addEventListener('input', filterUsers);
+  });
   let authChannel = null;
   const authChannelName = 'trobill_auth_v1';
   const authEventStorageKey = 'trobill_auth_event_v1';
@@ -96,7 +112,8 @@
       }
       return showMsg(e.message || 'Không tải được danh sách', true);
     }
-    renderUsers(data.users || []);
+    allUsers = data.users || [];
+    filterUsers();
   }
 
   // ---------- Dashboard doanh thu ----------
@@ -181,14 +198,18 @@
         protectedNote.textContent = 'Quyền đặc biệt chỉ quản lý qua CLI';
         cell.appendChild(protectedNote);
       } else {
-        cell.appendChild(btn('Đổi MK', 'admin-btn-ghost', () => resetPw(u)));
-        cell.appendChild(btn('Xoá', 'admin-btn-danger', () => removeUser(u)));
+        const more = document.createElement('details');
+        more.className = 'admin-user-more';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Thao tác khác';
+        more.append(summary,
+          btn('Đổi MK', 'admin-btn-ghost', event => resetPw(u, event.currentTarget)),
+          btn('Xoá', 'admin-btn-danger', event => removeUser(u, event.currentTarget)));
+        cell.appendChild(more);
       }
       tbody.appendChild(tr);
     }
     table.hidden = users.length === 0;
-    if (users.length === 0) showMsg('Chưa có người dùng nào.', false);
-    else msgEl.hidden = true;
   }
 
   function btn(label, cls, onClick) {
@@ -200,27 +221,37 @@
   }
 
   // ---------- Thao tác ----------
-  async function removeUser(u) {
-    if (!confirm(`Xoá vĩnh viễn user "${u.email}" và TOÀN BỘ dữ liệu? Không thể hoàn tác.`)) return;
-    const reason = prompt('Nhập lý do xóa tài khoản (tối thiểu 10 ký tự):');
+  async function removeUser(u, button) {
+    if (!await UiDialog.confirm(`Xoá vĩnh viễn tài khoản "${u.email}" và TOÀN BỘ dữ liệu? Không thể hoàn tác.`)) return;
+    const reason = await UiDialog.prompt('Nhập lý do xóa tài khoản (tối thiểu 10 ký tự):', { minLength: 10 });
     if (reason == null) return;
+    button.disabled = true;
+    button.textContent = 'Đang xóa…';
     try {
       await API.admin.deleteUser(u.id, reason);
       showMsg(`Đã xoá ${u.email}.`, false);
       loadUsers();
     } catch (e) {
       handleErr(e);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Xoá';
     }
   }
 
-  async function resetPw(u) {
-    const pw = prompt(`Mật khẩu mới cho "${u.email}" (tối thiểu 6 ký tự):`);
+  async function resetPw(u, button) {
+    const pw = await UiDialog.prompt(`Mật khẩu mới cho "${u.email}" (tối thiểu 6 ký tự):`, { type: 'password', minLength: 6, maxLength: 128, title: 'Đổi mật khẩu' });
     if (pw == null) return;
+    button.disabled = true;
+    button.textContent = 'Đang lưu…';
     try {
       await API.admin.resetPassword(u.id, pw);
       showMsg(`Đã đổi mật khẩu cho ${u.email}.`, false);
     } catch (e) {
       handleErr(e);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Đổi MK';
     }
   }
 
@@ -326,13 +357,13 @@
 
     modalBody.querySelectorAll('.admin-reveal-cccd').forEach((button) => {
       button.addEventListener('click', async () => {
-        const reason = prompt(
-          'Nhập lý do hỗ trợ cụ thể để xem CCCD đầy đủ (tối thiểu 10 ký tự):'
+        const reason = await UiDialog.prompt(
+          'Nhập lý do hỗ trợ cụ thể để xem CCCD đầy đủ (tối thiểu 10 ký tự):', { minLength: 10 }
         );
         if (reason == null) return;
         const normalizedReason = reason.trim();
         if (normalizedReason.length < 10) {
-          alert('Lý do hỗ trợ phải có ít nhất 10 ký tự. Vui lòng mô tả cụ thể hơn.');
+          await UiDialog.alert('Lý do hỗ trợ phải có ít nhất 10 ký tự. Vui lòng mô tả cụ thể hơn.');
           return;
         }
         button.disabled = true;
@@ -349,7 +380,7 @@
         } catch (error) {
           button.disabled = false;
           if (error.code === 401) return gotoLogin();
-          alert(error.message || 'Không thể xem CCCD. Vui lòng thử lại.');
+          await UiDialog.alert(error.message || 'Không thể xem CCCD. Vui lòng thử lại.');
         }
       });
     });
@@ -532,7 +563,7 @@
       const actionText = operation === 'trial'
         ? `cấp ${days} ngày dùng thử gói ${selectedPlan?.name || planCode}`
         : `${operation === 'renew' ? 'gia hạn' : 'cấp/nâng'} gói ${selectedPlan?.name || planCode} theo chu kỳ ${cycleInput.value === 'yearly' ? 'năm' : 'tháng'}`;
-      if (!confirm(`Xác nhận ${actionText} cho “${user.email}”?\n\nLý do audit: ${reason}`)) return;
+      if (!await UiDialog.confirm(`Xác nhận ${actionText} cho “${user.email}”?\n\nLý do audit: ${reason}`)) return;
 
       submit.disabled = true;
       try {
@@ -838,7 +869,7 @@
         reasonInput.focus();
         return;
       }
-      if (!confirm(
+      if (!await UiDialog.confirm(
         `Xác nhận đã thực nhận ${fmtVND(payment.amountVnd)} cho ${payment.user.email}?\n\n` +
         `Mã giao dịch: ${transactionReference}\n` +
         `Mã đơn: ${payment.orderReference}`
@@ -1091,7 +1122,7 @@
   function refundAction(request, label, status, className = 'admin-btn-ghost') {
     return btn(label, className, async (event) => {
       const button = event.currentTarget;
-      const note = prompt(`Nhập ghi chú xử lý cho trạng thái “${refundStatusLabels[status]}” (10–500 ký tự):`);
+      const note = await UiDialog.prompt(`Nhập ghi chú xử lý cho trạng thái “${refundStatusLabels[status]}” (10–500 ký tự):`, { minLength: 10 });
       if (note == null) return;
       const normalizedNote = note.trim();
       if (normalizedNote.length < 10 || normalizedNote.length > 500) {
@@ -1100,14 +1131,14 @@
       }
       let refundReference = '';
       if (status === 'refunded') {
-        const referenceInput = prompt('Nhập mã giao dịch ngân hàng đã hoàn tiền:');
+        const referenceInput = await UiDialog.prompt('Nhập mã giao dịch ngân hàng đã hoàn tiền:', { minLength: 3, maxLength: 100 });
         if (referenceInput == null) return;
         refundReference = String(referenceInput).trim();
         if (refundReference.length < 3 || refundReference.length > 100) {
           showMsg('Mã giao dịch hoàn tiền phải từ 3 đến 100 ký tự.', true);
           return;
         }
-        if (!confirm(`Xác nhận đã thực sự hoàn ${fmtVND(request.requestedAmountVnd)}? TrọBill không thực hiện chuyển tiền thay bạn.`)) {
+        if (!await UiDialog.confirm(`Xác nhận đã thực sự hoàn ${fmtVND(request.requestedAmountVnd)}? TrọBill không thực hiện chuyển tiền thay bạn.`)) {
           return;
         }
       }
@@ -1198,6 +1229,7 @@
   $('#admin-modal-close').addEventListener('click', closeUserModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeUserModal(); });
   document.addEventListener('keydown', (event) => {
+    if (document.querySelector('.ui-dialog[open]')) return;
     if (modal.hidden) return;
     if (event.key === 'Escape') {
       event.preventDefault();

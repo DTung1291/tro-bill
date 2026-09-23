@@ -263,5 +263,5 @@ test('giao diện hồ sơ chia ba bước, chỉ rõ mức sẵn sàng và thu 
   assert.match(app, /updateElectronicInvoiceReadiness\(profile\);[\s\S]*syncElectronicInvoiceProviderFields\(\);/);
   assert.match(css, /\.electronic-invoice-readiness\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
   assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.electronic-invoice-readiness\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
-  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=162"/);
+  assert.match(html, /href="style\.css\?v=165"[\s\S]*src="app\.js\?v=164"/);
 });

@@ -6,7 +6,7 @@
   const billingSwitch = document.getElementById('billing-switch');
   const year = document.getElementById('current-year');
   const currency = new Intl.NumberFormat('vi-VN');
-  const defaultPricingNote = 'Chỉ các gói đang được kích hoạt và công khai mới xuất hiện tại đây.';
+  const defaultPricingNote = 'Chọn gói phù hợp với số phòng của bạn. Kiểm tra giá và chu kỳ trước khi thanh toán.';
   let plans = [];
   let cycle = 'monthly';
 
@@ -83,7 +83,7 @@
     ].forEach((label) => features.append(element('li', '', label)));
 
     const action = element('a', 'button button--primary', plan.code === 'free' ? 'Bắt đầu miễn phí' : 'Chọn gói này');
-    action.href = '/index.html';
+    action.href = `/index.html?plan=${encodeURIComponent(plan.code)}&cycle=${cycle}`;
     action.setAttribute('aria-label', `${action.textContent} với gói ${plan.name}`);
 
     card.append(element('span', 'plan-name', plan.name));
@@ -92,8 +92,8 @@
       card.append(element('span', 'plan-saving-badge', `Giảm ${saving.discountPercent}%`));
     }
     card.append(priceRow);
+    const savingDetails = element('div', 'plan-saving-details');
     if (saving) {
-      const savingDetails = element('div', 'plan-saving-details');
       const regularPrice = element('p', 'plan-regular-price', 'Giá đủ 12 tháng: ');
       regularPrice.append(element('del', '', `${currency.format(saving.regularAmount)} đ`));
       savingDetails.append(
@@ -101,8 +101,8 @@
         element('strong', 'plan-saving-copy', `Tiết kiệm ${currency.format(saving.savedAmount)} đ / năm`),
         element('small', 'plan-monthly-equivalent', `Tương đương ${currency.format(saving.monthlyEquivalent)} đ / tháng`)
       );
-      card.append(savingDetails);
     }
+    card.append(savingDetails);
     card.append(
       element('p', 'plan-description', plan.description || 'Gói sử dụng TrọBill'),
       features,
@@ -112,9 +112,10 @@
   }
 
   function renderPlans() {
+    planGrid.classList.toggle('plan-grid--yearly', cycle === 'yearly');
     planGrid.replaceChildren(...plans.map(createPlanCard));
     pricingNote.textContent = cycle === 'yearly'
-      ? 'Ưu đãi được tính tự động từ giá tháng và giá năm đang cấu hình; số tiền hiển thị là tổng thanh toán cho 12 tháng.'
+      ? 'Thanh toán một lần cho 12 tháng. Mức tiết kiệm được so với trả từng tháng trong cùng thời gian.'
       : defaultPricingNote;
   }
 
@@ -126,7 +127,11 @@
       document.createTextNode('Vui lòng thử lại sau hoặc mở TrọBill để dùng gói đang khả dụng.')
     );
     planGrid.replaceChildren(message);
-    pricingNote.textContent = 'Không hiển thị giá ước tính khi hệ thống chưa trả về cấu hình chính thức.';
+    pricingNote.textContent = 'Bạn có thể thử tải lại bảng giá hoặc quay lại sau.';
+    const retry = element('button', 'button button--primary', 'Thử lại');
+    retry.type = 'button';
+    retry.addEventListener('click', () => { retry.disabled = true; loadPlans(); });
+    message.append(document.createElement('br'), retry);
   }
 
   billingSwitch.addEventListener('click', (event) => {
@@ -141,7 +146,8 @@
     renderPlans();
   });
 
-  fetch('/api/public/plans', { headers: { Accept: 'application/json' } })
+  function loadPlans() {
+  return fetch('/api/public/plans', { headers: { Accept: 'application/json' } })
     .then((response) => {
       if (!response.ok) throw new Error('PLAN_REQUEST_FAILED');
       return response.json();
@@ -157,4 +163,6 @@
       renderPlans();
     })
     .catch(renderError);
+  }
+  loadPlans();
 })();

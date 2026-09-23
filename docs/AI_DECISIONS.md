@@ -1118,3 +1118,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hệ quả:** Thay đổi chỉ thuộc frontend/admin preview, không cần schema hay API
   mới. Mọi luồng tạo đơn, VietQR và đối soát tiếp tục dùng giá năm thực tế từ
   cấu hình gói, không được tính ngược số tiền từ phần trăm hiển thị.
+
+## D-057 — Lựa chọn gói trước đăng nhập chỉ là ý định mua
+
+- **Trạng thái:** Áp dụng từ 23/09/2026.
+- **Quyết định:** URL landing chỉ mang mã gói và chu kỳ từ tập giá trị cho phép.
+  SessionStorage giữ hai giá trị không nhạy cảm cùng thời gian tạo tối đa 24 giờ
+  để tiếp tục trong cùng tab. Không lưu giá, JWT hay thông tin tài khoản.
+- **Tiếp tục:** Chỉ chọn sẵn gói sau khi server xác nhận phiên, workspace owner
+  và tải xong danh sách gói trong đúng session generation/account/workspace.
+  Hiển thị giá hiện hành và chờ người dùng bấm mua; không tự gọi API tạo đơn.
+  Lựa chọn được xóa sau khi đã điều hướng thành công, gói Free không mở mua.
+- **Hộp thoại bất đồng bộ:** Xác nhận phải bị hủy nếu account context hoặc
+  workspace thay đổi từ lúc mở. API vẫn kiểm tra quyền và account context trên
+  mỗi request; hộp thoại không thay thế kiểm tra ở server.

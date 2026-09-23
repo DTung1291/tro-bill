@@ -102,11 +102,11 @@ test('landing render bảng giá an toàn và có layout mobile', () => {
   assert.match(script, /plan-saving-badge/);
   assert.match(script, /Tiết kiệm \$\{currency\.format\(saving\.savedAmount\)\} đ \/ năm/);
   assert.match(styles, /\.plan-saving-badge\s*\{[^}]*transform:\s*rotate\(-45deg\)[^}]*text-transform:\s*uppercase/s);
-  assert.match(styles, /\.plan-card--discounted\s*\{[^}]*padding-top:/s);
+  assert.match(styles, /\.plan-card\s*\{[^}]*padding-top:/s);
   assert.match(styles, /\.plan-saving-details\s*\{/);
   assert.match(styles, /@media \(max-width: 640px\)/);
   assert.match(styles, /prefers-reduced-motion/);
-  assert.match(fs.readFileSync(path.join(root, 'landing.html'), 'utf8'), /landing\.css\?v=3[\s\S]*landing\.js\?v=3/);
+  assert.match(fs.readFileSync(path.join(root, 'landing.html'), 'utf8'), /landing\.css\?v=4[\s\S]*landing\.js\?v=4/);
   assert.deepEqual(vercel.rewrites[0], {
     source: '/gioi-thieu',
     destination: '/landing.html'
