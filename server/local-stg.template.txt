@@ -1,0 +1,15 @@
+# Sao chép thành .env.local-stg (Git bỏ qua) rồi dùng: npm start stg
+# Local chạy HTTP, nhưng dữ liệu được ghi vào Neon branch staging-privacy.
+# Kiểm tra endpoint Neon đúng branch staging, KHÔNG sao chép URL Production.
+APP_ENV=development
+DATABASE_ENVIRONMENT=staging
+DATABASE_URL=postgresql://user:password@staging-db.example.invalid/neondb?sslmode=verify-full
+# Hostname Production chỉ để so sánh, không chứa user/password; lấy riêng từ Neon Production.
+PRODUCTION_DATABASE_HOST=production-db.example.invalid
+JWT_SECRET=
+COOKIE_SECURE=false
+APP_URL=http://localhost:3000
+PORT=3000
+
+# Không đặt SUPER_ADMIN_EMAIL/PASSWORD hoặc ADMIN_EMAIL/PASSWORD:
+# server sẽ tự cấp quyền khi khởi động nếu có các biến đó.

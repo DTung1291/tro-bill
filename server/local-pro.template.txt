@@ -1,0 +1,12 @@
+# Sao chép thành .env.local-pro (Git bỏ qua) rồi dùng: npm start pro
+# CẢNH BÁO: local kết nối database Production thật và có thể ghi dữ liệu thật.
+# Lệnh luôn yêu cầu nhập xác nhận trên terminal, không dùng để tạo dữ liệu test.
+APP_ENV=development
+DATABASE_ENVIRONMENT=production
+DATABASE_URL=postgresql://user:password@production-db.example.invalid/neondb?sslmode=verify-full
+JWT_SECRET=
+COOKIE_SECURE=false
+APP_URL=http://localhost:3000
+PORT=3000
+
+# Không đặt SUPER_ADMIN_EMAIL/PASSWORD hoặc ADMIN_EMAIL/PASSWORD.

@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+if (!process.env.TROBILL_LOCAL_PROFILE) require('dotenv').config();
 const { Pool } = require('pg');
 const { errorDetails, reportOperationalError, writeLog } = require('./observability');
 

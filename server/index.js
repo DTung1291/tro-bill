@@ -1,6 +1,10 @@
 'use strict';
 
-require('dotenv').config();
+if (!process.env.TROBILL_LOCAL_PROFILE) require('dotenv').config();
+if (require.main === module && !['dev', 'stg', 'pro'].includes(process.env.TROBILL_LOCAL_PROFILE)) {
+  console.error('Khởi động local phải dùng npm start dev, npm start stg hoặc npm start pro để kiểm tra đúng database.');
+  process.exit(1);
+}
 const path = require('path');
 const express = require('express');
 const { inspectRuntimeEnvironment } = require('./environment');

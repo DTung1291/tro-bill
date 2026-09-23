@@ -1132,3 +1132,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hộp thoại bất đồng bộ:** Xác nhận phải bị hủy nếu account context hoặc
   workspace thay đổi từ lúc mở. API vẫn kiểm tra quyền và account context trên
   mỗi request; hộp thoại không thay thế kiểm tra ở server.
+
+## D-058 — Local chọn database bằng profile tường minh
+
+- **Trạng thái:** Áp dụng local từ 23/09/2026; chưa cấu hình credential thật
+  hoặc kiểm tra kết nối Neon trong phiên ghi nhận.
+- **Quyết định:** `npm start` mặc định chọn profile staging; `dev` và `pro` dùng
+  file riêng bị Git bỏ qua. Launcher không dùng `.env` legacy hoặc secret shell,
+  xác minh nhãn database, URL, secret, cookie local, đối chiếu hostname
+  Production được cấu hình riêng và từ chối nếu staging/pro trỏ cùng endpoint
+  Neon. Direct `node server/index.js` không phải lối chạy
+  local được hỗ trợ.
+- **Production:** Người dùng muốn có thể nối local trực tiếp Production và cho
+  phép ghi sau xác nhận. Lệnh `pro` vì vậy chỉ chạy trên terminal tương tác,
+  yêu cầu gõ câu xác nhận mỗi lần và cảnh báo mọi ghi sẽ tác động dữ liệu thật.
+  Nó không dùng cho test và không có chế độ sandbox. URL/nhãn do người vận hành
+  khai báo không tự chứng minh đúng Neon branch; phải đối chiếu endpoint trong
+  Neon trước khi điền profile. Vercel Preview/Production và quy trình migration
+  không thay đổi.

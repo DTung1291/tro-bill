@@ -38,15 +38,32 @@ Agent mới phải bắt đầu bằng kiểm tra Git và kết thúc bằng c�
 lưu transcript, chain-of-thought, secret hoặc dữ liệu khách thuê trong các tài
 liệu này.
 
-## Chạy lần đầu
+## Chạy local theo môi trường
+
+Từ thư mục gốc, tạo file riêng cho môi trường muốn dùng (các file thật đã bị
+Git bỏ qua). Điền `DATABASE_URL` lấy từ **đúng Neon branch** và tạo
+`JWT_SECRET` riêng, dài ít nhất 32 ký tự; không dùng secret Production cho local.
+Trong profile `stg`/`dev`, điền thêm `PRODUCTION_DATABASE_HOST` lấy độc lập từ
+Neon Production (chỉ hostname, không có mật khẩu) để lệnh chặn URL Production.
 
 ```bash
-cd server
-cp .env.example .env      # điền DATABASE_URL của Neon; JWT_SECRET là chuỗi ngẫu nhiên dài
+cp -n server/local-stg.template.txt server/.env.local-stg  # chỉ tạo nếu chưa có; không ghi đè file đã cấu hình
 npm install
-npm run init-db           # tạo/cập nhật schema trên Neon
-npm start                 # chạy tại http://localhost:3000
+npm start stg             # mặc định: local ghi vào database staging
+# npm start dev           # cần server/.env.local-dev — database development riêng
+# npm start pro           # cần server/.env.local-pro — hỏi xác nhận mỗi lần chạy
 ```
+
+`npm start` không có đối số cũng chọn `stg`. Lệnh `pro` **kết nối database
+Production thật và có quyền ghi**: dữ liệu test, đăng nhập và thao tác khác có
+thể thay đổi Production; chỉ chạy khi cố ý vận hành trên dữ liệu thật. Lệnh từ
+chối chạy tự động, yêu cầu nhập `GHI VAO PRODUCTION` trên terminal mỗi lần.
+Trước khi chạy, kiểm tra Neon endpoint của từng file; nhãn
+`DATABASE_ENVIRONMENT` tự khai báo không thể tự chứng minh URL đúng branch.
+Launcher không đọc `server/.env` cũ, không kế thừa secret shell và không seed
+Super Admin; các API key gửi email/webhook Production cũng bị từ chối trong
+profile local. Không chạy `init-db`/migration chỉ để khởi động local; những lệnh
+đó có quy trình xác minh môi trường riêng trong [OPERATIONS.md](OPERATIONS.md).
 
 Yêu cầu Node.js 20 trở lên.
 

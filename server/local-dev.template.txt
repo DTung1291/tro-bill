@@ -1,0 +1,9 @@
+# Sao chép thành .env.local-dev (Git bỏ qua) rồi dùng: npm start dev
+APP_ENV=development
+DATABASE_ENVIRONMENT=development
+DATABASE_URL=postgresql://user:password@development-db.example.invalid/neondb?sslmode=verify-full
+PRODUCTION_DATABASE_HOST=production-db.example.invalid
+JWT_SECRET=
+COOKIE_SECURE=false
+APP_URL=http://localhost:3000
+PORT=3000

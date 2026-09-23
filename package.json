@@ -6,6 +6,10 @@
     "node": ">=20"
   },
   "scripts": {
+    "start": "node scripts/start-local.js",
+    "start:stg": "node scripts/start-local.js stg",
+    "start:pro": "node scripts/start-local.js pro",
+    "start:dev": "node scripts/start-local.js dev",
     "test": "npm test --prefix server",
     "test:e2e:staging": "node scripts/staging-e2e.js",
     "check:environment": "node scripts/check-environment.js",

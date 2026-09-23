@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 23/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu commit/push menu thao tác tài khoản |
+| Trạng thái | Sẵn sàng bàn giao — công tắc local và hai profile Neon đã cấu hình; chưa chạy kết nối database |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi commit/push menu thao tác tài khoản và các test liên quan |
-| Phần ứng dụng phát hành gần nhất | `465be89` đã push `main` (tracking `origin/main` khớp HEAD trước sửa); chưa xác minh deployment Production |
-| Việc code tiếp theo | Xác minh CI/deployment rồi smoke test menu tài khoản Super Admin trên Production |
+| Worktree kỳ vọng | Sạch sau commit; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
+| Việc code tiếp theo | Phối hợp xoay credential staging và cập nhật Preview/local cùng lúc trước khi thử kết nối staging |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,39 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 23/09/2026 tạo `server/.env.local-stg` và `.env.local-pro` ngoài Git,
+  quyền file `0600`. Vercel CLI xác nhận project `dtung/tro-bill` có biến
+  Preview/Production nhưng không thể tải giá trị `DATABASE_URL`/`JWT_SECRET`
+  mã hóa; bản kéo tạm đã bị xóa. Sau khi người dùng mở Neon Console, đã lấy
+  connection string đúng hai branch `staging-privacy` (`br-ancient-wave-azwc43to`)
+  và `production` (`br-fancy-star-azyclc1h`), cùng role hạn chế
+  `tro_bill_runtime_sql`; sinh JWT local riêng và hostname Production đối chiếu
+  cho staging. Kiểm tra tĩnh bằng `validateProfile` đạt cho cả hai, endpoint
+  khác nhau; không đưa URL/secret vào Git hoặc tài liệu. Branch staging
+  hiện archived; lần kết nối sau sẽ tự unarchive. Chưa chạy server, query,
+  migration hoặc ghi Neon. Một đoạn credential staging vô tình xuất hiện trong
+  đầu ra công cụ khi kiểm tra UI; cần phối hợp xoay mật khẩu role staging và
+  cập nhật Preview/local cùng lúc trước khi xem cấu hình này là an toàn lâu dài.
+  Không tự rotate vì sẽ làm Preview mất kết nối. Chỉ thử staging khi người dùng
+  sẵn sàng.
+
+- Ngày 23/09/2026 thêm local launcher: `npm start`
+  mặc định `stg`, có `dev` và `pro` với file env bị Git bỏ qua. `pro` ghi được
+  vào database thật theo lựa chọn của người dùng, nhưng bắt buộc terminal tương
+  tác và gõ xác nhận mỗi lần; không dùng để tạo dữ liệu test. Launcher không nạp
+  `.env` legacy/secret shell, từ chối seed Super Admin, profile sai nhãn,
+  placeholder, hostname Production đối chiếu và hai profile staging/Production
+  cùng endpoint. Local chạy
+  `APP_ENV=development` với nhãn database đích tường minh để HTTP localhost
+  dùng cookie không Secure; Vercel deployment không đổi. Đã kiểm thử profile
+  bằng URL mẫu; toàn bộ 539/539 test qua khi chạy ngoài sandbox, secret scan,
+  syntax check và diff check sạch. Ban đầu `npm start stg`/`pro` dừng an toàn vì
+  chưa có credential; hai profile đã được điền và kiểm tra tĩnh ở mốc ngay trên.
+  File mẫu có tên `local-{dev,stg,pro}.template.txt`, không chứa secret và
+  không có file `.env*` mới nào trong commit. Trước push: 539/539 test đạt khi
+  chạy ngoài sandbox (lượt sandbox bị chặn bind localhost), secret scan và
+  diff check sạch. Chưa chạy server local hoặc migration với hai profile thật.
 
 - Ngày 23/09/2026 sửa menu thao tác trong bảng tài khoản Super Admin:
   `Thao tác khác` không còn bung nút làm giãn hàng; nút `Thêm ▾` mở menu nổi

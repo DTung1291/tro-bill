@@ -39,6 +39,24 @@ vercel curl /api/health/ready --deployment https://tro-bill-staging-dtung.vercel
 Không tắt Deployment Protection và không dùng staging để chứa dữ liệu người thuê
 thật. Preview không dùng tài khoản Super Admin seed của production.
 
+### Chạy local với database staging hoặc Production
+
+`npm start`/`npm start stg` tại root (hoặc `npm start` trong `server/`) dùng
+`server/.env.local-stg`; `npm start dev` dùng `.env.local-dev`. Mọi file local
+cần `APP_ENV=development` để chạy HTTP trên localhost; trường
+`DATABASE_ENVIRONMENT` vẫn chỉ rõ database đích. Launcher kiểm tra nhãn, URL
+PostgreSQL, secret, cookie, đối chiếu `PRODUCTION_DATABASE_HOST` riêng trong
+profile dev/staging và từ chối nếu hai profile staging/Production có cùng
+endpoint Neon (kể cả biến thể `-pooler`). Nó không thể tự xác nhận Neon branch
+nếu người cấu hình điền sai cả URL lẫn hostname đối chiếu; phải kiểm tra trong
+Neon trước khi chạy.
+
+`npm start pro` dùng `.env.local-pro`, yêu cầu terminal tương tác và nhập câu
+xác nhận mỗi lần. **Đây không phải sandbox hay chế độ chỉ đọc**: local vẫn ghi
+vào Production. Không dùng `pro` để tạo dữ liệu test. Các file profile không
+được chứa biến seed Super Admin; launcher không nạp `server/.env` cũ. Không
+chạy `init-db`, migration, backup/restore thông qua công tắc này.
+
 ### Quyền quản trị nền tảng
 
 Super Admin là quyền vận hành toàn nền tảng, khác với Owner là chủ trọ sở hữu
