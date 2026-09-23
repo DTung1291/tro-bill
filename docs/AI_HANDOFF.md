@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 23/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu push các sửa UX sau review và biểu tượng mắt |
+| Trạng thái | Sẵn sàng bàn giao — người dùng đã yêu cầu commit/push menu thao tác tài khoản |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau khi commit/push landing, chọn gói, đăng nhập, popup dùng chung, lọc Super Admin và test |
-| Phần ứng dụng phát hành gần nhất | `7c2d8c2` đã push main; phiên hiện tại chưa xác minh deployment Production |
-| Việc code tiếp theo | Xác minh CI/deployment của commit UX mới và smoke test luồng chọn gói sau phát hành |
+| Worktree kỳ vọng | Sạch sau khi commit/push menu thao tác tài khoản và các test liên quan |
+| Phần ứng dụng phát hành gần nhất | `465be89` đã push `main` (tracking `origin/main` khớp HEAD trước sửa); chưa xác minh deployment Production |
+| Việc code tiếp theo | Xác minh CI/deployment rồi smoke test menu tài khoản Super Admin trên Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 23/09/2026 sửa menu thao tác trong bảng tài khoản Super Admin:
+  `Thao tác khác` không còn bung nút làm giãn hàng; nút `Thêm ▾` mở menu nổi
+  chứa `Đổi mật khẩu` và `Xóa tài khoản`, căn theo viewport và có Escape,
+  click ngoài, focus/`aria-expanded`. Không đổi API, phân quyền hoặc xác nhận
+  xóa. `admin.js` pin 83→84, `ui-dialog.css` 2→3. Browser fixture chỉ đọc xác
+  nhận desktop/mobile 390px không tràn ngang, menu mở đúng và Escape trả focus.
+  Toàn bộ 535/535 test đạt khi chạy ngoài sandbox (sandbox không cho test mở
+  localhost); syntax check, secret scan và diff check sạch. Không thay đổi
+  database và chưa thao tác dữ liệu thật. Người dùng đã yêu cầu push;
+  deployment Production cần được xác minh riêng sau khi push.
 
 - Ngày 23/09/2026 hoàn thành local sáu điểm review UX: liên kết landing mang gói
   và chu kỳ sang đăng nhập; `plan-selection.js` giữ lựa chọn không nhạy cảm trong

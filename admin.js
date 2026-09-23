@@ -176,7 +176,70 @@
       `<span class="admin-subscription-status admin-subscription-status--${esc(subscription.status)}">${esc(status)}</span><br>${end}`;
   }
 
+  const userActionMenu = document.createElement('div');
+  userActionMenu.className = 'admin-user-action-menu';
+  userActionMenu.hidden = true;
+  document.body.appendChild(userActionMenu);
+  let userActionTrigger = null;
+
+  function closeUserActionMenu(restoreFocus = false) {
+    if (userActionMenu.hidden) return;
+    userActionMenu.hidden = true;
+    userActionTrigger?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus && userActionTrigger?.isConnected) userActionTrigger.focus();
+    userActionTrigger = null;
+  }
+
+  function positionUserActionMenu() {
+    if (userActionMenu.hidden || !userActionTrigger?.isConnected) return;
+    const anchor = userActionTrigger.getBoundingClientRect();
+    const width = userActionMenu.offsetWidth;
+    const height = userActionMenu.offsetHeight;
+    const spaceBelow = window.innerHeight - anchor.bottom;
+    userActionMenu.style.left = `${Math.max(12, Math.min(anchor.right - width, window.innerWidth - width - 12))}px`;
+    userActionMenu.style.top = `${spaceBelow >= height + 12 || spaceBelow >= anchor.top ? anchor.bottom + 6 : anchor.top - height - 6}px`;
+  }
+
+  function openUserActionMenu(user, trigger) {
+    if (userActionTrigger === trigger && !userActionMenu.hidden) {
+      closeUserActionMenu(true);
+      return;
+    }
+    closeUserActionMenu();
+    userActionTrigger = trigger;
+    trigger.setAttribute('aria-expanded', 'true');
+    userActionMenu.replaceChildren();
+    const action = (label, className, callback) => {
+      const button = btn(label, className, () => {
+        closeUserActionMenu();
+        trigger.focus();
+        callback(button);
+      });
+      userActionMenu.appendChild(button);
+    };
+    action('Đổi mật khẩu', 'admin-user-action-menu-item', button => resetPw(user, button));
+    action('Xóa tài khoản', 'admin-user-action-menu-item admin-user-action-menu-item--danger', button => removeUser(user, button));
+    userActionMenu.hidden = false;
+    positionUserActionMenu();
+    userActionMenu.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('pointerdown', event => {
+    if (!userActionMenu.hidden && !userActionMenu.contains(event.target) && !userActionTrigger?.contains(event.target)) {
+      closeUserActionMenu();
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !userActionMenu.hidden) {
+      event.preventDefault();
+      closeUserActionMenu(true);
+    }
+  });
+  window.addEventListener('resize', positionUserActionMenu);
+  window.addEventListener('scroll', positionUserActionMenu, true);
+
   function renderUsers(users) {
+    closeUserActionMenu();
     tbody.innerHTML = '';
     for (const u of users) {
       const tr = document.createElement('tr');
@@ -198,13 +261,10 @@
         protectedNote.textContent = 'Quyền đặc biệt chỉ quản lý qua CLI';
         cell.appendChild(protectedNote);
       } else {
-        const more = document.createElement('details');
-        more.className = 'admin-user-more';
-        const summary = document.createElement('summary');
-        summary.textContent = 'Thao tác khác';
-        more.append(summary,
-          btn('Đổi MK', 'admin-btn-ghost', event => resetPw(u, event.currentTarget)),
-          btn('Xoá', 'admin-btn-danger', event => removeUser(u, event.currentTarget)));
+        const more = btn('Thêm ▾', 'admin-btn-ghost admin-user-action-trigger', event => openUserActionMenu(u, event.currentTarget));
+        more.setAttribute('aria-label', `Thao tác khác cho ${u.email}`);
+        more.setAttribute('aria-haspopup', 'true');
+        more.setAttribute('aria-expanded', 'false');
         cell.appendChild(more);
       }
       tbody.appendChild(tr);
@@ -225,6 +285,7 @@
     if (!await UiDialog.confirm(`Xoá vĩnh viễn tài khoản "${u.email}" và TOÀN BỘ dữ liệu? Không thể hoàn tác.`)) return;
     const reason = await UiDialog.prompt('Nhập lý do xóa tài khoản (tối thiểu 10 ký tự):', { minLength: 10 });
     if (reason == null) return;
+    const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = 'Đang xóa…';
     try {
@@ -235,13 +296,14 @@
       handleErr(e);
     } finally {
       button.disabled = false;
-      button.textContent = 'Xoá';
+      button.textContent = originalLabel;
     }
   }
 
   async function resetPw(u, button) {
     const pw = await UiDialog.prompt(`Mật khẩu mới cho "${u.email}" (tối thiểu 6 ký tự):`, { type: 'password', minLength: 6, maxLength: 128, title: 'Đổi mật khẩu' });
     if (pw == null) return;
+    const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = 'Đang lưu…';
     try {
@@ -251,7 +313,7 @@
       handleErr(e);
     } finally {
       button.disabled = false;
-      button.textContent = 'Đổi MK';
+      button.textContent = originalLabel;
     }
   }
 

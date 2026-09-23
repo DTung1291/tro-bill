@@ -11,6 +11,7 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
   const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const dialogCss = fs.readFileSync(path.join(root, 'ui-dialog.css'), 'utf8');
 
   assert.match(
     html,
@@ -28,7 +29,7 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
   assert.match(html, /id="plans-admin-section"[\s\S]*Giá tháng[\s\S]*Giá năm[\s\S]*Ưu đãi năm/);
   assert.match(script, /function annualPlanSavingLabel\(monthlyValue, yearlyValue\)/);
   assert.match(script, /Giảm \$\{discountPercent\}% · tiết kiệm \$\{fmtVND\(savedAmount\)\}/);
-  assert.match(html, /href="style\.css\?v=80"[\s\S]*src="api\.js\?v=80"[\s\S]*src="admin\.js\?v=83"/);
+  assert.match(html, /href="style\.css\?v=80"[\s\S]*src="api\.js\?v=80"[\s\S]*src="admin\.js\?v=84"/);
   assert.match(css, /\.admin-wrap\s*\{[^}]*max-width:\s*1240px/s);
   assert.match(css, /\.admin-nav\s*\{[^}]*position:\s*sticky[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(css, /\.admin-revenue-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s);
@@ -54,4 +55,9 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.admin-section-head\s*>\s*\.admin-payment-toolbar\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/s
   );
+  assert.match(script, /userActionMenu\.className = 'admin-user-action-menu'/);
+  assert.match(script, /action\('Đổi mật khẩu'[\s\S]*action\('Xóa tài khoản'/);
+  assert.match(script, /more\.setAttribute\('aria-expanded', 'false'\)/);
+  assert.doesNotMatch(script, /admin-user-more/);
+  assert.match(dialogCss, /\.admin-user-action-menu:not\(\[hidden\]\)\s*\{[^}]*position:\s*fixed/);
 });

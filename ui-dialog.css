@@ -23,6 +23,10 @@ html.ui-dialog-open, html.ui-dialog-open body { overflow: hidden !important; }
 .admin-user-filters label { display: grid; gap: 6px; flex: 1 1 180px; }
 .admin-user-filters input, .admin-user-filters select { width: 100%; min-height: 44px; padding: 8px; box-sizing: border-box; border: 1px solid var(--border, #dce3ec); border-radius: 8px; background: var(--bg2, white); color: inherit; font: inherit; }
 .subscription-plan-card--selected { outline: 3px solid var(--primary, #5046df); outline-offset: 3px; }
-.admin-user-more summary { cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; }
-.admin-user-more[open] { display: flex; flex-wrap: wrap; gap: 6px; }
-.admin-user-more button { margin-top: 8px; }
+.admin-user-action-trigger[aria-expanded="true"] { border-color: var(--primary, #5046df); color: var(--primary, #5046df); }
+.admin-user-action-menu:not([hidden]) { position: fixed; z-index: 10000; display: grid; gap: 4px; box-sizing: border-box; width: min(220px, calc(100vw - 24px)); padding: 6px; border: 1px solid var(--border, #dce3ec); border-radius: 12px; background: var(--bg2, #fff); box-shadow: 0 12px 36px #10182830; }
+.admin-user-action-menu-item { min-height: 44px; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text, #172238); text-align: left; font: inherit; font-size: .84rem; font-weight: 650; cursor: pointer; }
+.admin-user-action-menu-item:hover, .admin-user-action-menu-item:focus-visible { background: var(--bg, #f8fafc); }
+.admin-user-action-menu-item--danger { color: #c52838; }
+.admin-user-action-menu-item--danger:hover, .admin-user-action-menu-item--danger:focus-visible { background: #c5283812; }
+.admin-user-action-menu-item:focus-visible { outline: 2px solid var(--primary, #5046df); outline-offset: -2px; }
