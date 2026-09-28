@@ -43,6 +43,9 @@ git diff --stat
 - Nếu thật sự làm song song, mỗi agent phải dùng một branch và Git worktree
   riêng, ví dụ `agent/claude-asset-handover`; không cho hai agent sửa cùng một
   worktree hoặc cùng một branch.
+- Nếu `main` tự triển khai Production, không push `main` chỉ để thử tính năng.
+  Dùng branch/PR triển khai Preview gắn staging trước; chỉ hợp nhất/push `main`
+  sau khi staging đạt các kiểm tra dưới đây và người dùng cho phép phát hành.
 - Mỗi commit chỉ chứa một phần việc có thể kiểm tra độc lập. Không gom thay đổi
   không liên quan và không tự commit phần việc của người khác.
 - Chỉ push/deploy/chạy migration trên môi trường từ xa khi yêu cầu hiện tại cho
@@ -99,6 +102,15 @@ git diff --check
   chỉ kiểm tra HTML hoặc ảnh trang đầu.
 - Thay đổi DB/permission cần có test schema và truy vấn xác minh trên từng môi
   trường được phép.
+- **Cổng phát hành bắt buộc:** local test đạt → migration staging (nếu có) →
+  chạy ứng dụng trên staging/Preview với đúng database staging → kiểm thử luồng
+  bị ảnh hưởng bằng tài khoản thử, gồm giao diện/API và các trường hợp biên →
+  ghi bằng chứng kết quả vào `docs/AI_HANDOFF.md`. Chỉ sau khi staging đạt và
+  người dùng cho phép mới áp dụng migration Production (nếu có), merge/push
+  nhánh phát hành có thể deploy Production, rồi smoke test Production.
+- Health check hoặc migration SQL báo xanh **không thay thế** kiểm thử luồng trên
+  ứng dụng staging. Nếu staging chưa kiểm thử được, báo rõ trạng thái chưa đạt;
+  không suy diễn là đã sẵn sàng Production.
 - Sau deploy, kiểm tra `/api/health/ready`, revision production và luồng người
   dùng bị ảnh hưởng. Không tuyên bố xong nếu chỉ có build xanh.
 - Chỉ đánh dấu `[x]` trong checklist khi tiêu chí thật sự đạt và có bằng chứng.

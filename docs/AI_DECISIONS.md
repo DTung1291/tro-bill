@@ -1167,3 +1167,14 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   tiếp tục từ ngày đã lưu.
 - **Triển khai:** Cột mới cần migration tiến tới trước khi đưa code mới lên
   Preview/Production; không lưu ngày tạm trú trong snapshot hợp đồng/hóa đơn.
+
+## D-060 — Staging là cổng bắt buộc trước Production
+
+- **Trạng thái:** Áp dụng theo yêu cầu chủ sản phẩm ngày 28/09/2026.
+- **Quyết định:** Mọi thay đổi phải qua test local và kiểm thử tính năng thực tế
+  trên staging/Preview dùng database staging. Chỉ khi kiểm thử staging thành
+  công, có ghi nhận bằng chứng và người dùng đồng ý phát hành mới push/merge
+  vào nhánh tự triển khai Production hoặc chạy migration Production.
+- **Hệ quả:** Migration/health xanh chưa đủ. Nếu `main` auto-deploy Production,
+  dùng branch/PR cho Preview; không push `main` để lấy môi trường thử. Khi staging
+  lỗi hoặc chưa thể kiểm thử, dừng ở đó và báo blocker, không triển khai Product.

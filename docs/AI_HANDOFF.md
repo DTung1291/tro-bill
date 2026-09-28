@@ -13,7 +13,7 @@ trong `../AGENTS.md`.
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Kiểm tra UI desktop/mobile và luồng trả phòng trên staging; chỉ rollout production sau migration production được phép |
+| Việc code tiếp theo | Kiểm thử luồng tạm trú thật trên staging/Preview bằng tài khoản thử; chỉ sau khi đạt và được duyệt mới rollout Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,13 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 chủ sản phẩm yêu cầu ghi nhớ quy trình bắt buộc:
+  local test → staging/Preview test luồng thật → ghi kết quả → chỉ khi thành công
+  và được cho phép mới triển khai Product. Đã ghi vào `AGENTS.md` và D-060 để
+  mọi agent sau tuân theo. Tính năng tạm trú hiện mới đạt migration/readiness
+  staging, **chưa đạt cổng kiểm thử ứng dụng staging**, nên không push `main`
+  hoặc áp dụng migration Production.
 
 - Ngày 28/09/2026 thêm ngày đăng ký/hết hạn tạm trú vào hồ sơ khách và dashboard
   nhắc trước 30 ngày/quá hạn. `server/state.js` suy việc ngừng nhắc từ hợp đồng
