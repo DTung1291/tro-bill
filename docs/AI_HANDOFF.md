@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — migration và dữ liệu thử tạm trú staging đạt, chờ kiểm tra giao diện và rollout production riêng |
+| Trạng thái | Đang làm — test UI staging phát hiện phòng đã trả vẫn bị tính đang thuê; chưa được phát hành Production |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Kiểm thử luồng tạm trú thật trên staging/Preview bằng tài khoản thử; chỉ sau khi đạt và được duyệt mới rollout Production |
+| Việc code tiếp theo | Sửa cách xác định khách đang ở/trạng thái phòng khi hợp đồng đã `ended`, giữ hồ sơ lịch sử; kiểm thử lại staging trước Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -95,6 +95,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
 
 ## Mốc đã giao gần đây
 
+- Ngày 28/09/2026 đã đăng nhập tài khoản thử ID `10` qua UI local chạy
+  `npm start stg`: dashboard hiện đúng 3 cảnh báo (quá hạn 5 ngày, hết hạn hôm
+  nay, sắp hết hạn 14 ngày); không hiện khách đã trả phòng. Bấm “Xem hồ sơ”
+  mở đúng phòng/khách và ngày tạm trú; popup desktop không tràn viewport. Tuy
+  nhiên kiểm tra phòng có khách lịch sử và hợp đồng `ended` cho thấy thẻ phòng
+  vẫn ghi “Đang thuê” và modal vẫn đặt hồ sơ đó dưới “Người đang ở trong phòng”.
+  `server/room-maintenance.js` hiện đếm mọi dòng `tenants` là khách đang ở;
+  các guard giữ chỗ/sửa phòng/chuyển phòng cũng kiểm tra mọi dòng. Đây là lỗi
+  nghiệp vụ phát hiện từ test staging, cần xử lý thống nhất trước khi phát hành.
+  Chưa push `main`, chưa chạy migration Production, chưa smoke Production.
+
 - Ngày 28/09/2026 tạo và **giữ lại** tài khoản test tạm trú riêng ID `10` trên
   Neon `staging-privacy` (`br-ancient-wave-azwc43to / neondb`) theo yêu cầu
   chủ sản phẩm. Có 5 phòng/5 hồ sơ giả lập: hết hạn hôm nay, sắp hết hạn 14
@@ -103,8 +114,8 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   các ngày và `temporaryResidenceCurrent=false` đúng cho hồ sơ này. Truy vấn
   chỉ đọc sau tạo xác nhận 5 phòng, 5 khách, 1 hợp đồng kết thúc. Tài khoản
   thử tạo dở ID `9` (chưa xác minh, 0 phòng) đã được xóa có guard; không xóa
-  bộ dữ liệu ID `10`. Không ghi credential vào Git/tài liệu. Chưa xác minh UI
-  trực quan trên staging/Preview; production chưa được triển khai.
+  bộ dữ liệu ID `10`. Không ghi credential vào Git/tài liệu. UI local nối
+  staging đã được kiểm tra ở mốc phía trên; production chưa được triển khai.
 
 - Ngày 28/09/2026 chủ sản phẩm yêu cầu ghi nhớ quy trình bắt buộc:
   local test → staging/Preview test luồng thật → ghi kết quả → chỉ khi thành công
