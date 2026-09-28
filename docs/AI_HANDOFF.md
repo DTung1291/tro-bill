@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — bản sửa đã qua UI/API staging; chờ migration Production trước khi push `main` |
+| Trạng thái | Đang làm — bản sửa đã qua UI/API staging, migration Production đã xác minh; chờ push `main` và smoke test |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Sau khi được xác nhận, chạy migration tạm trú trên Production, kiểm tra schema rồi push `main` và smoke test |
+| Việc code tiếp theo | Push `main` theo xác nhận của chủ sản phẩm, xác minh deployment và smoke test Production; giữ nguyên fixture staging ID `10` |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,15 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026, sau xác nhận của chủ sản phẩm, đã chạy
+  `server/migrations/20260928_tenant_temporary_residence.sql` trong Neon SQL
+  Editor nhánh Production `br-fancy-star-azyclc1h / neondb`. Console báo các
+  statement thực thi thành công. Truy vấn độc lập bằng role hạn chế
+  `tro_bill_runtime_sql` trên endpoint Production xác nhận 2/2 cột kiểu `date`,
+  constraint ngày hợp lệ, index hợp đồng và quyền đọc/ghi cột đều có. Bộ test
+  545/545 đạt. Chưa push/deploy tại thời điểm ghi mốc này; không thêm dữ liệu
+  test vào Production. Fixture staging ID `10` vẫn giữ để chủ sản phẩm kiểm tra.
 
 - Ngày 28/09/2026 kiểm thử UI **bản sửa** trên local cổng 3108 nối Neon
   `staging-privacy` bằng tài khoản test ID `10`: dashboard vẫn đúng 3 cảnh báo;
