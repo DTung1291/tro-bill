@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — tính năng tạm trú và sửa occupancy đã qua staging, lên Production; CI bản vá xanh |
-| Branch chuẩn | `main` |
+| Trạng thái | Sẵn sàng bàn giao — đổi ô nhập ngày sang dd/mm/yyyy trên branch riêng; UI local nối staging và test đều đạt, chưa phát hành |
+| Branch chuẩn | `main`; phần việc đang làm ở `feat/vietnamese-date-inputs` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `5435ead` trên Production; CI run `36376089736` xanh, readiness database/schema `ok` |
-| Việc code tiếp theo | Chủ sản phẩm kiểm tra luồng tạm trú trên staging bằng fixture ID `10`; chỉ xóa fixture khi chủ sản phẩm yêu cầu |
+| Việc code tiếp theo | Chủ sản phẩm kiểm tra ô nhập ngày trên local nối staging; chỉ push/merge vào `main` sau khi được xác nhận |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 đang đổi các `input type=date` và `datetime-local` trong
+  `index.html`, form tạo động từ `app.js` và `admin.html` sang nhập hiển thị
+  `dd/mm/yyyy`/`dd/mm/yyyy hh:mm` qua `date-input.js`; giá trị app/API vẫn ISO,
+  không migration. UI local `npm start stg` dùng fixture ID `10` đã kiểm tra
+  trang chi phí nhập `28/09/2026`, ngày không có thật `31/04/2026` bị đánh
+  dấu sai, popup sửa phòng hiển thị ngày cũ `31/05/2026`, form tài sản tạo động
+  có ô dd/mm/yyyy. Không bấm lưu, dữ liệu staging giữ nguyên. Branch chưa push;
+  full test 549/549 đạt, secret scan và diff check sạch. Không migration, chưa
+  kiểm tra trang Super Admin bằng tài khoản quyền thật.
 
 - Ngày 28/09/2026 bản vá `5435ead` đã push `main`; CI run `36376089736`
   hoàn tất thành công gồm test/security/audit. Alias Production trả revision

@@ -1178,3 +1178,15 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hệ quả:** Migration/health xanh chưa đủ. Nếu `main` auto-deploy Production,
   dùng branch/PR cho Preview; không push `main` để lấy môi trường thử. Khi staging
   lỗi hoặc chưa thể kiểm thử, dừng ở đó và báo blocker, không triển khai Product.
+
+## D-061 — Nhập ngày theo thứ tự Việt Nam, giữ ISO ở ranh giới dữ liệu
+
+- **Trạng thái:** Đã implement trên branch `feat/vietnamese-date-inputs` ngày
+  28/09/2026; chưa phát hành Production.
+- **Quyết định:** Các ô nhập ngày và ngày-giờ ở app/chức năng Super Admin hiển
+  thị, nhận nhập tay theo `dd/mm/yyyy` hoặc `dd/mm/yyyy hh:mm`, độc lập locale
+  trình duyệt. Nút lịch vẫn dùng date picker hệ thống. JS nghiệp vụ và API tiếp
+  tục đọc/ghi ISO (`yyyy-mm-dd`, `yyyy-mm-ddThh:mm`) nên không đổi schema hay
+  lịch sử dữ liệu. Ngày sai (kể cả ngày không tồn tại) bị chặn bằng form validity.
+- **Phạm vi:** Chỉ ô ngày đầy đủ; ô chọn kỳ tháng (`type=month`) vẫn biểu diễn
+  tháng/năm, không gán ngày giả để ép `dd/mm/yyyy`.

@@ -1,0 +1,13 @@
+/* Locale-independent date entry: the app still reads/writes ISO values. */
+.localized-date-field { position: relative; display: flex; width: 100%; min-width: 0; align-items: center; }
+.localized-date-field > input:not(.localized-date-picker) { width: 100%; min-width: 0; box-sizing: border-box; padding-right: 42px; }
+.localized-date-field > input[aria-invalid="true"] { border-color: var(--red, #dc2626); }
+.localized-date-button {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 0; border-radius: 7px; background: transparent; color: var(--text-muted);
+  cursor: pointer;
+}
+.localized-date-button:hover, .localized-date-button:focus-visible { background: var(--bg3); color: var(--primary); }
+.localized-date-button svg { width: 19px; height: 19px; }
+.localized-date-picker { position: absolute; right: 4px; top: 100%; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
