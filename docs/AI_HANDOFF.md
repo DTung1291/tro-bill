@@ -9,15 +9,37 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — ô nhập ngày dd/mm/yyyy đã phát hành; staging UI, CI và Production readiness đạt |
-| Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Trạng thái | Đang làm — trung tâm “Việc cần xử lý” trên Tổng quan đã qua test local; chờ kiểm thử tình huống có dữ liệu trên staging |
+| Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/dashboard-action-center` |
+| Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `44f2348` trên Production; CI run `36403062066` xanh, readiness database/schema `ok` |
-| Việc code tiếp theo | Chủ sản phẩm kiểm tra thao tác nhập ngày/lịch trên Production bằng tài khoản thật; báo lại nếu có màn hình đặc thù còn lệch |
+| Việc code tiếp theo | Kiểm thử 3 loại việc và các nút dẫn hướng bằng tài khoản thử có dữ liệu trên staging/Preview; chỉ sau đó đề nghị phát hành Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 28/09/2026 — Việc cần xử lý trên Tổng quan
+
+- Nhánh `feat/dashboard-action-center` thêm danh sách việc từ dữ liệu hiện có:
+  phòng đang thuê chưa nhập chỉ số của kỳ đang chọn, hóa đơn quá hạn từ sổ còn
+  dư ở mọi kỳ, hồ sơ tạm trú sắp/quá hạn. Lọc theo khu, ẩn thao tác không có
+  quyền; sổ hóa đơn tải lỗi thì hiện “chưa kiểm tra được”, không báo rỗng giả.
+  Không tính “bill chưa gửi” hoặc sửa chữa từ cache không đầy đủ; hai nguồn đó
+  vẫn là checklist chưa hoàn thành.
+- Tệp thay đổi: `index.html`, `style.css`, `app.js`, test dashboard mới, các
+  test pin phiên bản asset, `MONETIZATION_CHECKLIST.md`, `AI_DECISIONS.md` và
+  tài liệu này. Không có migration; chưa chạy trên Neon Production; chưa push
+  branch hoặc deploy Preview.
+- Kiểm tra: `node --test server/test/dashboard-action-center.test.js` đạt 4/4;
+  `npm test` đạt 553/553 khi được phép mở cổng local. Trình duyệt vào
+  `localhost:3000` bằng server đang chạy `npm start stg`: Tổng quan tải được,
+  trạng thái rỗng hiển thị, console không có error, viewport 390 px có
+  `scrollWidth=384` nhỏ hơn `innerWidth=390`. Tài khoản đang mở không có phòng,
+  nên đây **chưa phải** bằng chứng E2E cho ba trạng thái có việc/nút dẫn hướng.
+- Bước an toàn tiếp theo: tạo hoặc dùng tài khoản thử có dữ liệu trên staging,
+  xác minh từng nhóm việc, bộ lọc khu và quyền nhân viên ở UI trước khi xin
+  phép phát hành; không dùng dữ liệu Production để thử.
 
 ## Mục tiêu đang theo đuổi
 

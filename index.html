@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=166" />
+  <link rel="stylesheet" href="style.css?v=167" />
   <link rel="stylesheet" href="date-input.css?v=1" />
   <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
@@ -188,6 +188,17 @@
           </div>
         </div>
       </div>
+
+      <section class="dashboard-actions" aria-labelledby="dashboard-actions-title">
+        <div class="dashboard-section-heading">
+          <div>
+            <span class="dashboard-section-kicker">Theo dõi vận hành</span>
+            <h2 id="dashboard-actions-title">Việc cần xử lý</h2>
+          </div>
+          <p>Chỉ số theo kỳ đang xem; công nợ và tạm trú tính đến hôm nay.</p>
+        </div>
+        <div id="dashboard-action-list" class="dashboard-action-list" aria-live="polite"></div>
+      </section>
 
       <section class="dashboard-finance" aria-labelledby="dashboard-finance-title">
         <div class="dashboard-section-heading">
@@ -3400,7 +3411,7 @@
   <script src="ui-dialog.js?v=1"></script>
   <script src="plan-selection.js?v=1"></script>
   <script src="date-input.js?v=4"></script>
-  <script src="app.js?v=166"></script>
+  <script src="app.js?v=167"></script>
 </body>
 
 </html>

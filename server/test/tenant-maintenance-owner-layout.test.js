@@ -51,5 +51,5 @@ test('modal chủ trọ cuộn nội dung, thu gọn an toàn và giữ nguyên 
   assert.match(app, /data-maintenance-assignment/);
   assert.match(app, /data-maintenance-status=/);
   assert.match(app, /data-maintenance-expense=/);
-  assert.match(html, /href="style\.css\?v=166"[\s\S]*src="app\.js\?v=166"/);
+  assert.match(html, /href="style\.css\?v=167"[\s\S]*src="app\.js\?v=167"/);
 });

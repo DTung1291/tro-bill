@@ -1189,3 +1189,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   lịch sử dữ liệu. Ngày sai (kể cả ngày không tồn tại) bị chặn bằng form validity.
 - **Phạm vi:** Chỉ ô ngày đầy đủ; ô chọn kỳ tháng (`type=month`) vẫn biểu diễn
   tháng/năm, không gán ngày giả để ép `dd/mm/yyyy`.
+
+## D-062 — Việc cần xử lý trên Tổng quan chỉ dùng trạng thái đã xác minh
+
+- **Trạng thái:** Đã implement local trên branch `feat/dashboard-action-center`
+  ngày 28/09/2026; chưa kiểm thử staging hoặc phát hành Production.
+- **Quyết định:** Chỉ số chưa nhập lấy từ phòng đang thuê của kỳ đang chọn;
+  công nợ quá hạn lấy từ hóa đơn còn dư trong sổ máy chủ ở mọi kỳ, xét hạn theo
+  múi giờ Việt Nam; tạm trú dùng cùng quy tắc nhắc 30 ngày và loại khách đã trả
+  phòng theo D-059. Số đếm lọc theo khu và chỉ hiện hành động người dùng có
+  quyền mở. Nếu không tải được sổ hóa đơn, báo chưa kiểm tra được thay vì báo
+  không có nợ.
+- **Giới hạn:** Chưa hiện “bill chưa gửi” khi chưa có nguồn tổng hợp delivery
+  đáng tin cậy; thao tác chia sẻ Zalo không tự chứng minh đã gửi. Yêu cầu sửa
+  chữa cần endpoint tổng hợp theo quyền thay vì đọc cache của popup hợp đồng.

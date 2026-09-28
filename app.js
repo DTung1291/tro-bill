@@ -114,6 +114,7 @@ let CURRENT_SUBSCRIPTION_ORDER = null;
 let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
+let RENT_INVOICE_SUMMARIES_AVAILABLE = false;
 let FINANCIAL_REPORT_CACHE = new Map();
 let FINANCIAL_REPORT_REQUEST_SEQUENCE = 0;
 let FINANCIAL_REPORT_FILTER = {
@@ -252,13 +253,14 @@ function rentInvoiceKey(roomId, period) {
   return `${period}::${roomId}`;
 }
 
-function setRentInvoiceSummaries(invoices) {
+function setRentInvoiceSummaries(invoices, available = true) {
   RENT_INVOICE_SUMMARIES = new Map(
     (Array.isArray(invoices) ? invoices : []).map((invoice) => [
       rentInvoiceKey(invoice.roomId, invoice.period),
       invoice
     ])
   );
+  RENT_INVOICE_SUMMARIES_AVAILABLE = available;
   invalidateDashboardTrend();
 }
 
@@ -1610,6 +1612,7 @@ function clearSensitiveStateFromMemory() {
   STATE.currentPeriod = null;
   STATE.history = [];
   RENT_INVOICE_SUMMARIES = new Map();
+  RENT_INVOICE_SUMMARIES_AVAILABLE = false;
   FINANCIAL_REPORT_CACHE = new Map();
   FINANCIAL_REPORT_REQUEST_SEQUENCE += 1;
   FINANCIAL_REPORT_FILTER = {
@@ -4090,6 +4093,7 @@ function renderDashboard() {
     ? STATE.rooms.filter(room => Number(room.propertyId) === Number(selectedProperty.id))
     : STATE.rooms;
   renderTemporaryResidenceAlerts(visibleRooms);
+  renderDashboardActionCenter(visibleRooms, period);
 
   let totalAmt = 0, totalPaid = 0, totalElec = 0, totalWater = 0;
   let entered = 0;
@@ -4167,6 +4171,89 @@ function renderDashboard() {
     ? `Tiền đã thu - chi phí của ${selectedProperty.name}`
     : 'Tiền đã thu - toàn bộ chi phí thực tế';
   renderDashboardTrend();
+}
+
+function renderDashboardActionCenter(rooms, period) {
+  const container = document.getElementById('dashboard-action-list');
+  if (!container) return;
+  const roomIds = new Set(rooms.map(room => String(room.id)));
+  const actions = [];
+
+  if (workspacePageAllowed('billing') && period <= vietnamCalendarDate().slice(0, 7)) {
+    const missingReadings = rooms.filter(room => {
+      const status = getRoomOperationalStatus(room.id).status;
+      const hasCurrentTenant = (room.tenants || []).some(tenant => tenant.temporaryResidenceCurrent !== false);
+      return (status === 'occupied' || (status === 'unknown' && hasCurrentTenant))
+        && (!room.rentStartDate || String(room.rentStartDate).slice(0, 7) <= period)
+        && !getPeriodRecord(room.id, period);
+    });
+    if (missingReadings.length) actions.push({
+      kind: 'meters', count: missingReadings.length, icon: '⚡',
+      title: 'Chưa nhập chỉ số', detail: `Kỳ ${periodLabel(period)} · phòng đang thuê`,
+      target: 'billing', button: 'Nhập chỉ số'
+    });
+  }
+
+  // Sổ hóa đơn chỉ được tải cho chủ trọ. Không diễn giải việc không tải là "không có nợ".
+  if (isOwnerWorkspace() && workspacePageAllowed('report') && !RENT_INVOICE_SUMMARIES_AVAILABLE) {
+    actions.push({
+      kind: 'debt', count: '—', icon: '₫',
+      title: 'Chưa kiểm tra được công nợ', detail: 'Mở hóa đơn để tải lại dữ liệu',
+      target: 'report', button: 'Mở hóa đơn'
+    });
+  } else if (isOwnerWorkspace() && workspacePageAllowed('report')) {
+    const overdue = [...RENT_INVOICE_SUMMARIES.values()].filter(invoice => {
+      if (!roomIds.has(String(invoice.roomId)) || !DebtAge.isPeriod(invoice.period)) return false;
+      const remaining = Math.max(0, Number(invoice.remainingVnd) || 0);
+      if (!remaining) return false;
+      return DebtAge.classify(invoice.period, remaining, {
+        issuedAt: invoice.issuedAt,
+        dueDate: invoice.invoiceDueDate || invoice.dueDate
+      }).isOverdue;
+    });
+    if (overdue.length) actions.push({
+      kind: 'debt', count: overdue.length, icon: '₫',
+      title: 'Hóa đơn quá hạn', detail: 'Chưa thu đủ · mọi kỳ',
+      target: 'report', period: overdue.map(invoice => invoice.period).sort()[0], button: 'Xem hóa đơn'
+    });
+  }
+
+  if (workspacePageAllowed('rooms')) {
+    const residenceCount = rooms.reduce((count, room) => count + (room.tenants || []).filter(tenant =>
+      ['soon', 'expired'].includes(temporaryResidenceStatus(tenant).level)
+    ).length, 0);
+    if (residenceCount) actions.push({
+      kind: 'residence', count: residenceCount, icon: '🪪',
+      title: 'Tạm trú cần gia hạn', detail: 'Sắp hết hạn hoặc đã quá hạn',
+      target: 'residence', button: 'Xem hồ sơ'
+    });
+  }
+
+  if (!actions.length) {
+    container.innerHTML = '<p class="dashboard-actions-empty">✓ Không có việc cần xử lý trong phạm vi đang xem.</p>';
+    return;
+  }
+  container.innerHTML = actions.map(action => `
+    <article class="dashboard-action dashboard-action--${action.kind}">
+      <span class="dashboard-action-icon" aria-hidden="true">${action.icon}</span>
+      <div class="dashboard-action-copy">
+        <strong>${escapeHtml(action.title)}</strong>
+        <span>${escapeHtml(action.detail)}</span>
+      </div>
+      <span class="dashboard-action-count"${Number.isInteger(action.count) ? ` aria-label="${action.count} việc"` : ' aria-label="Chưa rõ số lượng"'}>${action.count}</span>
+      <button type="button" class="btn btn--ghost btn--sm" data-dashboard-action="${action.target}"${action.period ? ` data-action-period="${action.period}"` : ''}>${action.button}</button>
+    </article>`).join('');
+  container.querySelectorAll('[data-dashboard-action]').forEach(button => button.addEventListener('click', () => {
+    const target = button.dataset.dashboardAction;
+    if (target === 'residence') {
+      document.getElementById('temporary-residence-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (target === 'report' && button.dataset.actionPeriod) {
+      STATE.currentPeriod = button.dataset.actionPeriod;
+    }
+    navigate(target);
+  }));
 }
 
 function temporaryResidenceStatus(tenant, today = vietnamCalendarDate()) {
@@ -13259,7 +13346,7 @@ async function startApp() {
     ownerWorkspace ? API.getSubscription() : Promise.resolve(readOnlyEntitlement),
     ownerWorkspace ? API.getRentPaymentSummaries().catch((error) => {
       console.warn('Không tải được sổ giao dịch tiền trọ:', error.message);
-      return { invoices: [] };
+      return { invoices: [], unavailable: true };
     }) : Promise.resolve({ invoices: [] }),
     ownerWorkspace ? API.getRoomMaintenance().catch((error) => {
       console.warn('Không tải được lịch sử bảo trì:', error.message);
@@ -13280,7 +13367,7 @@ async function startApp() {
   applyServerEntitlements(entitlement);
   loadState(serverState);
   applyRoomOperationalStatusPayload(maintenanceResult);
-  setRentInvoiceSummaries(rentPaymentsResult.invoices || []);
+  setRentInvoiceSummaries(rentPaymentsResult.invoices || [], !rentPaymentsResult.unavailable);
   if (expectedGeneration !== _sessionGeneration ||
       expectedAccountContext !== API.getAccountContext() ||
       expectedWorkspaceId !== API.getWorkspaceAccountId()) return;

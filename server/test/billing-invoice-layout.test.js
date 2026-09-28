@@ -46,5 +46,5 @@ test('luồng nhập chỉ số và hóa đơn có tiến độ, CTA và respons
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.bill-details\s*\{[^}]*display:\s*none;[^}]*\}[\s\S]*?\.bill-card\.is-expanded \.bill-details\s*\{[^}]*display:\s*block;/
   );
-  assert.match(html, /href="style\.css\?v=166"[\s\S]*src="app\.js\?v=166"/);
+  assert.match(html, /href="style\.css\?v=167"[\s\S]*src="app\.js\?v=167"/);
 });

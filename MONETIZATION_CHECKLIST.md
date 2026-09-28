@@ -475,6 +475,20 @@ scan sạch.
   thêm bộ lọc trạng thái và tiến độ trực quan cho từng yêu cầu. Thay đổi chỉ ở
   giao diện client, giữ nguyên token, quyền, API, audit và sổ chi phí hiện có.
 
+### Việc cần xử lý trên Tổng quan
+
+- [ ] Hiển thị số phòng đang thuê chưa nhập chỉ số của kỳ đang xem, hóa đơn quá
+  hạn chưa thu đủ từ sổ thanh toán và hồ sơ tạm trú sắp/quá hạn. Số lượng phải
+  đúng khu đang lọc; nút dẫn tới đúng nghiệp vụ và tôn trọng quyền nhân viên.
+  Giao diện + test local đã implement trên branch `feat/dashboard-action-center`;
+  còn cần kiểm thử thao tác thực tế trên staging trước khi đánh dấu hoàn thành.
+- [ ] Bổ sung nguồn tổng hợp trạng thái gửi hóa đơn theo kỳ/khu trước khi hiện
+  mục “bill chưa gửi”; không suy diễn từ việc hóa đơn chưa thanh toán. Với chia
+  sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận.
+- [ ] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
+  giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
+  hợp đồng làm số đếm trên Tổng quan.
+
 ### Hoàn thành giai đoạn khi
 
 - [x] Một chủ trọ có thể giao việc cho nhân viên mà không phải cấp toàn quyền tài khoản.
