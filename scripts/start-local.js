@@ -4,9 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const readline = require('node:readline/promises');
-const { parse } = require('dotenv');
+const { createRequire } = require('node:module');
 
 const serverDir = path.resolve(__dirname, '..', 'server');
+const { parse } = createRequire(path.join(serverDir, 'package.json'))('dotenv');
 const profiles = {
   dev: { file: '.env.local-dev', databaseEnvironment: 'development' },
   stg: { file: '.env.local-stg', databaseEnvironment: 'staging' },

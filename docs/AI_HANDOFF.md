@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — bản sửa đã qua UI/API staging, migration Production đã xác minh; chờ push `main` và smoke test |
+| Trạng thái | Đang làm — Production đã lên bản tạm trú; đang sửa lỗi CI do vị trí `dotenv` của script local |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Push `main` theo xác nhận của chủ sản phẩm, xác minh deployment và smoke test Production; giữ nguyên fixture staging ID `10` |
+| Phần ứng dụng phát hành gần nhất | `8bda88f` trên Production, readiness/schema `ok`; CI của commit này thất bại vì script local tìm `dotenv` ở root |
+| Việc code tiếp theo | Push bản vá CI đã test, xác minh CI và smoke Production; giữ nguyên fixture staging ID `10` |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 đã push 8 commit tạm trú/bản sửa occupancy lên `main`;
+  Production deployment của `8bda88f` ở trạng thái Ready, alias chính trả
+  revision `8bda88f5e12b`, readiness báo database/schema `ok`, runtime role
+  `restricted`; `/api/state` và `/api/room-maintenance` đều trả 401 khi chưa
+  đăng nhập, frontend dùng `app.js?v=166`. CI run `36375901343` thất bại duy
+  nhất vì `scripts/start-local.js` nạp `dotenv` từ root trong khi runner chỉ
+  cài dependencies trong `server/`; không phải lỗi API Production. Đã sửa
+  script để nạp đúng từ `server/`; local test mục tiêu 4/4 và bộ đầy đủ 545/545
+  đạt, chờ xác minh CI sau push bản vá. Không thử đăng nhập/ghi dữ liệu Prod.
 
 - Ngày 28/09/2026, sau xác nhận của chủ sản phẩm, đã chạy
   `server/migrations/20260928_tenant_temporary_residence.sql` trong Neon SQL
