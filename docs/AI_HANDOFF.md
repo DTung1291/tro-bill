@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — đổi ô nhập ngày sang dd/mm/yyyy trên branch riêng; UI local nối staging và test đều đạt, chưa phát hành |
-| Branch chuẩn | `main`; phần việc đang làm ở `feat/vietnamese-date-inputs` |
+| Trạng thái | Sẵn sàng bàn giao — ô nhập ngày dd/mm/yyyy đã phát hành; staging UI, CI và Production readiness đạt |
+| Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `5435ead` trên Production; CI run `36376089736` xanh, readiness database/schema `ok` |
-| Việc code tiếp theo | Chủ sản phẩm kiểm tra ô nhập ngày trên local nối staging; chỉ push/merge vào `main` sau khi được xác nhận |
+| Phần ứng dụng phát hành gần nhất | `44f2348` trên Production; CI run `36403062066` xanh, readiness database/schema `ok` |
+| Việc code tiếp theo | Chủ sản phẩm kiểm tra thao tác nhập ngày/lịch trên Production bằng tài khoản thật; báo lại nếu có màn hình đặc thù còn lệch |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,14 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 chủ sản phẩm cho phép phát hành ô ngày dd/mm/yyyy. Đã
+  fast-forward branch `feat/vietnamese-date-inputs` vào `main`, push commit
+  `44f2348`; CI run `36403062066` thành công. Alias Production trả revision
+  `44f234865b06`, readiness database/schema `ok`, role `restricted`; HTML nạp
+  `date-input.css?v=1` và `date-input.js?v=4` đều trả 200, API không đăng nhập
+  trả 401. Full test 549/549 và secret scan đạt. Không migration/ghi dữ liệu
+  thử trên Production; chưa đăng nhập Production để kiểm tra thao tác lưu thật.
 
 - Ngày 28/09/2026 đang đổi các `input type=date` và `datetime-local` trong
   `index.html`, form tạo động từ `app.js` và `admin.html` sang nhập hiển thị

@@ -1181,8 +1181,7 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-061 — Nhập ngày theo thứ tự Việt Nam, giữ ISO ở ranh giới dữ liệu
 
-- **Trạng thái:** Đã implement trên branch `feat/vietnamese-date-inputs` ngày
-  28/09/2026; chưa phát hành Production.
+- **Trạng thái:** Đã phát hành Production từ commit `44f2348` ngày 28/09/2026.
 - **Quyết định:** Các ô nhập ngày và ngày-giờ ở app/chức năng Super Admin hiển
   thị, nhận nhập tay theo `dd/mm/yyyy` hoặc `dd/mm/yyyy hh:mm`, độc lập locale
   trình duyệt. Nút lịch vẫn dùng date picker hệ thống. JS nghiệp vụ và API tiếp
