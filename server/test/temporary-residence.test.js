@@ -5,10 +5,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { currentTenantPredicate } = require('../tenant-occupancy');
 
 const root = path.resolve(__dirname, '../..');
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const state = fs.readFileSync(path.join(root, 'server/state.js'), 'utf8');
+const maintenance = fs.readFileSync(path.join(root, 'server/room-maintenance.js'), 'utf8');
+const lifecycle = fs.readFileSync(path.join(root, 'server/rental-lifecycle.js'), 'utf8');
 const source = app.slice(
   app.indexOf('function temporaryResidenceStatus('),
   app.indexOf('function renderTemporaryResidenceAlerts(')
@@ -28,8 +31,18 @@ test('nhắc trước hạn 30 ngày, ngày hết hạn và quá hạn', () => {
 test('sau trả phòng vẫn giữ ngày nhưng không nhắc', () => {
   const former = status({ temporaryResidenceCurrent: false, temporaryResidenceExpiresOn: '2026-09-01' });
   assert.equal(former.level, 'former');
-  assert.match(state, /contract\.status='active'/);
-  assert.match(state, /NOT EXISTS \([\s\S]*FROM rental_contracts contract/);
+  assert.match(state, /currentTenantPredicate\('tenant'\)/);
+});
+
+test('khách có hợp đồng đã kết thúc không chiếm phòng hoặc chặn thao tác phòng trống', () => {
+  const predicate = currentTenantPredicate('occupant');
+  assert.match(predicate, /current_contract\.room_id=occupant\.room_id/);
+  assert.match(predicate, /current_contract\.status='active'/);
+  assert.match(predicate, /ended_contract\.status='ended'/);
+  assert.match(maintenance, /COUNT\(\*\)::int AS active_tenant_count FROM tenants occupant[\s\S]*currentTenantPredicate\('occupant'\)/);
+  assert.match(maintenance, /AS has_tenant[\s\S]*currentTenantPredicate\('occupant'\)|currentTenantPredicate\('occupant'\)[\s\S]*AS has_tenant/);
+  assert.equal((lifecycle.match(/currentTenantPredicate\('occupant'\)/g) || []).length, 2);
+  assert.throws(() => currentTenantPredicate('untrusted; DROP TABLE tenants'), /không hợp lệ/);
 });
 
 test('hồ sơ chưa có ngày hết hạn không bị coi là quá hạn', () => {

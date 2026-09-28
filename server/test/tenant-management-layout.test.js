@@ -39,7 +39,8 @@ test('modal khách trọ tách danh sách, hồ sơ, bảo vệ CCCD và respons
 
   assert.match(app, /function setTenantFormOpen\(isOpen\)[\s\S]*body\.classList\.toggle\('is-form-open', isOpen\)/);
   assert.match(app, /function setTenantFormOpen\(isOpen\)[\s\S]*form\.hidden = !isOpen/);
-  assert.match(app, /tenants\.length\.toLocaleString\('vi-VN'\)[\s\S]*class="tenant-meta-grid"[\s\S]*class="tenant-actions"/);
+  assert.match(app, /currentCount\.toLocaleString\('vi-VN'\)[\s\S]*class="tenant-meta-grid"[\s\S]*class="tenant-actions"/);
+  assert.match(html, /Khách đang ở và lịch sử trả phòng/);
   assert.match(app, /escapeHtml\(formatDate\(t\.issueDate\)\)[\s\S]*escapeHtml\(formatDate\(t\.dob\)\)/);
   assert.match(app, /function setCccdScanState\(state, title, message\)[\s\S]*card\.dataset\.scanState = state/);
   assert.match(app, /async function disposeCccdScanner\(scanner\)[\s\S]*if \(scanner\.isScanning\) await scanner\.stop\(\)/);
@@ -73,5 +74,5 @@ test('modal khách trọ tách danh sách, hồ sơ, bảo vệ CCCD và respons
     css,
     /@media\s*\(max-width:\s*480px\)[\s\S]*?\.tenant-scan-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/
   );
-  assert.match(html, /href="style\.css\?v=166"[\s\S]*src="app\.js\?v=165"/);
+  assert.match(html, /href="style\.css\?v=166"[\s\S]*src="app\.js\?v=166"/);
 });

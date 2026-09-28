@@ -12,6 +12,7 @@ const { RentBankSettingsError, normalizeRentBankSettings } = require('./rent-ban
 const { syncDefaultBankAccountFromSettings } = require('./rent-bank-accounts');
 const { restoreContractRateMilestones } = require('./rental-contracts');
 const { ensureDefaultProperty, propertyJson } = require('./properties');
+const { currentTenantPredicate } = require('./tenant-occupancy');
 const {
   DEFAULT_AFTER_DAYS,
   DEFAULT_BEFORE_DAYS,
@@ -295,15 +296,7 @@ async function buildState(uid, options = {}) {
       `SELECT tenant.*,
               tenant.temporary_residence_registered_on::text AS temporary_residence_registered_on_iso,
               tenant.temporary_residence_expires_on::text AS temporary_residence_expires_on_iso,
-              (EXISTS (
-                SELECT 1 FROM rental_contracts contract
-                WHERE contract.user_id=tenant.user_id AND contract.tenant_id=tenant.id
-                  AND contract.status='active'
-              ) OR NOT EXISTS (
-                SELECT 1 FROM rental_contracts contract
-                WHERE contract.user_id=tenant.user_id AND contract.tenant_id=tenant.id
-                  AND contract.status='ended'
-              )) AS temporary_residence_current
+              ${currentTenantPredicate('tenant')} AS temporary_residence_current
        FROM tenants tenant
        WHERE tenant.user_id=$1${childRoomScope('tenant')}
        ORDER BY tenant.sort_order`,

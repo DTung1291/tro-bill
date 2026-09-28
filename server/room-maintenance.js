@@ -3,6 +3,7 @@
 const db = require('./db');
 const subscription = require('./subscription');
 const { eventJson, expireReservations, insertEvent } = require('./rental-lifecycle');
+const { currentTenantPredicate } = require('./tenant-occupancy');
 
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
 
@@ -179,8 +180,9 @@ async function listMaintenance(req, res, dependencies = {}) {
          ORDER BY id DESC LIMIT 1
        ) contract ON TRUE
        LEFT JOIN LATERAL (
-         SELECT COUNT(*)::int AS active_tenant_count FROM tenants
-         WHERE user_id=room.user_id AND room_id=room.id
+         SELECT COUNT(*)::int AS active_tenant_count FROM tenants occupant
+         WHERE occupant.user_id=room.user_id AND occupant.room_id=room.id
+           AND ${currentTenantPredicate('occupant')}
        ) tenant ON TRUE
        LEFT JOIN LATERAL (
          SELECT id FROM rental_reservations
@@ -236,8 +238,9 @@ async function createMaintenance(req, res, dependencies = {}) {
          WHERE user_id=$1 AND room_id=$2 AND status='active'
        ) AS has_reservation,
        EXISTS (
-         SELECT 1 FROM tenants
-         WHERE user_id=$1 AND room_id=$2
+         SELECT 1 FROM tenants occupant
+         WHERE occupant.user_id=$1 AND occupant.room_id=$2
+           AND ${currentTenantPredicate('occupant')}
        ) AS has_tenant`,
       [req.userId, input.roomId]
     );

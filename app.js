@@ -6302,6 +6302,9 @@ function renderRooms() {
       : '';
 
     const roomStatus = getRoomOperationalStatus(room.id);
+    const currentTenantCount = Number.isInteger(roomStatus.activeTenantCount)
+      ? roomStatus.activeTenantCount
+      : (room.tenants || []).filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
     const statusBadge = `<span class="room-operational-status room-operational-status--${roomStatus.conflict ? 'conflict' : roomStatus.status}">${escapeHtml(roomStatus.label)}</span>`;
     const property = STATE.properties.find(item => item.id === Number(room.propertyId));
     const propertyBadge = property
@@ -6318,7 +6321,7 @@ function renderRooms() {
               ${statusBadge}
             </div>
           </div>
-          <span class="room-card-tenant-count">${room.tenants ? room.tenants.length : 0} khách</span>
+          <span class="room-card-tenant-count">${currentTenantCount} khách đang ở</span>
         </div>
 
         <div class="room-card-overview">
@@ -6338,7 +6341,7 @@ function renderRooms() {
 
         <div class="room-card-meta">
           ${rentStartLabel ? `<span>🔑 Bắt đầu thuê: <strong>${rentStartLabel}</strong></span>` : '<span>🔑 Chưa có ngày bắt đầu thuê</span>'}
-          <span>👥 Số người: <strong>${room.peopleCount || 1}</strong></span>
+          <span>👥 Số người tính nước: <strong>${room.peopleCount ?? 1}</strong></span>
           ${room.notes ? `<span>📝 ${escapeHtml(room.notes)}</span>` : ''}
         </div>
 
@@ -6355,7 +6358,7 @@ function renderRooms() {
         <div class="room-card-actions-main">
           <button class="btn btn--ghost btn--sm" data-lifecycle="${room.id}">📦 Vận hành &amp; tài sản</button>
           ${isOwnerWorkspace() ? `
-            <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Khách (${room.tenants ? room.tenants.length : 0})</button>
+            <button class="btn btn--ghost btn--sm" data-tenants="${room.id}">👥 Hồ sơ (${room.tenants ? room.tenants.length : 0})</button>
             <button class="btn btn--ghost btn--sm" data-contracts="${room.id}">📄 Hợp đồng</button>
           ` : ''}
         </div>
@@ -12376,7 +12379,8 @@ function renderTenantsList(roomId) {
   container.innerHTML = '';
   
   const tenants = room.tenants || [];
-  if (count) count.textContent = `${tenants.length.toLocaleString('vi-VN')} khách`;
+  const currentCount = tenants.filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
+  if (count) count.textContent = `${currentCount.toLocaleString('vi-VN')} đang ở · ${(tenants.length - currentCount).toLocaleString('vi-VN')} đã trả`;
   if (tenants.length === 0) {
     container.innerHTML = '<div class="tenant-empty"><strong>Phòng chưa có khách trọ</strong><span>Thêm hồ sơ đầu tiên để quản lý liên hệ, tiền cọc và hợp đồng.</span></div>';
     return;
@@ -12524,7 +12528,7 @@ function deleteTenant(roomId, tenantId) {
       room.tenants = room.tenants.filter(t => t.id !== tenantId);
       
       // Auto sync peopleCount
-      room.peopleCount = room.tenants.length;
+      room.peopleCount = room.tenants.filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
 
       try {
         saveState();
@@ -12879,7 +12883,7 @@ function initTenantsEvents() {
     }
     
     // Auto sync people count
-    room.peopleCount = room.tenants.length;
+    room.peopleCount = room.tenants.filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
     
     try {
       saveState();

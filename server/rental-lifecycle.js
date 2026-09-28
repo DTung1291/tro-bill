@@ -12,6 +12,7 @@ const {
   contractJson,
   syncRentRate
 } = require('./rental-contracts');
+const { currentTenantPredicate } = require('./tenant-occupancy');
 
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
 
@@ -328,8 +329,9 @@ async function createReservation(req, res, dependencies = {}) {
       );
     }
     const tenants = await client.query(
-      `SELECT id FROM tenants
-       WHERE user_id=$1 AND room_id=$2
+      `SELECT occupant.id FROM tenants occupant
+       WHERE occupant.user_id=$1 AND occupant.room_id=$2
+         AND ${currentTenantPredicate('occupant')}
        LIMIT 1`,
       [req.userId, input.roomId]
     );
@@ -557,8 +559,9 @@ async function transferContract(req, res, dependencies = {}) {
          WHERE user_id=$1 AND room_id=$2 AND status='active'
        ) AS has_maintenance,
        EXISTS (
-         SELECT 1 FROM tenants
-         WHERE user_id=$1 AND room_id=$2
+         SELECT 1 FROM tenants occupant
+         WHERE occupant.user_id=$1 AND occupant.room_id=$2
+           AND ${currentTenantPredicate('occupant')}
        ) AS has_tenant`,
       [req.userId, input.targetRoomId]
     );

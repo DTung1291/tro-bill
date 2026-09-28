@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — test UI staging phát hiện phòng đã trả vẫn bị tính đang thuê; chưa được phát hành Production |
+| Trạng thái | Đang làm — đã sửa cách đếm khách hiện tại, API staging đạt; chờ test UI bản sửa và phát hành Production |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Sửa cách xác định khách đang ở/trạng thái phòng khi hợp đồng đã `ended`, giữ hồ sơ lịch sử; kiểm thử lại staging trước Production |
+| Việc code tiếp theo | Test UI bản sửa trên local nối staging (cổng 3108), sau đó migration Production và push `main` nếu đạt |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,19 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 đã sửa quy tắc khách đang ở thành một SQL predicate dùng
+  chung trong `server/tenant-occupancy.js`: khách có hợp đồng active đúng phòng
+  được tính hiện tại; khách nhập tay chưa từng có hợp đồng ended cũng được tính;
+  hồ sơ có hợp đồng ended không còn chiếm phòng hoặc chặn giữ chỗ, bắt đầu sửa,
+  chuyển phòng. `server/state.js` dùng cùng quy tắc cho nhắc tạm trú. UI hiển
+  thị số khách hiện tại riêng với số hồ sơ, không gọi khách đã trả là người
+  đang ở; nút hồ sơ vẫn mở lịch sử. Test mục tiêu 20/20, bộ đầy đủ 545/545,
+  secret scan sạch. Truy vấn read-only trên Neon staging của fixture ID `10`
+  cho 4 phòng hiện tại `active_count=1`; phòng có hợp đồng ended `active_count=0`
+  nhưng `saved_count=1`. API `/api/room-maintenance` trên bản code mới, local
+  cổng 3108 nối staging, trả phòng thứ năm `vacant`/0 và bốn phòng còn lại
+  `occupied`/1. Chưa kiểm tra UI trên cổng 3108; chưa đụng Production.
 
 - Ngày 28/09/2026 đã đăng nhập tài khoản thử ID `10` qua UI local chạy
   `npm start stg`: dashboard hiện đúng 3 cảnh báo (quá hạn 5 ngày, hết hạn hôm
