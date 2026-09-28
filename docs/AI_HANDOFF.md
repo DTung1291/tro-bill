@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — đã sửa cách đếm khách hiện tại, API staging đạt; chờ test UI bản sửa và phát hành Production |
+| Trạng thái | Đang làm — bản sửa đã qua UI/API staging; chờ migration Production trước khi push `main` |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Test UI bản sửa trên local nối staging (cổng 3108), sau đó migration Production và push `main` nếu đạt |
+| Việc code tiếp theo | Sau khi được xác nhận, chạy migration tạm trú trên Production, kiểm tra schema rồi push `main` và smoke test |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 kiểm thử UI **bản sửa** trên local cổng 3108 nối Neon
+  `staging-privacy` bằng tài khoản test ID `10`: dashboard vẫn đúng 3 cảnh báo;
+  phòng thứ năm hiện `Trống`/`0 khách đang ở`; popup “Hồ sơ” giữ đúng 1 hồ sơ
+  đã trả phòng, ghi `0 đang ở · 1 đã trả`, CCCD vẫn che. Ở viewport 390×844,
+  popup nằm trong khung nhìn, không tràn ngang. API cùng server trả bốn phòng
+  `occupied`/1, phòng đã trả `vacant`/0. Full test 545/545, secret scan sạch,
+  worktree sạch sau commit `c0db46c`. Truy vấn **chỉ đọc** trên Production
+  xác minh đúng branch `br-fancy-star-azyclc1h / neondb`, runtime role hạn
+  chế, nhưng còn thiếu cả 2 cột tạm trú và constraint. **Không push code trước
+  migration Production.** Dữ liệu test staging ID `10` tiếp tục giữ nguyên.
 
 - Ngày 28/09/2026 đã sửa quy tắc khách đang ở thành một SQL predicate dùng
   chung trong `server/tenant-occupancy.js`: khách có hợp đồng active đúng phòng
