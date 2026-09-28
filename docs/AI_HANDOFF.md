@@ -9,7 +9,7 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — migration tạm trú staging đạt, chờ kiểm tra giao diện và rollout production riêng |
+| Trạng thái | Đang làm — migration và dữ liệu thử tạm trú staging đạt, chờ kiểm tra giao diện và rollout production riêng |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
@@ -94,6 +94,17 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 tạo và **giữ lại** tài khoản test tạm trú riêng ID `10` trên
+  Neon `staging-privacy` (`br-ancient-wave-azwc43to / neondb`) theo yêu cầu
+  chủ sản phẩm. Có 5 phòng/5 hồ sơ giả lập: hết hạn hôm nay, sắp hết hạn 14
+  ngày, quá hạn 5 ngày, còn hạn 60 ngày và đã trả phòng/quá hạn. Trường hợp
+  trả phòng có 1 hợp đồng `ended`; `GET /api/state` local nối staging xác nhận
+  các ngày và `temporaryResidenceCurrent=false` đúng cho hồ sơ này. Truy vấn
+  chỉ đọc sau tạo xác nhận 5 phòng, 5 khách, 1 hợp đồng kết thúc. Tài khoản
+  thử tạo dở ID `9` (chưa xác minh, 0 phòng) đã được xóa có guard; không xóa
+  bộ dữ liệu ID `10`. Không ghi credential vào Git/tài liệu. Chưa xác minh UI
+  trực quan trên staging/Preview; production chưa được triển khai.
 
 - Ngày 28/09/2026 chủ sản phẩm yêu cầu ghi nhớ quy trình bắt buộc:
   local test → staging/Preview test luồng thật → ghi kết quả → chỉ khi thành công
