@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — Production đã lên bản tạm trú; đang sửa lỗi CI do vị trí `dotenv` của script local |
+| Trạng thái | Sẵn sàng bàn giao — tính năng tạm trú và sửa occupancy đã qua staging, lên Production; CI bản vá xanh |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `8bda88f` trên Production, readiness/schema `ok`; CI của commit này thất bại vì script local tìm `dotenv` ở root |
-| Việc code tiếp theo | Push bản vá CI đã test, xác minh CI và smoke Production; giữ nguyên fixture staging ID `10` |
+| Phần ứng dụng phát hành gần nhất | `5435ead` trên Production; CI run `36376089736` xanh, readiness database/schema `ok` |
+| Việc code tiếp theo | Chủ sản phẩm kiểm tra luồng tạm trú trên staging bằng fixture ID `10`; chỉ xóa fixture khi chủ sản phẩm yêu cầu |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,11 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 bản vá `5435ead` đã push `main`; CI run `36376089736`
+  hoàn tất thành công gồm test/security/audit. Alias Production trả revision
+  `5435eada90d4`, readiness `ok`, database/schema `ok`, role `restricted`.
+  Truy vấn không đăng nhập vẫn 401. Không thêm dữ liệu thử vào Production.
 
 - Ngày 28/09/2026 đã push 8 commit tạm trú/bản sửa occupancy lên `main`;
   Production deployment của `8bda88f` ở trạng thái Ready, alias chính trả
