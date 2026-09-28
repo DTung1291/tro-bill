@@ -1150,3 +1150,19 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   khai báo không tự chứng minh đúng Neon branch; phải đối chiếu endpoint trong
   Neon trước khi điền profile. Vercel Preview/Production và quy trình migration
   không thay đổi.
+
+## D-059 — Nhắc hạn tạm trú theo hồ sơ khách và vòng đời thuê
+
+- **Trạng thái:** Đã implement local ngày 28/09/2026; chưa chạy migration/deploy.
+- **Quyết định:** Chủ trọ nhập ngày đăng ký và ngày hết hạn từ hồ sơ thực tế;
+  ứng dụng không tự suy thời hạn pháp lý. Tổng quan nhắc từ 30 ngày trước hạn,
+  ngày hết hạn và khi quá hạn, theo khu đang chọn. Đây là nhắc trong ứng dụng,
+  chưa tự gửi email/Zalo.
+- **Trả phòng:** Khi hợp đồng của khách chuyển sang `ended` và không có hợp đồng
+  `active`, ngừng nhắc ngay sau lần tải state tiếp theo. Ngày tạm trú và hồ sơ
+  khách vẫn giữ trong bảng `tenants`; chỉ thao tác xóa hồ sơ riêng mới xóa.
+  Khách chưa từng có hợp đồng `ended` vẫn được coi là đang ở để tương thích
+  hồ sơ cũ chưa tạo hợp đồng. Nếu nhận phòng lại bằng hợp đồng `active`, nhắc
+  tiếp tục từ ngày đã lưu.
+- **Triển khai:** Cột mới cần migration tiến tới trước khi đưa code mới lên
+  Preview/Production; không lưu ngày tạm trú trong snapshot hợp đồng/hóa đơn.

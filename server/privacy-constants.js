@@ -2,7 +2,7 @@
 
 const PRIVACY_POLICY_VERSION = '2026-09-08';
 const TERMS_VERSION = '2026-09-08';
-const TENANT_DATA_NOTICE_VERSION = '2026-08-24';
+const TENANT_DATA_NOTICE_VERSION = '2026-09-28';
 const PRIMARY_DATA_RETENTION = 'Xóa ngay khỏi database chính khi chủ tài khoản xác nhận xóa tài khoản.';
 const BACKUP_RETENTION_DAYS = 30;
 const AUDIT_RETENTION_DAYS = 365;

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=165" />
+  <link rel="stylesheet" href="style.css?v=166" />
   <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
 
@@ -234,6 +234,17 @@
             <div class="card-sub">phòng đã hoàn thành</div>
           </div>
         </div>
+      </section>
+
+      <section class="temporary-residence-panel" aria-labelledby="temporary-residence-title">
+        <div class="dashboard-section-heading">
+          <div>
+            <span class="dashboard-section-kicker">Hồ sơ lưu trú</span>
+            <h2 id="temporary-residence-title">Tạm trú cần gia hạn</h2>
+          </div>
+          <p>Nhắc trước 30 ngày và khi quá hạn; người đã trả phòng không được nhắc.</p>
+        </div>
+        <div id="temporary-residence-alerts" class="temporary-residence-alerts" aria-live="polite"></div>
       </section>
 
       <section class="dashboard-trend" aria-labelledby="dashboard-trend-title">
@@ -3151,9 +3162,24 @@
             <input class="form-input" type="text" id="tenant-address" placeholder="Thôn A, Xã B, Huyện C, Tỉnh D" required />
           </div>
 
+          <fieldset class="tenant-residence-fields">
+            <legend>Đăng ký tạm trú</legend>
+            <p>Nhập ngày trên hồ sơ thực tế. Có thể cập nhật ngày mới sau khi đăng ký lại.</p>
+            <div class="form-row form-row--2col">
+              <div>
+                <label class="form-label" for="tenant-residence-registered">Ngày đăng ký gần nhất</label>
+                <input class="form-input" type="date" id="tenant-residence-registered" />
+              </div>
+              <div>
+                <label class="form-label" for="tenant-residence-expires">Ngày hết hạn</label>
+                <input class="form-input" type="date" id="tenant-residence-expires" />
+              </div>
+            </div>
+          </fieldset>
+
           <label class="tenant-data-notice">
             <input type="checkbox" id="tenant-data-notice-ack" required />
-            <span>Tôi xác nhận đã gửi hoặc cho khách thuê xem <a href="tenant-data-notice.html" target="_blank" rel="noopener">thông báo xử lý dữ liệu</a>: họ tên, liên hệ, ngày sinh, địa chỉ và CCCD được lưu để quản lý hồ sơ thuê, lập hóa đơn và hỗ trợ nghĩa vụ liên quan đến hợp đồng; không dùng cho quảng cáo hoặc bán cho bên thứ ba.</span>
+            <span>Tôi xác nhận đã gửi hoặc cho khách thuê xem <a href="tenant-data-notice.html" target="_blank" rel="noopener">thông báo xử lý dữ liệu</a>: thông tin định danh, liên hệ và ngày đăng ký/hết hạn tạm trú được lưu để quản lý hồ sơ thuê, nhắc gia hạn, lập hóa đơn và hỗ trợ nghĩa vụ liên quan đến hợp đồng; không dùng cho quảng cáo hoặc bán cho bên thứ ba.</span>
           </label>
           
           <div class="tenant-form-actions">
@@ -3372,7 +3398,7 @@
   <script src="financial-report-export.js?v=2"></script>
   <script src="ui-dialog.js?v=1"></script>
   <script src="plan-selection.js?v=1"></script>
-  <script src="app.js?v=164"></script>
+  <script src="app.js?v=165"></script>
 </body>
 
 </html>

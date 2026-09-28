@@ -51,6 +51,11 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
     }
     if (sql.includes('FROM rooms')) return { rows: [roomRow] };
     if (sql.includes('FROM settings')) return { rows: [] };
+    if (sql.includes('FROM tenants tenant')) return { rows: [{
+      id: 'tenant-1', room_id: 'room-1', full_name: 'Khách A', cccd: '012345678901',
+      temporary_residence_registered_on: '2026-08-01',
+      temporary_residence_expires_on: '2027-08-01', temporary_residence_current: false
+    }] };
     if (sql.includes('FROM billing_entries')) {
       return { rows: [{
         user_id: 7,
@@ -96,6 +101,9 @@ test('buildState gắn lịch sử biểu phí vào đúng phòng', async (t) =>
   assert.equal(state.rooms[0].rateHistory[1].rentPrice, 2500000);
   assert.equal(state.rooms[0].rentStartDate, '2026-08-10');
   assert.equal(state.rooms[0].propertyId, 3);
+  assert.equal(state.rooms[0].tenants[0].temporaryResidenceRegisteredOn, '2026-08-01');
+  assert.equal(state.rooms[0].tenants[0].temporaryResidenceExpiresOn, '2027-08-01');
+  assert.equal(state.rooms[0].tenants[0].temporaryResidenceCurrent, false);
   assert.equal(state.properties[0].name, 'Khu A');
   assert.equal(state.billingData['2026-08']['room-1'].discountAmount, 100000);
   assert.equal(state.billingData['2026-08']['room-1'].surchargeAmount, 50000);

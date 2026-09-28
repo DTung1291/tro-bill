@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 23/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — công tắc local và hai profile Neon đã cấu hình; chưa chạy kết nối database |
+| Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đang làm — quản lý hạn tạm trú đã implement local, chờ migration và kiểm tra giao diện trên staging |
 | Branch chuẩn | `main` |
-| Worktree kỳ vọng | Sạch sau commit; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Phối hợp xoay credential staging và cập nhật Preview/local cùng lúc trước khi thử kết nối staging |
+| Việc code tiếp theo | Chạy migration tạm trú trên staging khi được phép, kiểm tra UI desktop/mobile và luồng trả phòng thực tế trước khi phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -94,6 +94,16 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   `contract-template.js`, chu kỳ bởi `rental-contract-cycle.js`.
 
 ## Mốc đã giao gần đây
+
+- Ngày 28/09/2026 thêm ngày đăng ký/hết hạn tạm trú vào hồ sơ khách và dashboard
+  nhắc trước 30 ngày/quá hạn. `server/state.js` suy việc ngừng nhắc từ hợp đồng
+  `ended` khi không còn hợp đồng `active`; hồ sơ khách vẫn giữ. Có migration
+  `20260928_tenant_temporary_residence.sql`, schema đồng bộ, notice dữ liệu cập
+  nhật, test trạng thái/validation/compatibility và cache pin mới. Đã chuẩn bị
+  commit local nhưng chưa push; chưa chạy migration ở staging/production, chưa
+  deploy hoặc smoke UI với DB thật.
+  Bộ test đầy đủ chạy ngoài sandbox đạt 544/544; trong sandbox 12 test cần bind
+  localhost bị EPERM. Chưa có kiểm tra layout thực tế do schema local chưa áp dụng.
 
 - Ngày 23/09/2026 tạo `server/.env.local-stg` và `.env.local-pro` ngoài Git,
   quyền file `0600`. Vercel CLI xác nhận project `dtung/tro-bill` có biến

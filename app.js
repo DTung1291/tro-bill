@@ -1759,6 +1759,9 @@ function loadState(savedObj) {
           dob: t.dob || '',
           gender: t.gender || 'Nam',
           address: t.address || '',
+          temporaryResidenceRegisteredOn: t.temporaryResidenceRegisteredOn || '',
+          temporaryResidenceExpiresOn: t.temporaryResidenceExpiresOn || '',
+          temporaryResidenceCurrent: t.temporaryResidenceCurrent !== false,
           dataNoticeAcknowledged: !!t.dataNoticeAcknowledged,
           dataNoticeVersion: t.dataNoticeVersion || ''
         })) : [],
@@ -4086,6 +4089,7 @@ function renderDashboard() {
   const visibleRooms = selectedProperty
     ? STATE.rooms.filter(room => Number(room.propertyId) === Number(selectedProperty.id))
     : STATE.rooms;
+  renderTemporaryResidenceAlerts(visibleRooms);
 
   let totalAmt = 0, totalPaid = 0, totalElec = 0, totalWater = 0;
   let entered = 0;
@@ -4163,6 +4167,42 @@ function renderDashboard() {
     ? `Tiền đã thu - chi phí của ${selectedProperty.name}`
     : 'Tiền đã thu - toàn bộ chi phí thực tế';
   renderDashboardTrend();
+}
+
+function temporaryResidenceStatus(tenant, today = vietnamCalendarDate()) {
+  if (tenant.temporaryResidenceCurrent === false) return { level: 'former', label: 'Đã trả phòng · không nhắc' };
+  const expiresOn = tenant.temporaryResidenceExpiresOn || '';
+  if (!expiresOn) return { level: 'missing', label: 'Chưa nhập ngày hết hạn' };
+  const days = Math.round((Date.parse(`${expiresOn}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  if (!Number.isFinite(days)) return { level: 'missing', label: 'Ngày hết hạn không hợp lệ' };
+  if (days < 0) return { level: 'expired', label: `Quá hạn ${-days} ngày · cần đăng ký lại`, days };
+  if (days === 0) return { level: 'expired', label: 'Hết hạn hôm nay · cần đăng ký lại', days };
+  if (days <= 30) return { level: 'soon', label: `Còn ${days} ngày · cần gia hạn`, days };
+  return { level: 'valid', label: `Hết hạn ${dateLabel(expiresOn)}`, days };
+}
+
+function renderTemporaryResidenceAlerts(rooms) {
+  const container = document.getElementById('temporary-residence-alerts');
+  if (!container) return;
+  const alerts = rooms.flatMap(room => (room.tenants || []).map(tenant => ({
+    room, tenant, status: temporaryResidenceStatus(tenant)
+  }))).filter(item => ['soon', 'expired'].includes(item.status.level))
+    .sort((a, b) => a.status.days - b.status.days);
+  if (!alerts.length) {
+    container.innerHTML = '<p class="temporary-residence-empty">Không có hồ sơ tạm trú sắp hết hạn hoặc quá hạn trong khu đang xem.</p>';
+    return;
+  }
+  container.innerHTML = alerts.map(({ room, tenant, status }) => `
+    <div class="temporary-residence-alert temporary-residence-alert--${status.level}">
+      <div><strong>${escapeHtml(tenant.fullName || 'Khách thuê')}</strong>
+        <span>${escapeHtml(room.name)} · ${escapeHtml(status.label)}</span></div>
+      <button type="button" class="btn btn--ghost btn--sm" data-residence-room="${escapeHtml(room.id)}" data-residence-tenant="${escapeHtml(tenant.id)}">Xem hồ sơ</button>
+    </div>`).join('');
+  container.querySelectorAll('[data-residence-room]').forEach(button => button.addEventListener('click', () => {
+    navigate('rooms');
+    openTenantsModal(button.dataset.residenceRoom);
+    openTenantForm(button.dataset.residenceRoom, button.dataset.residenceTenant);
+  }));
 }
 
 // ============================================================
@@ -12345,6 +12385,7 @@ function renderTenantsList(roomId) {
   tenants.forEach(t => {
     const item = document.createElement('div');
     item.className = 'tenant-item';
+    const residenceStatus = temporaryResidenceStatus(t);
     
     const formatDate = (dateStr) => {
       if (!dateStr) return '—';
@@ -12367,6 +12408,7 @@ function renderTenantsList(roomId) {
             <div class="tenant-sensitive-value"><strong data-tenant-cccd-value="${escapeHtml(t.id)}">${escapeHtml(maskCccdForDisplay(t.cccd))}</strong><button type="button" class="link-btn" data-reveal-tenant="${escapeHtml(t.id)}">Xem</button></div>
           </div>
           <div class="tenant-meta-row"><span>Ngày sinh</span><strong>${escapeHtml(formatDate(t.dob))}</strong></div>
+          <div class="tenant-meta-row tenant-meta-row--wide"><span>Tạm trú</span><strong class="temporary-residence-status temporary-residence-status--${residenceStatus.level}">${escapeHtml(residenceStatus.label)}</strong>${t.temporaryResidenceRegisteredOn ? `<small>Đăng ký ${escapeHtml(formatDate(t.temporaryResidenceRegisteredOn))}</small>` : ''}</div>
           <div class="tenant-meta-row tenant-meta-row--wide"><span>Thường trú</span><strong>${escapeHtml(t.address || '—')}</strong></div>
         </div>
       </div>
@@ -12452,6 +12494,8 @@ function openTenantForm(roomId, tenantId = null) {
     document.getElementById('tenant-dob').value = t.dob || '';
     document.getElementById('tenant-gender').value = t.gender || 'Nam';
     document.getElementById('tenant-address').value = t.address || '';
+    document.getElementById('tenant-residence-registered').value = t.temporaryResidenceRegisteredOn || '';
+    document.getElementById('tenant-residence-expires').value = t.temporaryResidenceExpiresOn || '';
     noticeCheckbox.checked = !!t.dataNoticeAcknowledged;
   } else {
     document.getElementById('tenant-form-title').textContent = 'Thêm khách trọ mới';
@@ -12782,6 +12826,8 @@ function initTenantsEvents() {
     const dob = document.getElementById('tenant-dob').value;
     const gender = document.getElementById('tenant-gender').value;
     const address = document.getElementById('tenant-address').value.trim();
+    const temporaryResidenceRegisteredOn = document.getElementById('tenant-residence-registered').value;
+    const temporaryResidenceExpiresOn = document.getElementById('tenant-residence-expires').value;
     const dataNoticeAcknowledged = document.getElementById('tenant-data-notice-ack').checked;
     
     if (!fullName || !cccd || !dob || !gender || !address || !issueDate) {
@@ -12790,6 +12836,11 @@ function initTenantsEvents() {
     }
     if (!dataNoticeAcknowledged) {
       showToast('Cần xác nhận đã thông báo mục đích thu thập dữ liệu cho khách thuê', 'error');
+      return;
+    }
+    if (temporaryResidenceRegisteredOn && temporaryResidenceExpiresOn
+        && temporaryResidenceExpiresOn < temporaryResidenceRegisteredOn) {
+      showToast('Ngày hết hạn tạm trú không được trước ngày đăng ký', 'error');
       return;
     }
     
@@ -12809,6 +12860,11 @@ function initTenantsEvents() {
       dob,
       gender,
       address,
+      temporaryResidenceRegisteredOn,
+      temporaryResidenceExpiresOn,
+      temporaryResidenceCurrent: id
+        ? room.tenants.find(tenant => tenant.id === id)?.temporaryResidenceCurrent !== false
+        : true,
       dataNoticeAcknowledged: true
     };
     
@@ -12835,6 +12891,7 @@ function initTenantsEvents() {
     }
     renderTenantsList(activeTenantRoomId);
     renderRooms(); // Refresh the room-detail count
+    renderDashboard();
     showToast(successMessage, 'success');
     
     setTenantFormOpen(false);

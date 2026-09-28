@@ -9845,6 +9845,21 @@ body.workspace-staff-active .main { padding-top: 112px; }
   overflow-wrap: anywhere;
 }
 .tenant-meta-row--wide { grid-column: 1 / -1; }
+.tenant-meta-row small { color: var(--text-muted); font-size: .72rem; }
+.temporary-residence-status--expired { color: #b42318 !important; }
+.temporary-residence-status--soon { color: #9a5800 !important; }
+.temporary-residence-status--former { color: var(--text-muted) !important; }
+.tenant-residence-fields { margin: 0 0 16px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+.tenant-residence-fields legend { padding: 0 5px; font-weight: 700; }
+.tenant-residence-fields p { margin: 0 0 12px; color: var(--text-muted); font-size: .8rem; }
+.temporary-residence-panel { margin: 22px 0; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg2); }
+.temporary-residence-alerts { display: grid; gap: 8px; margin-top: 14px; }
+.temporary-residence-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); }
+.temporary-residence-alert > div { display: grid; gap: 3px; min-width: 0; }
+.temporary-residence-alert span, .temporary-residence-empty { color: var(--text-muted); font-size: .8rem; }
+.temporary-residence-alert--expired { border-color: #e9a8a3; }
+.temporary-residence-alert--soon { border-color: #e8cd8b; }
+@media (max-width: 480px) { .temporary-residence-alert { align-items: flex-start; flex-direction: column; } }
 .tenant-sensitive-value {
   display: flex;
   align-items: center;

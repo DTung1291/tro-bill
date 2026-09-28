@@ -29,6 +29,16 @@ const orNull = (v) => (v === '' || v === undefined || v === null ? null : Number
 const strOrNull = (v) => (v === '' || v === undefined || v === null ? null : String(v));
 const INVOICE_ADJUSTMENT_FIELDS = ['discountAmount', 'surchargeAmount', 'lateFeeAmount'];
 const TENANT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function validOptionalDate(value) {
+  if (value === '' || value === null || value === undefined) return true;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function dateOnly(value) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value || '');
+}
 
 function hasInvalidInvoiceAdjustment(source = {}) {
   return INVOICE_ADJUSTMENT_FIELDS.some((field) => {
@@ -58,15 +68,18 @@ const TENANT_SENSITIVE_FIELDS = [
   ['issueDate', 'issue_date'],
   ['dob', 'dob'],
   ['gender', 'gender'],
-  ['address', 'address']
+  ['address', 'address'],
+  ['temporaryResidenceRegisteredOn', 'temporary_residence_registered_on'],
+  ['temporaryResidenceExpiresOn', 'temporary_residence_expires_on']
 ];
 
 function changedTenantFields(existing, tenant, resolvedCccd) {
   if (!existing) return TENANT_SENSITIVE_FIELDS.map(([clientField]) => clientField);
   return TENANT_SENSITIVE_FIELDS
     .filter(([clientField, databaseField]) => {
+      if (tenant[clientField] === undefined && clientField.startsWith('temporaryResidence')) return false;
       const nextValue = clientField === 'cccd' ? resolvedCccd : tenant[clientField];
-      return String(existing[databaseField] || '') !== String(nextValue || '');
+      return dateOnly(existing[`${databaseField}_iso`] || existing[databaseField]) !== dateOnly(nextValue);
     })
     .map(([clientField]) => clientField);
 }
@@ -279,7 +292,19 @@ async function buildState(uid, options = {}) {
       scopeParams
     ),
     db.query(
-      `SELECT tenant.* FROM tenants tenant
+      `SELECT tenant.*,
+              tenant.temporary_residence_registered_on::text AS temporary_residence_registered_on_iso,
+              tenant.temporary_residence_expires_on::text AS temporary_residence_expires_on_iso,
+              (EXISTS (
+                SELECT 1 FROM rental_contracts contract
+                WHERE contract.user_id=tenant.user_id AND contract.tenant_id=tenant.id
+                  AND contract.status='active'
+              ) OR NOT EXISTS (
+                SELECT 1 FROM rental_contracts contract
+                WHERE contract.user_id=tenant.user_id AND contract.tenant_id=tenant.id
+                  AND contract.status='ended'
+              )) AS temporary_residence_current
+       FROM tenants tenant
        WHERE tenant.user_id=$1${childRoomScope('tenant')}
        ORDER BY tenant.sort_order`,
       scopeParams
@@ -350,6 +375,9 @@ async function buildState(uid, options = {}) {
       dob: t.dob,
       gender: t.gender,
       address: t.address,
+      temporaryResidenceRegisteredOn: dateOnly(t.temporary_residence_registered_on_iso || t.temporary_residence_registered_on),
+      temporaryResidenceExpiresOn: dateOnly(t.temporary_residence_expires_on_iso || t.temporary_residence_expires_on),
+      temporaryResidenceCurrent: t.temporary_residence_current !== false,
       dataNoticeAcknowledged: !!t.data_notice_acknowledged_at &&
         t.data_notice_version === TENANT_DATA_NOTICE_VERSION,
       dataNoticeVersion: t.data_notice_version || ''
@@ -574,6 +602,15 @@ async function putState(req, res) {
         return res.status(400).json({
           error: 'Email nhận hóa đơn của khách thuê không hợp lệ',
           code: 'INVALID_TENANT_EMAIL'
+        });
+      }
+      const registeredOn = tenant?.temporaryResidenceRegisteredOn;
+      const expiresOn = tenant?.temporaryResidenceExpiresOn;
+      if (!validOptionalDate(registeredOn) || !validOptionalDate(expiresOn)
+          || (registeredOn && expiresOn && expiresOn < registeredOn)) {
+        return res.status(400).json({
+          error: 'Ngày đăng ký hoặc hết hạn tạm trú không hợp lệ',
+          code: 'INVALID_TEMPORARY_RESIDENCE_DATES'
         });
       }
       tenantIds.add(tenantId);
@@ -861,6 +898,10 @@ async function putState(req, res) {
     const [existingTenantResult, existingRateResult, existingBillingResult] = await Promise.all([
       client.query(
         `SELECT id, full_name, phone, email, cccd, issue_date, dob, gender, address,
+                temporary_residence_registered_on,
+                temporary_residence_registered_on::text AS temporary_residence_registered_on_iso,
+                temporary_residence_expires_on,
+                temporary_residence_expires_on::text AS temporary_residence_expires_on_iso,
                 data_notice_version, data_notice_acknowledged_at
          FROM tenants WHERE user_id=$1`,
         [uid]
@@ -950,6 +991,12 @@ async function putState(req, res) {
 
         resolvedTenants.set(tenant.id, {
           cccd: resolvedCccd,
+          temporaryResidenceRegisteredOn: tenant.temporaryResidenceRegisteredOn === undefined
+            ? dateOnly(existing?.temporary_residence_registered_on_iso || existing?.temporary_residence_registered_on)
+            : tenant.temporaryResidenceRegisteredOn || '',
+          temporaryResidenceExpiresOn: tenant.temporaryResidenceExpiresOn === undefined
+            ? dateOnly(existing?.temporary_residence_expires_on_iso || existing?.temporary_residence_expires_on)
+            : tenant.temporaryResidenceExpiresOn || '',
           dataNoticeAcknowledgedAt: noticePreviouslyAcknowledged
             ? existing.data_notice_acknowledged_at
             : (noticeAcknowledged ? new Date().toISOString() : null),
@@ -1069,13 +1116,16 @@ async function putState(req, res) {
         await client.query(
           `INSERT INTO tenants
              (id, room_id, user_id, full_name, phone, email, cccd, issue_date, dob, gender,
-              address, data_notice_version, data_notice_acknowledged_at, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+              address, data_notice_version, data_notice_acknowledged_at, sort_order,
+              temporary_residence_registered_on, temporary_residence_expires_on)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
           [
             t.id, r.id, uid, t.fullName || '', t.phone || '',
             String(t.email || '').trim().toLowerCase(), resolved.cccd,
             t.issueDate || '', t.dob || '', t.gender || 'Nam', t.address || '',
-            resolved.dataNoticeVersion, resolved.dataNoticeAcknowledgedAt, tIdx++
+            resolved.dataNoticeVersion, resolved.dataNoticeAcknowledgedAt, tIdx++,
+            strOrNull(resolved.temporaryResidenceRegisteredOn),
+            strOrNull(resolved.temporaryResidenceExpiresOn)
           ]
         );
       }

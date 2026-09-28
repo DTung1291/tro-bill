@@ -1066,6 +1066,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   dob        TEXT NOT NULL DEFAULT '',
   gender     TEXT NOT NULL DEFAULT 'Nam',
   address    TEXT NOT NULL DEFAULT '',
+  temporary_residence_registered_on DATE,
+  temporary_residence_expires_on DATE,
   data_notice_version TEXT NOT NULL DEFAULT '',
   data_notice_acknowledged_at TIMESTAMPTZ,
   sort_order INTEGER NOT NULL DEFAULT 0,
@@ -1077,6 +1079,19 @@ CREATE TABLE IF NOT EXISTS tenants (
   )
 );
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS temporary_residence_registered_on DATE;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS temporary_residence_expires_on DATE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname='tenants_temporary_residence_dates_valid'
+  ) THEN
+    ALTER TABLE tenants ADD CONSTRAINT tenants_temporary_residence_dates_valid
+      CHECK (temporary_residence_registered_on IS NULL
+        OR temporary_residence_expires_on IS NULL
+        OR temporary_residence_expires_on >= temporary_residence_registered_on);
+  END IF;
+END $$;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_version TEXT NOT NULL DEFAULT '';
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS data_notice_acknowledged_at TIMESTAMPTZ;
 DO $$
@@ -1221,6 +1236,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rental_contracts_one_active_room
   ON rental_contracts(user_id, room_id) WHERE status='active';
 CREATE INDEX IF NOT EXISTS idx_rental_contracts_user_room
   ON rental_contracts(user_id, room_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rental_contracts_user_tenant_status
+  ON rental_contracts(user_id, tenant_id, status);
 
 -- Phụ lục thay đổi giá là append-only. Mỗi phụ lục đồng thời tạo đúng một mốc
 -- room_rate_history để công thức hóa đơn tiếp tục dùng một nguồn giá duy nhất.

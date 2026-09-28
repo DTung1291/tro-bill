@@ -243,6 +243,8 @@ test('putState giữ CCCD gốc khi client gửi bản che và audit trường �
             dob: '1999-01-01',
             gender: 'Nam',
             address: 'Đà Nẵng',
+            temporary_residence_registered_on_iso: '2026-08-01',
+            temporary_residence_expires_on_iso: '2027-08-01',
             data_notice_version: '2026-08-24',
             data_notice_acknowledged_at: new Date('2026-08-24T00:00:00Z')
           }]
@@ -280,9 +282,26 @@ test('putState giữ CCCD gốc khi client gửi bản che và audit trường �
   const auditInsert = calls.find(call => call.sql.includes('INSERT INTO data_audit_logs'));
   assert.equal(tenantInsert.params[5], 'tenant@example.com');
   assert.equal(tenantInsert.params[6], '079099001234', 'không ghi dấu che vào database');
+  assert.deepEqual(tenantInsert.params.slice(14, 16), ['2026-08-01', '2027-08-01'],
+    'client cũ không được xóa ngày tạm trú đã lưu');
   assert.deepEqual(auditInsert.params[6], ['phone']);
   assert.equal(auditInsert.params.includes('079099001234'), false, 'audit không lưu dữ liệu nhạy cảm');
   assert.equal(response.record.body.ok, true);
+
+  const updated = responseRecorder();
+  await putState(privacyRequest({ body: { rooms: [{
+    id: 'room-1',
+    tenants: [{
+      id: 'tenant-1', fullName: 'Nguyễn Văn A', phone: '0900000000',
+      email: 'tenant@example.com', cccd: '••••••••1234',
+      issueDate: '2021-01-01', dob: '1999-01-01', gender: 'Nam',
+      address: 'Đà Nẵng', temporaryResidenceRegisteredOn: '2026-09-01',
+      temporaryResidenceExpiresOn: '2027-09-01', dataNoticeAcknowledged: true
+    }]
+  }] } }), updated.res);
+  const latestTenantInsert = calls.filter(call => call.sql.includes('INSERT INTO tenants')).at(-1);
+  assert.deepEqual(latestTenantInsert.params.slice(14, 16), ['2026-09-01', '2027-09-01']);
+  assert.equal(updated.record.body.ok, true);
 });
 
 test('khách thuê mới bắt buộc xác nhận đã thông báo mục đích thu thập', async (t) => {
@@ -333,4 +352,21 @@ test('putState từ chối email khách thuê sai trước khi ghi database', as
   }), response.res);
   assert.equal(response.record.statusCode, 400);
   assert.equal(response.record.body.code, 'INVALID_TENANT_EMAIL');
+});
+
+test('putState từ chối ngày tạm trú sai hoặc hết hạn trước ngày đăng ký', async () => {
+  for (const [registered, expires] of [
+    ['2026-02-30', '2026-03-30'],
+    ['2026-09-10', '2026-09-09'],
+    ['2026-09-10', 'không phải ngày']
+  ]) {
+    const response = responseRecorder();
+    await putState(privacyRequest({ body: { rooms: [{
+      id: 'room-1',
+      tenants: [{ id: 'tenant-1', temporaryResidenceRegisteredOn: registered,
+        temporaryResidenceExpiresOn: expires }]
+    }] } }), response.res);
+    assert.equal(response.record.statusCode, 400);
+    assert.equal(response.record.body.code, 'INVALID_TEMPORARY_RESIDENCE_DATES');
+  }
 });
