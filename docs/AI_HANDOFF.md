@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — quản lý hạn tạm trú đã implement local, chờ migration và kiểm tra giao diện trên staging |
+| Trạng thái | Đang làm — migration tạm trú staging đạt, chờ kiểm tra giao diện và rollout production riêng |
 | Branch chuẩn | `main` |
 | Worktree kỳ vọng | Sạch sau commit local; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `4957bd5` đã push `main`; chưa xác minh deployment Production của commit đó |
-| Việc code tiếp theo | Chạy migration tạm trú trên staging khi được phép, kiểm tra UI desktop/mobile và luồng trả phòng thực tế trước khi phát hành |
+| Việc code tiếp theo | Kiểm tra UI desktop/mobile và luồng trả phòng trên staging; chỉ rollout production sau migration production được phép |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -99,11 +99,21 @@ quy trình điều chỉnh/thay thế là mục code tiếp theo nhưng không �
   nhắc trước 30 ngày/quá hạn. `server/state.js` suy việc ngừng nhắc từ hợp đồng
   `ended` khi không còn hợp đồng `active`; hồ sơ khách vẫn giữ. Có migration
   `20260928_tenant_temporary_residence.sql`, schema đồng bộ, notice dữ liệu cập
-  nhật, test trạng thái/validation/compatibility và cache pin mới. Đã chuẩn bị
-  commit local nhưng chưa push; chưa chạy migration ở staging/production, chưa
-  deploy hoặc smoke UI với DB thật.
+  nhật, test trạng thái/validation/compatibility và cache pin mới. Đã commit
+  local `1dc3a86` nhưng chưa push. Migration đã chạy trên Neon staging-privacy
+  `br-ancient-wave-azwc43to / neondb`, 4/4 cờ cột/constraint/quyền đạt;
+  runtime role đọc cột mới được. Production chưa chạy migration/deploy.
   Bộ test đầy đủ chạy ngoài sandbox đạt 544/544; trong sandbox 12 test cần bind
-  localhost bị EPERM. Chưa có kiểm tra layout thực tế do schema local chưa áp dụng.
+  localhost bị EPERM. Chưa có kiểm tra layout thực tế với phiên đăng nhập.
+
+- Ngày 28/09/2026 xử lý `npm start stg` trả lỗi 500: health cũ báo
+  `schema: ok` dù staging thiếu hai cột tạm trú. Trước migration xác nhận
+  staging thiếu 2/2 cột qua role local, health 200; sau migration xác nhận
+  readiness SQL mới `schemaReady=true`, `missingMigrations=[]`. Bổ sung hai
+  cột/constraint/quyền vào `server/health.js` và
+  `server/schema-diagnostics.js` để lần sau báo đúng migration cần chạy.
+  Test mục tiêu health/diagnostic đạt 11/11. Chưa smoke phiên đăng nhập thật
+  hoặc giao diện local sau migration; không đọc hay ghi hồ sơ khách khi xác minh.
 
 - Ngày 23/09/2026 tạo `server/.env.local-stg` và `.env.local-pro` ngoài Git,
   quyền file `0600`. Vercel CLI xác nhận project `dtung/tro-bill` có biến

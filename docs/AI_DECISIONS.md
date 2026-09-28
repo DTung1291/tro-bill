@@ -1153,7 +1153,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-059 — Nhắc hạn tạm trú theo hồ sơ khách và vòng đời thuê
 
-- **Trạng thái:** Đã implement local ngày 28/09/2026; chưa chạy migration/deploy.
+- **Trạng thái:** Đã implement local và migration staging ngày 28/09/2026;
+  chưa chạy migration production/deploy.
 - **Quyết định:** Chủ trọ nhập ngày đăng ký và ngày hết hạn từ hồ sơ thực tế;
   ứng dụng không tự suy thời hạn pháp lý. Tổng quan nhắc từ 30 ngày trước hạn,
   ngày hết hạn và khi quá hạn, theo khu đang chọn. Đây là nhắc trong ứng dụng,

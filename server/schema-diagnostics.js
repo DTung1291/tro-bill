@@ -21,7 +21,8 @@ const SCHEMA_MIGRATION_CHECKS = Object.freeze([
   ['tenant_maintenance_expenses', '20260905_tenant_maintenance_expenses.sql'],
   ['electronic_invoice_profiles', '20260907_electronic_invoice_profiles.sql'],
   ['electronic_invoice_preflight', '20260907_electronic_invoice_preflight.sql'],
-  ['electronic_invoice_records', '20260908_electronic_invoice_records.sql']
+  ['electronic_invoice_records', '20260908_electronic_invoice_records.sql'],
+  ['tenant_temporary_residence', '20260928_tenant_temporary_residence.sql']
 ]);
 
 const SCHEMA_DIAGNOSTICS_QUERY = `
@@ -160,7 +161,21 @@ const SCHEMA_DIAGNOSTICS_QUERY = `
       AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='electronic_invoice_events_provider_event_unique')
       AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='electronic_invoice_record_identity_before_update')
       AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='electronic_invoice_event_append_only_before_update')
-      AS electronic_invoice_records`;
+      AS electronic_invoice_records,
+    EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='tenants'
+        AND column_name='temporary_residence_registered_on' AND data_type='date'
+    )
+      AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='tenants'
+          AND column_name='temporary_residence_expires_on' AND data_type='date'
+      )
+      AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tenants_temporary_residence_dates_valid')
+      AND has_column_privilege(current_user, 'tenants', 'temporary_residence_registered_on', 'SELECT')
+      AND has_column_privilege(current_user, 'tenants', 'temporary_residence_expires_on', 'INSERT')
+      AS tenant_temporary_residence`;
 
 function missingSchemaMigrations(row = {}) {
   return SCHEMA_MIGRATION_CHECKS

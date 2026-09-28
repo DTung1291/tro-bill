@@ -254,7 +254,24 @@ const SCHEMA_READY_QUERY = `
     AND EXISTS (
       SELECT 1 FROM pg_trigger
       WHERE tgname='electronic_invoice_event_append_only_before_update'
-    ) AS schema_ready`;
+    )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='tenants'
+        AND column_name='temporary_residence_registered_on' AND data_type='date'
+    )
+    AND EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='tenants'
+        AND column_name='temporary_residence_expires_on' AND data_type='date'
+    )
+    AND EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname='tenants_temporary_residence_dates_valid'
+    )
+    AND has_column_privilege(current_user, 'tenants', 'temporary_residence_registered_on', 'SELECT')
+    AND has_column_privilege(current_user, 'tenants', 'temporary_residence_expires_on', 'INSERT')
+    AS schema_ready`;
 
 function runtimeRoleReady(appEnvironment, row = {}) {
   if (!['production', 'staging'].includes(appEnvironment)) return true;

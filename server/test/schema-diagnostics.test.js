@@ -16,6 +16,12 @@ test('diagnostic ánh xạ từng nhóm schema sang đúng migration tiến tớ
   const complete = Object.fromEntries(SCHEMA_MIGRATION_CHECKS.map(([key]) => [key, true]));
   assert.deepEqual(missingSchemaMigrations(complete), []);
 
+  complete.tenant_temporary_residence = false;
+  assert.deepEqual(missingSchemaMigrations(complete), [
+    '20260928_tenant_temporary_residence.sql'
+  ]);
+  complete.tenant_temporary_residence = true;
+
   complete.electronic_invoice_profiles = false;
   complete.electronic_invoice_preflight = false;
   assert.deepEqual(missingSchemaMigrations(complete), [
