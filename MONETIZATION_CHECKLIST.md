@@ -481,7 +481,8 @@ scan sạch.
   hạn chưa thu đủ từ sổ thanh toán và hồ sơ tạm trú sắp/quá hạn. Số lượng phải
   đúng khu đang lọc; nút dẫn tới đúng nghiệp vụ và tôn trọng quyền nhân viên.
   Giao diện + test local đã implement trên branch `feat/dashboard-action-center`;
-  còn cần kiểm thử thao tác thực tế trên staging trước khi đánh dấu hoàn thành.
+  Preview staging đã qua readiness/asset preflight. Còn cần kiểm thử thao tác
+  có dữ liệu trên UI staging trước khi đánh dấu hoàn thành.
 - [ ] Bổ sung nguồn tổng hợp trạng thái gửi hóa đơn theo kỳ/khu trước khi hiện
   mục “bill chưa gửi”; không suy diễn từ việc hóa đơn chưa thanh toán. Với chia
   sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận.

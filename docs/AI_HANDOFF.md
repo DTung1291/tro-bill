@@ -9,7 +9,7 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — trung tâm “Việc cần xử lý” trên Tổng quan đã qua test local; chờ kiểm thử tình huống có dữ liệu trên staging |
+| Trạng thái | Đang làm — nhánh tính năng đã lên Preview staging; chờ đăng nhập để kiểm thử tình huống có dữ liệu |
 | Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/dashboard-action-center` |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `44f2348` trên Production; CI run `36403062066` xanh, readiness database/schema `ok` |
@@ -29,8 +29,13 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   vẫn là checklist chưa hoàn thành.
 - Tệp thay đổi: `index.html`, `style.css`, `app.js`, test dashboard mới, các
   test pin phiên bản asset, `MONETIZATION_CHECKLIST.md`, `AI_DECISIONS.md` và
-  tài liệu này. Không có migration; chưa chạy trên Neon Production; chưa push
-  branch hoặc deploy Preview.
+  tài liệu này. Không có migration; chưa chạy trên Neon Production.
+- Commit `598b590` đã push lên `origin/feat/dashboard-action-center` theo yêu
+  cầu 28/09/2026. Preview `tro-bill-n6t48i0jr-dtung.vercel.app`
+  (`dpl_8Mv7TVQkxEH2ANvu2BAYpZ6VhyU6`) Ready, `/api/health/ready` qua
+  `vercel curl` trả revision `598b5902512b`, `environment=staging`, database,
+  schema và runtime role đều `ok`; HTML trả 200 và nạp `app.js?v=167`,
+  `style.css?v=167` cùng mục mới. Đây chỉ là preflight, không phải E2E.
 - Kiểm tra: `node --test server/test/dashboard-action-center.test.js` đạt 4/4;
   `npm test` đạt 553/553 khi được phép mở cổng local. Trình duyệt vào
   `localhost:3000` bằng server đang chạy `npm start stg`: Tổng quan tải được,
@@ -40,6 +45,10 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 - Bước an toàn tiếp theo: tạo hoặc dùng tài khoản thử có dữ liệu trên staging,
   xác minh từng nhóm việc, bộ lọc khu và quyền nhân viên ở UI trước khi xin
   phép phát hành; không dùng dữ liệu Production để thử.
+  Trình duyệt Brave đang gặp Vercel Authentication; Chrome không có kết nối
+  điều khiển. Đã nhờ chủ sản phẩm đăng nhập Vercel và tài khoản staging trên
+  Preview, chưa nhận xác nhận. Không tick checklist hoặc push `main` khi chưa
+  có bằng chứng UI này.
 
 ## Mục tiêu đang theo đuổi
 
