@@ -447,6 +447,14 @@ const API = (() => {
     );
   }
 
+  function confirmRentInvoiceZaloSend(invoiceId, input) {
+    return request(
+      'POST',
+      `/api/rent-invoices/${encodeURIComponent(invoiceId)}/confirm-zalo-send`,
+      input
+    );
+  }
+
   function scheduleRentInvoiceEmail(invoiceId, input) {
     return request(
       'POST',
@@ -888,6 +896,7 @@ const API = (() => {
     ignoreRentBankTransaction,
     createRentInvoiceShareLink,
     deliverRentInvoiceEmail,
+    confirmRentInvoiceZaloSend,
     scheduleRentInvoiceEmail,
     getRentInvoiceDeliverySchedules,
     cancelRentInvoiceDeliverySchedule,

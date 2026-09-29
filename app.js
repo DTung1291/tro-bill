@@ -4216,6 +4216,20 @@ function renderDashboardActionCenter(rooms, period) {
       title: 'Hóa đơn quá hạn', detail: 'Chưa thu đủ · mọi kỳ',
       target: 'report', period: overdue.map(invoice => invoice.period).sort()[0], button: 'Xem hóa đơn'
     });
+    const deliveryReview = [...RENT_INVOICE_SUMMARIES.values()].filter(invoice =>
+      invoice.period === period && roomIds.has(String(invoice.roomId))
+        && Number(invoice.remainingVnd) > 0 && invoice.deliveryStatus !== 'sent'
+    );
+    if (deliveryReview.length) {
+      const unsent = deliveryReview.filter(invoice => invoice.deliveryStatus === 'unsent').length;
+      const unknown = deliveryReview.length - unsent;
+      actions.push({
+        kind: 'delivery', count: deliveryReview.length, icon: '📨',
+        title: 'Cần kiểm tra gửi hóa đơn',
+        detail: `${unsent} chưa gửi · ${unknown} hóa đơn cũ chưa rõ`,
+        target: 'report', period, delivery: 'needs_review', button: 'Xem danh sách'
+      });
+    }
   }
 
   if (workspacePageAllowed('rooms')) {
@@ -4241,7 +4255,7 @@ function renderDashboardActionCenter(rooms, period) {
         <span>${escapeHtml(action.detail)}</span>
       </div>
       <span class="dashboard-action-count"${Number.isInteger(action.count) ? ` aria-label="${action.count} việc"` : ' aria-label="Chưa rõ số lượng"'}>${action.count}</span>
-      <button type="button" class="btn btn--ghost btn--sm" data-dashboard-action="${action.target}"${action.period ? ` data-action-period="${action.period}"` : ''}>${action.button}</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-dashboard-action="${action.target}"${action.period ? ` data-action-period="${action.period}"` : ''}${action.delivery ? ` data-action-delivery="${action.delivery}"` : ''}>${action.button}</button>
     </article>`).join('');
   container.querySelectorAll('[data-dashboard-action]').forEach(button => button.addEventListener('click', () => {
     const target = button.dataset.dashboardAction;
@@ -4251,6 +4265,8 @@ function renderDashboardActionCenter(rooms, period) {
     }
     if (target === 'report' && button.dataset.actionPeriod) {
       STATE.currentPeriod = button.dataset.actionPeriod;
+      const deliveryFilter = document.getElementById('invoice-list-delivery-status');
+      if (deliveryFilter) deliveryFilter.value = button.dataset.actionDelivery || 'all';
     }
     navigate(target);
   }));
@@ -7905,6 +7921,7 @@ function renderBillMessageTemplate() {
   const shareButton = document.getElementById('bill-message-share');
   const emailButton = document.getElementById('bill-message-email');
   const scheduleButton = document.getElementById('bill-message-schedule');
+  const confirmZaloButton = document.getElementById('bill-message-confirm-zalo');
   const contactNote = document.getElementById('bill-message-contact-note');
   if (!context || !selector || !content || !window.BillMessageTemplates) return '';
   const template = selector.value === 'reminder'
@@ -7916,6 +7933,7 @@ function renderBillMessageTemplate() {
   const tenant = selectedBillMessageTenant();
   if (emailButton) emailButton.disabled = !template || !tenant?.email;
   if (scheduleButton) scheduleButton.disabled = !template || !tenant?.email;
+  if (confirmZaloButton) confirmZaloButton.disabled = !tenant;
   if (contactNote) {
     if (!tenant) contactNote.textContent = 'Thêm khách thuê để chọn người nhận email.';
     else if (tenant.email) contactNote.textContent = `Email sẽ gửi đến ${tenant.email}.`;
@@ -7934,7 +7952,8 @@ function updateBillMessageZaloStatus(state = 'ready') {
     copied: ['Đã sao chép nội dung. Bấm “Mở Zalo Web”, chọn nhóm rồi dán để gửi.', 'success'],
     cancelled: ['Bạn đã đóng bảng chia sẻ; nội dung chưa được gửi.', 'warning'],
     copy_failed: ['Không sao chép được. Hãy chọn và sao chép nội dung thủ công.', 'error'],
-    error: ['Không chuẩn bị được nội dung Zalo. Vui lòng thử lại.', 'error']
+    error: ['Không chuẩn bị được nội dung Zalo. Vui lòng thử lại.', 'error'],
+    confirmed: ['Đã ghi nhận xác nhận của bạn rằng tin đã được gửi trong Zalo.', 'success']
   }[state] || ['', ''];
   status.textContent = content[0];
   status.className = `bill-message-zalo-status${content[1] ? ` bill-message-zalo-status--${content[1]}` : ''}`;
@@ -8081,8 +8100,20 @@ async function sendBillMessageEmail(event) {
       document.getElementById('bill-message-link-result').hidden = false;
       renderBillMessageTemplate();
     }
+    if (result.trackingSaved) {
+      try {
+        await refreshRentInvoiceSummaries();
+        renderDashboard();
+        renderReport();
+      } catch (_) {
+        showToast('Email đã gửi, nhưng chưa tải lại được trạng thái. Vui lòng làm mới trang.', 'info', 5000);
+        return;
+      }
+    }
     if (result.development) {
       showToast('Môi trường local: đã tạo link nhưng chưa gửi email thật.', 'info', 4500);
+    } else if (result.delivered && !result.trackingSaved) {
+      showToast('Email đã gửi nhưng chưa lưu được bằng chứng gửi. Vui lòng kiểm tra trước khi gửi lại.', 'error', 6000);
     } else {
       showToast(`Đã gửi email hóa đơn đến ${result.recipient || tenant.email}.`, 'success', 4000);
     }
@@ -8091,6 +8122,40 @@ async function sendBillMessageEmail(event) {
     showToast(error.message || 'Không gửi được email hóa đơn', 'error', 4500);
   } finally {
     button.disabled = !selectedBillMessageTenant()?.email;
+  }
+}
+
+async function confirmBillMessageZaloSend(event) {
+  const tenant = selectedBillMessageTenant();
+  if (!tenant) {
+    showToast('Hãy chọn khách nhận hóa đơn trước.', 'error');
+    return;
+  }
+  const templateType = document.getElementById('bill-message-template-type')?.value;
+  const confirmed = await UiDialog.confirm(
+    `Bạn xác nhận đã gửi ${templateType === 'reminder' ? 'tin nhắc' : 'hóa đơn'} trong đúng nhóm Zalo? TrọBill không thể tự kiểm chứng thao tác trong Zalo.`
+  );
+  if (!confirmed) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const invoiceId = await activeBillMessageInvoiceId();
+    if (!invoiceId) throw new Error('Chưa tạo được hóa đơn để xác nhận');
+    await API.confirmRentInvoiceZaloSend(invoiceId, {
+      tenantId: tenant.id,
+      templateType,
+      confirmed: true
+    });
+    await refreshRentInvoiceSummaries();
+    renderDashboard();
+    renderReport();
+    updateBillMessageZaloStatus('confirmed');
+    showToast('Đã ghi nhận xác nhận gửi Zalo.', 'success');
+  } catch (error) {
+    if (error.code === 401) return handleAuthExpired();
+    showToast(error.message || 'Không ghi nhận được trạng thái gửi Zalo.', 'error', 4500);
+  } finally {
+    button.disabled = !selectedBillMessageTenant();
   }
 }
 
@@ -8688,6 +8753,7 @@ document.getElementById('bill-message-template-type')?.addEventListener('change'
 document.getElementById('bill-message-tenant')?.addEventListener('change', renderBillMessageTemplate);
 document.getElementById('bill-message-copy')?.addEventListener('click', copyBillMessageTemplate);
 document.getElementById('bill-message-share')?.addEventListener('click', shareBillMessageTemplate);
+document.getElementById('bill-message-confirm-zalo')?.addEventListener('click', confirmBillMessageZaloSend);
 document.getElementById('bill-message-email')?.addEventListener('click', sendBillMessageEmail);
 document.getElementById('bill-message-schedule')?.addEventListener('click', scheduleBillMessageEmail);
 document.getElementById('bill-message-create-link')?.addEventListener('click', createBillMessageSystemLink);
@@ -9224,18 +9290,23 @@ function applyInvoiceListFilters() {
   const listEl = document.getElementById('report-list');
   const searchInput = document.getElementById('invoice-list-search');
   const statusSelect = document.getElementById('invoice-list-status');
+  const deliverySelect = document.getElementById('invoice-list-delivery-status');
   const resultCount = document.getElementById('invoice-list-result-count');
-  if (!listEl || !searchInput || !statusSelect || !resultCount) return;
+  if (!listEl || !searchInput || !statusSelect || !deliverySelect || !resultCount) return;
 
   const cards = [...listEl.querySelectorAll('[data-invoice-card]')];
   const query = normalizedInvoiceSearch(searchInput.value);
   const selectedStatus = statusSelect.value;
+  const selectedDelivery = deliverySelect.value;
   let visibleCount = 0;
 
   cards.forEach(card => {
     const matchesQuery = !query || card.dataset.invoiceSearch.includes(query);
     const matchesStatus = selectedStatus === 'all' || card.dataset.invoiceStatus === selectedStatus;
-    card.hidden = !(matchesQuery && matchesStatus);
+    const matchesDelivery = selectedDelivery === 'all'
+      || (selectedDelivery === 'needs_review' && card.dataset.invoiceDelivery !== 'sent')
+      || card.dataset.invoiceDelivery === selectedDelivery;
+    card.hidden = !(matchesQuery && matchesStatus && matchesDelivery);
     if (!card.hidden) visibleCount += 1;
   });
 
@@ -9244,7 +9315,7 @@ function applyInvoiceListFilters() {
     emptyState = document.createElement('div');
     emptyState.className = 'invoice-filter-empty';
     emptyState.dataset.invoiceFilterEmpty = '';
-    emptyState.innerHTML = '<span aria-hidden="true">🔎</span><strong>Không tìm thấy hóa đơn phù hợp</strong><small>Thử đổi từ khóa hoặc trạng thái thu tiền.</small>';
+    emptyState.innerHTML = '<span aria-hidden="true">🔎</span><strong>Không tìm thấy hóa đơn phù hợp</strong><small>Thử đổi từ khóa hoặc trạng thái lọc.</small>';
     listEl.appendChild(emptyState);
   }
   emptyState.hidden = visibleCount > 0 || cards.length === 0;
@@ -9339,12 +9410,21 @@ function renderReport() {
       : payment.paidAmountVnd > 0
         ? 'partial'
         : 'outstanding';
+    const invoice = RENT_INVOICE_SUMMARIES.get(rentInvoiceKey(room.id, period));
+    const deliveryStatus = RENT_INVOICE_SUMMARIES_AVAILABLE
+      ? (invoice?.deliveryStatus || 'unknown') : 'unknown';
+    const deliveryLabel = {
+      sent: '✓ Đã gửi',
+      unsent: 'Chưa gửi',
+      unknown: 'Chưa rõ đã gửi'
+    }[deliveryStatus] || 'Chưa rõ đã gửi';
     const detailId = `bill-card-detail-${String(room.id).replace(/[^a-zA-Z0-9_-]/g, '-')}-${period}`;
 
     const card = document.createElement('div');
     card.className = `bill-card${paid ? ' bill-card--settled' : ''}`;
     card.dataset.invoiceCard = '';
     card.dataset.invoiceStatus = paymentStatus;
+    card.dataset.invoiceDelivery = deliveryStatus;
     card.dataset.invoiceSearch = normalizedInvoiceSearch(`${room.name} ${transferReference} ${payment.invoiceId || ''}`);
     card.innerHTML = `
       <div class="bill-header">
@@ -9357,6 +9437,7 @@ function renderReport() {
           <span class="bill-total-label">Tổng hóa đơn</span>
           <div class="bill-total-big">${fmt(bill.total)}</div>
           ${debtAgeBadge(payment)}
+          <span class="bill-delivery-status bill-delivery-status--${deliveryStatus}">${deliveryLabel}</span>
         </div>
       </div>
       <button class="bill-card-toggle" type="button" aria-expanded="false" aria-controls="${detailId}">
@@ -10191,6 +10272,7 @@ document.getElementById('btn-review-bills')?.addEventListener('click', () => nav
 document.getElementById('btn-back-to-billing')?.addEventListener('click', () => navigate('billing'));
 document.getElementById('invoice-list-search')?.addEventListener('input', applyInvoiceListFilters);
 document.getElementById('invoice-list-status')?.addEventListener('change', applyInvoiceListFilters);
+document.getElementById('invoice-list-delivery-status')?.addEventListener('change', applyInvoiceListFilters);
 document.getElementById('report-prev-month').addEventListener('click', () => shiftPeriod(-1));
 document.getElementById('report-next-month').addEventListener('click', () => shiftPeriod(+1));
 document.getElementById('report-month-input').addEventListener('change', (e) => {

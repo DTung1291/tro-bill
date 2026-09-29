@@ -54,6 +54,7 @@ const rentPaymentChannels = require('./rent-payment-channels');
 const rentBankReconciliation = require('./rent-bank-reconciliation');
 const rentInvoiceLinks = require('./rent-invoice-links');
 const rentInvoiceDelivery = require('./rent-invoice-delivery');
+const rentInvoiceSendStatus = require('./rent-invoice-send-status');
 const rentInvoiceSchedules = require('./rent-invoice-schedules');
 const rentMeterPhotos = require('./rent-meter-photos');
 const rentPaymentProofs = require('./rent-payment-proofs');
@@ -239,6 +240,12 @@ app.post(
   requireAuth,
   writableSubscription,
   wrap(rentInvoiceDelivery.deliverInvoiceEmail)
+);
+app.post(
+  '/api/rent-invoices/:invoiceId/confirm-zalo-send',
+  requireAuth,
+  writableSubscription,
+  wrap(rentInvoiceSendStatus.confirmManualZalo)
 );
 app.post(
   '/api/rent-invoices/:invoiceId/delivery-schedules',

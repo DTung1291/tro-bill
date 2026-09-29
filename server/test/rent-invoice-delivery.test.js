@@ -79,6 +79,7 @@ test('gửi email khóa người nhận theo user, phòng và hóa đơn rồi t
   const originalQuery = db.query;
   let recipientQuery;
   let sentMessage;
+  let recordedDelivery;
   db.query = async (sql, params) => {
     recipientQuery = { sql, params };
     return {
@@ -99,6 +100,9 @@ test('gửi email khóa người nhận theo user, phòng và hóa đơn rồi t
     async sendRentInvoiceEmail(message) {
       sentMessage = message;
       return { delivered: true, emailId: 'brevo-message-1' };
+    },
+    async recordDirectEmailSuccess(event) {
+      recordedDelivery = event;
     }
   }));
 
@@ -113,6 +117,10 @@ test('gửi email khóa người nhận theo user, phòng và hóa đơn rồi t
   assert.equal(sentMessage.idempotencyKey.includes('tenant-1'), false);
   assert.equal(response.record.body.recipient, 't*****@example.com');
   assert.equal(response.record.body.publicUrl, sentMessage.invoiceUrl);
+  assert.equal(response.record.body.trackingSaved, true);
+  assert.equal(recordedDelivery.invoiceId, 41);
+  assert.equal(recordedDelivery.templateType, 'invoice');
+  assert.equal(recordedDelivery.emailId, 'brevo-message-1');
   assert.equal(response.record.headers['Cache-Control'], 'no-store');
 });
 

@@ -61,6 +61,20 @@ test('dashboard action center does not claim missing invoice data means no debt'
   assert.doesNotMatch(rendered, /Hóa đơn quá hạn/);
 });
 
+test('chỉ nhắc xác minh gửi của hóa đơn còn dư đúng kỳ và đúng phòng', () => {
+  const rendered = renderFixture({ invoices: [
+    { invoiceId: 1, roomId: 'occupied', period: '2026-09', remainingVnd: 1000, deliveryStatus: 'unsent' },
+    { invoiceId: 2, roomId: 'occupied', period: '2026-09', remainingVnd: 1000, deliveryStatus: 'unknown' },
+    { invoiceId: 3, roomId: 'occupied', period: '2026-09', remainingVnd: 1000, deliveryStatus: 'sent' },
+    { invoiceId: 4, roomId: 'elsewhere', period: '2026-09', remainingVnd: 1000, deliveryStatus: 'unsent' },
+    { invoiceId: 5, roomId: 'occupied', period: '2026-09', remainingVnd: 0, deliveryStatus: 'unsent' }
+  ] });
+  assert.match(rendered, /Cần kiểm tra gửi hóa đơn/);
+  assert.match(rendered, /1 chưa gửi · 1 hóa đơn cũ chưa rõ/);
+  assert.match(rendered, /data-action-delivery="needs_review"/);
+  assert.match(rendered, /aria-label="2 việc"/);
+});
+
 test('dashboard action center respects staff operation scope', () => {
   const rendered = renderFixture({ owner: false, operations: ['billing'] });
   assert.match(rendered, /Chưa nhập chỉ số/);

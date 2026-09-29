@@ -3755,7 +3755,7 @@ body.workspace-staff-active .main { padding-top: 112px; }
 }
 .invoice-list-controls {
   display: grid;
-  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, .65fr) auto;
+  grid-template-columns: minmax(210px, 1.2fr) repeat(2, minmax(150px, .7fr)) auto;
   align-items: end;
   gap: 10px;
   margin-bottom: 14px;
@@ -3784,6 +3784,20 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-weight: 700;
   white-space: nowrap;
 }
+.bill-delivery-status {
+  display: inline-flex;
+  align-self: flex-end;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+  text-align: right;
+}
+.bill-delivery-status--sent { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, var(--border)); }
+.bill-delivery-status--unsent { color: #b45309; border-color: color-mix(in srgb, #b45309 35%, var(--border)); }
 .financial-report {
   margin-bottom: 18px;
   overflow: hidden;
@@ -5424,6 +5438,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .bill-message-zalo-status--success { color: var(--green); }
 .bill-message-zalo-status--warning { color: #b45309; }
 .bill-message-zalo-status--error { color: var(--red); }
+.bill-message-confirm-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.45;
+}
 .bill-message-schedule {
   display: flex;
   flex-direction: column;

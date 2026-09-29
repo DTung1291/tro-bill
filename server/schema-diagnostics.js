@@ -5,6 +5,7 @@ const SCHEMA_MIGRATION_CHECKS = Object.freeze([
   ['rent_invoice_schedules', '20260826_rent_invoice_schedules.sql'],
   ['rent_invoice_auto_reminders', '20260827_rent_invoice_auto_reminders.sql'],
   ['invoice_due_date_policy', '20260912_invoice_due_date_policy.sql'],
+  ['rent_invoice_send_status', '20260929_rent_invoice_send_status.sql'],
   ['rental_contracts', '20260827_rental_contracts.sql'],
   ['contract_payment_cycles', '20260828_contract_payment_cycles.sql'],
   ['rental_contract_notifications', '20260828_rental_contract_expiry_notifications.sql'],
@@ -54,6 +55,19 @@ const SCHEMA_DIAGNOSTICS_QUERY = `
     ) AND EXISTS (
       SELECT 1 FROM pg_constraint WHERE conname='settings_invoice_due_days_valid'
     ) AS invoice_due_date_policy,
+    to_regclass('public.rent_invoice_send_events') IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='rent_invoices'
+          AND column_name='delivery_tracking_baseline' AND is_nullable='NO'
+      )
+      AND EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname='rent_invoices_delivery_tracking_baseline_valid'
+      )
+      AND has_column_privilege(current_user, 'rent_invoices', 'delivery_tracking_baseline', 'SELECT')
+      AND has_table_privilege(current_user, to_regclass('public.rent_invoice_send_events'), 'SELECT,INSERT')
+      AS rent_invoice_send_status,
     to_regclass('public.rental_contracts') IS NOT NULL
       AND to_regclass('public.rental_contract_amendments') IS NOT NULL
       AND EXISTS (SELECT 1 FROM pg_constraint WHERE conname='rental_contract_amendments_contract_owner_fk')

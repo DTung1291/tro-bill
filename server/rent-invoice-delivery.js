@@ -7,6 +7,8 @@ const { assertEmailConfigured, sendRentInvoiceEmail } = require('./email');
 const { RentInvoiceLinkError, issueInvoiceLink } = require('./rent-invoice-links');
 const { invoiceSummary } = require('./rent-payments');
 const { checkAuthRateLimit, recordAuthAttempt } = require('./rate-limit');
+const { recordDirectEmailSuccess } = require('./rent-invoice-send-status');
+const { writeLog } = require('./observability');
 
 const TENANT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DELIVERY_KEY_PATTERN = /^[A-Za-z0-9_-]{16,100}$/;
@@ -86,23 +88,41 @@ async function deliverInvoiceEmail(req, res, dependencies = {}) {
     input = deliveryInput(req);
     if (!(await checkDeliveryRateLimit(req, res, 'invoiceEmail', req.userEmail))) return res;
     if (!(await recordDeliveryAttempt(req, res, 'invoiceEmail', req.userEmail))) return res;
+    const idempotencyKey = deliveryIdempotencyKey(
+      req.userId,
+      input.invoiceId,
+      input.tenantId,
+      input.deliveryKey
+    );
     const result = await executeInvoiceEmailDelivery({
       userId: req.userId,
       invoiceId: input.invoiceId,
       tenantId: input.tenantId,
       templateType: input.templateType,
       expiresInHours: input.expiresInHours,
-      idempotencyKey: deliveryIdempotencyKey(
-        req.userId,
-        input.invoiceId,
-        input.tenantId,
-        input.deliveryKey
-      ),
+      idempotencyKey,
       req
     }, dependencies);
+    let trackingSaved = false;
+    if (result.delivery.delivered === true) {
+      try {
+        await (dependencies.recordDirectEmailSuccess || recordDirectEmailSuccess)({
+          userId: req.userId,
+          invoiceId: input.invoiceId,
+          tenantId: input.tenantId,
+          templateType: input.templateType,
+          emailId: result.delivery.emailId || null,
+          idempotencyKey
+        }, dependencies.query || db.query);
+        trackingSaved = true;
+      } catch (error) {
+        writeLog('error', 'invoice_email_tracking_failed', { code: error.code || 'UNKNOWN' });
+      }
+    }
     res.set('Cache-Control', 'no-store');
     return res.status(201).json({
       delivered: result.delivery.delivered === true,
+      trackingSaved,
       development: result.delivery.development === true,
       emailId: result.delivery.emailId || null,
       recipient: maskEmail(result.email),

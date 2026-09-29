@@ -258,6 +258,9 @@ function summaryJson(row, options = {}) {
       : {},
     lastPaymentAt: row.last_payment_at || null,
     issuedAt: row.issued_at,
+    deliveryStatus: row.invoice_delivery_confirmed
+      ? 'sent'
+      : row.delivery_tracking_baseline === 'tracked' ? 'unsent' : 'unknown',
     updatedAt: row.updated_at
   };
 }
@@ -270,7 +273,17 @@ const SUMMARY_SELECT = `
          COALESCE(i.final_total_vnd, i.issued_total_vnd) AS issued_total_vnd,
          i.issued_total_vnd AS original_issued_total_vnd,
          i.detail_snapshot,
-         i.finalized_at, i.finalization_contract_id, i.issued_at, i.due_date, i.updated_at,
+         i.finalized_at, i.finalization_contract_id, i.issued_at, i.due_date,
+         i.delivery_tracking_baseline, i.updated_at,
+         (EXISTS (
+           SELECT 1 FROM rent_invoice_send_events event
+           WHERE event.user_id=i.user_id AND event.invoice_id=i.id
+             AND event.template_type='invoice'
+         ) OR EXISTS (
+           SELECT 1 FROM rent_invoice_deliveries delivery
+           WHERE delivery.user_id=i.user_id AND delivery.invoice_id=i.id
+             AND delivery.template_type='invoice' AND delivery.status='sent'
+         )) AS invoice_delivery_confirmed,
          COALESCE(SUM(t.amount_vnd), 0) AS paid_amount_vnd,
          COUNT(t.id)::int AS transaction_count,
          MAX(t.occurred_at) FILTER (WHERE t.amount_vnd > 0) AS last_payment_at,

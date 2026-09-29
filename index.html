@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=167" />
+  <link rel="stylesheet" href="style.css?v=168" />
   <link rel="stylesheet" href="date-input.css?v=1" />
   <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
@@ -769,6 +769,16 @@
               <option value="outstanding">Chưa thu</option>
               <option value="partial">Thu một phần</option>
               <option value="paid">Đã thu đủ</option>
+            </select>
+          </label>
+          <label class="invoice-list-status">
+            <span>Trạng thái gửi</span>
+            <select class="form-input" id="invoice-list-delivery-status">
+              <option value="all">Tất cả</option>
+              <option value="needs_review">Cần kiểm tra gửi</option>
+              <option value="unsent">Chưa gửi</option>
+              <option value="unknown">Chưa rõ (hóa đơn cũ)</option>
+              <option value="sent">Đã gửi</option>
             </select>
           </label>
           <p class="invoice-list-result-count" id="invoice-list-result-count" aria-live="polite"></p>
@@ -2665,8 +2675,10 @@
                 <div class="bill-message-zalo-actions">
                   <button type="button" class="btn btn--primary" id="bill-message-share">💬 Chuẩn bị &amp; chia sẻ Zalo</button>
                   <a class="btn btn--ghost" id="bill-message-zalo-web" href="https://chat.zalo.me/" target="_blank" rel="noopener noreferrer">Mở Zalo Web</a>
+                  <button type="button" class="btn btn--ghost" id="bill-message-confirm-zalo">✓ Tôi đã gửi trong Zalo</button>
                 </div>
                 <p class="bill-message-zalo-status" id="bill-message-zalo-status" role="status" aria-live="polite"></p>
+                <p class="bill-message-confirm-note">Chỉ xác nhận sau khi bạn đã bấm gửi trong đúng nhóm Zalo. Sao chép hoặc mở Zalo chưa được tính là đã gửi.</p>
               </div>
             </article>
           </div>
@@ -3396,7 +3408,7 @@
   <div class="toast" id="toast" hidden></div>
 
   <script src="vendor/html5-qrcode.min.js"></script>
-  <script src="api.js?v=118"></script>
+  <script src="api.js?v=119"></script>
   <script src="ocr.js?v=94"></script>
   <script src="rate-history.js?v=62"></script>
   <script src="invoice-adjustments.js?v=81"></script>
@@ -3411,7 +3423,7 @@
   <script src="ui-dialog.js?v=1"></script>
   <script src="plan-selection.js?v=1"></script>
   <script src="date-input.js?v=4"></script>
-  <script src="app.js?v=168"></script>
+  <script src="app.js?v=169"></script>
 </body>
 
 </html>

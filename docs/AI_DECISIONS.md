@@ -1210,3 +1210,20 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   Hóa đơn thử ID 52 trên `staging-privacy` giữ lại để kiểm tra, không có bản ghi
   tương ứng trên Production. Lựa chọn “Chỉ thu điện nước” được lưu qua reload;
   bổ sung `saveState()` tường minh để tránh lệch dữ liệu.
+
+## D-063 — Trạng thái gửi hóa đơn dựa trên bằng chứng, không suy từ công nợ
+
+- **Trạng thái:** Đã implement trên `feat/invoice-send-status`; migration đã chạy
+  hai lần trên Neon `staging-privacy` ngày 29/09/2026, chưa áp dụng Production.
+- **Quyết định:** Hóa đơn tồn tại trước khi có tracking mang baseline
+  `legacy_unknown`: nếu chưa có bằng chứng, hiện “Chưa rõ đã gửi”, không gán
+  “Chưa gửi”. Hóa đơn tạo mới sau migration mang `tracked`; khi chưa có bằng
+  chứng hiện “Chưa gửi”. Số dư/thanh toán không chứng minh đã gửi.
+- **Bằng chứng:** Email gửi ngay chỉ được ghi khi provider chấp nhận; lịch gửi
+  email cũ dùng trạng thái `sent` của lịch đã có. Tạo link, sao chép tin, mở
+  Zalo hoặc mở bảng chia sẻ không ghi nhận gửi. Zalo thủ công chỉ ghi append-only
+  sau khi chủ trọ xác nhận đã thực sự bấm gửi trong đúng nhóm. Đây là xác nhận
+  của người dùng, không phải xác minh từ Zalo. Tin nhắc không thay thế bằng
+  chứng gửi hóa đơn gốc.
+- **Phạm vi:** Sự kiện gắn chủ tài khoản, hóa đơn và khách cùng phòng; khóa
+  idempotency chống ghi trùng. Runtime chỉ được đọc/thêm sự kiện, không sửa/xóa.

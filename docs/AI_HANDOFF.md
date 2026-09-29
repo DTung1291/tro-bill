@@ -9,15 +9,36 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Action center đã kiểm thử trên Preview staging và phát hành Production |
-| Branch chuẩn | `main` (nhánh tính năng `feat/dashboard-action-center` đã fast-forward) |
+| Trạng thái | Đang làm — theo dõi trạng thái gửi hóa đơn trên nhánh Preview; Production vẫn ở action center cũ |
+| Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/invoice-send-status` |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `083762c` trên Production; CI run `36504705387` xanh, readiness revision `083762ccfe6e` và database/schema `ok` |
-| Việc code tiếp theo | Làm nguồn tổng hợp bill chưa gửi/sửa chữa theo hai mục checklist còn mở; giữ cổng staging trước Production |
+| Việc code tiếp theo | Kiểm thử Preview với tài khoản staging cho trạng thái gửi hóa đơn; sau đó mới xét phát hành Production theo D-060 |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
+
+- Nhánh `feat/invoice-send-status` thêm baseline hóa đơn cũ/chưa rõ và hóa đơn
+  mới/chưa gửi, sự kiện append-only cho email được provider chấp nhận và Zalo
+  được chủ trọ xác nhận. Tổng quan và danh sách hóa đơn có số đếm/bộ lọc theo
+  trạng thái; sao chép/chia sẻ Zalo không tự ghi nhận đã gửi. Chi tiết D-063.
+- Migration `20260929_rent_invoice_send_status.sql` đã chạy hai lần trên Neon
+  `staging-privacy` (`br-ancient-wave-azwc43to`, `neondb`): `events_ready`,
+  `baseline_ready`, `runtime_grants_ready` đều `true`. **Chưa chạy trên
+  Production.**
+- Local: `npm test` 560/560, `npm run check:secrets`, `git diff --check` và
+  `node --check` đạt trước khi đẩy Preview. Chưa có E2E Preview tại thời điểm
+  ghi nhận mục này; không tick checklist hoặc phát hành Production trước khi
+  kiểm thử với tài khoản staging.
+- Tệp chính: `app.js`, `api.js`, `index.html`, `style.css`, `server/index.js`,
+  `server/rent-payments.js`, `server/rent-invoice-delivery.js`, module send-status,
+  migration/schema/diagnostics và test liên quan. Production đã xác minh gần
+  nhất vẫn là `083762c`.
+- **Bước an toàn tiếp theo:** Deploy nhánh lên Preview dùng Neon staging và
+  kiểm thử trạng thái `unknown`/`unsent`/`sent` trong UI và API bằng tài khoản thử.
 
 ## Phiên 28/09/2026 — Việc cần xử lý trên Tổng quan
 
