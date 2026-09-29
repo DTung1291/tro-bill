@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — migration đã chạy Production; code mới vẫn chỉ ở Preview, chờ duyệt phát hành |
-| Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/invoice-send-status` |
-| Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `9623cbd` trên Production (docs-only sau `083762c`); sau migration readiness revision `9623cbd1f095`, database/schema `ok` |
-| Việc code tiếp theo | Xin duyệt phát hành nhánh gửi hóa đơn lên Production; sau đó làm nguồn tổng hợp sửa chữa |
+| Trạng thái | Trạng thái gửi hóa đơn đã phát hành Production và qua smoke test; sẵn sàng bàn giao |
+| Branch chuẩn | `main`; nhánh `feat/invoice-send-status` đã fast-forward vào `main` |
+| Worktree kỳ vọng | Sạch sau commit tài liệu phát hành; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production; readiness revision `1fbef398cceb`, database/schema `ok` |
+| Việc code tiếp theo | Nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu/người được giao (kiểm thử staging trước Production) |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -49,16 +49,20 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   danh sách, bộ lọc “Chưa gửi” cho 2 thẻ chỉ có trong sổ. Dữ liệu QA giữ lại
   để người dùng xem theo yêu cầu trước đó, **không có dữ liệu Production**.
 - Chưa kiểm thử gửi email thật vì khách QA không có email; nhánh đó có unit test
-  provider accepted/logging failure. Sau migration Production, endpoint
-  `/api/health/ready` vẫn `ok`, `environment=production`, revision
-  `9623cbd1f095`, database/schema `ok`, runtime role `restricted`; có cảnh báo
-  tùy chọn `OPS_ALERT_WEBHOOK_MISSING`. **Chưa phát hành code mới lên Production.**
+  provider accepted/logging failure. Sau migration Production, code `1fbef39`
+  đã fast-forward vào `main`; Vercel deployment
+  `dpl_7W4KxZcyMnvor46MKfZCAcvjR6pk` ở trạng thái READY. Alias chính
+  `/api/health/ready` trả `ok`, `environment=production`, revision
+  `1fbef398cceb`, database/schema `ok`, runtime role `restricted`; còn cảnh báo
+  tùy chọn `OPS_ALERT_WEBHOOK_MISSING`. HTML Production có bộ lọc trạng thái gửi
+  và pins `style 169 / api 119 / app 171`; API xác nhận Zalo không đăng nhập trả
+  HTTP 401. CI `36509098001` thành công. Không tạo/sửa dữ liệu Production khi
+  smoke test; luồng có dữ liệu chỉ kiểm thử trên Preview staging.
 - Tệp chính: `app.js`, `api.js`, `index.html`, `style.css`, `server/index.js`,
   `server/rent-payments.js`, `server/rent-invoice-delivery.js`, module send-status,
-  migration/schema/diagnostics và test liên quan. Code ứng dụng Production vẫn
-  là `083762c`; revision deployment hiện tại là `9623cbd` (docs-only).
-- **Bước an toàn tiếp theo:** Khi chủ sản phẩm đồng ý phát hành code, fast-forward
-  nhánh đã kiểm thử vào `main`, push rồi smoke test revision và luồng Production.
+  migration/schema/diagnostics và test liên quan.
+- **Bước an toàn tiếp theo:** Chỉ khi có yêu cầu tiếp tục, triển khai nguồn tổng
+  hợp sửa chữa trên nhánh mới; giữ cổng staging và không dùng dữ liệu test ở Production.
 
 ## Phiên 28/09/2026 — Việc cần xử lý trên Tổng quan
 
