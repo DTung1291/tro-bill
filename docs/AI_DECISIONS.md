@@ -1235,7 +1235,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 ## D-064 — Việc sửa chữa trên Tổng quan lấy từ truy vấn theo quyền ở máy chủ
 
 - **Trạng thái:** Đã triển khai trên Preview staging từ `d2b6e42` ngày
-  29/09/2026; chưa kiểm thử E2E có dữ liệu, chưa phát hành Production.
+  29/09/2026; owner E2E có dữ liệu `YC-2026-000005` đạt ngày 29/09/2026.
+  Chưa thử quyền nhân viên E2E, chưa phát hành Production.
 - **Quyết định:** Chỉ yêu cầu `new`, `acknowledged`, `in_progress` là đang mở.
   Chủ trọ thấy tất cả yêu cầu của các phòng còn thuộc workspace; nhân viên chỉ
   thấy yêu cầu được giao cho chính mình trong khu được phép và cần quyền

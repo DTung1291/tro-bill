@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — cổng khách staging mở đúng phòng, yêu cầu giả đã điền nhưng chưa gửi |
+| Trạng thái | Đang kiểm thử — đã gửi một yêu cầu sửa chữa giả trên staging; owner E2E đạt, quyền nhân viên thực tế chưa thử |
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Chờ xác nhận gửi yêu cầu giả trên staging, sau đó kiểm thử số đếm và nút mở đúng phòng; chưa phát hành Production |
+| Việc code tiếp theo | Kiểm thử tài khoản nhân viên trên Preview (chỉ việc được giao và đúng khu), sau đó mới xét tick checklist/phát hành Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -50,9 +50,14 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   liên kết báo sửa thử thời hạn 90 ngày đang hoạt động. Không ghi token/link
   vào tài liệu. Sau khi chủ sản phẩm đồng ý “Mở thử”, cổng công khai Preview mở
   đúng phòng và hợp đồng; không hiển thị tên/CCCD khách. Đã điền mô tả giả nhóm
-  Nước, mức Bình thường, để trống thông tin liên hệ. **Chưa bấm gửi** vì đang
-  chờ xác nhận riêng cho hành động tạo bản ghi; số đếm có dữ liệu và nút mở
-  phòng chưa được kiểm thử.
+  Nước, mức Bình thường, để trống thông tin liên hệ. Sau khi chủ sản phẩm yêu
+  cầu “Gửi yêu cầu cho chủ trọ”, chỉ gửi một lần trên cổng staging; cổng báo
+  thành công và lịch sử có đúng một yêu cầu `YC-2026-000005` ở trạng thái
+  “Mới gửi”. Hàng đợi của chủ trọ trong hồ sơ hợp đồng có đúng một yêu cầu
+  cùng mã và nội dung; Tổng quan hiển thị 1 yêu cầu/1 phòng/1 chưa phân công.
+  Nút “Xem các phòng” liệt kê TEST 1 và mở đúng popup Vận hành & tài sản có
+  yêu cầu này. Không thao tác gửi Zalo/email hay ghi Production; không ghi
+  token/link vào tài liệu. Dữ liệu QA giữ lại cho chủ sản phẩm kiểm tra.
 - Bản vá nhỏ `f77fe58` sau E2E rỗng: API trả JSON sai định dạng sẽ thành
   trạng thái lỗi có nút thử lại thay vì bị coi là không có việc. Test đầy đủ
   vẫn 566/566, secret scan và diff check sạch; Preview
@@ -60,9 +65,10 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Chờ chủ sản phẩm xác nhận bấm gửi biểu mẫu đã
-  điền trên chính Preview staging; sau đó kiểm thử số đếm/lọc khu/nút mở phòng.
-  Chưa tick checklist hay phát hành Production.
+- **Bước an toàn tiếp theo:** Thử tài khoản nhân viên có/không được giao việc
+  và lọc khu trên Preview với dữ liệu thử để xác nhận phân quyền E2E; unit test
+  đã có nhưng không thay thế kiểm thử này. Chưa tick checklist hay phát hành
+  Production.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 
