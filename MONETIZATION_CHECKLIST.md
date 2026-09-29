@@ -483,9 +483,12 @@ scan sạch.
   Đã kiểm thử Preview với tài khoản thử Neon staging: bộ lọc khu, phòng thiếu chỉ
   số, 3 hồ sơ tạm trú và 1 hóa đơn quá hạn chưa thu đủ; các nút mở đúng nghiệp
   vụ. Test local 554/554; Production chỉ phát hành sau cổng staging này.
-- [ ] Bổ sung nguồn tổng hợp trạng thái gửi hóa đơn theo kỳ/khu trước khi hiện
+- [x] Bổ sung nguồn tổng hợp trạng thái gửi hóa đơn theo kỳ/khu trước khi hiện
   mục “bill chưa gửi”; không suy diễn từ việc hóa đơn chưa thanh toán. Với chia
-  sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận.
+  sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận. Preview staging
+  29/09/2026: 2 hóa đơn cũ “chưa rõ”, hóa đơn mới “chưa gửi”, xác nhận QA chuyển
+  thành “đã gửi”; sao chép/hủy không ghi sự kiện. Nút Tổng quan mở đúng 4/5
+  hóa đơn cần kiểm tra, gồm 2 hóa đơn chỉ có trong sổ. Production còn chờ duyệt.
 - [ ] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
   giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
   hợp đồng làm số đếm trên Tổng quan.

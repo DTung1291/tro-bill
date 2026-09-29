@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — theo dõi trạng thái gửi hóa đơn trên nhánh Preview; Production vẫn ở action center cũ |
+| Trạng thái | Sẵn sàng bàn giao — trạng thái gửi hóa đơn đã qua Preview staging; chờ duyệt phát hành Production |
 | Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/invoice-send-status` |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `083762c` trên Production; CI run `36504705387` xanh, readiness revision `083762ccfe6e` và database/schema `ok` |
-| Việc code tiếp theo | Kiểm thử Preview với tài khoản staging cho trạng thái gửi hóa đơn; sau đó mới xét phát hành Production theo D-060 |
+| Việc code tiếp theo | Xin duyệt áp dụng migration Production rồi phát hành nhánh gửi hóa đơn theo D-060; sau đó làm nguồn tổng hợp sửa chữa |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -30,15 +30,30 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `baseline_ready`, `runtime_grants_ready` đều `true`. **Chưa chạy trên
   Production.**
 - Local: `npm test` 560/560, `npm run check:secrets`, `git diff --check` và
-  `node --check` đạt trước khi đẩy Preview. Chưa có E2E Preview tại thời điểm
-  ghi nhận mục này; không tick checklist hoặc phát hành Production trước khi
-  kiểm thử với tài khoản staging.
+  `node --check` đạt. Preview `c33e69a` READY trên alias
+  `tro-bill-git-feat-invoice-send-status-dtung.vercel.app`; readiness cuối trả
+  revision `c33e69ad28b3`, `environment=staging`, database/schema `ok`,
+  runtime role `restricted`. Migration chạy-lại-an-toàn và quyền runtime đạt.
+- Preview E2E bằng tài khoản QA staging ID 10: hóa đơn cũ 49/52 hiện “Chưa rõ”,
+  hóa đơn mới phòng TEST số 3 (ID 57, 23.500 đ) hiện “Chưa gửi”; bộ lọc trả
+  đúng 1/3. Sao chép tin/hủy popup không sinh event. Lần bấm xác nhận đầu phát
+  hiện lỗi lấy `event.currentTarget` sau `await`; sửa ở `9a8277e`, thử lại
+  thành công: hóa đơn 57 hiện “Đã gửi” và Neon có đúng 1 event
+  `zalo/owner_confirmed/invoice`. Đây là **mô phỏng QA trên tài khoản thử**,
+  không có tin Zalo thật gửi đi. Sau khi lưu kỳ, sổ có thêm hai hóa đơn thử
+  chưa có bản chỉ số trên giao diện; `c33e69a` hiện chúng dưới dạng thẻ chỉ-đọc.
+  Dashboard 2 chưa gửi + 2 cũ chưa rõ = 4; nút dẫn tới đúng 4/5 hóa đơn trong
+  danh sách, bộ lọc “Chưa gửi” cho 2 thẻ chỉ có trong sổ. Dữ liệu QA giữ lại
+  để người dùng xem theo yêu cầu trước đó, **không có dữ liệu Production**.
+- Chưa kiểm thử gửi email thật vì khách QA không có email; nhánh đó có unit test
+  provider accepted/logging failure. Chưa chạy migration Production và chưa
+  phát hành code mới lên Production.
 - Tệp chính: `app.js`, `api.js`, `index.html`, `style.css`, `server/index.js`,
   `server/rent-payments.js`, `server/rent-invoice-delivery.js`, module send-status,
   migration/schema/diagnostics và test liên quan. Production đã xác minh gần
   nhất vẫn là `083762c`.
-- **Bước an toàn tiếp theo:** Deploy nhánh lên Preview dùng Neon staging và
-  kiểm thử trạng thái `unknown`/`unsent`/`sent` trong UI và API bằng tài khoản thử.
+- **Bước an toàn tiếp theo:** Khi chủ sản phẩm đồng ý, áp dụng migration trên
+  Neon Production rồi fast-forward/push `main`, smoke test revision và luồng.
 
 ## Phiên 28/09/2026 — Việc cần xử lý trên Tổng quan
 

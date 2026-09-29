@@ -1213,8 +1213,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-063 — Trạng thái gửi hóa đơn dựa trên bằng chứng, không suy từ công nợ
 
-- **Trạng thái:** Đã implement trên `feat/invoice-send-status`; migration đã chạy
-  hai lần trên Neon `staging-privacy` ngày 29/09/2026, chưa áp dụng Production.
+- **Trạng thái:** Đã kiểm thử trên Preview `feat/invoice-send-status`; migration
+  đã chạy hai lần trên Neon `staging-privacy` ngày 29/09/2026, chưa áp dụng
+  Production.
 - **Quyết định:** Hóa đơn tồn tại trước khi có tracking mang baseline
   `legacy_unknown`: nếu chưa có bằng chứng, hiện “Chưa rõ đã gửi”, không gán
   “Chưa gửi”. Hóa đơn tạo mới sau migration mang `tracked`; khi chưa có bằng
@@ -1227,3 +1228,5 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   chứng gửi hóa đơn gốc.
 - **Phạm vi:** Sự kiện gắn chủ tài khoản, hóa đơn và khách cùng phòng; khóa
   idempotency chống ghi trùng. Runtime chỉ được đọc/thêm sự kiện, không sửa/xóa.
+  Hóa đơn đã phát hành nhưng thiếu chi tiết chỉ số trên giao diện vẫn xuất hiện
+  dạng thẻ chỉ-đọc trong danh sách để số đếm Tổng quan có lối kiểm tra đầy đủ.
