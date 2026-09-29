@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang kiểm thử — đã gửi một yêu cầu sửa chữa giả trên staging; owner E2E đạt, quyền nhân viên thực tế chưa thử |
+| Trạng thái | Sẵn sàng bàn giao — Tổng quan sửa chữa đã qua owner/staff E2E trên Preview staging; chưa phát hành Production |
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Kiểm thử tài khoản nhân viên trên Preview (chỉ việc được giao và đúng khu), sau đó mới xét tick checklist/phát hành Production |
+| Việc code tiếp theo | Chờ chủ sản phẩm cho phép phát hành nhánh Tổng quan sửa chữa lên Production; không có migration |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -58,6 +58,29 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   Nút “Xem các phòng” liệt kê TEST 1 và mở đúng popup Vận hành & tài sản có
   yêu cầu này. Không thao tác gửi Zalo/email hay ghi Production; không ghi
   token/link vào tài liệu. Dữ liệu QA giữ lại cho chủ sản phẩm kiểm tra.
+- Theo yêu cầu tự tạo nhân viên để thử, tài khoản QA owner ID 10 được cấp trial
+  Business 14 ngày **chỉ trên Neon staging** (hết 13/10/2026); ghi đúng một
+  `trial_started` vào `subscription_change_logs` với actor ghi rõ thao tác QA
+  qua Neon SQL Editor, không giả mạo Super Admin. Đã tạo tài khoản nhân viên
+  tổng hợp; tài khoản thử đầu tiên bị mất mật khẩu ngẫu nhiên khi kết nối trình
+  duyệt gián đoạn, nên đã tạo tài khoản thay thế và thu hồi *membership*
+  của tài khoản đầu (không xóa tài khoản). Nhân viên thay thế được cấp đúng 1
+  khu `Khu trọ chính`, 2 nghiệp vụ `overview`/`rooms`; không cấp Chi phí,
+  Hóa đơn hay quyền Super Admin. Thông tin đăng nhập tài khoản thay thế chỉ ở
+  `.env.qa-staff-stg` trên máy này (`.gitignore` khớp), không nằm trong Git hay
+  ghi chú bàn giao. Tài khoản QA cũ còn tồn tại nhưng không còn quyền vào
+  workspace này.
+- E2E trên Preview staging riêng cho nhân viên (`f77fe58`, cùng Neon branch):
+  đăng nhập và chọn workspace QA thành công. Khi chưa phân công, Tổng quan
+  không hiện việc sửa chữa; popup TEST 1 hiển thị `0 yêu cầu` mặc dù owner
+  thấy `YC-2026-000005`. Owner phân công chính yêu cầu đó qua combobox; sau
+  đó nhân viên thấy `1 phòng · việc được giao cho bạn`, lọc `Khu trọ chính`
+  vẫn là 1, nút `Xem các phòng` mở TEST 1 và popup có đúng mã yêu cầu. Owner
+  thấy `1 phòng · 0 chưa phân công`. Không tạo yêu cầu thứ hai, không cập nhật
+  trạng thái/chi phí. Phân quyền khu khác và nghiệp vụ khác có unit test, chưa
+  thử UI vì tài khoản QA hiện chỉ có một khu. Popup vận hành ở phía nhân viên
+  ghi `Trạng thái hiện tại: Chưa tải` dù yêu cầu đã hiện — ghi nhận UX riêng,
+  không ảnh hưởng số đếm/phạm vi Tổng quan.
 - Bản vá nhỏ `f77fe58` sau E2E rỗng: API trả JSON sai định dạng sẽ thành
   trạng thái lỗi có nút thử lại thay vì bị coi là không có việc. Test đầy đủ
   vẫn 566/566, secret scan và diff check sạch; Preview
@@ -65,10 +88,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Thử tài khoản nhân viên có/không được giao việc
-  và lọc khu trên Preview với dữ liệu thử để xác nhận phân quyền E2E; unit test
-  đã có nhưng không thay thế kiểm thử này. Chưa tick checklist hay phát hành
-  Production.
+- **Bước an toàn tiếp theo:** Chờ chủ sản phẩm cho phép phát hành nhánh lên
+  Production; không có migration. Sau phát hành cần smoke test với quyền owner,
+  còn checkbox checklist giữ mở đến khi Production được xác minh.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 

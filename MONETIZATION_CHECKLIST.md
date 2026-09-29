@@ -492,7 +492,9 @@ scan sạch.
   chạy và xác minh 29/09/2026; code đã phát hành và Production smoke test đạt.
 - [ ] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
   giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
-  hợp đồng làm số đếm trên Tổng quan.
+  hợp đồng làm số đếm trên Tổng quan. Preview staging 29/09/2026: owner thấy 1
+  yêu cầu; nhân viên chưa được giao thấy 0, sau khi phân công thấy đúng 1 và
+  mở đúng phòng. Chờ phát hành và smoke test Production trước khi tick.
 
 ### Hoàn thành giai đoạn khi
 
