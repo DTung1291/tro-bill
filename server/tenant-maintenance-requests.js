@@ -793,6 +793,39 @@ async function listMaintenanceWork(req, res, dependencies = {}) {
   });
 }
 
+async function summarizeMaintenanceWork(req, res, dependencies = {}) {
+  const owner = req.workspace?.isOwner !== false;
+  const params = [req.userId];
+  let staffClause = '';
+  if (!owner) {
+    params.push(workspacePropertyIds(req), actorUserId(req));
+    staffClause = `AND room.property_id=ANY($2::bigint[])
+       AND assignment.member_user_id=$3`;
+  }
+  const query = dependencies.query || db.query;
+  const result = await query(
+    `SELECT request.room_id,
+            COUNT(*)::int AS open_count,
+            COUNT(*) FILTER (WHERE assignment.member_user_id IS NULL)::int AS unassigned_count
+     FROM tenant_maintenance_requests request
+     JOIN rooms room ON room.user_id=request.user_id AND room.id=request.room_id
+     LEFT JOIN tenant_maintenance_request_assignments assignment
+       ON assignment.user_id=request.user_id AND assignment.request_id=request.id
+     WHERE request.user_id=$1
+       AND request.status IN ('new', 'acknowledged', 'in_progress')
+       ${staffClause}
+     GROUP BY request.room_id
+     ORDER BY request.room_id`,
+    params
+  );
+  res.set('Cache-Control', 'no-store');
+  return res.json({ rooms: result.rows.map(row => ({
+    roomId: row.room_id,
+    openCount: Number(row.open_count),
+    unassignedCount: Number(row.unassigned_count)
+  })) });
+}
+
 async function assignMaintenanceRequest(req, res, dependencies = {}) {
   let requestId;
   let memberUserId;
@@ -1370,6 +1403,7 @@ module.exports = {
   listMaintenancePortals,
   listMaintenanceRequests,
   listMaintenanceWork,
+  summarizeMaintenanceWork,
   loadTenantMaintenanceExport,
   maintenanceExpenseInput,
   maintenanceExpenseJson,

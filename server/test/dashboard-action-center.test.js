@@ -13,21 +13,23 @@ const source = app.slice(
   app.indexOf('function temporaryResidenceStatus(')
 );
 
-function renderFixture({ owner = true, operations = ['billing', 'report', 'rooms'], invoices = [], available = true } = {}) {
+function renderFixture({ owner = true, operations = ['billing', 'report', 'rooms'], invoices = [], available = true, maintenance = [], maintenanceStatus = 'ready' } = {}) {
   const container = {
     innerHTML: '',
     querySelectorAll: () => []
   };
   const rooms = [
-    { id: 'occupied', tenants: [{ temporaryResidenceCurrent: true }] },
-    { id: 'vacant', tenants: [] },
-    { id: 'former', tenants: [{ temporaryResidenceCurrent: false }] }
+    { id: 'occupied', name: 'A101', tenants: [{ temporaryResidenceCurrent: true }] },
+    { id: 'vacant', name: 'B201', tenants: [] },
+    { id: 'former', name: 'C301', tenants: [{ temporaryResidenceCurrent: false }] }
   ];
   const context = {
     rooms,
     document: { getElementById: () => container },
     RENT_INVOICE_SUMMARIES: new Map(invoices.map(invoice => [invoice.invoiceId, invoice])),
     RENT_INVOICE_SUMMARIES_AVAILABLE: available,
+    DASHBOARD_MAINTENANCE_SUMMARY: maintenance,
+    DASHBOARD_MAINTENANCE_STATUS: maintenanceStatus,
     DebtAge: require('../../debt-age'),
     isOwnerWorkspace: () => owner,
     workspacePageAllowed: page => operations.includes(page),
@@ -76,9 +78,32 @@ test('chỉ nhắc xác minh gửi của hóa đơn còn dư đúng kỳ và đ�
 });
 
 test('dashboard action center respects staff operation scope', () => {
-  const rendered = renderFixture({ owner: false, operations: ['billing'] });
+  const rendered = renderFixture({ owner: false, operations: ['billing'], maintenance: [
+    { roomId: 'occupied', openCount: 2, unassignedCount: 0 }
+  ] });
   assert.match(rendered, /Chưa nhập chỉ số/);
-  assert.doesNotMatch(rendered, /công nợ|Hóa đơn quá hạn|Tạm trú cần gia hạn/);
+  assert.doesNotMatch(rendered, /công nợ|Hóa đơn quá hạn|Tạm trú cần gia hạn|Yêu cầu sửa chữa đang mở/);
+});
+
+test('dashboard counts open maintenance only in visible rooms and links to each room', () => {
+  const rendered = renderFixture({ maintenance: [
+    { roomId: 'occupied', openCount: 2, unassignedCount: 1 },
+    { roomId: 'vacant', openCount: 3, unassignedCount: 2 },
+    { roomId: 'elsewhere', openCount: 9, unassignedCount: 9 }
+  ] });
+  assert.match(rendered, /Yêu cầu sửa chữa đang mở/);
+  assert.match(rendered, /2 phòng · 3 chưa phân công/);
+  assert.match(rendered, /aria-label="5 việc"/);
+  assert.match(rendered, /data-dashboard-maintenance-room="occupied"/);
+  assert.match(rendered, /data-dashboard-maintenance-room="vacant"/);
+  assert.doesNotMatch(rendered, /data-dashboard-maintenance-room="elsewhere"/);
+});
+
+test('dashboard does not mistake failed maintenance request for an empty queue', () => {
+  const rendered = renderFixture({ maintenanceStatus: 'error' });
+  assert.match(rendered, /Chưa kiểm tra được yêu cầu sửa chữa/);
+  assert.match(rendered, /data-dashboard-action="maintenance-retry"/);
+  assert.doesNotMatch(rendered, /Không có việc cần xử lý/);
 });
 
 test('dashboard action center is present and has a narrow mobile layout', () => {

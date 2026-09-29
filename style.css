@@ -635,12 +635,24 @@ body.workspace-staff-active .main { padding-top: 112px; }
   font-weight: 800;
 }
 .dashboard-action .btn { flex: 0 0 auto; }
+.dashboard-maintenance-rooms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 0 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.dashboard-maintenance-rooms[hidden] { display: none; }
+.dashboard-maintenance-rooms .btn { min-width: 0; white-space: normal; text-align: left; }
+.dashboard-maintenance-rooms .btn span { color: var(--text-muted); }
 .dashboard-actions-empty { margin: 16px 0 0; }
 @media (max-width: 600px) {
   .dashboard-actions { padding: 16px; }
   .dashboard-action { flex-wrap: wrap; gap: 10px; }
   .dashboard-action-copy { flex-basis: calc(100% - 50px); }
   .dashboard-action .btn { margin-left: auto; }
+  .dashboard-maintenance-rooms .btn { width: 100%; margin-left: 0; }
 }
 .dashboard-room-heading { align-items: flex-end; margin-bottom: 16px; }
 .dashboard-room-heading .section-title { margin-top: 4px; font-size: 1.15rem; }

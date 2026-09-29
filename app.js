@@ -115,6 +115,9 @@ let ACTIVE_SUBSCRIPTION_RECEIPT = null;
 let ACTIVE_SUBSCRIPTION_REFUND_PAYMENT = null;
 let RENT_INVOICE_SUMMARIES = new Map();
 let RENT_INVOICE_SUMMARIES_AVAILABLE = false;
+let DASHBOARD_MAINTENANCE_SUMMARY = [];
+let DASHBOARD_MAINTENANCE_STATUS = 'loading';
+let DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE = 0;
 let FINANCIAL_REPORT_CACHE = new Map();
 let FINANCIAL_REPORT_REQUEST_SEQUENCE = 0;
 let FINANCIAL_REPORT_FILTER = {
@@ -1613,6 +1616,9 @@ function clearSensitiveStateFromMemory() {
   STATE.history = [];
   RENT_INVOICE_SUMMARIES = new Map();
   RENT_INVOICE_SUMMARIES_AVAILABLE = false;
+  DASHBOARD_MAINTENANCE_SUMMARY = [];
+  DASHBOARD_MAINTENANCE_STATUS = 'loading';
+  DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE += 1;
   FINANCIAL_REPORT_CACHE = new Map();
   FINANCIAL_REPORT_REQUEST_SEQUENCE += 1;
   FINANCIAL_REPORT_FILTER = {
@@ -3948,6 +3954,7 @@ function navigate(page) {
   renderPage(page);
   if (page === 'dashboard' && hasWorkspaceOperation('overview')) {
     void loadDashboardTrend();
+    void loadDashboardMaintenanceSummary();
   }
   if (isOwnerWorkspace() && (page === 'report' || page === 'history')) {
     ensureRentInvoicesSynced().then(() => {
@@ -4241,6 +4248,34 @@ function renderDashboardActionCenter(rooms, period) {
       title: 'Tạm trú cần gia hạn', detail: 'Sắp hết hạn hoặc đã quá hạn',
       target: 'residence', button: 'Xem hồ sơ'
     });
+    if (DASHBOARD_MAINTENANCE_STATUS !== 'ready') {
+      actions.push({
+        kind: 'maintenance', count: '—', icon: '🔧',
+        title: DASHBOARD_MAINTENANCE_STATUS === 'error'
+          ? 'Chưa kiểm tra được yêu cầu sửa chữa' : 'Đang tải yêu cầu sửa chữa',
+        detail: DASHBOARD_MAINTENANCE_STATUS === 'error'
+          ? 'Thử tải lại để không bỏ sót công việc' : 'Đang tổng hợp công việc trong phạm vi của bạn',
+        target: 'maintenance-retry', button: 'Tải lại',
+        disabled: DASHBOARD_MAINTENANCE_STATUS === 'loading'
+      });
+    } else {
+      const byRoom = new Map(DASHBOARD_MAINTENANCE_SUMMARY.map(item => [String(item.roomId), item]));
+      const maintenanceRooms = rooms.map(room => ({
+        id: String(room.id), name: room.name,
+        count: Number(byRoom.get(String(room.id))?.openCount) || 0,
+        unassigned: Number(byRoom.get(String(room.id))?.unassignedCount) || 0
+      })).filter(room => room.count > 0);
+      if (maintenanceRooms.length) {
+        const openCount = maintenanceRooms.reduce((sum, room) => sum + room.count, 0);
+        const unassigned = maintenanceRooms.reduce((sum, room) => sum + room.unassigned, 0);
+        actions.push({
+          kind: 'maintenance', count: openCount, icon: '🔧',
+          title: 'Yêu cầu sửa chữa đang mở',
+          detail: `${maintenanceRooms.length} phòng${isOwnerWorkspace() ? ` · ${unassigned} chưa phân công` : ' · việc được giao cho bạn'}`,
+          target: 'maintenance', button: 'Xem các phòng', rooms: maintenanceRooms
+        });
+      }
+    }
   }
 
   if (!actions.length) {
@@ -4255,12 +4290,25 @@ function renderDashboardActionCenter(rooms, period) {
         <span>${escapeHtml(action.detail)}</span>
       </div>
       <span class="dashboard-action-count"${Number.isInteger(action.count) ? ` aria-label="${action.count} việc"` : ' aria-label="Chưa rõ số lượng"'}>${action.count}</span>
-      <button type="button" class="btn btn--ghost btn--sm" data-dashboard-action="${action.target}"${action.period ? ` data-action-period="${action.period}"` : ''}${action.delivery ? ` data-action-delivery="${action.delivery}"` : ''}>${action.button}</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-dashboard-action="${action.target}"${action.period ? ` data-action-period="${action.period}"` : ''}${action.delivery ? ` data-action-delivery="${action.delivery}"` : ''}${action.rooms ? ' aria-expanded="false" aria-controls="dashboard-maintenance-rooms"' : ''}${action.disabled ? ' disabled' : ''}>${action.button}</button>
+      ${action.rooms ? `<div class="dashboard-maintenance-rooms" id="dashboard-maintenance-rooms" hidden>${action.rooms.map(room => `<button type="button" class="btn btn--ghost btn--sm" data-dashboard-maintenance-room="${escapeHtml(room.id)}">${escapeHtml(room.name)} <span>${room.count} yêu cầu</span></button>`).join('')}</div>` : ''}
     </article>`).join('');
   container.querySelectorAll('[data-dashboard-action]').forEach(button => button.addEventListener('click', () => {
     const target = button.dataset.dashboardAction;
     if (target === 'residence') {
       document.getElementById('temporary-residence-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (target === 'maintenance-retry') {
+      void loadDashboardMaintenanceSummary();
+      return;
+    }
+    if (target === 'maintenance') {
+      const list = document.getElementById('dashboard-maintenance-rooms');
+      if (list) {
+        list.hidden = !list.hidden;
+        button.setAttribute('aria-expanded', String(!list.hidden));
+      }
       return;
     }
     if (target === 'report' && button.dataset.actionPeriod) {
@@ -4270,6 +4318,42 @@ function renderDashboardActionCenter(rooms, period) {
     }
     navigate(target);
   }));
+  container.querySelectorAll('[data-dashboard-maintenance-room]').forEach(button => button.addEventListener('click', () => {
+    void openRoomLifecycleModal(button.dataset.dashboardMaintenanceRoom);
+  }));
+}
+
+async function loadDashboardMaintenanceSummary() {
+  if (!workspacePageAllowed('rooms') || !API.isLoggedIn()) return;
+  const requestSequence = ++DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE;
+  const expectedGeneration = _sessionGeneration;
+  const expectedAccountContext = API.getAccountContext();
+  const expectedWorkspaceId = API.getWorkspaceAccountId();
+  DASHBOARD_MAINTENANCE_STATUS = 'loading';
+  if (activePage === 'dashboard') renderDashboardActionCenter(dashboardVisibleRooms(), STATE.currentPeriod);
+  try {
+    const result = await API.getTenantMaintenanceSummary();
+    if (requestSequence !== DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE
+        || expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()
+        || expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
+    DASHBOARD_MAINTENANCE_SUMMARY = Array.isArray(result.rooms) ? result.rooms : [];
+    DASHBOARD_MAINTENANCE_STATUS = 'ready';
+  } catch (error) {
+    if (requestSequence !== DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE
+        || expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()
+        || expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
+    if (error.code === 401) return handleAuthExpired();
+    DASHBOARD_MAINTENANCE_SUMMARY = [];
+    DASHBOARD_MAINTENANCE_STATUS = 'error';
+  }
+  if (activePage === 'dashboard') renderDashboardActionCenter(dashboardVisibleRooms(), STATE.currentPeriod);
+}
+
+function dashboardVisibleRooms() {
+  if (ACTIVE_DASHBOARD_PROPERTY_FILTER === 'all') return STATE.rooms;
+  return STATE.rooms.filter(room => String(room.propertyId) === ACTIVE_DASHBOARD_PROPERTY_FILTER);
 }
 
 function temporaryResidenceStatus(tenant, today = vietnamCalendarDate()) {
@@ -5175,6 +5259,7 @@ async function refreshVisibleTenantMaintenance() {
     tasks.push(loadRoomTenantMaintenanceWork(ACTIVE_ROOM_LIFECYCLE_ROOM_ID));
   }
   await Promise.all(tasks);
+  if (activePage === 'dashboard') void loadDashboardMaintenanceSummary();
 }
 
 async function assignTenantMaintenanceFromControl(control) {

@@ -462,6 +462,12 @@ app.get(
   wrap(accountAccess.requireWorkspace('rooms')),
   wrap(tenantMaintenanceRequests.listMaintenanceWork)
 );
+app.get(
+  '/api/tenant-maintenance-summary',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantMaintenanceRequests.summarizeMaintenanceWork)
+);
 app.put(
   '/api/tenant-maintenance-requests/:id/assignment',
   requireAuth,

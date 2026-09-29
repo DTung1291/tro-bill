@@ -666,6 +666,10 @@ const API = (() => {
     );
   }
 
+  function getTenantMaintenanceSummary() {
+    return request('GET', '/api/tenant-maintenance-summary');
+  }
+
   function assignTenantMaintenanceRequest(requestId, memberUserId) {
     return request(
       'PUT',
@@ -928,6 +932,7 @@ const API = (() => {
     revokeTenantMaintenancePortal,
     getTenantMaintenanceRequests,
     getTenantMaintenanceWork,
+    getTenantMaintenanceSummary,
     assignTenantMaintenanceRequest,
     updateTenantMaintenanceRequestStatus,
     createTenantMaintenanceExpense,
