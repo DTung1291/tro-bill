@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — hợp đồng và cổng thử đã tạo trên staging; chờ quyền dùng token để gửi yêu cầu giả |
+| Trạng thái | Đang làm — cổng khách staging mở đúng phòng, yêu cầu giả đã điền nhưng chưa gửi |
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Sau khi được phép dùng liên kết thử trên staging, gửi yêu cầu giả rồi kiểm thử số đếm và nút mở đúng phòng; chưa phát hành Production |
+| Việc code tiếp theo | Chờ xác nhận gửi yêu cầu giả trên staging, sau đó kiểm thử số đếm và nút mở đúng phòng; chưa phát hành Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -48,8 +48,11 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   thử trên staging. Đã tạo hợp đồng hoạt động `HD-2026-000006` cho phòng TEST 1,
   bắt đầu 31/05/2026, giá 1.500.000 đ/tháng như biểu phí có sẵn, cọc 0 đ;
   liên kết báo sửa thử thời hạn 90 ngày đang hoạt động. Không ghi token/link
-  vào tài liệu. **Chưa mở link hay gửi yêu cầu giả** vì đang chờ xác nhận riêng
-  việc dùng token; số đếm có dữ liệu và nút mở phòng chưa được kiểm thử.
+  vào tài liệu. Sau khi chủ sản phẩm đồng ý “Mở thử”, cổng công khai Preview mở
+  đúng phòng và hợp đồng; không hiển thị tên/CCCD khách. Đã điền mô tả giả nhóm
+  Nước, mức Bình thường, để trống thông tin liên hệ. **Chưa bấm gửi** vì đang
+  chờ xác nhận riêng cho hành động tạo bản ghi; số đếm có dữ liệu và nút mở
+  phòng chưa được kiểm thử.
 - Bản vá nhỏ `f77fe58` sau E2E rỗng: API trả JSON sai định dạng sẽ thành
   trạng thái lỗi có nút thử lại thay vì bị coi là không có việc. Test đầy đủ
   vẫn 566/566, secret scan và diff check sạch; Preview
@@ -57,10 +60,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Chờ chủ sản phẩm xác nhận dùng token liên kết thử
-  trên chính Preview staging để gửi một yêu cầu giả không có thông tin liên hệ;
-  sau đó kiểm thử số đếm/lọc khu/nút mở phòng. Chưa tick checklist hay phát
-  hành Production.
+- **Bước an toàn tiếp theo:** Chờ chủ sản phẩm xác nhận bấm gửi biểu mẫu đã
+  điền trên chính Preview staging; sau đó kiểm thử số đếm/lọc khu/nút mở phòng.
+  Chưa tick checklist hay phát hành Production.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 
