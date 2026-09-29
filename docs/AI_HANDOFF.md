@@ -13,7 +13,7 @@ trong `../AGENTS.md`.
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Chờ chủ sản phẩm cho phép phát hành nhánh Tổng quan sửa chữa lên Production; không có migration |
+| Việc code tiếp theo | Sửa nhãn “Chưa tải” trong popup phòng của nhân viên, thử lại trên Preview, rồi mới xin phép phát hành Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -88,9 +88,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Chờ chủ sản phẩm cho phép phát hành nhánh lên
-  Production; không có migration. Sau phát hành cần smoke test với quyền owner,
-  còn checkbox checklist giữ mở đến khi Production được xác minh.
+- **Bước an toàn tiếp theo:** Sửa nhãn “Chưa tải” ở popup phòng phía nhân viên
+  (không đổi phạm vi API/tính tiền), thử lại trên Preview staging. Sau đó mới
+  xin phép phát hành Production; không có migration và checkbox vẫn giữ mở.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 

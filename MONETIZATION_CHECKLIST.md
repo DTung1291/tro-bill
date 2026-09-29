@@ -494,7 +494,8 @@ scan sạch.
   giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
   hợp đồng làm số đếm trên Tổng quan. Preview staging 29/09/2026: owner thấy 1
   yêu cầu; nhân viên chưa được giao thấy 0, sau khi phân công thấy đúng 1 và
-  mở đúng phòng. Chờ phát hành và smoke test Production trước khi tick.
+  mở đúng phòng. Popup nhân viên còn nhãn “Chưa tải” ở trạng thái phòng; sửa
+  và thử lại trước khi phát hành, smoke test Production rồi mới tick.
 
 ### Hoàn thành giai đoạn khi
 
