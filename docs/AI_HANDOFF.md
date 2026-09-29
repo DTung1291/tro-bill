@@ -9,15 +9,42 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Trạng thái gửi hóa đơn đã phát hành Production và qua smoke test; sẵn sàng bàn giao |
-| Branch chuẩn | `main`; nhánh `feat/invoice-send-status` đã fast-forward vào `main` |
-| Worktree kỳ vọng | Sạch sau commit tài liệu phát hành; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production; readiness revision `1fbef398cceb`, database/schema `ok` |
-| Việc code tiếp theo | Nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu/người được giao (kiểm thử staging trước Production) |
+| Trạng thái | Đang làm — nguồn tổng hợp sửa chữa đã lên Preview staging; chờ kiểm thử có dữ liệu bằng tài khoản thử |
+| Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
+| Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
+| Việc code tiếp theo | Kiểm thử Preview bằng tài khoản thử đã đăng nhập: số đếm theo khu/quyền nhân viên và nút mở đúng phòng; chưa phát hành Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
+
+- Nhánh `feat/dashboard-maintenance-summary`, commit code `d2b6e42`, thêm
+  `GET /api/tenant-maintenance-summary` chỉ đọc: chủ trọ thấy yêu cầu `new`,
+  `acknowledged`, `in_progress` theo phòng trong workspace; nhân viên chỉ thấy
+  yêu cầu được giao cho chính mình tại khu được phép. Middleware vẫn bắt đăng
+  nhập và quyền `rooms`; truy vấn luôn lọc `user_id`, không dùng cache popup.
+- Tổng quan hiển thị số yêu cầu, số phòng và số chưa phân công (chỉ owner),
+  danh sách nút mở popup vận hành đúng phòng; lọc khu tại client trên dữ liệu
+  server đã lọc quyền. Khi tải lỗi hiện trạng thái chưa kiểm tra và nút thử lại,
+  không báo rỗng giả. Đổi phiên/workspace loại bỏ kết quả request cũ.
+- Không có thay đổi schema/migration. Test mục tiêu 11/11, toàn bộ 566/566
+  khi được mở cổng HTTP localhost tạm thời; secret scan và `git diff --check`
+  sạch. Lần chạy sandbox không mở được cổng nên 12 test HTTP báo lỗi môi trường,
+  đã chạy lại thành công.
+- Vercel Preview `tro-bill-8r2uvhgwd-dtung.vercel.app`
+  (`dpl_3kCaKcbAUVmGteM4BKmRXmCeQKMm`) READY, readiness revision
+  `d2b6e42328f0`, `environment=staging`, database/schema `ok`, runtime role
+  `restricted`; endpoint mới chưa đăng nhập trả HTTP 401. Trình duyệt hiện ở
+  màn đăng nhập Preview, nên **chưa có E2E ứng dụng với dữ liệu sửa chữa**;
+  checklist vẫn để mở. Không tạo dữ liệu hoặc triển khai Production.
+- Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
+  `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
+- **Bước an toàn tiếp theo:** Sau khi chủ sản phẩm đăng nhập tài khoản thử trên
+  Preview, kiểm thử số đếm/lọc khu/quyền và nút mở phòng có yêu cầu; nếu đạt
+  mới tick checklist rồi xin phép phát hành Production.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 

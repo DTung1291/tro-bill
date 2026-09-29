@@ -1231,3 +1231,17 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   idempotency chống ghi trùng. Runtime chỉ được đọc/thêm sự kiện, không sửa/xóa.
   Hóa đơn đã phát hành nhưng thiếu chi tiết chỉ số trên giao diện vẫn xuất hiện
   dạng thẻ chỉ-đọc trong danh sách để số đếm Tổng quan có lối kiểm tra đầy đủ.
+
+## D-064 — Việc sửa chữa trên Tổng quan lấy từ truy vấn theo quyền ở máy chủ
+
+- **Trạng thái:** Đã triển khai trên Preview staging từ `d2b6e42` ngày
+  29/09/2026; chưa kiểm thử E2E có dữ liệu, chưa phát hành Production.
+- **Quyết định:** Chỉ yêu cầu `new`, `acknowledged`, `in_progress` là đang mở.
+  Chủ trọ thấy tất cả yêu cầu của các phòng còn thuộc workspace; nhân viên chỉ
+  thấy yêu cầu được giao cho chính mình trong khu được phép và cần quyền
+  `rooms`. API trả tổng theo phòng, không trả nội dung/định danh khách; client
+  lọc khu trên các phòng thuộc state hiện hành. Không dùng cache popup hợp đồng
+  hoặc giới hạn 100 yêu cầu/phòng để suy ra số đếm.
+- **Hệ quả:** Nếu API lỗi, Tổng quan báo chưa kiểm tra được và cho tải lại; không
+  hiển thị số 0 giả. Đổi phiên/workspace hủy hiệu lực kết quả cũ. Không cần
+  migration vì dùng bảng và quyền SELECT đã triển khai.
