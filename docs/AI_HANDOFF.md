@@ -9,17 +9,29 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — Tổng quan sửa chữa đã qua owner/staff E2E trên Preview staging; chưa phát hành Production |
+| Trạng thái | Đang làm — bản sửa nhãn trạng thái phòng đã test local, đang chờ push/Preview E2E; chưa phát hành Production |
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Sửa nhãn “Chưa tải” trong popup phòng của nhân viên, thử lại trên Preview, rồi mới xin phép phát hành Production |
+| Việc code tiếp theo | Push nhánh tính năng đã được chủ repo xác nhận, thử lại popup/thẻ phòng nhân viên trên Preview staging; chỉ xin phép Production sau khi đạt |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
 
 ## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
+
+- Bản sửa UI `f69945a` trên nhánh tính năng: nhân viên không còn thấy badge
+  “Chưa tải” ở thẻ phòng; popup ghi rõ trạng thái vận hành chỉ chủ trọ xem.
+  Chủ trọ vẫn thấy trạng thái thật; câu “Phòng đang đang thuê” được sửa.
+  `app.js` tăng pin lên 173, các test ghim pin cập nhật tương ứng. Không đổi
+  API, phân quyền, dữ liệu hoặc schema/migration. Test mục tiêu 5/5, toàn bộ
+  567/567 khi cho phép cổng HTTP localhost, secret scan và diff check sạch.
+  Push lên `origin/feat/dashboard-maintenance-summary` ban đầu bị chặn vì
+  chưa xác minh quyền sở hữu remote GitHub; chủ repo đã xác nhận rõ remote
+  `DTung1291/tro-bill` và đồng ý đẩy đúng nhánh Preview. **Chưa có Preview
+  mới và chưa E2E bản sửa** tại thời điểm ghi dòng này. Không đẩy
+  `main`/Production.
 
 - Nhánh `feat/dashboard-maintenance-summary`, commit code `d2b6e42`, thêm
   `GET /api/tenant-maintenance-summary` chỉ đọc: chủ trọ thấy yêu cầu `new`,
