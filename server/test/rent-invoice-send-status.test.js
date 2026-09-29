@@ -96,4 +96,6 @@ test('schema giữ baseline hóa đơn cũ và sự kiện gửi append-only', (
   assert.match(app, /Cần kiểm tra gửi hóa đơn/);
   assert.match(app, /function confirmBillMessageZaloSend/);
   assert.match(app, /async function confirmBillMessageZaloSend\(event\) \{\s*const button = event\.currentTarget;/);
+  assert.match(app, /const serverOnlyBills = RENT_INVOICE_SUMMARIES_AVAILABLE/);
+  assert.match(app, /bill-card--ledger-only/);
 });

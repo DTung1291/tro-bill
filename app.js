@@ -9336,7 +9336,13 @@ function renderReport() {
   if (summaryEl) summaryEl.innerHTML = '';
 
   const billsWithData = STATE.rooms.filter(r => getPeriodRecord(r.id, period));
-  if (billsWithData.length === 0) {
+  const roomById = new Map(STATE.rooms.map(room => [String(room.id), room]));
+  const serverOnlyBills = RENT_INVOICE_SUMMARIES_AVAILABLE
+    ? [...RENT_INVOICE_SUMMARIES.values()].filter(invoice =>
+      invoice.period === period && roomById.has(String(invoice.roomId))
+        && !getPeriodRecord(invoice.roomId, period)
+    ) : [];
+  if (billsWithData.length === 0 && serverOnlyBills.length === 0) {
     if (summaryEl) summaryEl.style.display = 'none';
     if (controlsEl) controlsEl.hidden = true;
     const meterShortcut = isOwnerWorkspace() || hasWorkspaceOperation('meters')
@@ -9370,18 +9376,24 @@ function renderReport() {
     if (payment.accountSettled) paidCount++;
     activeBills.push({ room, rec, bill, payment });
   }
+  for (const invoice of serverOnlyBills) {
+    totalRevenue += Number(invoice.invoiceTotalVnd) || 0;
+    totalPaid += Math.min(Number(invoice.invoiceTotalVnd) || 0, Number(invoice.paidAmountVnd) || 0);
+    totalOutstanding += Number(invoice.totalDueVnd) || 0;
+    if (Number(invoice.remainingVnd) <= 0) paidCount++;
+  }
 
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div class="report-summary-item">
         <span class="report-summary-label">Tổng phải thu</span>
         <span class="report-summary-val">${fmt(totalRevenue)}</span>
-        <small class="report-summary-note">${activeBills.length} hóa đơn trong kỳ</small>
+        <small class="report-summary-note">${activeBills.length + serverOnlyBills.length} hóa đơn trong kỳ</small>
       </div>
       <div class="report-summary-item report-summary-item--collected">
         <span class="report-summary-label">Đã thu</span>
         <span class="report-summary-val">${fmt(totalPaid)}</span>
-        <small class="report-summary-note">Đã tất toán ${paidCount}/${activeBills.length} phòng</small>
+        <small class="report-summary-note">Đã tất toán ${paidCount}/${activeBills.length + serverOnlyBills.length} phòng</small>
       </div>
       <div class="report-summary-item report-summary-item--outstanding">
         <span class="report-summary-label">Còn phải thu</span>
@@ -9657,6 +9669,35 @@ function renderReport() {
       });
     });
 
+    listEl.appendChild(card);
+  }
+  for (const invoice of serverOnlyBills) {
+    const room = roomById.get(String(invoice.roomId));
+    const deliveryStatus = ['sent', 'unsent'].includes(invoice.deliveryStatus)
+      ? invoice.deliveryStatus : 'unknown';
+    const deliveryLabel = {
+      sent: '✓ Đã gửi', unsent: 'Chưa gửi', unknown: 'Chưa rõ đã gửi'
+    }[deliveryStatus];
+    const paymentStatus = Number(invoice.remainingVnd) <= 0
+      ? 'paid' : Number(invoice.paidAmountVnd) > 0 ? 'partial' : 'outstanding';
+    const card = document.createElement('article');
+    card.className = 'bill-card bill-card--ledger-only';
+    card.dataset.invoiceCard = '';
+    card.dataset.invoiceStatus = paymentStatus;
+    card.dataset.invoiceDelivery = deliveryStatus;
+    card.dataset.invoiceSearch = normalizedInvoiceSearch(`${room.name} ${invoice.transferContent || ''} ${invoice.invoiceId || ''}`);
+    card.innerHTML = `
+      <div class="bill-header">
+        <div><small>${escapeHtml(periodLabel(period))}</small><h3>${escapeHtml(room.name)}</h3>
+          <p>Hóa đơn đã phát hành · ${escapeHtml(invoice.transferContent || '')}</p></div>
+        <div class="bill-total"><span class="bill-total-label">Tổng hóa đơn</span>
+          <strong>${fmt(Number(invoice.invoiceTotalVnd) || 0)}</strong>
+          <span class="bill-delivery-status bill-delivery-status--${deliveryStatus}">${deliveryLabel}</span></div>
+      </div>
+      <p class="bill-ledger-only-note">Sổ máy chủ có hóa đơn này nhưng kỳ chưa có chi tiết chỉ số trong giao diện. Kiểm tra lại ở Nhập số trước khi gửi bill.</p>
+      <p class="bill-ledger-only-balance">Đã thu: ${fmt(Number(invoice.paidAmountVnd) || 0)} · Còn kỳ này: ${fmt(Number(invoice.remainingVnd) || 0)}</p>
+      ${workspacePageAllowed('billing') ? '<button type="button" class="btn btn--ghost btn--sm">Kiểm tra chỉ số →</button>' : ''}`;
+    card.querySelector('button')?.addEventListener('click', () => navigate('billing'));
     listEl.appendChild(card);
   }
   applyInvoiceListFilters();
