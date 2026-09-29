@@ -4337,7 +4337,8 @@ async function loadDashboardMaintenanceSummary() {
         || expectedGeneration !== _sessionGeneration
         || expectedAccountContext !== API.getAccountContext()
         || expectedWorkspaceId !== API.getWorkspaceAccountId()) return;
-    DASHBOARD_MAINTENANCE_SUMMARY = Array.isArray(result.rooms) ? result.rooms : [];
+    if (!Array.isArray(result?.rooms)) throw new Error('Nguồn yêu cầu sửa chữa không hợp lệ');
+    DASHBOARD_MAINTENANCE_SUMMARY = result.rooms;
     DASHBOARD_MAINTENANCE_STATUS = 'ready';
   } catch (error) {
     if (requestSequence !== DASHBOARD_MAINTENANCE_REQUEST_SEQUENCE
