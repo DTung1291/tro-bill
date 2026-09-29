@@ -1192,9 +1192,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-062 — Việc cần xử lý trên Tổng quan chỉ dùng trạng thái đã xác minh
 
-- **Trạng thái:** Nhánh `feat/dashboard-action-center` đã push và Preview staging
-  đã qua readiness ngày 28/09/2026; chưa kiểm thử UI có dữ liệu hoặc phát hành
-  Production.
+- **Trạng thái:** Nhánh `feat/dashboard-action-center` đã kiểm thử UI có dữ liệu
+  trên Preview/Neon staging ngày 29/09/2026; Production chờ phát hành.
 - **Quyết định:** Chỉ số chưa nhập lấy từ phòng đang thuê của kỳ đang chọn;
   công nợ quá hạn lấy từ hóa đơn còn dư trong sổ máy chủ ở mọi kỳ, xét hạn theo
   múi giờ Việt Nam; tạm trú dùng cùng quy tắc nhắc 30 ngày và loại khách đã trả
@@ -1204,3 +1203,10 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Giới hạn:** Chưa hiện “bill chưa gửi” khi chưa có nguồn tổng hợp delivery
   đáng tin cậy; thao tác chia sẻ Zalo không tự chứng minh đã gửi. Yêu cầu sửa
   chữa cần endpoint tổng hợp theo quyền thay vì đọc cache của popup hợp đồng.
+- **Bằng chứng staging:** Tài khoản thử ID 10 có 5 phòng TEST. Sau hai phòng
+  nhập số, Dashboard đếm 2 phòng đang thuê còn thiếu chỉ số (phòng có khách đã
+  trả không tính), 3 hồ sơ tạm trú cần gia hạn và 1 hóa đơn thử quá hạn còn
+  23.500 đ. Nút công nợ mở đúng kỳ/hóa đơn; trang Nhập số và hồ sơ cũng đúng.
+  Hóa đơn thử ID 52 trên `staging-privacy` giữ lại để kiểm tra, không có bản ghi
+  tương ứng trên Production. Lựa chọn “Chỉ thu điện nước” được lưu qua reload;
+  bổ sung `saveState()` tường minh để tránh lệch dữ liệu.

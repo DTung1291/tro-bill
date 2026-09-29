@@ -477,12 +477,12 @@ scan sạch.
 
 ### Việc cần xử lý trên Tổng quan
 
-- [ ] Hiển thị số phòng đang thuê chưa nhập chỉ số của kỳ đang xem, hóa đơn quá
+- [x] Hiển thị số phòng đang thuê chưa nhập chỉ số của kỳ đang xem, hóa đơn quá
   hạn chưa thu đủ từ sổ thanh toán và hồ sơ tạm trú sắp/quá hạn. Số lượng phải
   đúng khu đang lọc; nút dẫn tới đúng nghiệp vụ và tôn trọng quyền nhân viên.
-  Giao diện + test local đã implement trên branch `feat/dashboard-action-center`;
-  Preview staging đã qua readiness/asset preflight. Còn cần kiểm thử thao tác
-  có dữ liệu trên UI staging trước khi đánh dấu hoàn thành.
+  Đã kiểm thử Preview với tài khoản thử Neon staging: bộ lọc khu, phòng thiếu chỉ
+  số, 3 hồ sơ tạm trú và 1 hóa đơn quá hạn chưa thu đủ; các nút mở đúng nghiệp
+  vụ. Test local 554/554; Production chỉ phát hành sau cổng staging này.
 - [ ] Bổ sung nguồn tổng hợp trạng thái gửi hóa đơn theo kỳ/khu trước khi hiện
   mục “bill chưa gửi”; không suy diễn từ việc hóa đơn chưa thanh toán. Với chia
   sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận.

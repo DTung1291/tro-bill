@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 28/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — nhánh tính năng đã lên Preview staging; chờ đăng nhập để kiểm thử tình huống có dữ liệu |
+| Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Preview staging đã kiểm thử với dữ liệu thật của tài khoản TEST; chuẩn bị phát hành Production |
 | Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/dashboard-action-center` |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `44f2348` trên Production; CI run `36403062066` xanh, readiness database/schema `ok` |
-| Việc code tiếp theo | Kiểm thử 3 loại việc và các nút dẫn hướng bằng tài khoản thử có dữ liệu trên staging/Preview; chỉ sau đó đề nghị phát hành Production |
+| Việc code tiếp theo | Phát hành nhánh action center đã qua staging; sau đó làm nguồn tổng hợp bill chưa gửi/sửa chữa theo hai mục checklist còn mở |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -42,13 +42,18 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   trạng thái rỗng hiển thị, console không có error, viewport 390 px có
   `scrollWidth=384` nhỏ hơn `innerWidth=390`. Tài khoản đang mở không có phòng,
   nên đây **chưa phải** bằng chứng E2E cho ba trạng thái có việc/nút dẫn hướng.
-- Bước an toàn tiếp theo: tạo hoặc dùng tài khoản thử có dữ liệu trên staging,
-  xác minh từng nhóm việc, bộ lọc khu và quyền nhân viên ở UI trước khi xin
-  phép phát hành; không dùng dữ liệu Production để thử.
-  Trình duyệt Brave đang gặp Vercel Authentication; Chrome không có kết nối
-  điều khiển. Đã nhờ chủ sản phẩm đăng nhập Vercel và tài khoản staging trên
-  Preview, chưa nhận xác nhận. Không tick checklist hoặc push `main` khi chưa
-  có bằng chứng UI này.
+- Ngày 29/09/2026 đã kiểm thử Preview branch alias bằng tài khoản test ID 10,
+  chỉ trên Neon `staging-privacy`: ban đầu 4 phòng đang thuê chưa nhập chỉ số,
+  3 hồ sơ tạm trú cần gia hạn; bộ lọc khu và nút dẫn hướng hoạt động. Khi nhập
+  chỉ số cho 2 phòng TEST, đếm còn 2. Tạo hóa đơn thử 23.500 đ cho phòng TEST
+  thứ hai với hạn 20/09 lúc phát hành (ID 52), giữ lại theo đồng ý của chủ sản
+  phẩm; Dashboard hiện 1 quá hạn, nút mở đúng danh sách kỳ 09/2026 và trạng
+  thái “Quá hạn 8–30 ngày”. Không tạo/sửa dữ liệu Production. Hóa đơn thử đầu
+  tiên ID 49 hạn 08/10 giữ nguyên: DB chặn đổi hạn sau phát hành theo chính
+  sách bất biến, không gỡ trigger. Chọn “Chỉ thu điện nước” cho hóa đơn 23.500 đ
+  còn đúng sau reload. Bản sửa lưu tường minh ở commit `2dc1f26`, `app.js?v=168`,
+  bộ test 554/554. Đã tick riêng mục action center; hai nguồn chưa đủ dữ liệu
+  (bill chưa gửi, sửa chữa) tiếp tục bỏ ngỏ.
 
 ## Mục tiêu đang theo đuổi
 
