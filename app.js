@@ -8126,6 +8126,7 @@ async function sendBillMessageEmail(event) {
 }
 
 async function confirmBillMessageZaloSend(event) {
+  const button = event.currentTarget;
   const tenant = selectedBillMessageTenant();
   if (!tenant) {
     showToast('Hãy chọn khách nhận hóa đơn trước.', 'error');
@@ -8136,7 +8137,6 @@ async function confirmBillMessageZaloSend(event) {
     `Bạn xác nhận đã gửi ${templateType === 'reminder' ? 'tin nhắc' : 'hóa đơn'} trong đúng nhóm Zalo? TrọBill không thể tự kiểm chứng thao tác trong Zalo.`
   );
   if (!confirmed) return;
-  const button = event.currentTarget;
   button.disabled = true;
   try {
     const invoiceId = await activeBillMessageInvoiceId();

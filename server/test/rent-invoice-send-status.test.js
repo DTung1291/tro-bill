@@ -95,4 +95,5 @@ test('schema giữ baseline hóa đơn cũ và sự kiện gửi append-only', (
   assert.match(server, /\/api\/rent-invoices\/:invoiceId\/confirm-zalo-send/);
   assert.match(app, /Cần kiểm tra gửi hóa đơn/);
   assert.match(app, /function confirmBillMessageZaloSend/);
+  assert.match(app, /async function confirmBillMessageZaloSend\(event\) \{\s*const button = event\.currentTarget;/);
 });

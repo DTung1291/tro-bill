@@ -555,5 +555,5 @@ test('route và giao diện nối đủ bộ lọc, trạng thái tải và layo
   assert.match(cssSource, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(indexSource, /style\.css\?v=168/);
   assert.match(indexSource, /api\.js\?v=119/);
-  assert.match(indexSource, /app\.js\?v=169/);
+  assert.match(indexSource, /app\.js\?v=170/);
 });
