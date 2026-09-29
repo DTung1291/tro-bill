@@ -6494,7 +6494,10 @@ function renderRooms() {
     const currentTenantCount = Number.isInteger(roomStatus.activeTenantCount)
       ? roomStatus.activeTenantCount
       : (room.tenants || []).filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
-    const statusBadge = `<span class="room-operational-status room-operational-status--${roomStatus.conflict ? 'conflict' : roomStatus.status}">${escapeHtml(roomStatus.label)}</span>`;
+    // Trạng thái vận hành chỉ được tải cho chủ trọ; không hiển thị "Chưa tải" như một lỗi ở thẻ phòng nhân viên.
+    const statusBadge = isOwnerWorkspace()
+      ? `<span class="room-operational-status room-operational-status--${roomStatus.conflict ? 'conflict' : roomStatus.status}">${escapeHtml(roomStatus.label)}</span>`
+      : '';
     const property = STATE.properties.find(item => item.id === Number(room.propertyId));
     const propertyBadge = property
       ? `<span class="room-property-badge">🏢 ${escapeHtml(property.name)}</span>`
@@ -12257,8 +12260,10 @@ function renderRoomLifecycleContent() {
   const maintenancePeriods = ROOM_MAINTENANCE_PERIODS.filter(item => item.roomId === room.id);
   const activeMaintenance = maintenancePeriods.find(m => m.status === 'active');
   const owner = isOwnerWorkspace();
-  statusElement.className = `room-lifecycle-current room-lifecycle-current--${status.conflict ? 'conflict' : status.status}`;
-  statusElement.textContent = `Trạng thái hiện tại: ${status.label}`;
+  statusElement.className = `room-lifecycle-current room-lifecycle-current--${owner && status.conflict ? 'conflict' : (owner ? status.status : 'unknown')}`;
+  statusElement.textContent = owner
+    ? `Trạng thái hiện tại: ${status.label}`
+    : 'Trạng thái vận hành: chỉ chủ trọ xem';
   let html = '';
   if (!owner) {
     html += '<p class="rental-contract-helper">Bạn đang xem danh mục tài sản trong phạm vi khu được giao. Chỉ chủ tài khoản mới có thể thay đổi vận hành và tài sản.</p>';
@@ -12294,7 +12299,7 @@ function renderRoomLifecycleContent() {
   } else {
     html += `
       <section class="room-lifecycle-section">
-        <p class="rental-contract-helper">Phòng đang ${escapeHtml(status.label.toLowerCase())}. Chỉ phòng trống mới có thể bắt đầu sửa chữa.</p>
+        <p class="rental-contract-helper">Phòng hiện ở trạng thái ${escapeHtml(status.label.toLowerCase())}. Chỉ phòng trống mới có thể bắt đầu sửa chữa.</p>
       </section>
     `;
   }

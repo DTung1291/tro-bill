@@ -47,5 +47,5 @@ test('tổng quan phân cấp tài chính và trạng thái phòng, thu về m�
   );
   assert.match(html, /href="style\.css\?v=170"/);
   assert.match(html, /src="api\.js\?v=120"/);
-  assert.match(html, /src="app\.js\?v=172"/);
+  assert.match(html, /src="app\.js\?v=173"/);
 });

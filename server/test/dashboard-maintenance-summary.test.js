@@ -72,3 +72,10 @@ test('summary route is authenticated and requires rooms operation', () => {
   const server = fs.readFileSync(path.join(__dirname, '..', 'index.js'), 'utf8');
   assert.match(server, /'\/api\/tenant-maintenance-summary',[\s\S]*?requireAuth,[\s\S]*?requireWorkspace\('rooms'\)[\s\S]*?summarizeMaintenanceWork/);
 });
+
+test('staff room UI does not present owner-only operational state as a loading failure', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', '..', 'app.js'), 'utf8');
+  assert.match(app, /const statusBadge = isOwnerWorkspace\(\)[\s\S]*?: '';/);
+  assert.match(app, /statusElement\.textContent = owner[\s\S]*?'Trạng thái vận hành: chỉ chủ trọ xem'/);
+  assert.match(app, /Phòng hiện ở trạng thái \$\{escapeHtml\(status\.label\.toLowerCase\(\)\)\}/);
+});
