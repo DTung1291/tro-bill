@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Preview staging đã kiểm thử với dữ liệu thật của tài khoản TEST; chuẩn bị phát hành Production |
-| Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/dashboard-action-center` |
+| Trạng thái | Action center đã kiểm thử trên Preview staging và phát hành Production |
+| Branch chuẩn | `main` (nhánh tính năng `feat/dashboard-action-center` đã fast-forward) |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `44f2348` trên Production; CI run `36403062066` xanh, readiness database/schema `ok` |
-| Việc code tiếp theo | Phát hành nhánh action center đã qua staging; sau đó làm nguồn tổng hợp bill chưa gửi/sửa chữa theo hai mục checklist còn mở |
+| Phần ứng dụng phát hành gần nhất | `083762c` trên Production; CI run `36504705387` xanh, readiness revision `083762ccfe6e` và database/schema `ok` |
+| Việc code tiếp theo | Làm nguồn tổng hợp bill chưa gửi/sửa chữa theo hai mục checklist còn mở; giữ cổng staging trước Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -54,6 +54,12 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   còn đúng sau reload. Bản sửa lưu tường minh ở commit `2dc1f26`, `app.js?v=168`,
   bộ test 554/554. Đã tick riêng mục action center; hai nguồn chưa đủ dữ liệu
   (bill chưa gửi, sửa chữa) tiếp tục bỏ ngỏ.
+- Fast-forward `main` đến `083762c` ngày 29/09/2026. Vercel Production deploy
+  `dpl_4skKPwEisLsGR7fq8XZHfc8M5fQ3` Ready; `/api/health/ready` trả
+  `environment=production`, revision `083762ccfe6e`, database/schema `ok`,
+  runtime role `restricted`; HTML Production có action center và `app.js?v=168`.
+  CI `36504705387` success. Không tạo dữ liệu test trên Production; kiểm thử
+  nghiệp vụ có dữ liệu chỉ được thực hiện trên staging.
 
 ## Mục tiêu đang theo đuổi
 

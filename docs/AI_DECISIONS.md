@@ -1192,8 +1192,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-062 — Việc cần xử lý trên Tổng quan chỉ dùng trạng thái đã xác minh
 
-- **Trạng thái:** Nhánh `feat/dashboard-action-center` đã kiểm thử UI có dữ liệu
-  trên Preview/Neon staging ngày 29/09/2026; Production chờ phát hành.
+- **Trạng thái:** Đã kiểm thử UI có dữ liệu trên Preview/Neon staging và phát
+  hành Production từ `083762c` ngày 29/09/2026.
 - **Quyết định:** Chỉ số chưa nhập lấy từ phòng đang thuê của kỳ đang chọn;
   công nợ quá hạn lấy từ hóa đơn còn dư trong sổ máy chủ ở mọi kỳ, xét hạn theo
   múi giờ Việt Nam; tạm trú dùng cùng quy tắc nhắc 30 ngày và loại khách đã trả
