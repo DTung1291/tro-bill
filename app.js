@@ -7431,6 +7431,7 @@ function renderBilling() {
           delete STATE.billingData[period][room.id].utilityOnly;
         }
         recalc();
+        saveState();
         renderReport();
         renderDashboard();
       });

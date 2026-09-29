@@ -46,5 +46,10 @@ test('luồng nhập chỉ số và hóa đơn có tiến độ, CTA và respons
     css,
     /@media\s*\(max-width:\s*680px\)[\s\S]*?\.bill-details\s*\{[^}]*display:\s*none;[^}]*\}[\s\S]*?\.bill-card\.is-expanded \.bill-details\s*\{[^}]*display:\s*block;/
   );
-  assert.match(html, /href="style\.css\?v=167"[\s\S]*src="app\.js\?v=167"/);
+  assert.match(html, /href="style\.css\?v=167"[\s\S]*src="app\.js\?v=168"/);
+});
+
+test('lựa chọn chỉ thu điện nước được lưu cùng chỉ số', () => {
+  const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  assert.match(app, /const utilityToggle = tr\.querySelector\('\.billing-utility-toggle'\);[\s\S]*?utilityToggle\.addEventListener\('change',[\s\S]*?recalc\(\);\s*saveState\(\);/);
 });
