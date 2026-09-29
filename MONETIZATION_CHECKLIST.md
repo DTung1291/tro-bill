@@ -488,7 +488,8 @@ scan sạch.
   sẻ thủ công qua Zalo chỉ đánh dấu đã gửi khi chủ trọ xác nhận. Preview staging
   29/09/2026: 2 hóa đơn cũ “chưa rõ”, hóa đơn mới “chưa gửi”, xác nhận QA chuyển
   thành “đã gửi”; sao chép/hủy không ghi sự kiện. Nút Tổng quan mở đúng 4/5
-  hóa đơn cần kiểm tra, gồm 2 hóa đơn chỉ có trong sổ. Production còn chờ duyệt.
+  hóa đơn cần kiểm tra, gồm 2 hóa đơn chỉ có trong sổ. Migration Production đã
+  chạy và xác minh 29/09/2026; code Production còn chờ duyệt phát hành.
 - [ ] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
   giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
   hợp đồng làm số đếm trên Tổng quan.

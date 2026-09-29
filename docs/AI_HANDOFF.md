@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — trạng thái gửi hóa đơn đã qua Preview staging; chờ duyệt phát hành Production |
+| Trạng thái | Sẵn sàng bàn giao — migration đã chạy Production; code mới vẫn chỉ ở Preview, chờ duyệt phát hành |
 | Branch chuẩn | `main`; nhánh tính năng hiện tại `feat/invoice-send-status` |
 | Worktree kỳ vọng | Sạch sau commit nhánh tính năng; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `083762c` trên Production; CI run `36504705387` xanh, readiness revision `083762ccfe6e` và database/schema `ok` |
-| Việc code tiếp theo | Xin duyệt áp dụng migration Production rồi phát hành nhánh gửi hóa đơn theo D-060; sau đó làm nguồn tổng hợp sửa chữa |
+| Phần ứng dụng phát hành gần nhất | `9623cbd` trên Production (docs-only sau `083762c`); sau migration readiness revision `9623cbd1f095`, database/schema `ok` |
+| Việc code tiếp theo | Xin duyệt phát hành nhánh gửi hóa đơn lên Production; sau đó làm nguồn tổng hợp sửa chữa |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -27,8 +27,11 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   trạng thái; sao chép/chia sẻ Zalo không tự ghi nhận đã gửi. Chi tiết D-063.
 - Migration `20260929_rent_invoice_send_status.sql` đã chạy hai lần trên Neon
   `staging-privacy` (`br-ancient-wave-azwc43to`, `neondb`): `events_ready`,
-  `baseline_ready`, `runtime_grants_ready` đều `true`. **Chưa chạy trên
-  Production.**
+  `baseline_ready`, `runtime_grants_ready` đều `true`. Ngày 29/09/2026, theo
+  đồng ý của chủ sản phẩm, migration đã chạy trên Neon Production
+  `production / br-fancy-star-azyclc1h / neondb` bằng `neondb_owner`; ba cờ
+  xác minh đều `true`. Cả 22 hóa đơn cũ đều `legacy_unknown`, mặc định hóa đơn
+  mới là `tracked`, bảng event mới có 0 dòng. Không sửa số tiền/hóa đơn cũ.
 - Local: `npm test` 560/560, `npm run check:secrets`, `git diff --check` và
   `node --check` đạt. Preview `c33e69a` READY trên alias
   `tro-bill-git-feat-invoice-send-status-dtung.vercel.app`; readiness cuối trả
@@ -46,14 +49,16 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   danh sách, bộ lọc “Chưa gửi” cho 2 thẻ chỉ có trong sổ. Dữ liệu QA giữ lại
   để người dùng xem theo yêu cầu trước đó, **không có dữ liệu Production**.
 - Chưa kiểm thử gửi email thật vì khách QA không có email; nhánh đó có unit test
-  provider accepted/logging failure. Chưa chạy migration Production và chưa
-  phát hành code mới lên Production.
+  provider accepted/logging failure. Sau migration Production, endpoint
+  `/api/health/ready` vẫn `ok`, `environment=production`, revision
+  `9623cbd1f095`, database/schema `ok`, runtime role `restricted`; có cảnh báo
+  tùy chọn `OPS_ALERT_WEBHOOK_MISSING`. **Chưa phát hành code mới lên Production.**
 - Tệp chính: `app.js`, `api.js`, `index.html`, `style.css`, `server/index.js`,
   `server/rent-payments.js`, `server/rent-invoice-delivery.js`, module send-status,
-  migration/schema/diagnostics và test liên quan. Production đã xác minh gần
-  nhất vẫn là `083762c`.
-- **Bước an toàn tiếp theo:** Khi chủ sản phẩm đồng ý, áp dụng migration trên
-  Neon Production rồi fast-forward/push `main`, smoke test revision và luồng.
+  migration/schema/diagnostics và test liên quan. Code ứng dụng Production vẫn
+  là `083762c`; revision deployment hiện tại là `9623cbd` (docs-only).
+- **Bước an toàn tiếp theo:** Khi chủ sản phẩm đồng ý phát hành code, fast-forward
+  nhánh đã kiểm thử vào `main`, push rồi smoke test revision và luồng Production.
 
 ## Phiên 28/09/2026 — Việc cần xử lý trên Tổng quan
 
