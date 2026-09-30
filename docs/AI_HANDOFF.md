@@ -9,17 +9,34 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — bản sửa nhãn trạng thái phòng đã qua Preview staging; chưa phát hành Production |
-| Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
+| Trạng thái | Sẵn sàng bàn giao — Tổng quan sửa chữa đã phát hành Production và smoke test đạt |
+| Branch chuẩn | `main`; nhánh `feat/dashboard-maintenance-summary` đã fast-forward vào `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Xin phép chủ sản phẩm phát hành Production nhánh Tổng quan sửa chữa (không có migration); chỉ tick checklist sau Production smoke test |
+| Phần ứng dụng phát hành gần nhất | `08304b4` trên Production; readiness revision `08304b4c3123`, database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Chọn hạng mục checklist chưa hoàn thành tiếp theo cùng chủ sản phẩm; không tự tạo dữ liệu Production để kiểm thử |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
 
 ## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
+
+- Ngày 30/09/2026, theo yêu cầu “Đẩy lên”, đã fast-forward `main` từ
+  `012ec46` đến đúng commit Preview `08304b4` và push Production. Không có
+  migration. Vercel `tro-bill-7w521we4y-dtung.vercel.app`
+  (`dpl_CLmfGzUdbRxUxnJiSjhd7pg3nf2n`) READY, alias
+  `tro-bill.vercel.app`, readiness revision `08304b4c3123`, môi trường
+  `production`, database/schema `ok`, runtime role `restricted`. CI run
+  `36653690027` hoàn thành `test-and-security` thành công; trước phát hành
+  local test 567/567, secret scan và diff check sạch. Endpoint
+  `/api/tenant-maintenance-summary` chưa đăng nhập trả 401/no-store.
+  Smoke test phiên chủ trọ Production: Tổng quan tháng 9/2026 tải được,
+  phòng 101 hiển thị “Đang thuê”, popup vận hành giữ đúng trạng thái và câu
+  chữ mới, yêu cầu đã hủy chỉ hiện trong lịch sử; console error và Runtime
+  Logs error/fatal của deployment rỗng. Không tạo/sửa dữ liệu thật. Checklist
+  tương ứng được tick sau smoke test. GitHub cho chủ repo bypass rule PR và
+  status check lúc push; CI sau push đã xanh. Chưa có phiên nhân viên Production
+  để smoke riêng; quyền nhân viên đã qua E2E trên Preview staging.
 
 - Bản sửa UI `f69945a` trên nhánh tính năng: nhân viên không còn thấy badge
   “Chưa tải” ở thẻ phòng; popup ghi rõ trạng thái vận hành chỉ chủ trọ xem.
@@ -113,9 +130,8 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Xin phép phát hành Production nhánh đã qua
-  Preview staging; sau phát hành smoke test owner/staff và mới tick checklist.
-  Không có migration; checkbox vẫn giữ mở trước Production.
+- **Bước an toàn tiếp theo:** Chọn hạng mục checklist chưa hoàn thành tiếp theo
+  cùng chủ sản phẩm; tiếp tục staging trước Production.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 

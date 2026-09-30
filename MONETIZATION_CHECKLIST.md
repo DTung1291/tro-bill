@@ -490,12 +490,14 @@ scan sạch.
   thành “đã gửi”; sao chép/hủy không ghi sự kiện. Nút Tổng quan mở đúng 4/5
   hóa đơn cần kiểm tra, gồm 2 hóa đơn chỉ có trong sổ. Migration Production đã
   chạy và xác minh 29/09/2026; code đã phát hành và Production smoke test đạt.
-- [ ] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
+- [x] Bổ sung nguồn tổng hợp yêu cầu sửa chữa đang mở theo khu và người được
   giao; nhân viên chỉ thấy việc thuộc phạm vi mình, không dùng cache của popup
-  hợp đồng làm số đếm trên Tổng quan. Preview staging 29/09/2026: owner thấy 1
-  yêu cầu; nhân viên chưa được giao thấy 0, sau khi phân công thấy đúng 1 và
-  mở đúng phòng. Popup nhân viên còn nhãn “Chưa tải” ở trạng thái phòng; sửa
-  và thử lại trước khi phát hành, smoke test Production rồi mới tick.
+  hợp đồng làm số đếm trên Tổng quan. Preview staging 29–30/09/2026: owner
+  thấy 1 yêu cầu; nhân viên chưa được giao thấy 0, sau khi phân công thấy đúng
+  1 và mở đúng phòng. Popup nhân viên đã bỏ nhãn “Chưa tải”, thử lại trên
+  Preview đạt. Production `08304b4` ngày 30/09/2026: readiness/schema/role đạt,
+  chủ trọ xem Tổng quan và popup phòng 101 đúng, endpoint chưa đăng nhập trả
+  401; CI và runtime logs sạch.
 
 ### Hoàn thành giai đoạn khi
 

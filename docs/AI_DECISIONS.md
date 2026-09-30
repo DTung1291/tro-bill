@@ -1237,7 +1237,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Trạng thái:** Đã triển khai trên Preview staging từ `d2b6e42` ngày
   29/09/2026; owner và nhân viên E2E với yêu cầu `YC-2026-000005` đạt ngày
   29/09/2026 (chưa phân công không thấy, đã phân công thấy đúng một việc).
-  Chưa phát hành Production.
+  Bản sửa UI nhân viên đã qua Preview và phát hành Production tại `08304b4`
+  ngày 30/09/2026; readiness, CI và smoke test chủ trọ đạt.
 - **Quyết định:** Chỉ yêu cầu `new`, `acknowledged`, `in_progress` là đang mở.
   Chủ trọ thấy tất cả yêu cầu của các phòng còn thuộc workspace; nhân viên chỉ
   thấy yêu cầu được giao cho chính mình trong khu được phép và cần quyền
