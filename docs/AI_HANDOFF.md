@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — tối ưu lưu hồ sơ đã E2E local nối staging; chưa phát hành |
+| Trạng thái | Sẵn sàng phát hành — tối ưu lưu hồ sơ đã E2E trên Preview staging; chưa phát hành Production |
 | Branch hiện tại | `feat/tenant-profile-save-performance` từ `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `08304b4` trên Production; readiness revision `08304b4c3123`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Chờ chủ sản phẩm yêu cầu push nhánh Preview; chưa push/merge Production |
+| Việc code tiếp theo | Fast-forward `main` khi được phép, rồi smoke test Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -21,7 +21,7 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 
 ## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
 
-- Nhánh `feat/tenant-profile-save-performance` (chưa push/deploy): thêm trạng
+- Nhánh `feat/tenant-profile-save-performance`: thêm trạng
   thái “Đang lưu…”, khóa sửa/đóng form khi chờ, hiển thị lỗi ngay trong form.
   Sửa hồ sơ cũ qua API PATCH một hàng `tenants` có kiểm tra owner, workspace,
   gói dịch vụ, cùng phòng/chủ, CCCD che và audit tên trường. Tạo/xóa hồ sơ vẫn
@@ -44,14 +44,25 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   click đến form đóng khoảng 1,3 giây. Reload: tên gốc/CCCD che vẫn đúng và
   tên QA không còn. Form ở viewport 390 px có scrollWidth đúng 390 px, không
   tràn ngang. Không tạo/sửa dữ liệu Production, dữ liệu QA được trả về như cũ.
-  Chưa có deployment Preview riêng cho nhánh này; kết quả E2E áp dụng cho
-  ứng dụng local nối database staging.
+  Lần E2E này áp dụng cho ứng dụng local nối database staging.
+- Theo yêu cầu “đẩy lên”, đã push commit ứng dụng `46fe6c2` lên nhánh Preview.
+  Deployment `dpl_EztxEUrdyk6CpafAhvA9WuJyFykH` tại
+  `tro-bill-ehc257qa2-dtung.vercel.app` READY; readiness revision
+  `46fe6c2d5c2d`, environment `staging`, database/schema `ok`, runtime role
+  `restricted`. Tài khoản QA owner có 5 phòng TEST; trên Preview, sửa tên hồ sơ
+  giả ở TEST 1 thấy “Đang lưu…” và form khóa. Lần đầu chờ hơn 15 giây nhưng
+  API cuối cùng trả 200; lần đổi lại tên gốc hoàn tất khoảng 3,2 giây. Sau
+  reload tên gốc vẫn đúng, CCCD che, tên QA không còn, console không có error.
+  Runtime logs cho cả hai PATCH trả 200, không thấy error; chưa có số liệu đủ
+  để kết luận vì sao request Preview đầu chậm. Không có migration hoặc ghi
+  Production trong lần test. `origin/main` và readiness Production cùng ở
+  `8d4b27f` trước khi phát hành.
 - Tệp chính: `server/tenant-profile.js`, `server/index.js`, `server/state.js`,
   `server/data-audit.js`, `server/test/tenant-profile.test.js`, `api.js`,
   `app.js`, `index.html`, `style.css` và các test ghim asset version.
-- **Bước an toàn tiếp theo:** Khi chủ sản phẩm yêu cầu đẩy nhánh, push lên
-  Preview staging và kiểm thử lại cùng luồng tại deployment đó; chỉ sau khi
-  đạt và được cho phép mới phát hành Production.
+- **Bước an toàn tiếp theo:** Fast-forward `main` tới bản Preview đã kiểm thử
+  theo yêu cầu phát hành, sau đó xác minh readiness/revision và smoke test
+  Production mà không sửa dữ liệu thật.
 
 ## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
 
