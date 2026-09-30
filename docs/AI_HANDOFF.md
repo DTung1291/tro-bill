@@ -8,12 +8,12 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 29/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang làm — bản sửa nhãn trạng thái phòng đã test local, đang chờ push/Preview E2E; chưa phát hành Production |
+| Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Sẵn sàng bàn giao — bản sửa nhãn trạng thái phòng đã qua Preview staging; chưa phát hành Production |
 | Branch chuẩn | `main`; nhánh đang làm `feat/dashboard-maintenance-summary` (chưa merge Production) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `1fbef39` trên Production, sau đó docs-only `012ec46`; Production readiness revision `012ec46d3ef1`, database/schema `ok` |
-| Việc code tiếp theo | Push nhánh tính năng đã được chủ repo xác nhận, thử lại popup/thẻ phòng nhân viên trên Preview staging; chỉ xin phép Production sau khi đạt |
+| Việc code tiếp theo | Xin phép chủ sản phẩm phát hành Production nhánh Tổng quan sửa chữa (không có migration); chỉ tick checklist sau Production smoke test |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -30,8 +30,21 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   Push lên `origin/feat/dashboard-maintenance-summary` ban đầu bị chặn vì
   chưa xác minh quyền sở hữu remote GitHub; chủ repo đã xác nhận rõ remote
   `DTung1291/tro-bill` và đồng ý đẩy đúng nhánh Preview. **Chưa có Preview
-  mới và chưa E2E bản sửa** tại thời điểm ghi dòng này. Không đẩy
-  `main`/Production.
+  mới và chưa E2E bản sửa** tại thời điểm commit `d03f35d`.
+- Đã push nhánh `feat/dashboard-maintenance-summary` sau xác nhận. Preview
+  `tro-bill-hh2isq39b-dtung.vercel.app` (`dpl_CDp7NKvsqhUZ27mCpVTtroinQm1z`)
+  ở commit `d03f35d` trạng thái READY. Đăng nhập tài khoản nhân viên QA trên
+  Preview staging, chọn workspace `residence-test-20260928-e937041b@trobill.local`
+  (1 khu, chỉ Tổng quan/Phòng); trang Phòng có 5 thẻ phòng và không thẻ nào
+  ghi “Chưa tải”. Popup phòng TEST TẠM TRÚ · STAGING 1 ghi đúng “Trạng thái
+  vận hành: chỉ chủ trọ xem”, vẫn hiển thị đúng một yêu cầu được giao
+  `YC-2026-000005`; không mở rộng quyền truy cập trạng thái chủ trọ. Trên
+  viewport 390 px, `document.scrollWidth=390`, khi popup mở thì scroll nền
+  bị khóa,
+  console error rỗng. Không tạo/sửa dữ liệu QA trong lần kiểm tra này. Chưa
+  thử lại giao diện chủ trọ trên Preview mới vì không có phiên chủ trọ ở host
+  này; nhánh logic owner không đổi ngoài sửa câu chữ. Không đẩy `main` hoặc
+  Production, không có migration.
 
 - Nhánh `feat/dashboard-maintenance-summary`, commit code `d2b6e42`, thêm
   `GET /api/tenant-maintenance-summary` chỉ đọc: chủ trọ thấy yêu cầu `new`,
@@ -100,9 +113,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `f77fe58aa54f`, staging database/schema `ok`, runtime role `restricted`.
 - Tệp chính: `server/tenant-maintenance-requests.js`, `server/index.js`,
   `api.js`, `app.js`, `style.css`, `index.html`, README và test tương ứng.
-- **Bước an toàn tiếp theo:** Sửa nhãn “Chưa tải” ở popup phòng phía nhân viên
-  (không đổi phạm vi API/tính tiền), thử lại trên Preview staging. Sau đó mới
-  xin phép phát hành Production; không có migration và checkbox vẫn giữ mở.
+- **Bước an toàn tiếp theo:** Xin phép phát hành Production nhánh đã qua
+  Preview staging; sau phát hành smoke test owner/staff và mới tick checklist.
+  Không có migration; checkbox vẫn giữ mở trước Production.
 
 ## Phiên 29/09/2026 — Trạng thái gửi hóa đơn
 
