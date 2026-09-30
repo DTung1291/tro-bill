@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng phát hành — tối ưu lưu hồ sơ đã E2E trên Preview staging; chưa phát hành Production |
-| Branch hiện tại | `feat/tenant-profile-save-performance` từ `main` |
+| Trạng thái | Sẵn sàng bàn giao — tối ưu lưu hồ sơ đã phát hành Production và smoke test đạt |
+| Branch hiện tại | `main`; nhánh `feat/tenant-profile-save-performance` đã fast-forward vào `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `08304b4` trên Production; readiness revision `08304b4c3123`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Fast-forward `main` khi được phép, rồi smoke test Production |
+| Phần ứng dụng phát hành gần nhất | `ff4efb4` trên Production; readiness revision `ff4efb4609ec`, database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Theo dõi phản hồi về lần lưu đầu sau idle; chỉ thêm đo thời gian không chứa dữ liệu cá nhân nếu còn chậm |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -21,6 +21,18 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 
 ## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
 
+- Theo yêu cầu “đẩy lên”, đã fast-forward `main` tới `ff4efb4` và push
+  Production, không có migration. Vercel deployment
+  `tro-bill-etc95v2p7-dtung.vercel.app` READY, alias `tro-bill.vercel.app`,
+  readiness revision `ff4efb4609ec`, environment `production`, database/schema
+  `ok`, runtime role `restricted`; còn cảnh báo tùy chọn
+  `OPS_ALERT_WEBHOOK_MISSING`. CI run `36659592438` `test-and-security` thành
+  công. Smoke test chỉ đọc trên phiên chủ trọ Production: asset `app.js?v=174`
+  tải đúng, màn Phòng có 7 nút hồ sơ, mở form sửa thấy vùng trạng thái lưu,
+  CCCD vẫn che; hủy form, không lưu dữ liệu thật. Console error và Runtime
+  Logs error của deployment mới rỗng. GitHub cho chủ repo bypass yêu cầu PR và
+  status check lúc push; CI sau push đã xanh. Chưa có phép đo thời gian lưu
+  Production vì không ghi hồ sơ thật.
 - Nhánh `feat/tenant-profile-save-performance`: thêm trạng
   thái “Đang lưu…”, khóa sửa/đóng form khi chờ, hiển thị lỗi ngay trong form.
   Sửa hồ sơ cũ qua API PATCH một hàng `tenants` có kiểm tra owner, workspace,
@@ -60,9 +72,9 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
 - Tệp chính: `server/tenant-profile.js`, `server/index.js`, `server/state.js`,
   `server/data-audit.js`, `server/test/tenant-profile.test.js`, `api.js`,
   `app.js`, `index.html`, `style.css` và các test ghim asset version.
-- **Bước an toàn tiếp theo:** Fast-forward `main` tới bản Preview đã kiểm thử
-  theo yêu cầu phát hành, sau đó xác minh readiness/revision và smoke test
-  Production mà không sửa dữ liệu thật.
+- **Bước an toàn tiếp theo:** Nếu người dùng vẫn thấy lần lưu đầu sau thời gian
+  idle chậm, đo độ trễ từng chặng API/database trên staging bằng metric không
+  chứa dữ liệu cá nhân để phân biệt cold start với truy vấn chậm.
 
 ## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
 

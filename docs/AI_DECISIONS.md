@@ -1251,8 +1251,9 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-065 — Sửa hồ sơ khách thuê không ghi lại toàn bộ state
 
-- **Trạng thái:** Đã kiểm thử trên local và Preview nối Neon staging, nhánh
-  `feat/tenant-profile-save-performance`; chưa phát hành Production.
+- **Trạng thái:** Đã kiểm thử trên local và Preview nối Neon staging; phát
+  hành Production tại `ff4efb4` ngày 30/09/2026, readiness/CI và smoke test
+  chỉ đọc đạt.
 - **Quyết định:** Hồ sơ khách đã tồn tại dùng `PATCH /api/tenants/:tenantId/profile`,
   khóa theo chủ tài khoản và cập nhật đúng một hàng `tenants`; việc thêm/xóa vẫn
   dùng luồng state hiện có cho đến khi có API riêng. Form hiển thị “Đang lưu…”,
