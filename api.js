@@ -180,6 +180,9 @@ const API = (() => {
   function putState(state) {
     return request('PUT', '/api/state', state);
   }
+  function updateTenantProfile(tenantId, profile) {
+    return request('PATCH', `/api/tenants/${encodeURIComponent(tenantId)}/profile`, profile);
+  }
 
   function getProperties() {
     return request('GET', '/api/properties');
@@ -854,6 +857,7 @@ const API = (() => {
     logoutAll,
     getState,
     putState,
+    updateTenantProfile,
     getProperties,
     createProperty,
     updateProperty,

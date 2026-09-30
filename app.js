@@ -1554,7 +1554,6 @@ async function flushState(options = {}) {
   // không thể hoàn tất sau và ghi đè snapshot mới; server vẫn có advisory lock
   // làm lớp bảo vệ khi nhiều tab/thiết bị cùng ghi.
   const revision = _saveRevision;
-  const snapshot = _serializeState();
   const previousSave = _saveInFlight;
   const currentSave = (async () => {
     if (previousSave) {
@@ -1565,7 +1564,8 @@ async function flushState(options = {}) {
         || !API.isLoggedIn()) {
       return { skipped: true };
     }
-    await API.putState(snapshot);
+    // Chụp state sau request trước đó: hồ sơ cập nhật riêng không bị PUT cũ ghi đè.
+    await API.putState(_serializeState());
     invalidateDashboardTrend();
     return { skipped: false };
   })();
@@ -1587,6 +1587,33 @@ async function flushState(options = {}) {
       showToast(entitlementError ? e.message : '⚠️ Chưa lưu được, sẽ thử lại', 'error', 3000);
     }
     if (options.throwOnError) throw e;
+  } finally {
+    if (_saveInFlight === currentSave) _saveInFlight = null;
+  }
+}
+
+async function persistTenantProfile(tenantId, profile, onSaved) {
+  if (_savePending) await flushState({ throwOnError: true });
+  const previousSave = _saveInFlight;
+  const expectedGeneration = _sessionGeneration;
+  const expectedAccountContext = API.getAccountContext();
+  const currentSave = (async () => {
+    if (previousSave) await previousSave;
+    if (!API.isLoggedIn() || expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()) {
+      return { skipped: true };
+    }
+    const result = await API.updateTenantProfile(tenantId, profile);
+    if (expectedGeneration !== _sessionGeneration
+        || expectedAccountContext !== API.getAccountContext()) {
+      return { skipped: true };
+    }
+    onSaved(result);
+    return result;
+  })();
+  _saveInFlight = currentSave;
+  try {
+    return await currentSave;
   } finally {
     if (_saveInFlight === currentSave) _saveInFlight = null;
   }
@@ -12771,6 +12798,36 @@ function setTenantFormOpen(isOpen) {
   if (addButton) addButton.hidden = isOpen;
 }
 
+function setTenantFormSaving(saving, error = '') {
+  const form = document.getElementById('tenant-form');
+  if (!form) return;
+  if (saving && form.dataset.saving !== 'true') {
+    form.querySelectorAll('input, select, textarea, button').forEach(control => {
+      control.dataset.disabledBeforeSave = control.disabled ? 'true' : 'false';
+      control.disabled = true;
+    });
+  } else if (!saving && form.dataset.saving === 'true') {
+    form.querySelectorAll('input, select, textarea, button').forEach(control => {
+      control.disabled = control.dataset.disabledBeforeSave === 'true';
+      delete control.dataset.disabledBeforeSave;
+    });
+  }
+  form.dataset.saving = saving ? 'true' : 'false';
+  form.setAttribute('aria-busy', saving ? 'true' : 'false');
+  const submit = form.querySelector('[type="submit"]');
+  const cancel = document.getElementById('tenant-form-cancel');
+  const close = document.getElementById('tenants-modal-close');
+  const status = document.getElementById('tenant-save-status');
+  if (submit) submit.textContent = saving ? 'Đang lưu…' : 'Lưu';
+  if (cancel) cancel.disabled = saving;
+  if (close) close.disabled = saving;
+  if (status) {
+    status.hidden = !saving && !error;
+    status.textContent = error || (saving ? 'Đang lưu hồ sơ khách thuê…' : '');
+    status.classList.toggle('tenant-form-status--error', !!error);
+  }
+}
+
 function openTenantForm(roomId, tenantId = null) {
   const room = STATE.rooms.find(r => r.id === roomId);
   if (!room) return;
@@ -12780,6 +12837,7 @@ function openTenantForm(roomId, tenantId = null) {
   const revealButton = document.getElementById('tenant-cccd-reveal-btn');
   const noticeCheckbox = document.getElementById('tenant-data-notice-ack');
   formEl.reset();
+  setTenantFormSaving(false);
   revealButton.disabled = false;
   stopCccdScanner();
   
@@ -13061,6 +13119,7 @@ function initTenantsEvents() {
   document.getElementById('deposit-transaction-form').addEventListener('submit', submitDepositTransaction);
 
   document.getElementById('tenants-modal-close').addEventListener('click', () => {
+    if (document.getElementById('tenant-form').dataset.saving === 'true') return;
     document.getElementById('tenants-modal').hidden = true;
     setTenantFormOpen(false);
     stopCccdScanner();
@@ -13071,6 +13130,7 @@ function initTenantsEvents() {
   });
   
   document.getElementById('tenant-form-cancel').addEventListener('click', () => {
+    if (document.getElementById('tenant-form').dataset.saving === 'true') return;
     setTenantFormOpen(false);
   });
   
@@ -13121,6 +13181,7 @@ function initTenantsEvents() {
   
   document.getElementById('tenant-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (e.currentTarget.dataset.saving === 'true') return;
     if (!activeTenantRoomId) return;
     
     const id = document.getElementById('tenant-id').value;
@@ -13177,23 +13238,37 @@ function initTenantsEvents() {
     const successMessage = id
       ? 'Cập nhật thông tin khách trọ thành công ✓'
       : 'Thêm khách trọ thành công ✓';
-    if (id) {
-      const idx = room.tenants.findIndex(t => t.id === id);
-      if (idx > -1) room.tenants[idx] = tenantData;
-    } else {
-      room.tenants.push(tenantData);
-    }
-    
-    // Auto sync people count
-    room.peopleCount = room.tenants.filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
-    
+    setTenantFormSaving(true);
     try {
-      saveState();
-      await flushState({ throwOnError: true });
-    } catch (_) {
+      if (id) {
+        const result = await persistTenantProfile(id, {
+          ...tenantData,
+          roomId: room.id
+        }, (saved) => {
+          if (!STATE.rooms.includes(room)) return;
+          const idx = room.tenants.findIndex(t => t.id === id);
+          if (idx > -1) room.tenants[idx] = {
+            ...tenantData,
+            cccd: saved.cccd || maskCccdForDisplay(cccd)
+          };
+        });
+        if (result.skipped) return;
+      } else {
+        room.tenants.push(tenantData);
+        room.peopleCount = room.tenants.filter(tenant => tenant.temporaryResidenceCurrent !== false).length;
+        saveState();
+        await flushState({ throwOnError: true });
+        tenantData.cccd = maskCccdForDisplay(cccd);
+      }
+    } catch (error) {
       room.tenants = previousTenants;
       room.peopleCount = previousPeopleCount;
+      setTenantFormSaving(false, error.message || 'Không lưu được hồ sơ. Vui lòng thử lại.');
       return;
+    } finally {
+      if (document.getElementById('tenant-form').dataset.saving === 'true') {
+        setTenantFormSaving(false);
+      }
     }
     renderTenantsList(activeTenantRoomId);
     renderRooms(); // Refresh the room-detail count

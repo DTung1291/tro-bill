@@ -10002,9 +10002,12 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .tenant-form-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
   padding-top: 2px;
 }
+.tenant-form-status { flex: 1 1 180px; align-self: center; margin-right: auto; color: var(--text-muted); font-size: .78rem; overflow-wrap: anywhere; }
+.tenant-form-status--error { color: var(--danger); }
 .sensitive-input-row { display: flex; gap: 8px; align-items: center; }
 .sensitive-input-row .form-input { min-width: 0; flex: 1; }
 .tenant-data-notice {

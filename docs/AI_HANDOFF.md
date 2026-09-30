@@ -9,15 +9,49 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — Tổng quan sửa chữa đã phát hành Production và smoke test đạt |
-| Branch chuẩn | `main`; nhánh `feat/dashboard-maintenance-summary` đã fast-forward vào `main` |
-| Worktree kỳ vọng | Sạch sau commit bàn giao; hai file `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Trạng thái | Sẵn sàng bàn giao — tối ưu lưu hồ sơ đã E2E local nối staging; chưa phát hành |
+| Branch hiện tại | `feat/tenant-profile-save-performance` từ `main` |
+| Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `08304b4` trên Production; readiness revision `08304b4c3123`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Chọn hạng mục checklist chưa hoàn thành tiếp theo cùng chủ sản phẩm; không tự tạo dữ liệu Production để kiểm thử |
+| Việc code tiếp theo | Chờ chủ sản phẩm yêu cầu push nhánh Preview; chưa push/merge Production |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
+
+- Nhánh `feat/tenant-profile-save-performance` (chưa push/deploy): thêm trạng
+  thái “Đang lưu…”, khóa sửa/đóng form khi chờ, hiển thị lỗi ngay trong form.
+  Sửa hồ sơ cũ qua API PATCH một hàng `tenants` có kiểm tra owner, workspace,
+  gói dịch vụ, cùng phòng/chủ, CCCD che và audit tên trường. Tạo/xóa hồ sơ vẫn
+  dùng luồng PUT state cũ nhưng tạo mới đã có phản hồi đang lưu. Xếp hàng với
+  autosave cùng tab để tránh PUT snapshot cũ ghi đè PATCH. Không đổi schema,
+  không có migration.
+- Nguyên nhân độ trễ đã xác định từ code: thao tác sửa cũ gọi PUT state, backend
+  xóa/chèn lại toàn bộ phòng, hồ sơ, kỳ hóa đơn, chi phí và lịch sử trong một
+  transaction. Chưa có số đo thời gian trước/sau cùng một hồ sơ vì chưa E2E.
+  Runtime Logs 24 giờ có cảnh báo dùng `client.query()` khi client đang chạy
+  query khác, nhưng không thấy lỗi HTTP 5xx; chưa quy cảnh báo là nguyên nhân.
+- Local `npm test` 573/573, `npm run check:secrets`, `git diff --check` đạt.
+  Local `npm start stg` trên `http://localhost:3000` readiness 200; runtime
+  role staging có SELECT/UPDATE `tenants` và INSERT `data_audit_logs`.
+  PATCH không đăng nhập trả 401. Trình duyệt local hiển thị trang đăng nhập
+  bình thường, không console error/error overlay. Chủ sản phẩm chuyển sang tài
+  khoản QA có 5 phòng TEST; trên phòng TEST 1, đổi tên hồ sơ giả sang nhãn QA
+  rồi lưu: thấy ngay “Đang lưu…”, các ô/nút bị khóa, sau đó danh sách hiện tên
+  mới, CCCD vẫn che và không lỗi console. Đổi lại đúng tên gốc, thao tác từ
+  click đến form đóng khoảng 1,3 giây. Reload: tên gốc/CCCD che vẫn đúng và
+  tên QA không còn. Form ở viewport 390 px có scrollWidth đúng 390 px, không
+  tràn ngang. Không tạo/sửa dữ liệu Production, dữ liệu QA được trả về như cũ.
+  Chưa có deployment Preview riêng cho nhánh này; kết quả E2E áp dụng cho
+  ứng dụng local nối database staging.
+- Tệp chính: `server/tenant-profile.js`, `server/index.js`, `server/state.js`,
+  `server/data-audit.js`, `server/test/tenant-profile.test.js`, `api.js`,
+  `app.js`, `index.html`, `style.css` và các test ghim asset version.
+- **Bước an toàn tiếp theo:** Khi chủ sản phẩm yêu cầu đẩy nhánh, push lên
+  Preview staging và kiểm thử lại cùng luồng tại deployment đó; chỉ sau khi
+  đạt và được cho phép mới phát hành Production.
 
 ## Phiên 29/09/2026 — Tổng hợp yêu cầu sửa chữa trên Tổng quan
 

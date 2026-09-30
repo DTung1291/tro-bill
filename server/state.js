@@ -1253,5 +1253,6 @@ module.exports = {
   orNull,
   stateBusinessAuditEntries,
   putState,
-  strOrNull
+  strOrNull,
+  validOptionalDate
 };

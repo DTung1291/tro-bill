@@ -29,6 +29,7 @@ const {
   requireSuperAdmin
 } = require('./auth');
 const { getState, putState } = require('./state');
+const tenantProfile = require('./tenant-profile');
 const admin = require('./admin');
 const privacy = require('./privacy');
 const {
@@ -582,6 +583,12 @@ app.put(
   requireAuth,
   wrap(accountAccess.requireWorkspace('any')),
   wrap(putState)
+);
+app.patch(
+  '/api/tenants/:tenantId/profile',
+  requireAuth,
+  wrap(accountAccess.requireWorkspace('rooms')),
+  wrap(tenantProfile.updateTenantProfile)
 );
 app.get('/api/privacy/status', requireAuth, wrap(privacy.getPrivacyStatus));
 app.post('/api/privacy/accept', requireAuth, wrap(privacy.acceptPolicies));

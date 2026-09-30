@@ -77,5 +77,5 @@ test('popup hóa đơn xếp hành động rõ ràng trên tablet và mobile', (
 });
 
 test('asset pin tải đúng CSS và JavaScript của lát cắt hóa đơn', () => {
-  assert.match(html, /href="style\.css\?v=170"[\s\S]*src="api\.js\?v=120"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=173"/);
+  assert.match(html, /href="style\.css\?v=171"[\s\S]*src="api\.js\?v=121"[\s\S]*src="ocr\.js\?v=94"[\s\S]*src="app\.js\?v=174"/);
 });

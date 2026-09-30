@@ -1248,3 +1248,18 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 - **Hệ quả:** Nếu API lỗi, Tổng quan báo chưa kiểm tra được và cho tải lại; không
   hiển thị số 0 giả. Đổi phiên/workspace hủy hiệu lực kết quả cũ. Không cần
   migration vì dùng bảng và quyền SELECT đã triển khai.
+
+## D-065 — Sửa hồ sơ khách thuê không ghi lại toàn bộ state
+
+- **Trạng thái:** Đã kiểm thử trên local nối Neon staging, nhánh
+  `feat/tenant-profile-save-performance`; chưa phát hành Production.
+- **Quyết định:** Hồ sơ khách đã tồn tại dùng `PATCH /api/tenants/:tenantId/profile`,
+  khóa theo chủ tài khoản và cập nhật đúng một hàng `tenants`; việc thêm/xóa vẫn
+  dùng luồng state hiện có cho đến khi có API riêng. Form hiển thị “Đang lưu…”,
+  khóa thao tác/sửa đổi trong lúc request chạy và giữ lỗi ngay trong form.
+- **Lý do:** `PUT /api/state` cũ xóa/chèn lại toàn bộ phòng, khách, kỳ hóa đơn,
+  chi phí và lịch sử khi chỉ sửa một trường của khách. Đây là nguyên nhân chính
+  khiến thao tác chậm và kéo dài theo lượng dữ liệu. API mới vẫn kiểm tra quyền
+  owner, gói dịch vụ, phòng cùng chủ, CCCD đã che, thông báo dữ liệu và ghi audit
+  chỉ tên trường thay đổi. Các lệnh ghi state cùng tab được xếp hàng để tránh
+  snapshot cũ ghi đè cập nhật hồ sơ riêng.

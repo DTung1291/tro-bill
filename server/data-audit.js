@@ -11,6 +11,8 @@ const ALLOWED_FIELDS = new Set([
   'dob',
   'gender',
   'address',
+  'temporaryResidenceRegisteredOn',
+  'temporaryResidenceExpiresOn',
   'dataNoticeAcknowledged',
   // Giá phòng / dịch vụ
   'effectiveFrom',
