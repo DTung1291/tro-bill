@@ -1170,7 +1170,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-060 — Staging là cổng bắt buộc trước Production
 
-- **Trạng thái:** Áp dụng theo yêu cầu chủ sản phẩm ngày 28/09/2026.
+- **Trạng thái:** Áp dụng theo yêu cầu chủ sản phẩm ngày 28/09/2026;
+  cách áp dụng Preview cho mọi thay đổi được D-066 làm rõ ngày 01/10/2026.
 - **Quyết định:** Mọi thay đổi phải qua test local và kiểm thử tính năng thực tế
   trên staging/Preview dùng database staging. Chỉ khi kiểm thử staging thành
   công, có ghi nhận bằng chứng và người dùng đồng ý phát hành mới push/merge
@@ -1264,3 +1265,21 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   owner, gói dịch vụ, phòng cùng chủ, CCCD đã che, thông báo dữ liệu và ghi audit
   chỉ tên trường thay đổi. Các lệnh ghi state cùng tab được xếp hàng để tránh
   snapshot cũ ghi đè cập nhật hồ sơ riêng.
+
+## D-066 — Kiểm thử staging theo rủi ro, tránh lặp Preview cho UI thuần
+
+- **Trạng thái:** Áp dụng theo phản hồi chủ sản phẩm ngày 01/10/2026;
+  bổ sung D-060, không bỏ cổng staging.
+- **Quyết định:** Với thay đổi UI thuần, rủi ro thấp, kiểm thử thao tác thật
+  trên `npm start stg` nối database staging bằng tài khoản QA, cộng test tự động
+  và các trường hợp biên liên quan, đủ điều kiện trước khi phát hành theo yêu
+  cầu. Không chạy lại cùng kịch bản trên Preview nếu môi trường deploy không
+  ảnh hưởng hành vi đó. Mục tiêu là giảm thời gian và token, không bỏ kiểm thử.
+- **Ngoại lệ bắt buộc Preview:** Backend/API, schema, phân quyền, phiên đăng
+  nhập/cookie, thanh toán, email/webhook, tích hợp ngoài, build/deploy/routing,
+  cache phụ thuộc môi trường hoặc trường hợp không chắc local đại diện cho
+  Vercel. Vẫn xác minh revision/asset và smoke test an toàn sau Production.
+- **Ví dụ:** Tự thêm dấu `/` vào ô ngày đã được gõ/Backspace kiểm tra trên
+  local nối staging và có unit test; kiểm tra lại thao tác y hệt trên Preview
+  không tạo thêm bằng chứng đáng kể. Preview của lần phát hành 01/10/2026 vẫn
+  đã được kiểm thử; quyết định này áp dụng cho các lần tiếp theo.

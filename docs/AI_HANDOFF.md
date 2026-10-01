@@ -9,15 +9,29 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — nhập ngày tự chèn dấu đã phát hành và smoke test Production đạt |
+| Trạng thái | Sẵn sàng bàn giao — quy trình kiểm thử theo rủi ro đã cập nhật cục bộ, chưa push |
 | Branch hiện tại | `main`; nhánh `feat/auto-date-separators` đã fast-forward vào `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `4535f1d` trên Production; readiness revision `4535f1d37ddb`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Theo dõi phản hồi nhập ngày trên các form khác; chỉ sửa nếu có tình huống cụ thể tái hiện được |
+| Phần ứng dụng phát hành gần nhất | Code `4535f1d` trên Production; readiness cuối `c3761bd30bd6` (commit bàn giao), database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Áp dụng D-066 cho lần thay đổi tới; chỉ push cập nhật quy ước khi người dùng yêu cầu |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 01/10/2026 — Giảm kiểm thử trùng lặp để tiết kiệm token
+
+- Theo phản hồi chủ sản phẩm, đã cập nhật `AGENTS.md` và thêm D-066 trong
+  `AI_DECISIONS.md`: UI thuần rủi ro thấp được kiểm thử E2E trên local chạy
+  `npm start stg` nối Neon staging; không bắt buộc lặp lại trên Preview. Những
+  thay đổi backend/API, quyền, schema, phiên đăng nhập, tích hợp hoặc phụ thuộc
+  môi trường deploy vẫn phải kiểm thử Preview nối staging. Cổng staging và
+  quyền quyết định phát hành Production không thay đổi.
+- Với thay đổi chỉ tài liệu, không dựng Preview/chạy lại 575 test ứng dụng; chỉ
+  kiểm tra diff và secret. Không có code, migration hoặc thay đổi dữ liệu.
+- **Bước an toàn tiếp theo:** Nếu chủ sản phẩm yêu cầu đồng bộ remote, push
+  commit tài liệu này; vì `main` tự deploy, kiểm tra readiness sau push nhưng
+  không lặp kiểm thử UI không đổi.
 
 ## Phiên 01/10/2026 — Tự chèn dấu khi nhập ngày
 

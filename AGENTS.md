@@ -44,8 +44,9 @@ git diff --stat
   riêng, ví dụ `agent/claude-asset-handover`; không cho hai agent sửa cùng một
   worktree hoặc cùng một branch.
 - Nếu `main` tự triển khai Production, không push `main` chỉ để thử tính năng.
-  Dùng branch/PR triển khai Preview gắn staging trước; chỉ hợp nhất/push `main`
-  sau khi staging đạt các kiểm tra dưới đây và người dùng cho phép phát hành.
+  Kiểm thử theo mức rủi ro bên dưới; branch/Preview chỉ bắt buộc khi thay đổi
+  cần môi trường deploy để xác minh. Chỉ push `main` sau khi cổng staging phù
+  hợp đã đạt và người dùng cho phép phát hành.
 - Mỗi commit chỉ chứa một phần việc có thể kiểm tra độc lập. Không gom thay đổi
   không liên quan và không tự commit phần việc của người khác.
 - Chỉ push/deploy/chạy migration trên môi trường từ xa khi yêu cầu hiện tại cho
@@ -88,7 +89,7 @@ Chi tiết lý do của các bất biến nằm trong `docs/AI_DECISIONS.md`.
 
 ## Kiểm thử và phát hành
 
-Chạy test mục tiêu trong lúc phát triển, rồi trước bàn giao chạy tối thiểu:
+Chạy test mục tiêu trong lúc phát triển. Với thay đổi code, trước bàn giao chạy:
 
 ```bash
 npm test
@@ -96,18 +97,34 @@ npm run check:secrets
 git diff --check
 ```
 
+Với thay đổi **chỉ tài liệu**, chạy `git diff --check` và
+`npm run check:secrets`; không chạy lại toàn bộ test, dựng Preview hoặc mở
+trình duyệt nếu không thay đổi hành vi ứng dụng. Không lặp lại cùng một lượt
+kiểm thử khi commit không đổi, trừ khi có bằng chứng môi trường thay đổi.
+
 - Thay đổi UI phải được kiểm tra ở kích thước liên quan; popup phải khóa scroll
   nền và không tràn viewport.
 - Thay đổi in/PDF phải tạo PDF thật, kiểm tra số trang và nhìn tất cả trang; không
   chỉ kiểm tra HTML hoặc ảnh trang đầu.
 - Thay đổi DB/permission cần có test schema và truy vấn xác minh trên từng môi
   trường được phép.
-- **Cổng phát hành bắt buộc:** local test đạt → migration staging (nếu có) →
-  chạy ứng dụng trên staging/Preview với đúng database staging → kiểm thử luồng
-  bị ảnh hưởng bằng tài khoản thử, gồm giao diện/API và các trường hợp biên →
-  ghi bằng chứng kết quả vào `docs/AI_HANDOFF.md`. Chỉ sau khi staging đạt và
-  người dùng cho phép mới áp dụng migration Production (nếu có), merge/push
-  nhánh phát hành có thể deploy Production, rồi smoke test Production.
+- **Cổng phát hành bắt buộc:** test code đạt → migration staging (nếu có) →
+  kiểm thử luồng bị ảnh hưởng trên ứng dụng dùng đúng database staging bằng
+  tài khoản thử, gồm trường hợp biên liên quan → ghi bằng chứng ngắn gọn vào
+  `docs/AI_HANDOFF.md`. Chỉ sau khi staging đạt và người dùng cho phép mới
+  áp dụng migration Production (nếu có), push nhánh phát hành và smoke test
+  Production. Staging là bắt buộc; **Preview không phải lúc nào cũng bắt buộc**.
+- Với thay đổi **UI thuần, rủi ro thấp** (chỉ HTML/CSS/JS hiển thị hoặc nhập liệu;
+  không đổi API, tính tiền, phân quyền, phiên đăng nhập, lưu trữ, tích hợp ngoài
+  hay cấu hình deploy), `npm start stg` nối database staging và thao tác thật
+  trên trình duyệt local bằng tài khoản QA **đủ làm cổng staging**. Kiểm tra
+  đúng hành vi, trường hợp biên và kích thước liên quan; không lặp lại cùng
+  thao tác trên Preview chỉ để đủ bước. Sau phát hành, kiểm tra asset/revision
+  và smoke test không ghi dữ liệu Production.
+- Preview nối database staging **vẫn bắt buộc** khi đổi backend/API, schema,
+  quyền, cookie/auth, email/webhook/thanh toán, build/deploy/routing/cache môi
+  trường, hoặc khi khác biệt local–Vercel có thể ảnh hưởng kết quả. Nếu chưa rõ
+  mức rủi ro, dùng Preview. Không lấy health check thay cho E2E bị ảnh hưởng.
 - Health check hoặc migration SQL báo xanh **không thay thế** kiểm thử luồng trên
   ứng dụng staging. Nếu staging chưa kiểm thử được, báo rõ trạng thái chưa đạt;
   không suy diễn là đã sẵn sàng Production.
