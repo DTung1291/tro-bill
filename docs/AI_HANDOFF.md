@@ -9,15 +9,31 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — quy trình kiểm thử theo rủi ro đã cập nhật cục bộ, chưa push |
-| Branch hiện tại | `main`; nhánh `feat/auto-date-separators` đã fast-forward vào `main` |
+| Trạng thái | Checklist onboarding đã triển khai cục bộ, chưa push/chưa phát hành |
+| Branch hiện tại | `feat/onboarding-checklist` (tách từ `main` có commit D-066 cục bộ chưa push) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | Code `4535f1d` trên Production; readiness cuối `c3761bd30bd6` (commit bàn giao), database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Áp dụng D-066 cho lần thay đổi tới; chỉ push cập nhật quy ước khi người dùng yêu cầu |
+| Việc code tiếp theo | Chờ chủ sản phẩm kiểm tra checklist onboarding trước khi phát hành; áp dụng D-066 cho UI thuần |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 01/10/2026 — Checklist bắt đầu trên Tổng quan
+
+- Trên nhánh `feat/onboarding-checklist` thêm thẻ bốn bước cho chủ trọ: khu mặc
+  định, phòng đầu tiên, chỉ số đầu tiên, bill đầu tiên. CTA mở đúng màn/chức năng;
+  thẻ ẩn với nhân viên và tài khoản đã có bill. Tiến độ tính từ state và danh
+  sách hóa đơn hiện có, không thêm schema/API hoặc ghi dữ liệu riêng. Nếu tải
+  hóa đơn lỗi, bước cuối báo chưa kiểm tra thay vì kết luận chưa có.
+- Thêm `onboarding.js`, test mục tiêu 4/4; toàn bộ 579/579 sau khi cập nhật
+  asset pin `style.css?v=172`, `app.js?v=175` trong test. Local
+  `npm run start:stg` nối Neon staging đã kiểm tra tài khoản QA có bill: thẻ
+  không xuất hiện lại. Chưa tạo tài khoản/dữ liệu test mới, chưa thử màn thẻ
+  tài khoản trắng bằng browser và chưa chạy Preview/Production theo D-066.
+- **Bước an toàn tiếp theo:** Rà soát giao diện thẻ ở tài khoản staging chưa có
+  phòng nếu có sẵn phiên QA thích hợp, rồi chỉ push/phát hành khi chủ sản phẩm
+  yêu cầu. Không chạy migration.
 
 ## Phiên 01/10/2026 — Giảm kiểm thử trùng lặp để tiết kiệm token
 

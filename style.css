@@ -598,6 +598,32 @@ body.workspace-staff-active .main { padding-top: 112px; }
   background: var(--bg2);
   box-shadow: var(--shadow);
 }
+.onboarding-card {
+  margin-bottom: 22px;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  border-radius: calc(var(--radius) + 4px);
+  background: var(--bg2);
+  box-shadow: var(--shadow);
+}
+.onboarding-head,
+.onboarding-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.onboarding-head h2 { margin-top: 4px; font-size: 1.15rem; letter-spacing: -.02em; }
+.onboarding-head p,
+.onboarding-footer span { color: var(--text-muted); font-size: .8rem; line-height: 1.45; }
+.onboarding-head p { margin-top: 5px; }
+.onboarding-head strong { flex: 0 0 auto; color: var(--primary); font-size: .9rem; }
+.onboarding-progress { height: 7px; margin: 17px 0; border-radius: 999px; background: var(--bg3); overflow: hidden; }
+.onboarding-progress span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width .2s ease; }
+.onboarding-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; list-style: none; }
+.onboarding-step { display: flex; align-items: flex-start; gap: 11px; min-width: 0; padding: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg3); }
+.onboarding-step-marker { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border-radius: 50%; color: var(--primary); background: var(--primary-light); font-size: .8rem; font-weight: 800; }
+.onboarding-step--done .onboarding-step-marker { color: #fff; background: var(--green); }
+.onboarding-step-copy { display: grid; gap: 3px; min-width: 0; }
+.onboarding-step-copy strong { font-size: .87rem; }
+.onboarding-step-copy span { color: var(--text-muted); font-size: .76rem; line-height: 1.4; }
+.onboarding-footer { margin-top: 16px; }
+.onboarding-footer .btn { flex: 0 0 auto; }
 .dashboard-action-list { display: grid; gap: 10px; margin-top: 16px; }
 .dashboard-action {
   display: flex;
@@ -648,6 +674,11 @@ body.workspace-staff-active .main { padding-top: 112px; }
 .dashboard-maintenance-rooms .btn span { color: var(--text-muted); }
 .dashboard-actions-empty { margin: 16px 0 0; }
 @media (max-width: 600px) {
+  .onboarding-card { padding: 16px; }
+  .onboarding-head { align-items: flex-start; }
+  .onboarding-steps { grid-template-columns: minmax(0, 1fr); }
+  .onboarding-footer { align-items: stretch; flex-direction: column; }
+  .onboarding-footer .btn { width: 100%; }
   .dashboard-actions { padding: 16px; }
   .dashboard-action { flex-wrap: wrap; gap: 10px; }
   .dashboard-action-copy { flex-basis: calc(100% - 50px); }

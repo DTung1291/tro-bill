@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=171" />
+  <link rel="stylesheet" href="style.css?v=172" />
   <link rel="stylesheet" href="date-input.css?v=1" />
   <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
@@ -188,6 +188,25 @@
           </div>
         </div>
       </div>
+
+      <section class="onboarding-card" id="onboarding-card" aria-labelledby="onboarding-title" hidden>
+        <div class="onboarding-head">
+          <div>
+            <span class="dashboard-section-kicker">Bắt đầu với TrọBill</span>
+            <h2 id="onboarding-title">Từ phòng đầu tiên đến bill đầu tiên</h2>
+            <p id="onboarding-description">Tiến độ được tự động cập nhật từ dữ liệu đã lưu của tài khoản.</p>
+          </div>
+          <strong id="onboarding-count" aria-live="polite">0/4 bước</strong>
+        </div>
+        <div class="onboarding-progress" id="onboarding-progress" role="progressbar" aria-label="Tiến độ bắt đầu" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0">
+          <span id="onboarding-progress-fill"></span>
+        </div>
+        <ol class="onboarding-steps" id="onboarding-steps"></ol>
+        <div class="onboarding-footer">
+          <span>Đã có sẵn “Khu trọ chính”; bạn có thể đổi tên trong Quản lý khu.</span>
+          <button type="button" class="btn btn--primary btn--sm" id="onboarding-next"></button>
+        </div>
+      </section>
 
       <section class="dashboard-actions" aria-labelledby="dashboard-actions-title">
         <div class="dashboard-section-heading">
@@ -3424,7 +3443,8 @@
   <script src="ui-dialog.js?v=1"></script>
   <script src="plan-selection.js?v=1"></script>
   <script src="date-input.js?v=6"></script>
-  <script src="app.js?v=174"></script>
+  <script src="onboarding.js?v=1"></script>
+  <script src="app.js?v=175"></script>
 </body>
 
 </html>

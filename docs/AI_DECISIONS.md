@@ -1283,3 +1283,15 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   local nối staging và có unit test; kiểm tra lại thao tác y hệt trên Preview
   không tạo thêm bằng chứng đáng kể. Preview của lần phát hành 01/10/2026 vẫn
   đã được kiểm thử; quyết định này áp dụng cho các lần tiếp theo.
+
+## D-067 — Checklist bắt đầu suy ra từ dữ liệu hiện có
+
+- **Trạng thái:** Đã triển khai trên nhánh `feat/onboarding-checklist` ngày
+  01/10/2026; chưa phát hành Production.
+- **Quyết định:** Tổng quan của chủ trọ hiển thị tiến độ bốn bước: khu, phòng,
+  chỉ số và bill đầu tiên. Dùng state workspace cùng danh sách hóa đơn đã tải,
+  không lưu tiến độ riêng, không tạo dữ liệu mẫu tự động và không đụng hồ sơ
+  khách thuê. Tài khoản đã có bill hoàn tất cả chuỗi, kể cả sau khi xóa phòng cũ.
+  Nếu hóa đơn chưa tải được, hiển thị chưa kiểm tra thay vì khẳng định chưa có.
+- **Lý do:** Tránh tiến độ sai khi người dùng đổi thiết bị, chuyển workspace
+  hoặc dữ liệu được chỉnh từ nơi khác; không thêm API/schema cho UI hướng dẫn.

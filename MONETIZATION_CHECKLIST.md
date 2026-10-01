@@ -670,6 +670,11 @@ scan sạch.
   CCCD, điện thoại, email hoặc tài khoản ngân hàng và cảnh báo chỉ nhập ở tài
   khoản trống/sao lưu trước. Production revision `e2bb6b2fcad2` trả HTTP 200,
   database/schema `ok`, runtime role `restricted`; CI `34176436306`, 422/422 test.
+- [x] Checklist bắt đầu ngay trên Tổng quan: khu mặc định → phòng → chỉ số → bill.
+  Tiến độ suy ra từ dữ liệu workspace đã lưu, không thêm bảng/cờ theo dõi;
+  chỉ hiện cho chủ trọ khi chưa có bill đầu tiên. Có CTA dẫn tới thao tác tiếp
+  theo; hóa đơn chưa tải được hiển thị trạng thái chưa kiểm tra thay vì báo thiếu.
+  Đã kiểm thử local nối staging; chưa phát hành Production.
 - [x] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
   Đã phát hành luồng nhập CSV UTF-8 xuất từ Excel hoặc JSON với preview số khu,
   phòng và khách trước khi ghi; mặc định gộp bằng ID mới, còn thay thế bắt buộc

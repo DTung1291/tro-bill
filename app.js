@@ -265,6 +265,7 @@ function setRentInvoiceSummaries(invoices, available = true) {
   );
   RENT_INVOICE_SUMMARIES_AVAILABLE = available;
   invalidateDashboardTrend();
+  if (activePage === 'dashboard') renderOnboarding();
 }
 
 function priorDebtFromLoadedInvoices(roomId, period) {
@@ -4069,8 +4070,70 @@ function refreshBillingProgress() {
 // ============================================================
 //  DASHBOARD
 // ============================================================
+const ONBOARDING_COPY = {
+  property: { title: 'Khu trọ đã sẵn sàng', detail: 'Tài khoản mới có sẵn Khu trọ chính.', action: 'Quản lý khu' },
+  room: { title: 'Thêm phòng đầu tiên', detail: 'Tạo phòng với giá thuê và mức tính điện nước.', action: 'Thêm phòng' },
+  reading: { title: 'Nhập chỉ số đầu tiên', detail: 'Ghi điện nước cho ít nhất một phòng.', action: 'Nhập chỉ số' },
+  bill: { title: 'Có bill đầu tiên', detail: 'Bill sẽ xuất hiện khi dữ liệu chỉ số được đồng bộ.', action: 'Xem hóa đơn' }
+};
+
+function renderOnboarding() {
+  const card = document.getElementById('onboarding-card');
+  if (!card) return;
+  if (!isOwnerWorkspace() || !SERVER_ENTITLEMENTS.features?.roomManagement?.enabled) {
+    card.hidden = true;
+    return;
+  }
+  const progress = Onboarding.getProgress({
+    properties: STATE.properties,
+    rooms: STATE.rooms,
+    billingData: STATE.billingData,
+    invoices: [...RENT_INVOICE_SUMMARIES.values()],
+    invoicesAvailable: RENT_INVOICE_SUMMARIES_AVAILABLE,
+    history: STATE.history
+  });
+  if (progress.completed === progress.steps.length) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const count = document.getElementById('onboarding-count');
+  count.textContent = `${progress.completed}/${progress.steps.length} bước`;
+  const meter = document.getElementById('onboarding-progress');
+  meter.setAttribute('aria-valuenow', String(progress.completed));
+  document.getElementById('onboarding-progress-fill').style.width = `${100 * progress.completed / progress.steps.length}%`;
+  document.getElementById('onboarding-steps').innerHTML = progress.steps.map((step, index) => {
+    const copy = ONBOARDING_COPY[step.id];
+    const detail = step.status === 'unknown'
+      ? 'Chưa kiểm tra được bill. Mở Hóa đơn để thử lại.'
+      : copy.detail;
+    return `<li class="onboarding-step onboarding-step--${step.status}"${step.id === progress.next ? ' aria-current="step"' : ''}>
+      <span class="onboarding-step-marker" aria-hidden="true">${step.status === 'done' ? '✓' : index + 1}</span>
+      <span class="onboarding-step-copy"><strong>${copy.title}</strong><span>${detail}</span></span>
+    </li>`;
+  }).join('');
+  const nextButton = document.getElementById('onboarding-next');
+  nextButton.dataset.step = progress.next;
+  nextButton.textContent = progress.next === 'bill' && progress.steps[3].status === 'unknown'
+    ? 'Kiểm tra hóa đơn'
+    : ONBOARDING_COPY[progress.next].action;
+}
+
+document.getElementById('onboarding-next')?.addEventListener('click', event => {
+  const step = event.currentTarget.dataset.step;
+  if (step === 'property' || step === 'room') {
+    navigate('rooms');
+    document.getElementById(step === 'property' ? 'btn-manage-properties' : 'btn-add-room')?.click();
+  } else if (step === 'reading') {
+    navigate('billing');
+  } else if (step === 'bill') {
+    navigate('report');
+  }
+});
+
 function renderDashboard() {
   const period = STATE.currentPeriod;
+  renderOnboarding();
   document.getElementById('dashboard-period').textContent = periodLabel(period);
   document.getElementById('period-display').textContent = periodLabel(period);
   document.getElementById('deduction-input').value = STATE.settings.deduction ?? 450000;
