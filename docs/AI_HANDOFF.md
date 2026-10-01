@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Checklist onboarding đã qua local staging, chuẩn bị phát hành theo yêu cầu |
-| Branch hiện tại | `feat/onboarding-checklist` (tách từ `main` có commit D-066 cục bộ chưa push) |
+| Trạng thái | Checklist onboarding đã phát hành Production, sẵn sàng bàn giao |
+| Branch hiện tại | `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | Code `4535f1d` trên Production; readiness cuối `c3761bd30bd6` (commit bàn giao), database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Fast-forward `main`, push Production và kiểm tra revision/luồng chỉ đọc |
+| Phần ứng dụng phát hành gần nhất | `d86cc32` trên Production; readiness revision `d86cc325ccb4`, database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Theo dõi phản hồi checklist của người dùng mới; chỉ sửa trên staging trước |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -33,8 +33,15 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   Đã xem desktop và mobile 390×844: không tràn ngang, nút cuối không bị thanh
   điều hướng che. Chỉ xem/mở/hủy form, không ghi dữ liệu staging. Không cần
   Preview theo D-066, không có migration.
-- **Bước an toàn tiếp theo:** Fast-forward `main`, push theo yêu cầu người dùng,
-  rồi xác minh Production revision, readiness và asset/luồng chỉ đọc.
+- Theo yêu cầu người dùng, đã fast-forward và push `main` tới `d86cc32`.
+  Production `/api/health/ready` trả revision `d86cc325ccb4`, môi trường
+  `production`, database/schema `ok`, role `restricted`; HTML đang phục vụ
+  `style.css?v=172`, `onboarding.js?v=1`, `app.js?v=175`. CI
+  `36824305207` thành công. Smoke test chỉ đọc trên tài khoản Production đã
+  có bill: Tổng quan nạp được, module mới tải và checklist ẩn đúng; không ghi
+  dữ liệu Production. Cảnh báo `OPS_ALERT_WEBHOOK_MISSING` vẫn là tùy chọn.
+- **Bước an toàn tiếp theo:** Theo dõi phản hồi chủ trọ mới trên Production;
+  nếu phát sinh lỗi, tái hiện với tài khoản trống trên staging trước khi sửa.
 
 ## Phiên 01/10/2026 — Giảm kiểm thử trùng lặp để tiết kiệm token
 

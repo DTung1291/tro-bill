@@ -1286,8 +1286,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-067 — Checklist bắt đầu suy ra từ dữ liệu hiện có
 
-- **Trạng thái:** Đã triển khai trên nhánh `feat/onboarding-checklist` ngày
-  01/10/2026; chưa phát hành Production.
+- **Trạng thái:** Đã phát hành Production tại `d86cc32` ngày 01/10/2026;
+  local staging và smoke test Production chỉ đọc đạt.
 - **Quyết định:** Tổng quan của chủ trọ hiển thị tiến độ bốn bước: khu, phòng,
   chỉ số và bill đầu tiên. Dùng state workspace cùng danh sách hóa đơn đã tải,
   không lưu tiến độ riêng, không tạo dữ liệu mẫu tự động và không đụng hồ sơ
