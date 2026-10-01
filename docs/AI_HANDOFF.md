@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đã kiểm thử local nối staging — chờ chủ sản phẩm kiểm tra tự chèn dấu ngày trước khi phát hành |
-| Branch hiện tại | `feat/auto-date-separators`; chưa push, chưa merge `main` |
+| Trạng thái | Preview staging đã kiểm thử đạt; chủ sản phẩm đã yêu cầu phát hành Production |
+| Branch hiện tại | `feat/auto-date-separators`; đã push Preview, chưa merge `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `ff4efb4` trên Production; readiness revision `ff4efb4609ec`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Đợi chủ sản phẩm kiểm tra nhập ngày trên staging; chỉ phát hành Production sau khi được yêu cầu |
+| Việc code tiếp theo | Fast-forward `main`, push và smoke test Production đúng revision |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -30,9 +30,17 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   gõ `12102026` thấy `12/10/2026`; gõ `12` thấy `12/`, Backspace trở lại `1`.
   Chỉ nhập vào form, **không bấm Lưu**, không thay đổi dữ liệu staging/Production.
   Unit test ngày 6/6, toàn bộ test 575/575 (cho phép test mở localhost), secret
-  scan và diff check sạch. Không có migration. Chưa push hoặc deploy Preview.
-- **Bước an toàn tiếp theo:** Chủ sản phẩm xác nhận thao tác ngày trên staging;
-  sau đó mới push Preview, kiểm thử lại và chỉ đưa Production theo yêu cầu.
+  scan và diff check sạch. Không có migration.
+- Theo yêu cầu phát hành Production, đã push nhánh tính năng; Preview
+  `tro-bill-6hwtsx7tx-dtung.vercel.app`
+  (`dpl_FrdQCKVzo43DNeYNovXXFNTSnC38`) READY ở revision `d0edfd02581d`,
+  readiness `staging`, database/schema `ok`, runtime role `restricted`. Đăng nhập
+  tài khoản QA trên Preview, vào workspace riêng và form Chi phí: gõ liền
+  `12102026` thấy `12/10/2026`, app đọc `2026-10-12`; gõ `12` tự thấy `12/`,
+  Backspace còn `1`. Đã xóa nội dung thử, không bấm Lưu. Production trước phát
+  hành vẫn ở revision `8ae89840746d`, readiness `ok`.
+- **Bước an toàn tiếp theo:** Fast-forward/push `main`, rồi xác minh readiness,
+  asset v6 và ô ngày trên Production bằng thao tác không lưu dữ liệu.
 
 ## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
 
