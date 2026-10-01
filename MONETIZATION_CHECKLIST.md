@@ -674,7 +674,8 @@ scan sạch.
   Tiến độ suy ra từ dữ liệu workspace đã lưu, không thêm bảng/cờ theo dõi;
   chỉ hiện cho chủ trọ khi chưa có bill đầu tiên. Có CTA dẫn tới thao tác tiếp
   theo; hóa đơn chưa tải được hiển thị trạng thái chưa kiểm tra thay vì báo thiếu.
-  Đã kiểm thử local nối staging; chưa phát hành Production.
+  Đã kiểm thử local nối staging với tài khoản có bill và tài khoản trống; chưa
+  phát hành Production.
 - [x] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
   Đã phát hành luồng nhập CSV UTF-8 xuất từ Excel hoặc JSON với preview số khu,
   phòng và khách trước khi ghi; mặc định gộp bằng ID mới, còn thay thế bắt buộc

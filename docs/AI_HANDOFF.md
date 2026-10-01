@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Checklist onboarding đã triển khai cục bộ, chưa push/chưa phát hành |
+| Trạng thái | Checklist onboarding đã qua local staging, chuẩn bị phát hành theo yêu cầu |
 | Branch hiện tại | `feat/onboarding-checklist` (tách từ `main` có commit D-066 cục bộ chưa push) |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | Code `4535f1d` trên Production; readiness cuối `c3761bd30bd6` (commit bàn giao), database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Chờ chủ sản phẩm kiểm tra checklist onboarding trước khi phát hành; áp dụng D-066 cho UI thuần |
+| Việc code tiếp theo | Fast-forward `main`, push Production và kiểm tra revision/luồng chỉ đọc |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -28,12 +28,13 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   hóa đơn lỗi, bước cuối báo chưa kiểm tra thay vì kết luận chưa có.
 - Thêm `onboarding.js`, test mục tiêu 4/4; toàn bộ 579/579 sau khi cập nhật
   asset pin `style.css?v=172`, `app.js?v=175` trong test. Local
-  `npm run start:stg` nối Neon staging đã kiểm tra tài khoản QA có bill: thẻ
-  không xuất hiện lại. Chưa tạo tài khoản/dữ liệu test mới, chưa thử màn thẻ
-  tài khoản trắng bằng browser và chưa chạy Preview/Production theo D-066.
-- **Bước an toàn tiếp theo:** Rà soát giao diện thẻ ở tài khoản staging chưa có
-  phòng nếu có sẵn phiên QA thích hợp, rồi chỉ push/phát hành khi chủ sản phẩm
-  yêu cầu. Không chạy migration.
+  `npm run start:stg` nối Neon staging: tài khoản QA có bill không hiện lại thẻ;
+  tài khoản QA chưa có phòng hiện đúng 1/4 bước, nút “Thêm phòng” mở form mới.
+  Đã xem desktop và mobile 390×844: không tràn ngang, nút cuối không bị thanh
+  điều hướng che. Chỉ xem/mở/hủy form, không ghi dữ liệu staging. Không cần
+  Preview theo D-066, không có migration.
+- **Bước an toàn tiếp theo:** Fast-forward `main`, push theo yêu cầu người dùng,
+  rồi xác minh Production revision, readiness và asset/luồng chỉ đọc.
 
 ## Phiên 01/10/2026 — Giảm kiểm thử trùng lặp để tiết kiệm token
 
