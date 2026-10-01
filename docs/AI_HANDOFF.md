@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Preview staging đã kiểm thử đạt; chủ sản phẩm đã yêu cầu phát hành Production |
-| Branch hiện tại | `feat/auto-date-separators`; đã push Preview, chưa merge `main` |
+| Trạng thái | Sẵn sàng bàn giao — nhập ngày tự chèn dấu đã phát hành và smoke test Production đạt |
+| Branch hiện tại | `main`; nhánh `feat/auto-date-separators` đã fast-forward vào `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `ff4efb4` trên Production; readiness revision `ff4efb4609ec`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Fast-forward `main`, push và smoke test Production đúng revision |
+| Phần ứng dụng phát hành gần nhất | `4535f1d` trên Production; readiness revision `4535f1d37ddb`, database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Theo dõi phản hồi nhập ngày trên các form khác; chỉ sửa nếu có tình huống cụ thể tái hiện được |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -39,8 +39,17 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   `12102026` thấy `12/10/2026`, app đọc `2026-10-12`; gõ `12` tự thấy `12/`,
   Backspace còn `1`. Đã xóa nội dung thử, không bấm Lưu. Production trước phát
   hành vẫn ở revision `8ae89840746d`, readiness `ok`.
-- **Bước an toàn tiếp theo:** Fast-forward/push `main`, rồi xác minh readiness,
-  asset v6 và ô ngày trên Production bằng thao tác không lưu dữ liệu.
+- Đã fast-forward `main` từ `8ae8984` đến `4535f1d` và push theo yêu cầu.
+  Deployment Production `tro-bill-371v2oacv-dtung.vercel.app`
+  (`dpl_ECnZCVjENnnWKw3bXWe5TLw9s1Kr`) READY, alias chính trả revision
+  `4535f1d37ddb`, database/schema `ok`, runtime role `restricted`, asset
+  `date-input.js?v=6`. Trên phiên Production có sẵn, form Chi phí hiển thị
+  `12/10/2026` khi gõ `12102026`, app đọc `2026-10-12`; đã xóa nội dung thử,
+  không bấm Lưu hoặc thay đổi dữ liệu. CI `36819390609` job
+  `test-and-security` thành công; Runtime Logs error của deployment mới rỗng.
+  Cảnh báo `OPS_ALERT_WEBHOOK_MISSING` vẫn là tùy chọn, không liên quan thay đổi.
+- **Bước an toàn tiếp theo:** Theo dõi phản hồi thao tác ngày trên các form
+  khác; nếu có lỗi, tái hiện trên staging trước khi sửa và phát hành lại.
 
 ## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
 
