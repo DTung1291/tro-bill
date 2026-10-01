@@ -8,16 +8,31 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 30/09/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Sẵn sàng bàn giao — tối ưu lưu hồ sơ đã phát hành Production và smoke test đạt |
-| Branch hiện tại | `main`; nhánh `feat/tenant-profile-save-performance` đã fast-forward vào `main` |
+| Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đã kiểm thử local nối staging — chờ chủ sản phẩm kiểm tra tự chèn dấu ngày trước khi phát hành |
+| Branch hiện tại | `feat/auto-date-separators`; chưa push, chưa merge `main` |
 | Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `ff4efb4` trên Production; readiness revision `ff4efb4609ec`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Theo dõi phản hồi về lần lưu đầu sau idle; chỉ thêm đo thời gian không chứa dữ liệu cá nhân nếu còn chậm |
+| Việc code tiếp theo | Đợi chủ sản phẩm kiểm tra nhập ngày trên staging; chỉ phát hành Production sau khi được yêu cầu |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 01/10/2026 — Tự chèn dấu khi nhập ngày
+
+- `date-input.js` tự chèn `/` sau ngày/tháng khi gõ hoặc dán dãy số theo
+  `dd/mm/yyyy`; ngày giờ cũng tự chèn `:` sau giờ. Vẫn giữ ISO cho logic app,
+  không đổi API/schema và vẫn cho nhập ngày một chữ số bằng dấu `/` thủ công.
+  Backspace ngay sau dấu `/` tự thêm ở cuối xóa cả dấu và chữ số trước nó để
+  sửa ngày không bị nhảy sang tháng. `index.html` và `admin.html` pin asset v6.
+- Kiểm tra local `npm start stg` bằng phiên QA trên Neon staging: ở form Chi phí,
+  gõ `12102026` thấy `12/10/2026`; gõ `12` thấy `12/`, Backspace trở lại `1`.
+  Chỉ nhập vào form, **không bấm Lưu**, không thay đổi dữ liệu staging/Production.
+  Unit test ngày 6/6, toàn bộ test 575/575 (cho phép test mở localhost), secret
+  scan và diff check sạch. Không có migration. Chưa push hoặc deploy Preview.
+- **Bước an toàn tiếp theo:** Chủ sản phẩm xác nhận thao tác ngày trên staging;
+  sau đó mới push Preview, kiểm thử lại và chỉ đưa Production theo yêu cầu.
 
 ## Phiên 30/09/2026 — Phản hồi và tốc độ lưu hồ sơ khách thuê
 

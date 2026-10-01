@@ -34,6 +34,41 @@
     return `${match[3]}/${match[2]}/${match[1]}${withTime ? ` ${match[4]}:${match[5]}${match[6] ? `:${match[6]}` : ''}` : ''}`;
   }
 
+  function formatTypedDate(value, withTime = false, deleting = false) {
+    const raw = String(value || '');
+    if (!/^[\d/:\s]*$/.test(raw)) return raw;
+    // Giữ nguyên phần người dùng đang xóa hoặc ngày 1 chữ số được nhập với '/'.
+    if ((deleting && /[/:\s]/.test(raw)) || /^\d\/|^\d{1,2}\/\d\//.test(raw)) return raw;
+    const digits = raw.replace(/\D/g, '').slice(0, withTime ? 14 : 8);
+    if (!digits) return '';
+    let display = digits.slice(0, 2);
+    if (digits.length >= 2 && (!deleting || digits.length > 2)) display += '/';
+    display += digits.slice(2, 4);
+    if (digits.length >= 4 && (!deleting || digits.length > 4)) display += '/';
+    display += digits.slice(4, 8);
+    if (withTime && digits.length > 8) {
+      const time = digits.slice(8);
+      display += ` ${time.slice(0, 2)}`;
+      if (time.length >= 2 && (!deleting || time.length > 2)) display += ':';
+      display += time.slice(2, 4);
+      if (time.length > 4) display += `:${time.slice(4, 6)}`;
+    }
+    return display;
+  }
+
+  function caretAfterDigits(text, count) {
+    if (!count) return 0;
+    let digits = 0;
+    for (let index = 0; index < text.length; index++) {
+      if (/\d/.test(text[index]) && ++digits === count) {
+        let caret = index + 1;
+        while (caret < text.length && /[/:\s]/.test(text[caret])) caret++;
+        return caret;
+      }
+    }
+    return text.length;
+  }
+
   function enhance(input) {
     if (input.dataset.localizedDateInput || input.dataset.localizedDatePicker) return;
     const withTime = input.type === 'datetime-local';
@@ -74,6 +109,7 @@
     button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></svg>';
     wrapper.appendChild(button);
     wrapper.appendChild(picker);
+    let skipFormattingOnce = false;
 
     function validate() {
       const raw = nativeValue.get.call(input);
@@ -94,7 +130,41 @@
         validate();
       }
     });
-    input.addEventListener('input', validate);
+    input.addEventListener('beforeinput', (event) => {
+      if (!['deleteContentBackward', 'deleteContentForward'].includes(event.inputType)
+          || input.selectionStart !== input.selectionEnd) return;
+      const raw = nativeValue.get.call(input);
+      const backward = event.inputType === 'deleteContentBackward';
+      const separator = backward ? input.selectionStart - 1 : input.selectionStart;
+      const digit = backward ? separator - 1 : separator + 1;
+      if (raw[separator] !== '/' || !/\d/.test(raw[digit] || '')) return;
+      event.preventDefault();
+      // Khi dấu tự thêm đang ở cuối, Backspace xóa cả dấu lẫn số ngay trước nó.
+      // Nếu giữ dấu '/' ở đây, lần gõ tiếp sẽ bị hiểu là nhập tháng thay vì sửa ngày.
+      const next = backward && separator === raw.length - 1
+        ? raw.slice(0, digit)
+        : raw.slice(0, digit) + raw.slice(digit + 1);
+      nativeValue.set.call(input, next);
+      input.setSelectionRange(digit, digit);
+      skipFormattingOnce = true;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    input.addEventListener('input', (event) => {
+      if (!event.isComposing && !skipFormattingOnce) {
+        const raw = nativeValue.get.call(input);
+        const deleting = event.inputType?.startsWith('delete') || false;
+        const display = formatTypedDate(raw, withTime, deleting);
+        if (display !== raw) {
+          const digitsBeforeCaret = (raw.slice(0, input.selectionStart || 0).match(/\d/g) || []).length;
+          nativeValue.set.call(input, display);
+          const caret = deleting ? Math.min(input.selectionStart || 0, display.length)
+            : caretAfterDigits(display, digitsBeforeCaret);
+          input.setSelectionRange(caret, caret);
+        }
+      }
+      skipFormattingOnce = false;
+      validate();
+    });
     input.addEventListener('change', validate);
     input.addEventListener('blur', () => {
       const iso = validate();
@@ -137,5 +207,5 @@
     else start();
   }
 
-  if (typeof module !== 'undefined') module.exports = { toIso, toDisplay };
+  if (typeof module !== 'undefined') module.exports = { toIso, toDisplay, formatTypedDate };
 })(typeof window === 'undefined' ? globalThis : window);
