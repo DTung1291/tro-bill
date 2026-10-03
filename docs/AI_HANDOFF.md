@@ -9,15 +9,36 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 03/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đo phễu onboarding đã phát hành và smoke test Production |
-| Branch hiện tại | `main` |
+| Trạng thái | Đang triển khai định dạng ô nhập tiền; chưa phát hành Production |
+| Branch hiện tại | `feat/money-input-formatting` |
 | Worktree kỳ vọng | Sạch sau commit tính năng; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `e17360e` trên Production; readiness revision `e17360ee420c`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Theo dõi phản hồi số liệu Kích hoạt; không coi snapshot là event log |
+| Việc code tiếp theo | Hoàn tất kiểm thử local staging, bàn giao nhánh để người dùng kiểm tra trước khi phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 03/10/2026 — Định dạng số tiền khi nhập
+
+- `money-input.js` và CSS riêng định dạng nhóm nghìn cho các ô tiền ở phòng,
+  hợp đồng/cọc, chi phí, ghi nhận thu, bill và giá gói Super Admin. Ô hiển thị
+  `500.000` khi nhập `500000`, còn code đọc `input.value` là `500000` để giữ
+  nguyên số tiền VND gửi API; min/max/step và ô bắt buộc vẫn được kiểm tra.
+  Không đổi `app.js`, `admin.js`, API, schema hay migration. `index.html` và
+  `admin.html` nạp asset mới và gắn cờ cho các ô tiền tĩnh; formatter tự nhận
+  các ô tiền tạo động theo selector cụ thể.
+- Bộ test đầy đủ 585/585 đạt, secret scan và diff check sạch. Local
+  `npm start stg` nối Neon staging: form
+  phòng hiển thị `500.000`, xóa tại dấu phân cách ra `50.000`; form Chi phí
+  hiển thị `500.000` khi nhập thử. Chỉ mở form và nhập, không bấm Lưu, không ghi
+  dữ liệu staging. Ô chỉ số điện và năm báo cáo giữ kiểu số. Browser CLI
+  `agent-browser` không cài trên máy; đã kiểm tra bằng Browser tích hợp và ảnh
+  màn hình; kiểm tra lại sau khi thu gọn code không có lỗi trình duyệt. Chưa
+  kiểm tra riêng khung mobile do Browser tích hợp không đổi viewport được;
+  CSS mới chỉ giữ lại style cũ của bảng bill. Chưa push Preview hoặc Production.
+- **Bước an toàn tiếp theo:** Mời chủ sản phẩm kiểm tra trên local staging;
+  chỉ phát hành Production khi có yêu cầu sau đó.
 
 ## Phiên 03/10/2026 — Đo mức sử dụng theo bốn mốc bắt đầu
 

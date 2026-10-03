@@ -19,6 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=172" />
+  <link rel="stylesheet" href="money-input.css?v=1" />
   <link rel="stylesheet" href="date-input.css?v=1" />
   <link rel="stylesheet" href="ui-dialog.css?v=2" />
 </head>
@@ -502,7 +503,7 @@
           <div class="form-row form-row--2col">
             <div>
               <label class="form-label" for="expense-amount">Số tiền (đ) *</label>
-              <input class="form-input" type="number" id="expense-amount" min="0" placeholder="0" required />
+              <input class="form-input" type="number" data-money-input id="expense-amount" min="0" placeholder="0" required />
             </div>
             <div>
               <label class="form-label" for="expense-date">Ngày thanh toán</label>
@@ -995,7 +996,7 @@
           <p>Khoản điều chỉnh được trừ thêm khi in báo cáo tháng.</p>
         </div>
         <div class="settings-inline">
-          <input type="number" id="deduction-input" class="inline-input" placeholder="450000" />
+          <input type="number" data-money-input id="deduction-input" class="inline-input" placeholder="450000" />
           <span>đ</span>
           <button class="btn btn--sm" id="save-deduction">Lưu</button>
         </div>
@@ -1510,7 +1511,7 @@
         <!-- VietQR Block -->
         <div class="donate-vietqr-fields">
           <label for="donate-amount-input">Số tiền (đ)</label>
-          <input type="number" id="donate-amount-input" class="inline-input" value="50000"
+          <input type="number" data-money-input id="donate-amount-input" class="inline-input" value="50000"
             min="5000" step="5000" placeholder="50000" />
           <button class="btn btn--sm" id="btn-donate-vietqr">📸 Tạo mã VietQR</button>
         </div>
@@ -1654,7 +1655,7 @@
               </select>
             </label>
             <label class="form-label">Số tiền cần kiểm tra (VND)
-              <input class="form-input" type="number" id="subscription-refund-amount" min="1" step="1" inputmode="numeric" required />
+              <input class="form-input" type="number" data-money-input id="subscription-refund-amount" min="1" step="1" inputmode="numeric" required />
             </label>
           </div>
           <label class="form-label">Mô tả cụ thể
@@ -1799,17 +1800,17 @@
             <div class="form-row form-row--2col">
               <div>
                 <label class="form-label">Tiền thuê (đ/tháng) *</label>
-                <input class="form-input" type="number" id="room-rent" placeholder="2200000" min="0" required />
+                <input class="form-input" type="number" data-money-input id="room-rent" placeholder="2200000" min="0" required />
               </div>
               <div>
                 <label class="form-label">Đơn giá điện (đ/kWh) *</label>
-                <input class="form-input" type="number" id="room-elec-rate" placeholder="3400" min="0" required />
+                <input class="form-input" type="number" data-money-input id="room-elec-rate" placeholder="3400" min="0" required />
               </div>
             </div>
             <div class="form-row form-row--2col">
               <div>
                 <label class="form-label">Phí rác (đ/tháng)</label>
-                <input class="form-input" type="number" id="room-trash" value="50000" min="0" />
+                <input class="form-input" type="number" data-money-input id="room-trash" value="50000" min="0" />
               </div>
               <div>
                 <label class="form-label">Chỉ số điện hiện tại</label>
@@ -1836,7 +1837,7 @@
               </div>
               <div>
                 <label class="form-label">Đơn giá nước (đ)</label>
-                <input class="form-input" type="number" id="room-water-rate" value="50000" min="0" />
+                <input class="form-input" type="number" data-money-input id="room-water-rate" value="50000" min="0" />
               </div>
             </div>
             <div class="form-row form-row--2col" id="room-people-count-container">
@@ -1862,13 +1863,13 @@
               </div>
               <div>
                 <label class="form-label">Phí Wifi (đ/tháng)</label>
-                <input class="form-input" type="number" id="room-wifi-fee" value="40000" min="0" />
+                <input class="form-input" type="number" data-money-input id="room-wifi-fee" value="40000" min="0" />
               </div>
             </div>
             <div class="form-row form-row--2col">
               <div>
                 <label class="form-label">Phí quản lý & DV khác (đ/tháng)</label>
-                <input class="form-input" type="number" id="room-manage-fee" value="0" min="0" />
+                <input class="form-input" type="number" data-money-input id="room-manage-fee" value="0" min="0" />
               </div>
               <div>
                 <label class="form-label">Ghi chú</label>
@@ -2016,7 +2017,7 @@
                 <input class="form-input" id="rental-reservation-expiry" type="date" required />
               </label>
               <label class="form-label">Cọc dự kiến (đ)
-                <input class="form-input" id="rental-reservation-deposit" type="number" min="0" step="1" value="0" />
+                <input class="form-input" id="rental-reservation-deposit" type="number" data-money-input min="0" step="1" value="0" />
               </label>
               <label class="form-label rental-reservation-wide">Ghi chú
                 <input class="form-input" id="rental-reservation-note" type="text" maxlength="1000" />
@@ -2065,10 +2066,10 @@
               <input class="form-input" type="number" id="rental-contract-payment-due-day" min="1" max="28" step="1" value="5" required />
             </label>
             <label class="form-label">Tiền thuê (đ/tháng) *
-              <input class="form-input" type="number" id="rental-contract-rent" min="0" step="1" required />
+              <input class="form-input" type="number" data-money-input id="rental-contract-rent" min="0" step="1" required />
             </label>
             <label class="form-label">Tiền cọc (đ)
-              <input class="form-input" type="number" id="rental-contract-deposit" min="0" step="1" value="0" />
+              <input class="form-input" type="number" data-money-input id="rental-contract-deposit" min="0" step="1" value="0" />
             </label>
           </div>
           <label class="form-label">Điều khoản / ghi chú
@@ -2219,7 +2220,7 @@
         </label>
         <div class="tenant-maintenance-expense-grid">
           <label class="form-label" for="tenant-maintenance-expense-amount">Số tiền (đ) *
-            <input class="form-input" type="number" id="tenant-maintenance-expense-amount" min="1" step="1" required />
+            <input class="form-input" type="number" data-money-input id="tenant-maintenance-expense-amount" min="1" step="1" required />
           </label>
           <label class="form-label" for="tenant-maintenance-expense-date">Ngày thanh toán *
             <input class="form-input" type="date" id="tenant-maintenance-expense-date" required />
@@ -2287,10 +2288,10 @@
             <select class="form-input" id="rental-lifecycle-target-room"></select>
           </label>
           <label class="form-label rental-lifecycle-transfer-field">Tiền thuê phòng mới (đ/tháng) *
-            <input class="form-input" type="number" id="rental-lifecycle-rent" min="0" step="1" />
+            <input class="form-input" type="number" data-money-input id="rental-lifecycle-rent" min="0" step="1" />
           </label>
           <label class="form-label rental-lifecycle-transfer-field">Tiền cọc hợp đồng mới (đ)
-            <input class="form-input" type="number" id="rental-lifecycle-deposit" min="0" step="1" />
+            <input class="form-input" type="number" data-money-input id="rental-lifecycle-deposit" min="0" step="1" />
           </label>
           <label class="form-label rental-lifecycle-transfer-field">Ngày kết thúc hợp đồng mới
             <input class="form-input" type="date" id="rental-lifecycle-end" />
@@ -2344,10 +2345,10 @@
           </div>
           <div class="rental-final-settlement-grid">
             <label class="form-label">Cọc bù vào công nợ (đ)
-              <input class="form-input" id="rental-final-settlement-applied" type="number" min="0" step="1" required />
+              <input class="form-input" id="rental-final-settlement-applied" type="number" data-money-input min="0" step="1" required />
             </label>
             <label class="form-label">Cọc hoàn lại (đ)
-              <input class="form-input" id="rental-final-settlement-refunded" type="number" min="0" step="1" readonly />
+              <input class="form-input" id="rental-final-settlement-refunded" type="number" data-money-input min="0" step="1" readonly />
             </label>
             <label class="form-label">Phương thức hoàn tiền
               <select class="form-input" id="rental-final-settlement-method" required>
@@ -2856,7 +2857,7 @@
             <div class="rent-payment-entry-field rent-payment-entry-field--amount">
               <label class="form-label" for="rent-payment-entry-amount">Số tiền đã nhận</label>
               <div class="rent-payment-entry-amount-control">
-                <input type="number" class="form-input" id="rent-payment-entry-amount" min="1" step="1" inputmode="numeric" aria-describedby="rent-payment-entry-hint rent-payment-entry-error" required />
+                <input type="number" data-money-input class="form-input" id="rent-payment-entry-amount" min="1" step="1" inputmode="numeric" aria-describedby="rent-payment-entry-hint rent-payment-entry-error" required />
                 <span aria-hidden="true">đ</span>
               </div>
               <p class="rent-payment-entry-hint" id="rent-payment-entry-hint"></p>
@@ -3059,7 +3060,7 @@
             </label>
             <label class="form-row">
               <span class="form-label">Số tiền</span>
-              <input class="form-input" type="number" id="deposit-amount" min="1" step="1" inputmode="numeric" required />
+              <input class="form-input" type="number" data-money-input id="deposit-amount" min="1" step="1" inputmode="numeric" required />
             </label>
             <label class="form-row">
               <span class="form-label">Phương thức</span>
@@ -3443,6 +3444,7 @@
   <script src="ui-dialog.js?v=1"></script>
   <script src="plan-selection.js?v=1"></script>
   <script src="date-input.js?v=6"></script>
+  <script src="money-input.js?v=1"></script>
   <script src="onboarding.js?v=1"></script>
   <script src="app.js?v=175"></script>
 </body>

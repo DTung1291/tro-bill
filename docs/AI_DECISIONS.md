@@ -1308,3 +1308,16 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   số lượt bấm và không xác định được ngày hoàn thành từng mốc. Bill đã có được
   tính là hoàn thành cả các bước trước, kể cả dữ liệu phòng/chỉ số đã thay đổi.
   Không tự tạo dữ liệu mẫu hoặc migration cho phép đo này.
+
+## D-069 — Ô nhập tiền hiển thị phân cách nghìn, logic vẫn dùng VND nguyên
+
+- **Trạng thái:** Đang triển khai trên `feat/money-input-formatting` ngày
+  03/10/2026; chưa phát hành Production.
+- **Quyết định:** Các ô nhập tiền VND hiển thị dấu `.` theo nhóm ba chữ số khi
+  gõ, dán và khi app gán giá trị. `money-input.js` giữ `input.value` mà code
+  nghiệp vụ đọc ở dạng chữ số thuần; giá trị hiển thị là text do input số native
+  không hỗ trợ dấu phân cách. Giữ kiểm tra `required`, min/max/step tương đương
+  cho các ô được chuyển. Không áp dụng cho số điện/nước, số người, ngày, năm,
+  số tài khoản hoặc dữ liệu import.
+- **Lý do:** Người dùng cần đọc ngay `500.000` thay vì `500000` mà không làm
+  thay đổi dữ liệu VND nguyên được gửi tới backend hoặc phép tính hóa đơn.

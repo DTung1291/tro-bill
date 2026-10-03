@@ -1,0 +1,19 @@
+/* Text-based VND inputs keep the same layout as the former numeric inputs. */
+.billing-table input[data-money-input] {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: .95rem;
+  font-weight: 600;
+  transition: border-color var(--transition);
+}
+.billing-table input[data-money-input]:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg);
+}
