@@ -11,7 +11,7 @@ trong `../AGENTS.md`.
 | Cập nhật lần cuối | 03/10/2026 (Asia/Ho_Chi_Minh) |
 | Trạng thái | Đang triển khai đo phễu onboarding; chưa đủ cổng Preview để phát hành |
 | Branch hiện tại | `feat/onboarding-usage-funnel` |
-| Worktree kỳ vọng | Thay đổi tính năng trên branch; `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Worktree kỳ vọng | Sạch sau commit tính năng; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `d86cc32` trên Production; readiness revision `d86cc325ccb4`, database/schema `ok`, runtime role `restricted` |
 | Việc code tiếp theo | Kiểm thử bằng Super Admin QA trên Preview nối staging trước khi phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
