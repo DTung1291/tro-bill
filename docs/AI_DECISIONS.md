@@ -1298,8 +1298,8 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
 
 ## D-068 — Đo phễu kích hoạt bằng snapshot tổng hợp, không theo dõi cá nhân
 
-- **Trạng thái:** Đã kiểm thử bằng Super Admin trên Preview staging ngày
-  03/10/2026; phát hành Production theo cổng trong `AGENTS.md`.
+- **Trạng thái:** Đã kiểm thử bằng Super Admin trên Preview staging và phát hành
+  Production tại `e17360e` ngày 03/10/2026; smoke test Production chỉ đọc đạt.
 - **Quyết định:** Super Admin xem số tài khoản chủ trọ đã xác minh đạt các mốc
   khu, phòng, chỉ số, bill. Hiển thị toàn thời gian và cohort đăng ký 30 ngày
   gần đây, tỷ lệ trên tổng tài khoản từng cohort. API chỉ trả số tổng hợp, không

@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 03/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đo phễu onboarding đã đạt cổng Preview staging; đang phát hành Production |
-| Branch hiện tại | `feat/onboarding-usage-funnel` |
+| Trạng thái | Đo phễu onboarding đã phát hành và smoke test Production |
+| Branch hiện tại | `main` |
 | Worktree kỳ vọng | Sạch sau commit tính năng; `.env.local-*` riêng tư luôn bị Git bỏ qua |
-| Phần ứng dụng phát hành gần nhất | `d86cc32` trên Production; readiness revision `d86cc325ccb4`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Smoke test Production chỉ đọc sau khi push `main` |
+| Phần ứng dụng phát hành gần nhất | `e17360e` trên Production; readiness revision `e17360ee420c`, database/schema `ok`, runtime role `restricted` |
+| Việc code tiếp theo | Theo dõi phản hồi số liệu Kích hoạt; không coi snapshot là event log |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -38,8 +38,16 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   giao diện trả toàn thời gian 8/7/3/3/3 và nhóm 30 ngày 7/6/2/2/2, đúng truy
   vấn độc lập; chuyển nhóm và Làm mới thành công. Không ghi dữ liệu staging.
   API không đăng nhập bị từ chối. Cổng Preview theo `AGENTS.md` đã đạt.
-- **Bước tiếp theo:** Push `main` theo yêu cầu chủ sản phẩm, kiểm tra readiness
-  đúng revision Production và smoke test mục Kích hoạt chỉ đọc.
+- Đã fast-forward và push `main` đến `e17360e`. Deployment Production
+  `tro-bill-gm6rozdqj-dtung.vercel.app` READY, alias `tro-bill.vercel.app`;
+  readiness revision `e17360ee420c`, environment `production`, database/schema
+  `ok`, runtime role `restricted`. Smoke test chỉ đọc bằng Super Admin Production:
+  toàn thời gian 3 tài khoản, mốc 3/2/2/2; nhóm 30 ngày rỗng cho 0% và không
+  tràn dữ liệu. Không ghi dữ liệu Production. Cảnh báo cấu hình tùy chọn
+  `OPS_ALERT_WEBHOOK_MISSING` vẫn tồn tại.
+- **Bước an toàn tiếp theo:** Theo dõi phản hồi Super Admin về ý nghĩa cohort;
+  nếu cần lịch sử ngày hoàn thành, thiết kế event log riêng thay vì suy ra từ
+  snapshot hiện tại.
 
 ## Phiên 01/10/2026 — Checklist bắt đầu trên Tổng quan
 
