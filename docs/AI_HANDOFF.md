@@ -9,11 +9,11 @@ trong `../AGENTS.md`.
 | Trường | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 03/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Đang triển khai đo phễu onboarding; chưa đủ cổng Preview để phát hành |
+| Trạng thái | Đo phễu onboarding đã đạt cổng Preview staging; đang phát hành Production |
 | Branch hiện tại | `feat/onboarding-usage-funnel` |
 | Worktree kỳ vọng | Sạch sau commit tính năng; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `d86cc32` trên Production; readiness revision `d86cc325ccb4`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Kiểm thử bằng Super Admin QA trên Preview nối staging trước khi phát hành |
+| Việc code tiếp theo | Smoke test Production chỉ đọc sau khi push `main` |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
@@ -31,10 +31,15 @@ Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thậ
   tài khoản chủ trọ thường nhận 403 ở API Super Admin như mong đợi; desktop và
   mobile 390×844 không tràn ngang, trạng thái lỗi không hiển thị thanh tỷ lệ giả.
   Bộ test đầy đủ 582/582 đạt; test mục tiêu 11/11 đạt sau khi căn đúng logic
-  chỉ số với checklist. Secret scan và diff check sạch. Chưa kiểm thử giao diện
-  có số liệu bằng phiên Super Admin QA.
-- **Chưa phát hành:** Backend/API mới cần Preview nối staging theo `AGENTS.md`.
-  Không push `main`/Production hoặc đánh dấu checklist hoàn tất trước cổng này.
+  chỉ số với checklist. Secret scan và diff check sạch.
+- Nhánh tính năng đã push và Preview `tro-bill-6kc6mshw7-dtung.vercel.app`
+  READY ở revision `d4ce73f03302`; readiness cho `environment=staging`, database
+  và schema `ok`, runtime role `restricted`. Trong phiên Super Admin staging,
+  giao diện trả toàn thời gian 8/7/3/3/3 và nhóm 30 ngày 7/6/2/2/2, đúng truy
+  vấn độc lập; chuyển nhóm và Làm mới thành công. Không ghi dữ liệu staging.
+  API không đăng nhập bị từ chối. Cổng Preview theo `AGENTS.md` đã đạt.
+- **Bước tiếp theo:** Push `main` theo yêu cầu chủ sản phẩm, kiểm tra readiness
+  đúng revision Production và smoke test mục Kích hoạt chỉ đọc.
 
 ## Phiên 01/10/2026 — Checklist bắt đầu trên Tổng quan
 
