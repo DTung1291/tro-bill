@@ -19,7 +19,7 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
   );
   assert.match(
     html,
-    /class="admin-nav"[\s\S]*href="#admin-revenue-section"[\s\S]*href="#subscription-payment-admin-section"[\s\S]*href="#plans-admin-section"[\s\S]*href="#admin-users-section"[\s\S]*href="#subscription-change-audit-section"/
+    /class="admin-nav"[\s\S]*href="#admin-revenue-section"[\s\S]*href="#admin-activation-section"[\s\S]*href="#subscription-payment-admin-section"[\s\S]*href="#plans-admin-section"[\s\S]*href="#admin-users-section"[\s\S]*href="#subscription-change-audit-section"/
   );
   assert.match(
     html,
@@ -29,9 +29,10 @@ test('trang Super Admin có phân cấp vận hành và responsive rõ ràng', (
   assert.match(html, /id="plans-admin-section"[\s\S]*Giá tháng[\s\S]*Giá năm[\s\S]*Ưu đãi năm/);
   assert.match(script, /function annualPlanSavingLabel\(monthlyValue, yearlyValue\)/);
   assert.match(script, /Giảm \$\{discountPercent\}% · tiết kiệm \$\{fmtVND\(savedAmount\)\}/);
-  assert.match(html, /href="style\.css\?v=80"[\s\S]*src="api\.js\?v=80"[\s\S]*src="admin\.js\?v=84"/);
+  assert.match(html, /href="style\.css\?v=80"[\s\S]*href="admin-activation\.css\?v=1"[\s\S]*src="api\.js\?v=81"[\s\S]*src="admin\.js\?v=85"/);
   assert.match(css, /\.admin-wrap\s*\{[^}]*max-width:\s*1240px/s);
   assert.match(css, /\.admin-nav\s*\{[^}]*position:\s*sticky[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(fs.readFileSync(path.join(root, 'admin-activation.css'), 'utf8'), /\.admin-nav\s*\{[^}]*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(css, /\.admin-revenue-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s);
   assert.match(
     css,

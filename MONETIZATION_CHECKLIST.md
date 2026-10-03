@@ -676,6 +676,11 @@ scan sạch.
   theo; hóa đơn chưa tải được hiển thị trạng thái chưa kiểm tra thay vì báo thiếu.
   Đã kiểm thử local nối staging với tài khoản có bill và tài khoản trống; phát
   hành Production tại `d86cc32`, readiness và CI đạt ngày 01/10/2026.
+- [ ] Đo mức sử dụng theo bốn mốc checklist cho Super Admin.
+  Đã có API tổng hợp số tài khoản đạt khu/phòng/chỉ số/bill, bộ lọc toàn thời gian
+  và nhóm đăng ký 30 ngày gần đây, không trả dữ liệu cá nhân. Truy vấn staging và
+  test local đạt; còn cần kiểm thử giao diện bằng Super Admin trên Preview nối
+  staging trước khi đánh dấu hoàn tất hoặc phát hành Production.
 - [x] Có công cụ nhập phòng/khách từ Excel hoặc JSON.
   Đã phát hành luồng nhập CSV UTF-8 xuất từ Excel hoặc JSON với preview số khu,
   phòng và khách trước khi ghi; mặc định gộp bằng ID mới, còn thay thế bắt buộc

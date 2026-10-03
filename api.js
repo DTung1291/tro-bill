@@ -833,7 +833,8 @@ const API = (() => {
       `/api/admin/subscription/refund-requests/${encodeURIComponent(requestId)}/transition`,
       input
     ),
-    getRevenueSummary: () => request('GET', '/api/admin/revenue/summary')
+    getRevenueSummary: () => request('GET', '/api/admin/revenue/summary'),
+    getActivationSummary: () => request('GET', '/api/admin/activation/summary')
   };
 
   return {

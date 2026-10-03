@@ -1295,3 +1295,16 @@ xóa; khi đổi hướng, thêm quyết định mới có dòng `Thay thế:` t
   Nếu hóa đơn chưa tải được, hiển thị chưa kiểm tra thay vì khẳng định chưa có.
 - **Lý do:** Tránh tiến độ sai khi người dùng đổi thiết bị, chuyển workspace
   hoặc dữ liệu được chỉnh từ nơi khác; không thêm API/schema cho UI hướng dẫn.
+
+## D-068 — Đo phễu kích hoạt bằng snapshot tổng hợp, không theo dõi cá nhân
+
+- **Trạng thái:** Đang triển khai trên nhánh `feat/onboarding-usage-funnel`;
+  chưa phát hành Production.
+- **Quyết định:** Super Admin xem số tài khoản chủ trọ đã xác minh đạt các mốc
+  khu, phòng, chỉ số, bill. Hiển thị toàn thời gian và cohort đăng ký 30 ngày
+  gần đây, tỷ lệ trên tổng tài khoản từng cohort. API chỉ trả số tổng hợp, không
+  trả email, tên, ID hoặc dữ liệu khách thuê; phản hồi không được cache.
+- **Giới hạn:** Các mốc suy ra từ dữ liệu hiện có. Đây không phải event log hay
+  số lượt bấm và không xác định được ngày hoàn thành từng mốc. Bill đã có được
+  tính là hoàn thành cả các bước trước, kể cả dữ liệu phòng/chỉ số đã thay đổi.
+  Không tự tạo dữ liệu mẫu hoặc migration cho phép đo này.

@@ -166,6 +166,57 @@
 
   $('#admin-revenue-refresh').addEventListener('click', loadRevenueSummary);
 
+  // ---------- Phễu bắt đầu: số tổng hợp, không trả dữ liệu từng khách thuê ----------
+  let activationSummary = null;
+  let activationCohort = 'allTime';
+
+  function renderActivationSummary() {
+    if (!activationSummary) return;
+    $('#admin-activation-steps').hidden = false;
+    const cohort = activationSummary[activationCohort] || {};
+    const accounts = Number(cohort.accounts) || 0;
+    const label = activationCohort === 'allTime' ? 'Tất cả thời gian' : 'Đăng ký 30 ngày gần đây';
+    $('#admin-activation-summary').textContent = accounts
+      ? `${label}: ${accounts.toLocaleString('vi-VN')} tài khoản · ${Number(cohort.bill || 0).toLocaleString('vi-VN')} đã có bill (${Math.round((Number(cohort.bill) || 0) / accounts * 100)}%).`
+      : `${label}: chưa có tài khoản nào trong nhóm này.`;
+    $('#admin-activation-steps').querySelectorAll('[data-activation-step]').forEach(row => {
+      const reached = Number(cohort[row.dataset.activationStep]) || 0;
+      const percent = accounts ? Math.min(100, Math.round(reached / accounts * 100)) : 0;
+      row.querySelector('strong').textContent = reached.toLocaleString('vi-VN');
+      row.querySelector('small').textContent = `${percent}% tài khoản`;
+      row.querySelector('i').style.width = `${percent}%`;
+    });
+  }
+
+  async function loadActivationSummary() {
+    const refresh = $('#admin-activation-refresh');
+    refresh.disabled = true;
+    $('#admin-activation-summary').textContent = 'Đang tải mức sử dụng…';
+    try {
+      const result = await API.admin.getActivationSummary();
+      activationSummary = result.summary || {};
+      renderActivationSummary();
+    } catch (error) {
+      activationSummary = null;
+      $('#admin-activation-steps').hidden = true;
+      if (error.code === 401) return gotoLogin();
+      $('#admin-activation-summary').textContent = error.message || 'Không tải được mức sử dụng. Vui lòng thử lại.';
+    } finally {
+      refresh.disabled = false;
+    }
+  }
+
+  $('#admin-activation-refresh').addEventListener('click', loadActivationSummary);
+  document.querySelectorAll('[data-activation-cohort]').forEach(button => {
+    button.addEventListener('click', () => {
+      activationCohort = button.dataset.activationCohort;
+      document.querySelectorAll('[data-activation-cohort]').forEach(option => {
+        option.setAttribute('aria-pressed', String(option === button));
+      });
+      renderActivationSummary();
+    });
+  });
+
   function subscriptionCell(subscription) {
     if (!subscription) return '<span class="admin-muted">Chưa có gói</span>';
     const status = subscriptionStatusLabels[subscription.status] || subscription.status;
@@ -1329,6 +1380,7 @@
       await Promise.all([
         loadUsers(),
         loadRevenueSummary(),
+        loadActivationSummary(),
         loadConfig(),
         loadPlans(),
         loadAdminSubscriptionPayments(),

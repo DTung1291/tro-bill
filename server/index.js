@@ -48,6 +48,7 @@ const paymentHistory = require('./subscription-payment-history');
 const subscriptionPaymentAdmin = require('./subscription-payment-admin');
 const subscriptionRefunds = require('./subscription-refunds');
 const adminRevenue = require('./admin-revenue');
+const adminActivation = require('./admin-activation');
 const financialReports = require('./financial-reports');
 const rentPayments = require('./rent-payments');
 const deposits = require('./deposits');
@@ -653,6 +654,7 @@ app.post(
   wrap(subscriptionRefunds.transitionAdminRefundRequest)
 );
 app.get('/api/admin/revenue/summary', adminGuard, wrap(adminRevenue.getRevenueSummary));
+app.get('/api/admin/activation/summary', adminGuard, wrap(adminActivation.getActivationSummary));
 
 // ---------- Frontend tĩnh (thư mục cha) ----------
 const FRONTEND_DIR = path.join(__dirname, '..');

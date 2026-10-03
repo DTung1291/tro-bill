@@ -8,16 +8,33 @@ trong `../AGENTS.md`.
 
 | Trường | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 01/10/2026 (Asia/Ho_Chi_Minh) |
-| Trạng thái | Checklist onboarding đã phát hành Production, sẵn sàng bàn giao |
-| Branch hiện tại | `main` |
-| Worktree kỳ vọng | Sạch sau commit bàn giao; `.env.local-*` riêng tư luôn bị Git bỏ qua |
+| Cập nhật lần cuối | 03/10/2026 (Asia/Ho_Chi_Minh) |
+| Trạng thái | Đang triển khai đo phễu onboarding; chưa đủ cổng Preview để phát hành |
+| Branch hiện tại | `feat/onboarding-usage-funnel` |
+| Worktree kỳ vọng | Thay đổi tính năng trên branch; `.env.local-*` riêng tư luôn bị Git bỏ qua |
 | Phần ứng dụng phát hành gần nhất | `d86cc32` trên Production; readiness revision `d86cc325ccb4`, database/schema `ok`, runtime role `restricted` |
-| Việc code tiếp theo | Theo dõi phản hồi checklist của người dùng mới; chỉ sửa trên staging trước |
+| Việc code tiếp theo | Kiểm thử bằng Super Admin QA trên Preview nối staging trước khi phát hành |
 | Việc vận hành còn mở | Kiểm kê tài khoản Production đang có `is_admin=true` trước khi thu hồi; smoke test payment; nối provider thật; phỏng vấn pilot; adapter HĐĐT chờ provider |
 
 Không dùng commit trên bảng làm HEAD mặc định: luôn lấy HEAD thật bằng `git log`.
 “Phát hành gần nhất” chỉ là mốc ứng dụng đã được kiểm tra production.
+
+## Phiên 03/10/2026 — Đo mức sử dụng theo bốn mốc bắt đầu
+
+- Trên `feat/onboarding-usage-funnel` thêm API `GET /api/admin/activation/summary`
+  dưới `adminGuard` và mục “Kích hoạt” trong Super Admin. Tính số chủ trọ đã xác
+  minh đạt khu/phòng/chỉ số/bill ở toàn thời gian và nhóm tạo tài khoản trong
+  30 ngày gần đây. API chỉ trả aggregate và `Cache-Control: no-store`; không
+  trả định danh người dùng hay dữ liệu khách thuê. Không có migration.
+- Truy vấn chỉ đọc trên Neon staging trả all-time 8/7/3/3/3 và recent 30 ngày
+  7/6/2/2/2 (mẫu số/khu/phòng/chỉ số/bill) tại lúc kiểm tra. Local nối staging:
+  tài khoản chủ trọ thường nhận 403 ở API Super Admin như mong đợi; desktop và
+  mobile 390×844 không tràn ngang, trạng thái lỗi không hiển thị thanh tỷ lệ giả.
+  Bộ test đầy đủ 582/582 đạt; test mục tiêu 11/11 đạt sau khi căn đúng logic
+  chỉ số với checklist. Secret scan và diff check sạch. Chưa kiểm thử giao diện
+  có số liệu bằng phiên Super Admin QA.
+- **Chưa phát hành:** Backend/API mới cần Preview nối staging theo `AGENTS.md`.
+  Không push `main`/Production hoặc đánh dấu checklist hoàn tất trước cổng này.
 
 ## Phiên 01/10/2026 — Checklist bắt đầu trên Tổng quan
 

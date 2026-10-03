@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrọBill — Super Admin</title>
   <link rel="stylesheet" href="style.css?v=80" />
+  <link rel="stylesheet" href="admin-activation.css?v=1" />
   <link rel="stylesheet" href="date-input.css?v=1" />
   <link rel="stylesheet" href="ui-dialog.css?v=3" />
 </head>
@@ -28,6 +29,7 @@
 
     <nav class="admin-nav" aria-label="Đi đến nhóm quản trị">
       <a href="#admin-revenue-section"><span aria-hidden="true">📈</span>Tổng quan</a>
+      <a href="#admin-activation-section"><span aria-hidden="true">🧭</span>Kích hoạt</a>
       <a href="#subscription-payment-admin-section"><span aria-hidden="true">✅</span>Thanh toán</a>
       <a href="#plans-admin-section"><span aria-hidden="true">🏷️</span>Gói dịch vụ</a>
       <a href="#admin-users-section"><span aria-hidden="true">👥</span>Tài khoản</a>
@@ -57,6 +59,28 @@
         <article class="admin-metric admin-metric--conversion"><span>Trial → trả phí</span><strong id="revenue-conversion">—</strong><small id="revenue-conversion-detail"></small></article>
       </div>
       <p class="admin-cell-note" id="admin-revenue-generated"></p>
+    </section>
+
+    <section class="admin-revenue admin-activation admin-anchor-target" id="admin-activation-section" aria-labelledby="admin-activation-title">
+      <div class="admin-section-head">
+        <div>
+          <h2 id="admin-activation-title">🧭 Mức sử dụng theo mốc bắt đầu</h2>
+          <p class="admin-config-note">Số tài khoản chủ trọ đã xác minh đang có dữ liệu ở từng mốc. Đây là ảnh chụp hiện tại, không phải lịch sử lượt bấm hoặc thời điểm hoàn thành.</p>
+        </div>
+        <button type="button" class="admin-btn-ghost" id="admin-activation-refresh">Làm mới</button>
+      </div>
+      <div class="admin-activation-controls" role="group" aria-label="Nhóm tài khoản cần xem">
+        <button type="button" class="admin-btn-ghost" data-activation-cohort="allTime" aria-pressed="true">Tất cả</button>
+        <button type="button" class="admin-btn-ghost" data-activation-cohort="last30Days" aria-pressed="false">Đăng ký 30 ngày gần đây</button>
+      </div>
+      <p class="admin-activation-summary" id="admin-activation-summary" role="status" aria-live="polite">Đang tải mức sử dụng…</p>
+      <ol class="admin-activation-steps" id="admin-activation-steps" aria-label="Số tài khoản đạt từng mốc" hidden>
+        <li data-activation-step="property"><span>Khu trọ</span><strong>—</strong><small>—</small><div class="admin-activation-track" aria-hidden="true"><i></i></div></li>
+        <li data-activation-step="room"><span>Phòng đầu tiên</span><strong>—</strong><small>—</small><div class="admin-activation-track" aria-hidden="true"><i></i></div></li>
+        <li data-activation-step="reading"><span>Chỉ số đầu tiên</span><strong>—</strong><small>—</small><div class="admin-activation-track" aria-hidden="true"><i></i></div></li>
+        <li data-activation-step="bill"><span>Bill đầu tiên</span><strong>—</strong><small>—</small><div class="admin-activation-track" aria-hidden="true"><i></i></div></li>
+      </ol>
+      <p class="admin-cell-note">Tỷ lệ tính trên số tài khoản trong nhóm đang chọn. Tài khoản có vai trò nhân viên ở workspace khác không nằm trong thống kê; mốc khu mặc định thường được tạo tự động.</p>
     </section>
 
     <!-- Cấu hình ủng hộ nhà phát triển (toàn cục) -->
@@ -292,9 +316,9 @@
     </div>
   </div>
 
-  <script src="api.js?v=80"></script>
+  <script src="api.js?v=81"></script>
   <script src="ui-dialog.js?v=1"></script>
   <script src="date-input.js?v=6"></script>
-  <script src="admin.js?v=84"></script>
+  <script src="admin.js?v=85"></script>
 </body>
 </html>
